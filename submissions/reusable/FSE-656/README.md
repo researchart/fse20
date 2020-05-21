@@ -174,11 +174,12 @@ A description file is a JSON file in the following format, (e.g., the descriptio
   "sys": "models/abp/abp.lts",      // the path to the system model specification
   "env": "models/abp/abp_env.lts",  // the path to the environment model specification
   "prop": "models/abp/p.lts",       // the path to the property model specification
-  "deviation": "models/abp/abp_env_lossy.lts" // the path to the deviation model specification. In the "eofm" mode, the deviation model is not required.
+  "deviation": "models/abp/abp_env_lossy.lts" // the path to the deviation model specification.
+                                              // In the "eofm" mode, the deviation model is not required.
 }
 ```
 
-In the *eofm* mode, we need additional descriptions for translating a EOFM model to a LTSA model (however, this is not described in the paper due to the page limit):
+In the *eofm* mode, we need additional descriptions for translating a EOFM model to a LTSA model (e.g., the description for the radiation therapy system). However, the details of the translation process is not described in the paper due to the page limit):
 ```
 {
   "mode": "eofm",                     // should be either "fsp" or "eofm"
