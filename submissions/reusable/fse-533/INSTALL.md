@@ -62,6 +62,10 @@ For a full detailed description of each directory included in the package, pleas
 
 ### Running the Experiments
 
+First of all, the mutation testing experiments we performed are computationally expensive. For the 3000 command lines that we executed, it took from 3 to 4 weeks of nonstop execution using 15 cores. Therefore, before proceeding, bear in mind that it will take a lot of computational resources to rerun everything as we did. For this reason, we will provide guidelines on how to run everything, but we will focus on one command at a time.
+
+If you don't want to run the experiments again, we have provided the results of our own experiment in the directory `./experiments`. You can jump to the next section in order to learn how to evaluate the results directly.
+
 To simplify the examples, we will present them in the form of Linux commands (e.g., using `R /path/to/script.sh` instead of `R.exe C:\path\to\script.cmd`).
 
 To run the experiments, the first step is to go to the unpacked package directory.
@@ -116,7 +120,7 @@ The output of such command should be the logging of PIT, showing information abo
 
 If the logs show `Found  0 tests` or `0 tests received`, then there is something wrong. Probably it is caused by a wrong classpath. It should not happen, but if it does, [contact me](g.guizzo@ucl.ac.uk) and I can help you debug it.
 
-Since mutation testing is expensive, this might take a while. Once it is finished, run the following command to go to the results directory:
+Since mutation testing is expensive, this might take a few minutes (5-10 minutes). Once it is finished, run the following command to go to the results directory:
 
 ```bash
 cd ../../experiments/banker/rs/run-1
@@ -149,7 +153,7 @@ That is all. If you would like to replicate the results of our experiments exact
 
 ### Analysing the Results
 
-After running the experiments, you can find the results in the `./experiments` directory. You can find the full results of our experiments in this directory. Each subdirectory has the following pattern: `./experiments/<program>/<strategy>/<run>`. Let's analyse some results and generate the slopegraph of our paper.
+After running the experiments, you can find the results in the `./experiments` directory. If you haven't run the experiments, don't worry, we have provided the full results of our own experiments (as reported in the paper) in this directory. Each subdirectory has the following pattern: `./experiments/<program>/<strategy>/<run>`. Let's analyse some results and generate the slopegraph of our paper.
 
 The first step is to treat the raw data with `./scripts/treatment.R`. To do that, run the following command:
 
