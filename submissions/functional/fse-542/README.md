@@ -3,7 +3,7 @@
 This submission contains a replication package for the paper "Robotics Software Engineering: A Perspective from the Service Robotics Domain" (note that the name has been changed from the original "An Empirical Assessment of Robotics Software Engineering" due to the reviewers' feedback).
 
 We provide several artifacts within the same submission, divided into two categories: "Interview material" and "Survey material." The first contains the artifacts related to our interviews, that is, the interviews' guidelines (pdf format). The later contains the artifacts related to our online survey, i.e., the questionnaire (pdf format), the raw (anonymized) data in CSV format, and the R script we used to format, analyze, and represent such data.
-The whole package is made available [here](), with DOI.
+The whole package is made available [here](https://figshare.com/articles/Robotics_Software_Engineering_A_Perspective_from_the_Service_Robotics_Domain/12370547), with DOI 10.6084/m9.figshare.12370547.
 
 For more details and questions, please contact us at sergio.garcia@gu.se.
 
@@ -12,6 +12,8 @@ For more details and questions, please contact us at sergio.garcia@gu.se.
 This folder contains the interviews' guidelines, in pdf format (`interview-guide`). The same file contains our research questions, which were used as the basic structure for our semi-structured interviews.
 
 ## Survey material
+
+This folder contains all the artifacts related to the online survey we conducted. Concretely, we provide the questionnaire used for the survey, a dataset containing the raw data from the survey, and an analysis script used to format, analyze, and represent the data from the survey.
 
 ### Questionnaire (`questionnaire.pdf`)
 
