@@ -12,7 +12,7 @@ Github id: dstrueber
 ## Author 3
 Davide Brugali
 Email: davide.brugali@unibg.it
-Github id: dbrugali
+Github id: brugali
 
 ## Author 4
 Thorsten Berger
