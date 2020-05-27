@@ -2,14 +2,21 @@
 
 This submission contains a replication package for the paper "Robotics Software Engineering: A Perspective from the Service Robotics Domain" (note that the name has been changed from the original "An Empirical Assessment of Robotics Software Engineering" due to the reviewers' feedback).
 
-We provide several artifacts within the same submission, divided into two categories: "Interview material" and "Survey material." The first contains the artifacts related to our interviews, that is, the interviews' guidelines (pdf format). The later contains the artifacts related to our online survey, i.e., the questionnaire (pdf format), the raw (anonymized) data in CSV format, and the R script we used to format, analyze, and represent such data.
-The whole package is made available [here](https://figshare.com/articles/Robotics_Software_Engineering_A_Perspective_from_the_Service_Robotics_Domain/12370547), with DOI 10.6084/m9.figshare.12370547.
+We provide several artifacts within the same submission, divided into two categories: "Interview material" and "Survey material." The first contains the artifacts related to our interviews, that is, the interviews' guidelines (pdf format) and our codebook (docx format). The later contains the artifacts related to our online survey, i.e., the questionnaire (pdf format), the raw (anonymized) data in CSV format, and the R script we used to format, analyze, and represent such data. The whole package is made available [here](https://figshare.com/articles/Robotics_Software_Engineering_A_Perspective_from_the_Service_Robotics_Domain/12376931), with DOI 10.6084/m9.figshare.12376931.
 
 For more details and questions, please contact us at sergio.garcia@gu.se.
 
 ## Interview material
 
-This folder contains the interviews' guidelines, in pdf format (`interview-guide`). The same file contains our research questions, which were used as the basic structure for our semi-structured interviews.
+The folder contains artifacts related to the semi-structured interviews we conducted during our study. Due to confidentiality and privacy reasons we cannot give the raw data from our interviews (audio or transcriptions). Instead, we provide the guidelines of our interviews and the codebook we developed for the qualitative data analysis.
+
+### Interviews' guidelines (`interview-guide.pdf`)
+
+This artifact corresponds to the interviews' guidelines, in pdf format. The same file contains our research questions, which were used as the basic structure for our semi-structured interviews.
+
+### Codebook (`Codebook - ESEC-FSE.docx`)
+
+This artifact represents the codebook we developed while analyzing the qualitative data from the interviews through open coding. The codebook contains all the codes we created (hierarchy noted with indentation), the number of files where these codes are referenced, and the number of references. Note how the codebook is structured by our research questions, background (of the interviewee), and miscellaneous. 
 
 ## Survey material
 
@@ -27,7 +34,7 @@ The raw data collected from the survey was stored in this CSV file, each column 
 
 This script is used to format, analyze, and represent the data from the survey, and therefore `Robotics-2019.csv` needs to be stored in the same folder as the r script. When executed, the script will automatically generate two folders: `graphs` and `open-ended-answers`. The first will contain graphical representations of the data and the second textual answers to the open-ended questions from the questionnaire. Both folders will contain five subfolders each, corresponding to each of the groups we identified during our study. This categorization helped us during the analysis of our data to synthesize results.
 
-1. `academic`. Will contain data regarding the respondents who lay into the category of academic researchers or scientists.
+1. `academic`. Will contain data regarding the respondents who lay into the category of academic practitioners.
 
 2. `all`. Data from all groups.
 
