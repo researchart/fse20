@@ -22,4 +22,4 @@ Github id: thorstenberger
 ## Author 5
 Patrizio Pelliccione
 Email: patrizio.pelliccione@cse.gu.se
-Github id: SWESoS2016
+Github id: PatrizioPelliccione
