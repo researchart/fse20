@@ -22,7 +22,9 @@ Using [RStudio](https://rstudio.com) the dependencies and libraries should be au
 
 R requires the user to the set the working directory, which the user can easily do by uncommenting and editing line 34 of the script
 
-`setwd("path-to-your-folder")
+`setwd("path-to-your-folder")`
+
+### Executing the script
 
 To execute the script and generate the graphs and text files, please navigate to the folder where you stored the R script and execute the command
 
