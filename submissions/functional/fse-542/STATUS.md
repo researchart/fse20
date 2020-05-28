@@ -11,6 +11,6 @@ We apply for the badge of type "reusable." Functional artifacts must be document
 
 - Exercisable: "Included scripts and/or software used to generate the results in the associated paper can be successfully executed, and included data can be accessed and appropriately manipulated." The submission of our artifact contains an R script to format, analyze, and plot the data from the online survey. The data is provided as a CSV-formated spreadsehet, which can be easily manipulated if required.
 
-- Verification and validation (no definition provided by ACM): Our study provides qualitative and quantitative evidence on  software engineering practices in robotisc software engineering, allowing to verify and validity existing subjective ideas about this domain.
+- Verification and validation (no definition provided by ACM): Our study provides qualitative and quantitative evidence on  software engineering practices in robotics software engineering, allowing to verify and validity existing subjective ideas about this domain.
 
 In summary, we prepared a replication package for the submission (also available on a dedicated website https://sites.google.com/view/empirical-study-robotics-se/home). All our artifacts are documented as requested, so data is not only available but also reusable.
