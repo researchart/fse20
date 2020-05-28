@@ -19,4 +19,6 @@ nltk>=3.4.4        # Used for tokenisation
 Additionally, corpus generation or generation of the 𝛿-PDG requires either the use of a MS Windows machine with .NET 4.5 or newer or WSL1. 
 We have validated the system to work when the Windows specific code is called from WSL1. We have not validated using wine or mono under Linux.
 
+To install pygraphviz on Windows, one should apply the patch from [here](https://github.com/Kagami/pygraphviz/commit/fe442dc16accb629c3feaf157af75f67ccabbd6e) to a clone of the repository and install the patched repository using the steps from [here](https://github.com/pygraphviz/pygraphviz/issues/58) pointing to a 64-bit version of graphviz, obtainable from [here](https://ci.appveyor.com/project/ellson/graphviz/build/job/fry9cmn4jfegw13l/artifacts)
+
 A more detailed guide is available on the main repository for the project: [link](https://github.com/PPPI/Flexeme).
