@@ -18,6 +18,8 @@ Using [RStudio](https://rstudio.com) the dependencies and libraries should be au
 
 `install.packages(c("likert","plyr","lattice","ggplot2","dplyr","tidyverse","ggthemes"))`
 
+### Configure environment
+
 R requires the user to the set the working directory, which the user can easily do by uncommenting and editing line 34 of the script
 
 `setwd("path-to-your-folder")
