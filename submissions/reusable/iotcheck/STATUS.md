@@ -1,6 +1,6 @@
 # Status
 
-We apply for the **functional** badge. We believe that IoTCheck fulfills the criteria for this badge for the following reasons:
+We apply for the **reusable** badge. We believe that IoTCheck fulfills the criteria for this badge for the following reasons:
 
 1. IoTCheck is available for public use (see INSTALL.md in this folder).
 2. IoTCheck is documented carefully with relevant information and instructions for 
