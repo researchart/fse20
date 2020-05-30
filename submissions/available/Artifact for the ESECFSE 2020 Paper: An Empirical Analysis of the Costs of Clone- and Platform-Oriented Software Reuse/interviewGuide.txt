@@ -1,0 +1,39 @@
+﻿1. Ask about permission to record
+2. Introduce myself
+3. Explain the study, its structure, and background (ask for any questions)
+4. Roles in the organization (e.g., developer, modeler, domain expert, researcher, …)?
+5. For how long?
+6. Professional background (i.e., what studied and worked prior to the current role)?
+7. Introduction of the interview’s purpose
+	a. Explain the reasoning of costs in platform engineering
+	b. Explain process that we identified
+	c. Explain the goal of understanding costs of platform vs. clone & own reuse (short- vs. long-living clones)
+8. Did the interviewee work on either of both strategies?
+9. Worked on how many variants of what size for each strategy?
+10. Exemplify variant(s) for each approach, after what time (days, weeks, …) have they been integrated and how much effort (person-months) went into their development (potentially their size)?
+11. What are the activities you are concerned with and how much time do you spent on them In percentage, roughly (if possible, can you distinct for short- vs long-living clones)?
+	a. Decide about desired features (scoping)
+	b. Design requirements
+	c. Design new features
+	d. Find most similar existing variant
+	e. Plan the implementation
+	f. Implement new features
+	g. Assure quality
+	h. Fix bugs
+	i. Propagate bug fixes to other variants/platform
+	j. Coordinate within/outside the variant
+	k. Others
+12. If worked on short- and lone-living: What differences exist between both for the defined activities?
+13. Impact of cost factors on the examples: To what extent do the following cost factors impact the effort of your activities (ask for estimate of absolute numbers first; scale from strongly reduces to strongly increases effort: 7 options plus don’t know)
+	a. (how many LOC reused) Larger size of (white-box/black-box) reusable code
+	b. (how many new LOC) Larger size of the variant’s delta (new code)
+	c. (how many people) Additional people/larger team size for new variants
+	d. (how many people with knowledge of reused code) More people with remaining knowledge of existing platform/variants
+	e. (how many teams for specific activities) More teams with clear roles
+	f. (how many switches of responsibility) Less hand-overs between teams
+	g. (how many bugs) Finding less bugs
+	h. (how often tested and reviewed) Higher quality/stability of existing platform/variants 
+	i. Feature dependencies/interactions
+	j. Better modularity of existing platform/variants
+14.  What are the challenges the interviewee faces w.r.t. handling the variants and the platform in general?
+15. Any question from the interviewee about the study?
