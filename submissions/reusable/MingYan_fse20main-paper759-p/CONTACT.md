@@ -1,6 +1,6 @@
 ### Contact
 
-The implement of our upcoming ESEC/FSE paper **Deep Learning Library Testing via Effective Model Generation** is released at：https://github.com/Jacob-yen/LEMON
+The implementation of our upcoming ESEC/FSE paper **Deep Learning Library Testing via Effective Model Generation** is released at：https://github.com/Jacob-yen/LEMON
 
 Authors information:
 
