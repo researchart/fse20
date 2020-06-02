@@ -25,7 +25,7 @@ java -jar robustness-calculator.jar -h
 ```
 It should print the following help message:
 ```
-usage: [-h] [-v] --compute FILES...
+usage: [-h] [-v] --compute [-o OUTPUT] FILES...
 
 
 This program calculates the behavioral robustness of a system against a base
@@ -35,18 +35,20 @@ robustness of two systems or a system under different properties.
 
 
 required arguments:
-  --compute,   operation mode
+  --compute,        operation mode
   --compare
 
 
 optional arguments:
-  -h, --help   show this help message and exit
+  -h, --help        show this help message and exit
 
-  -v,          enable verbose mode
-  --verbose
+  -v, --verbose     enable verbose mode
+
+  -o OUTPUT,        save the results in a JSON file
+  --output OUTPUT
 
 
 positional arguments:
-  FILES        system description files in JSON
+  FILES             system description files in JSON
 
 ```

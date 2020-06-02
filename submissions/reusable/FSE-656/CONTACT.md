@@ -15,7 +15,7 @@ Email: garlan@cs.cmu.edu
 
 GitHub:
 
-## Eunsuk Kang
+## Eunsuk Kang (Corresponding Author)
 
 Carnegie Mellon University
 
