@@ -15,8 +15,6 @@ Folders of interest:
 * `/src/client-resolution-build/bin` - Binaries for KLEE with PSPA based object resolution
 * `/src/client-wit-build/bin` - Binaries for KLEE performing WIT with PSPA
 
-# Usage Example
-
 # Running the experiments
 
 We provide a script for each of the experiments in our evaluation.
@@ -91,11 +89,11 @@ The expected output:
         No R: 95.74, R: 0.52, N: 155688
 ```
 
-### CVE
+### CVE Reproduction
 To run the experiments for table 4:
 ```
-cd /klee-dsa-benchmarks
-./cve/libtasn1/run_cve_experiments.sh
+cd /klee-dsa-benchmarks/cve/libtasn1/
+./run_cve_experiments.sh
 ```
 To parse the results for table 4:
 TODO: ...
