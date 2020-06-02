@@ -33,7 +33,7 @@ Seperating the process into two distince phases facilitates easier exploration o
 4. Run: `python Setup.py <Path to setup> <Path to maven>` 
    - Example 1 (Windows): `python Setup.py C:\Users\amketk\Artifact  C:\ProgramData\chocolatey\lib\maven\apache-maven-3.6.3\`
    - Example 2 (MacOS): `python Setup.py /Users/amketk/Artifact /usr/local/Cellar/maven/3.6.3/`
-	 - To find out `<Path To Maven>` run `mvn --version`, which would output the maven version and the path to it. 
+   - To find out `<Path To Maven>` run `mvn --version`, which would output the maven version and the path to it. 
 		 
 ### Expected Outcome: 
 1. The console will print the activites that are being performed
@@ -71,13 +71,14 @@ Seperating the process into two distince phases facilitates easier exploration o
    - For Windows:
 	 - Run : `gremplin-server.bat`
    - **NOTE**: Wait for a minute or so, until the server is up on port 8182.  		
-3. Run: `cd <Path to Setup>/TypeChangeMiner`
+3. Run: `cd <Path to Setup>/TypeChangeStudy/TypeChangeMiner`
 4. Run: `java -cp "lib/*" org.osu.TypeFactMiner`
+    - **NOTE:** This step takes a while, because it will analyse all the commits in the project `guice` that contain a type change.
+   If you are a user, who just wants to check out how the tool works (like artifact evaluators), abort the command after a 3-4 minuts of analysis.
 5. Run: `java -cp "lib/*" org.osu.AnalyseChangePatterns`
 ### Expected Outcomes:
 1. The console will print the activities being performed.
-   - **NOTE:** This step takes a while, because it will analyse all the commits in the project `guice` that contain a type change.
-   If you are a user, who just wants to check out how the tool works (like artifact evaluators), abort the command after a 3-4 minuts of analysis.
+  
 
 
 ## STEP 3:
