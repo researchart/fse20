@@ -66,8 +66,7 @@ To run the experiments for tables 2 and 3:
 cd /klee-dsa-benchmarks
 ./run_coverage.sh
 ```
-We use _gcov_ and _lcov_ to compute the line coverage.
-To parse the results for table 2:
+To parse the results for table 2, we use _gcov_ and _lcov_ to compute the line coverage.
 For each benchmark (libosip, libtasn1, libtiff), run:
 ```
 cd /klee-dsa-benchmarks/<benchmark> // benchmark is libosip
