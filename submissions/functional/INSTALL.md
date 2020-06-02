@@ -5,16 +5,16 @@ The installation instructions for Debian are [here](https://docs.docker.com/engi
 We used the following version:
 - Docker version 18.09.0, build 4d60db4
 
-## Build Image
-Build the docker image:
+## Load Image
+Download the Docker image [here](https://doi.org/10.6084/m9.figshare.12410231)
+
+and load with 
 ```
-git clone git@github.com:srg-imperial/pspa-docker.git
-cd pspa-docker
-make klee38pspa
+docker load < klee38pspa.tar.gz
 ```
 
 ## Run Image
-Run the built docker image:
+Run the docker image:
 ```
 docker run -it --rm klee38pspa bash
 ```
