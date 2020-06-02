@@ -72,7 +72,7 @@ For each _benchmark_ (libosip, libtasn1, libtiff), run:
 cd /klee-dsa-benchmarks/<benchmark>
 ./compute_coverage.sh /output/cse/coverage/libosip/klee-out-<search>_<mode> && ./gen_report.sh /report
 ```
-where _search_ is one of `dfs, random-path`, and _mode_ is one of `static, pspa`.
+where _search_ is one `dfs` or `random-path`, and _mode_ is `static` or `pspa`.
 For example, for _libosip_ with _dfs_ and _pspa_, the expected output is:
 ```
 ...
