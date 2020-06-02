@@ -1,0 +1,55 @@
+<?php
+
+  echo '<option>English</option>';
+  echo '<option>Spanish</option>';
+  echo '<option>French</option>';
+  echo '<option>German</option>';
+  echo '<option>Italian</option>';
+  echo '<option>Chinese</option>';
+  echo '<option>Tagalog</option>';
+  echo '<option>Polish</option>';
+  echo '<option>Korean</option>';
+  echo '<option>Vietnamese</option>';
+  echo '<option>Portuguese</option>';
+  echo '<option>Japanese</option>';
+  echo '<option>Greek</option>';
+  echo '<option>Arabic</option>';
+  echo '<option>Hindi (urdu)</option>';
+  echo '<option>Russian</option>';
+  echo '<option>Yiddish</option>';
+  echo '<option>Thai (laotian)</option>';
+  echo '<option>Persian</option>';
+  echo '<option>French Creole</option>';
+  echo '<option>Armenian</option>';
+  echo '<option>Navaho</option>';
+  echo '<option>Hungarian</option>';
+  echo '<option>Hebrew</option>';
+  echo '<option>Dutch</option>';
+  echo '<option>Mon-khmer (cambodian)</option>';
+  echo '<option>Gujarathi</option>';
+  echo '<option>Ukrainian</option>';
+  echo '<option>Czech</option>';
+  echo '<option>Pennsylvania Dutch</option>';
+  echo '<option>Miao (hmong)</option>';
+  echo '<option>Norwegian</option>';
+  echo '<option>Slovak</option>';
+  echo '<option>Swedish</option>';
+  echo '<option>Serbocroatian</option>';
+  echo '<option>Kru</option>';
+  echo '<option>Rumanian</option>';
+  echo '<option>Lithuanian</option>';
+  echo '<option>Finnish</option>';
+  echo '<option>Panjabi</option>';
+  echo '<option>Formosan</option>';
+  echo '<option>Croatian</option>';
+  echo '<option>Turkish</option>';
+  echo '<option>Ilocano</option>';
+  echo '<option>Bengali</option>';
+  echo '<option>Danish</option>';
+  echo '<option>Syriac</option>';
+  echo '<option>Samoan</option>';
+  echo '<option>Malayalam</option>';
+  echo '<option>Cajun</option>';
+  echo '<option>Amharic</option>';
+
+?>

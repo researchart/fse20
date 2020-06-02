@@ -1,0 +1,6 @@
+/* USE WITH CAUTION */
+
+UPDATE language SET Lang1=0, Lang2=0;
+DELETE FROM events WHERE 1;
+DELETE FROM participants WHERE 1;
+DELETE FROM survey WHERE 1;
