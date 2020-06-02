@@ -83,7 +83,7 @@ The `results.R` script calculates the I-score, IH-score, and M-score values pres
 
 # Reproducing results in the paper:
 
-We now describe the steps to be followed to reproduce the results in our paper. Details about setting up the environment for running the scripts can be found in [INDEX.md](https://github.com/maestro-fla/fse20/submissions/functional/fse-894/INDEX.md).
+We now describe the steps to be followed to reproduce the results in our paper. Details about setting up the environment for running the scripts can be found in [INDEX.md](https://github.com/maestro-fla/fse20/blob/master/submissions/functional/fse-894/INSTALL.md).
 
 From the unzipped artifacts package, navigate to the scripts directory.
 
