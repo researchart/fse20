@@ -1,0 +1,7 @@
+set k_max=10;
+assume (all_k(k>= 0  and k<= 5  impl  lcv_cmd_fcs_dps_{k} >= 2.023*(k-0) +48.3408 -0.001) and all_k(k>= 5  and k<= 10  impl  lcv_cmd_fcs_dps_{k} < 2.023*(k-0) +48.3408 +0.001)) or (all_k(k>= 0  and k<= 10  impl  lcv_cmd_fcs_dps_{k} < 1.8496*(k-0) +45.357 ) and all_k(k>= 0  and k<= 10  impl  lcv_cmd_fcs_dps_{k} >= 1.3088*(k-0) +43.2714 )) or (all_k(k>= 0  and k<= 10  impl  lcv_cmd_fcs_dps_{k} >= 1.9187*(k-0) +44.6669 ) and all_k(k>= 0  and k<= 5  impl ( lcv_cmd_fcs_dps_{k} < 44.7267 ))) or (all_k(k>= 0  and k<= 10  impl  lcv_cmd_fcs_dps_{k} < 1.909*(k-0) +50.6278 ) and all_k(k>= 0  and k<= 10  impl  lcv_cmd_fcs_dps_{k} >= 1.9104*(k-0) +49.4667 )) or (all_k(k>= 0  and k<= 10  impl  lcv_cmd_fcs_dps_{k} < 1.6514*(k-0) +43.2714 ) and all_k(k>= 0  and k<= 10  impl  lcv_cmd_fcs_dps_{k} >= 1.7392*(k-0) +38.9674 )) or (all_k(k>= 0  and k<= 10  impl  lcv_cmd_fcs_dps_{k} >= 1.8883*(k-0) +54.819 ) and all_k(k>= 0  and k<= 5  impl ( lcv_cmd_fcs_dps_{k} < 78.9943 )));
+assume lcv_cmd_fcs_dps_>0;
+% single control point
+% lcv_cmd_fcs_dps_{k}<= lcv_cmd_fcs_dps_{k-1} and lcv_cmd_fcs_dps_{k}>= lcv_cmd_fcs_dps_{k-1};
+%assume vtas_adc_kts{k}<= vtas_adc_kts{k-1} and vtas_adc_kts{k}>= vtas_adc_kts{k-1};
+abs(lcvdt_cmd_fcs_dps2{k} - lcvdt_cmd_fcs_dps2{k-1}) <= 50;

@@ -1,0 +1,5 @@
+set k_max=100;
+assume ((ncv_cmd_fcs_dps<61.0888));
+assume vtas_adc_kts<50; 
+assume  (lcv_cmd_fcs_dps_>0) and  ( mcv_cmd_fcs_dps >0)  and (ncv_cmd_fcs_dps>0) and (xcv_cmd_fcs_fps>0);
+not(all_k(k<=99 impl ncvdt_cmd_fcs_dps2{k}>50));

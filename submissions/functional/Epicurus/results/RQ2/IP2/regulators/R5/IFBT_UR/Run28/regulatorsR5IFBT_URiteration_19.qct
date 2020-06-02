@@ -1,0 +1,7 @@
+set k_max=10;
+assume (all_k(k>= 0  and k<= 3  impl  lcv_cmd_fcs_dps_{k} >= -1.2226*(k-0) +21.6252 -0.001) and all_k(k>= 3  and k<= 6  impl  lcv_cmd_fcs_dps_{k} < -1.2226*(k-0) +21.6252 +0.001)) or (all_k(k>= 3  and k<= 9  impl  lcv_cmd_fcs_dps_{k} < 1.7593*(k-3) +32.7984 ) and all_k(k>= 3  and k<= 9  impl  lcv_cmd_fcs_dps_{k} >= 3.2031*(k-3) +23.1285 )) or (all_k(k>= 0  and k<= 6  impl  lcv_cmd_fcs_dps_{k} < 0.98998*(k-0) +21.6252 ) and all_k(k>= 0  and k<= 6  impl  lcv_cmd_fcs_dps_{k} >= 2.8721*(k-0) +4.608 )) or (all_k(k>= 0  and k<= 6  impl  lcv_cmd_fcs_dps_{k} >= -1.2226*(k-0) +21.6252 ) and all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} < 17.9631 ))) or (all_k(k>= 3  and k<= 9  impl  lcv_cmd_fcs_dps_{k} < 1.9319*(k-3) +32.7984 ) and all_k(k>= 3  and k<= 6  impl ( lcv_cmd_fcs_dps_{k} >= 44.3283 ))) or (all_k(k>= 0  and k<= 6  impl  lcv_cmd_fcs_dps_{k} >= 0.1024*(k-0) +32.184 ) and all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} < 16.3028 ))) or (all_k(k>= 0  and k<= 6  impl  lcv_cmd_fcs_dps_{k} < -0.20298*(k-0) +21.6252 ));
+assume lcv_cmd_fcs_dps_>0;
+% single control point
+% lcv_cmd_fcs_dps_{k}<= lcv_cmd_fcs_dps_{k-1} and lcv_cmd_fcs_dps_{k}>= lcv_cmd_fcs_dps_{k-1};
+%assume vtas_adc_kts{k}<= vtas_adc_kts{k-1} and vtas_adc_kts{k}>= vtas_adc_kts{k-1};
+abs(lcvdt_cmd_fcs_dps2{k} - lcvdt_cmd_fcs_dps2{k-1}) <= 50;

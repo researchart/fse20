@@ -1,0 +1,4 @@
+set k_max=101;
+assume (all_k(k>= 0  and k<= 100  impl  TL{k} >= 0.054291*(k-0) +4.9234 )) or (all_k(k>= 0  and k<= 100  impl  TL{k} >= 0.052123*(k-0) +4.6967 ) and all_k(k>= 0  and k<= 50  impl ( TL{k} < 10.3525 )));
+assume BL==0 and xin==0.1;
+abs(yout{100}-10) <= 0.1

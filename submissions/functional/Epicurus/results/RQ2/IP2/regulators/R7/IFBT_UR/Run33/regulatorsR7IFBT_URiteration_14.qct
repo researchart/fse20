@@ -1,0 +1,7 @@
+set k_max=10;
+assume (all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} < 6.0283*(k-0) +32.2028 )) or (all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} < 7.6428*(k-0) +32.2028 ) and all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} >= 6.9207*(k-0) +26.8484 )) or (all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} >= 7.804*(k-0) +40.603 ) and all_k(k>= 3  and k<= 6  impl ( beta_adc_deg{k} >= 15.906 ))) or (all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} < 8.1059*(k-0) +32.2028 ) and all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} >= 7.8635*(k-0) +30.8788 ) and all_k(k>= 3  and k<= 6  impl ( hcv_cmd_fcs_fps{k} >= 5.5163 ))) or (all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} >= 0.68932*(k-0) +32.2028 ) and all_k(k>= 0  and k<= 3  impl ( ncv_cmd_fcs_dps{k} < 86.8764 ))) or (all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} < 9.5885*(k-0) +40.603 ) and all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} >= 7.8862*(k-0) +40.1101 )) or (all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} >= 8.2936*(k-0) +37.1151 ) and all_k(k>= 0  and k<= 3  impl ( ncv_cmd_fcs_dps{k} < 87.427 )));
+assume ncv_cmd_fcs_dps>0;
+assume vtas_adc_kts>0 and vtas_adc_kts<50;
+%assume ncv_cmd_fcs_dps{k}<= ncv_cmd_fcs_dps{k-1} and ncv_cmd_fcs_dps{k}>= ncv_cmd_fcs_dps{k-1};
+%assume vtas_adc_kts{k}<= vtas_adc_kts{k-1} and vtas_adc_kts{k}>= vtas_adc_kts{k-1};
+abs(ncvdt_cmd_fcs_dps2{k} - ncvdt_cmd_fcs_dps2{k-1}) <=50;

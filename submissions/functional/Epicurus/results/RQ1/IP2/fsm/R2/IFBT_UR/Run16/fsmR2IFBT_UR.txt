@@ -1,0 +1,5 @@
+
+1,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 0  and k<= 1  impl ( not limits{k} )));,13.3433
+28,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,195.2217
+29,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,202.2105
+30,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,209.7974

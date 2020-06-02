@@ -1,0 +1,51 @@
+Model,Property,Policy,ControlPoints,Run,Assumption,IsSafe,ExecutionTime,Iteration
+fsm,R2,IFBT_UR,3,1,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,210.7816,30
+fsm,R2,IFBT_UR,3,2,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 0  and k<= 1  impl ( limits{k} )));,0,174.8836,30
+fsm,R2,IFBT_UR,3,3,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 0  and k<= 1  impl ( not limits{k} )));,0,173.4501,30
+fsm,R2,IFBT_UR,3,4,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,176.9705,30
+fsm,R2,IFBT_UR,3,5,assume (all_k(k>= 1  and k<= 2  impl ( not apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} )));,0,179.1420,30
+fsm,R2,IFBT_UR,3,6,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,176.0869,30
+fsm,R2,IFBT_UR,3,7,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,184.7035,30
+fsm,R2,IFBT_UR,3,8,assume (all_k(k>= 0  and k<= 1  impl ( not limits{k} )));,0,189.2611,30
+fsm,R2,IFBT_UR,3,9,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,180.3497,30
+fsm,R2,IFBT_UR,3,10,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )) and all_k(k>= 0  and k<= 1  impl ( not limits{k} )));,0,184.6226,30
+fsm,R2,IFBT_UR,3,11,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,199.2445,30
+fsm,R2,IFBT_UR,3,12,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,191.8226,30
+fsm,R2,IFBT_UR,3,13,assume (all_k(k>= 1  and k<= 2  impl ( not apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} )));,0,197.0198,30
+fsm,R2,IFBT_UR,3,14,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,196.9018,30
+fsm,R2,IFBT_UR,3,15,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,202.3847,30
+fsm,R2,IFBT_UR,3,16,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,209.7974,30
+fsm,R2,IFBT_UR,3,17,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,208.2222,30
+fsm,R2,IFBT_UR,3,18,,0,0.0000,30
+fsm,R2,IFBT_UR,3,19,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 0  and k<= 1  impl ( not limits{k} )));,0,217.7638,30
+fsm,R2,IFBT_UR,3,20,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,224.6838,30
+fsm,R2,IFBT_UR,3,21,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 0  and k<= 1  impl ( limits{k} )));,0,230.4732,30
+fsm,R2,IFBT_UR,3,22,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,239.9664,30
+fsm,R2,IFBT_UR,3,23,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,234.2577,30
+fsm,R2,IFBT_UR,3,24,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,241.4006,30
+fsm,R2,IFBT_UR,3,25,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,245.5151,30
+fsm,R2,IFBT_UR,3,26,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,251.9390,30
+fsm,R2,IFBT_UR,3,27,assume (all_k(k>= 0  and k<= 1  impl ( not limits{k} ))) or (all_k(k>= 0  and k<= 1  impl ( limits{k} ))) or (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 0  and k<= 1  impl ( limits{k} )));,0,256.7315,30
+fsm,R2,IFBT_UR,3,28,assume ();,0,257.8129,30
+fsm,R2,IFBT_UR,3,29,assume (all_k(k>= 0  and k<= 1  impl ( not limits{k} )));,0,263.8988,30
+fsm,R2,IFBT_UR,3,30,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( not standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} )));,0,265.9418,30
+fsm,R2,IFBT_UR,3,31,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 0  and k<= 1  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,0,261.2906,30
+fsm,R2,IFBT_UR,3,32,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 0  and k<= 1  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not standby{k} )));,0,272.6822,30
+fsm,R2,IFBT_UR,3,33,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 0  and k<= 1  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,0,268.3275,30
+fsm,R2,IFBT_UR,3,34,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,278.5665,30
+fsm,R2,IFBT_UR,3,35,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( not standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} )));,0,273.8708,30
+fsm,R2,IFBT_UR,3,36,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,282.3296,30
+fsm,R2,IFBT_UR,3,37,assume (all_k(k>= 1  and k<= 2  impl ( not apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} )));,0,296.4883,30
+fsm,R2,IFBT_UR,3,38,assume (all_k(k>= 1  and k<= 2  impl ( not apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( apfail{k} )) and all_k(k>= 2  and k<= 3  impl ( apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( apfail{k} )) and all_k(k>= 2  and k<= 3  impl ( not apfail{k} )));,0,288.7910,30
+fsm,R2,IFBT_UR,3,39,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,288.7589,30
+fsm,R2,IFBT_UR,3,40,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,308.0176,30
+fsm,R2,IFBT_UR,3,41,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,306.8025,30
+fsm,R2,IFBT_UR,3,42,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,319.7609,30
+fsm,R2,IFBT_UR,3,43,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,325.0011,30
+fsm,R2,IFBT_UR,3,44,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,344.2410,30
+fsm,R2,IFBT_UR,3,45,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,339.4394,30
+fsm,R2,IFBT_UR,3,46,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,356.9901,30
+fsm,R2,IFBT_UR,3,47,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,347.7845,30
+fsm,R2,IFBT_UR,3,48,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,362.6741,30
+fsm,R2,IFBT_UR,3,49,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,343.5723,30
+fsm,R2,IFBT_UR,3,50,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,0,363.9568,30

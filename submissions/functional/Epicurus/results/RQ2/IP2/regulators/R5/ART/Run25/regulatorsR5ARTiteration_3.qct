@@ -1,0 +1,7 @@
+set k_max=10;
+assume (all_k(k>= 0  and k<= 3  impl ( alt_des_ft{k} >= 46.7354 ))) or (all_k(k>= 0  and k<= 3  impl ( vtas_adc_kts{k} < 1.8357 )) and all_k(k>= 0  and k<= 3  impl ( alt_des_ft{k} < 46.7354 ))) or (all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} < 52.5435 )) and all_k(k>= 0  and k<= 3  impl ( beta_adc_deg{k} >= 6.8617 )) and all_k(k>= 3  and k<= 6  impl ( hdg_des_deg{k} < 19.9337 ))) or (all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} < 52.5435 )) and all_k(k>= 0  and k<= 3  impl ( beta_adc_deg{k} >= 93.8908 )) and all_k(k>= 3  and k<= 6  impl ( hdg_des_deg{k} >= 19.9337 ))) or (all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} >= 52.5435 )) and all_k(k>= 0  and k<= 3  impl ( alt_des_ft{k} < 44.6352 )) and all_k(k>= 0  and k<= 3  impl ( beta_dot{k} < 47.3208 ))) or (all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} < 52.5435 )) and all_k(k>= 0  and k<= 3  impl ( beta_adc_deg{k} < 93.8908 )) and all_k(k>= 3  and k<= 6  impl ( hdg_des_deg{k} >= 19.9337 )) and all_k(k>= 0  and k<= 3  impl ( alt_des_ft{k} >= 49.5451 )));
+assume lcv_cmd_fcs_dps_>0;
+% single control point
+% lcv_cmd_fcs_dps_{k}<= lcv_cmd_fcs_dps_{k-1} and lcv_cmd_fcs_dps_{k}>= lcv_cmd_fcs_dps_{k-1};
+%assume vtas_adc_kts{k}<= vtas_adc_kts{k-1} and vtas_adc_kts{k}>= vtas_adc_kts{k-1};
+abs(lcvdt_cmd_fcs_dps2{k} - lcvdt_cmd_fcs_dps2{k-1}) <= 50;
