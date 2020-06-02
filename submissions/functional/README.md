@@ -58,7 +58,70 @@ To parse the results:
 ```
 python3.5 parse_recoveries.py /output/cse/recoveries/ /out.csv
 ```
-TODO: The expected output:
+The expected output:
+```
+benchmark,config,mode,paths,recoveries,snapshots,usage,overhead
+libosip,skip_10,static,450747,1012604,631923,0,0.0
+libosip,skip_10,symbolic,484435,831105,677439,677439,4.17
+libosip,skip_5,static,123327,374093,12523,0,0.0
+libosip,skip_5,symbolic,155969,324350,26004,26004,0.52
+libosip,skip_2,static,756060,756009,2,0,0.0
+libosip,skip_2,symbolic,734785,734734,2,2,0.93
+libosip,skip_4,static,182035,574353,110743,0,0.0
+libosip,skip_4,symbolic,277670,506769,169877,169877,1.41
+libosip,skip_1,static,116742,396563,30988,0,0.0
+libosip,skip_1,symbolic,117886,382565,34867,34867,0.49
+libosip,skip_3,static,757665,757615,2,0,0.0
+libosip,skip_3,symbolic,736741,736691,2,2,0.94
+libosip,skip_7,static,747275,747224,2,0,0.0
+libosip,skip_7,symbolic,731407,731356,2,2,0.93
+libosip,skip_8,static,33697,483091,52531,0,0.0
+libosip,skip_8,symbolic,43869,481941,65442,65442,0.65
+libosip,skip_9,static,26473,245088,3253,0,0.0
+libosip,skip_9,symbolic,24623,228282,3147,3147,0.21
+libosip,skip_6,static,471682,1473900,716983,0,0.0
+libosip,skip_6,symbolic,479723,1275087,751046,751046,5.4
+libtasn1,skip_10,static,360,253932,5042,0,0.0
+libtasn1,skip_10,symbolic,1350,255957,15930,14637,1.08
+libtasn1,skip_5,static,605,183520,2686,0,0.0
+libtasn1,skip_5,symbolic,4057,60724,24674,24674,10.73
+libtasn1,skip_2,static,253,525676,3034,0,0.0
+libtasn1,skip_2,symbolic,1285,537402,19692,19692,1.76
+libtasn1,skip_4,static,261,372451,758,0,0.0
+libtasn1,skip_4,symbolic,421,498311,1309,1309,1.08
+libtasn1,skip_1,static,582,344230,523,0,0.0
+libtasn1,skip_1,symbolic,6397,374246,14099,14099,1.31
+libtasn1,skip_3,static,458,238892,589,0,0.0
+libtasn1,skip_3,symbolic,2023,32188,2820,2820,0.38
+libtasn1,skip_7,static,83,281003,106,0,0.0
+libtasn1,skip_7,symbolic,1447,146778,3313,1929,0.59
+libtasn1,skip_8,static,450,225546,531,0,0.0
+libtasn1,skip_8,symbolic,4032,73837,5863,5863,1.58
+libtasn1,skip_9,static,5581,380338,12163,0,0.0
+libtasn1,skip_9,symbolic,15732,114801,35292,35292,1.86
+libtasn1,skip_6,static,7564,162676,27152,0,0.0
+libtasn1,skip_6,symbolic,19343,128583,70911,51631,2.2
+libtiff,skip_10,static,252,384599,11,0,0.0
+libtiff,skip_10,symbolic,719,1160,14,14,0.41
+libtiff,skip_5,static,731,19810,690,0,0.0
+libtiff,skip_5,symbolic,731,894,694,694,0.4
+libtiff,skip_2,static,731,16101,4,0,0.0
+libtiff,skip_2,symbolic,731,14817,4,4,0.14
+libtiff,skip_4,static,731,38349,564,0,0.0
+libtiff,skip_4,symbolic,1188,1029,934,934,0.32
+libtiff,skip_1,static,618,443865,161,0,0.0
+libtiff,skip_1,symbolic,636,13451,2506,1917,1.6
+libtiff,skip_3,static,5118,293947,6117,0,0.0
+libtiff,skip_3,symbolic,5660,23297,6954,6954,2.26
+libtiff,skip_7,static,2878,37492,2891,0,0.0
+libtiff,skip_7,symbolic,27112,14413,44332,44332,8.22
+libtiff,skip_8,static,481,210033,15,0,0.0
+libtiff,skip_8,symbolic,497,1265,17,17,0.29
+libtiff,skip_9,static,10665,42413,16,0,0.0
+libtiff,skip_9,symbolic,139657,20508,5137,5137,0.92
+libtiff,skip_6,static,10665,43344,959,0,0.0
+libtiff,skip_6,symbolic,130397,10,2245,2245,0.91
+```
 
 ### Coverage
 To run the experiments for tables 2 and 3:
