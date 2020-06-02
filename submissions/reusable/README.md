@@ -2,10 +2,15 @@
 
 Available + Functional + very carefully documented and well-structured to the extent that reuse and repurposing is facilitated. In particular, norms and standards of the research community for artifacts of this type are strictly adhered to. 
 
-# Overview
-This artifact reproduces results shown in Tables 2 and 4 in our FSE 2020 submission. The reproduction of our results involves running 16 different scripts. Running these scripts serially takes us a total compute time of about 54 hours on a machine running Ubuntu 16.04 with a Intel(R) Xeon(R) CPU E5-2623 v3 @ 3.00GHz processor and 192 GB of memory. This compute time estimate does not take into account the reproduction of the results from the Java track of SV-COMP 2020 which is presented in Table 5 of the submission. 
+# Compute Time estimate
+This artifact reproduces results shown in Tables 2 and 4 in our FSE 2020 submission. The reproduction of our results involves running 16 different scripts. Running these scripts serially takes us a total compute time of about 54 hours on a machine running Ubuntu 16.04 with a Intel(R) Xeon(R) CPU E5-2623 v3 @ 3.00GHz processor and 192 GB of memory. This compute time estimate does not take into account the reproduction of the results from the Java track of SV-COMP 2020 which is presented in Table 5 of the submission. Since this is a long-running artifact, we urge the artifact reviewers to allow about 54 hours of compute time before they collect results to review the artifact. However, we provide a script that allows any-time collections of the current set of generated results.
+
+# Storage estimate
+Reproduction of the 
 
 # Reproducing data for Tables 2 and 4
+
+## Run individual benchmarks
 1. Build jpf-core and java-ranger using the instructions found in INSTALL.md. Ne
 2. cd fse20/submissions/reusable/java-ranger
 2. mkdir logs
@@ -17,7 +22,7 @@ Next, we run Java Ranger on a benchmark in five different modes.
 - Mode 4 corresponds to the addition of single-path cases to Mode 3. Results of running Java Ranger in this mode are shown in the "+single path cases" column in Tables 4a and 4b.
 - Mode 5 corresponds to the addition of early-returns summarization to Mode 4. Results of running Java Ranger in this mode are shown in the "+early return summ." column in Tables 4a and 4b.
  
-All steps below can be run in parallel to save compute time. The runs of Java Ranger (not SPF) for the WBS, TCAS benchmarks should finish within five minutes at most. Also, the runs of the Schedule benchmark for both SPF and Java Ranger should finish within a minute. All the runs for SPF will take much longer than Java Ranger to complete.
+All steps below can be run in parallel to save compute time. The runs of Java Ranger (not SPF) for the WBS, TCAS benchmarks should finish within five minutes at most. Also, the runs of the Schedule benchmark for both SPF and Java Ranger should finish within a minute. All the runs for SPF will take much longer than Java Ranger to complete. Each command below will generate a log file in the fse20/submissions/reusable/java-ranger/logs directory. A run is complete when Java Ranger has completed writing to the log file. 
  
 1. cd src/examples/veritesting/wbs/ && ./runWBS-SPF.sh && cd ../../../..
   - runs Java Ranger in mode 1 (same as running SPF) on the WBS benchmark with the step function run for five steps with each step taking 3 new symbolic inputs. 
@@ -51,3 +56,9 @@ All steps below can be run in parallel to save compute time. The runs of Java Ra
   - runs Java Ranger in mode 1 on the MerArbiter benchmark.
 16. cd src/MerArbiter-v2/ && ./runMerarbiter-JR.sh && cd ../../../..
   - runs Java Ranger in modes 2, 3, 4, 5 on the MerArbiter benchmark.
+
+## Collect results
+We urge the artifact reviewers to allocate 54 hours of compute time to reproduce results from Tables 2, 4. The below script can be used to collect the current set of results into a CSV format.
+1. cd fse20/submissions/reusable/java-ranger
+2. perl extract-detailed-results.pl logs/ output.csv
+ - this command scans the generated
