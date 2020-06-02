@@ -1,4 +1,4 @@
-## Getting Started
+# Getting Started
 
 Run the docker image:
 `docker run --rm -it klee38pspa bash`
@@ -15,6 +15,22 @@ Folders of interest:
 * `/src/client-resolution-build/bin` - Binaries for KLEE with PSPA based object resolution
 * `/src/client-wit-build/bin` - Binaries for KLEE performing WIT with PSPA
 
-## Running the experiments
+# Usage Example
 
-TODO
+# Running the experiments
+
+## Statistics
+
+## Application: Chopped Symbolic Execution
+
+### Recoveries
+
+### Coverage
+
+### CVE
+
+### Termination
+
+## Application: Symbolic Pointers Resolution
+
+## Application: WIT
