@@ -1,3 +1,9 @@
-We are applying for a functional badge.
+#Status
 
-This artifact is able to run our evaluation as presented in the paper. We document how to obtain the results presented.
+## Available
+
+TODO: provide DOI...
+
+## Functional
+
+TODO: explain...
