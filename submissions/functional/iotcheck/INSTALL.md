@@ -24,3 +24,7 @@ To download this artifact please open
 https://github.com/uci-plrg/iotcheck-data.
 
 We have provided more information and instructions about the artifact in the [README.md](https://github.com/uci-plrg/iotcheck-data/blob/master/README.md).
+
+#### Reproducing Our Results
+
+As we have recommended [here](https://github.com/uci-plrg/iotcheck#further-notes), it is better to start running IoTCheck for categories with shorter lists of apps, e.g., `acfanheaterSwitches`, `cameraSwitches`, and `ventfanSwitches`. For example, if we run IoTCheck for the `acfanheaterSwitches` group, we will see log files generated in `iotcheck/logs/acfanheaterSwitches`. All the log files will report conflicts between pairs, except for the pair `its-too-cold.groovy` and `its-too-hot.groovy`. We can check these results against the tab `Other Switches` of the spreadsheet `Switches.xlsx` stored in [`iotcheck-data/Device Interaction/Automation`](https://github.com/uci-plrg/iotcheck-data/tree/master/Device%20Interaction/Automation).
