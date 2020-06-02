@@ -49,7 +49,7 @@ Seperating the process into two distince phases facilitates easier exploration o
 ## STEP 1
 
 ### Instructions:
-1. Run: `cd <Path To SetUp>/SimpleTypeChangeMiner`
+1. Run: `cd <Path To SetUp>/TypeChangeStudy/SimpleTypeChangeMiner`
 2. Run: `java -cp "lib/*" Runner`
 ### Expected Outcome: 
 1. The console will print the activities being performed.
@@ -68,7 +68,7 @@ Seperating the process into two distince phases facilitates easier exploration o
 3. On a seperate terminal: 
    - Run: `cd <Path to setup>/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
    - For Linux/Mac:
-	 - Run : `./gremlin-server.sh`
+	 - Run : `./gremlin-server.sh console`
    - For Windows:
 	 - Run : `gremplin-server.bat`
    - **NOTE**: Wait for a minute or so, until the server is up on port 8182.  		
