@@ -1,6 +1,6 @@
 # Readme
 
-This artifact consists of a Docker container that can be obtained [here](https://doi.org/10.5281/zenodo.3872805) (alternative, pre-built, [here](https://hub.docker.com/r/mreif/blast)).
+This artifact consists of a Docker container that can be obtained [here](https://doi.org/10.5281/zenodo.3872848) (alternative, pre-built, [here](https://hub.docker.com/r/mreif/blast)).
 The Docker container contains the necessary tools (OPAL, of which BlaSt is part of and DOOP), benchmarks (XCorpus, DoopBenchmarks), scripts to run the tools for the experiments performed in the paper and scripts to clean up the output of these experiments to reproduce the tables from the paper.
 
 After obtaining the Docker container and starting it as explained in __INSTALL.md__, the experiments can be executed as explained below:
@@ -8,12 +8,12 @@ After obtaining the Docker container and starting it as explained in __INSTALL.m
 ## Running the experiments
 
 Execution of the experiments is performed through the __evaluation.sh__ shell script. This script takes two kinds of parameters, a list of all experiments to execute and a number of repetitions to perform (defaulting to 1).
-In order to run all experiments with 7 repetitons as performed in the paper, run
+In order to run all experiments with 7 repetitions as performed in the paper, run
 ```
 $ ./evaluation.sh -ex1_purity -ex1_callgraph -ex2 -ex3 -rounds 7
 ```
 
-> Note: Using 7 repetitions, this may take several days. Also, 128GB of memory are required for the Scala sub-experiment of experiment 3. All other experiments require 32GB of memory. Experiment 2 will execute with up to 128 threads and is therefore best suited to a system with 64 cores and SMT.
+> Note: Using 7 repetitions, this may take several days. Also, 128GB of memory is required for the Scala sub-experiment of experiment 3. All other experiments require 32GB of memory. Experiment 2 will execute with up to 128 threads and is, therefore, best suited to a system with 64 cores and SMT.
 
 
 You can also execute the individual sub-experiments of experiment 3 with individual flags, e.g.
@@ -52,7 +52,7 @@ __raw-results.csv__, containing the relevant data for all individual repetitions
 ```
 results/RQ2_purity/hsqldb/aggregated-results.csv
 ```
-contains the results presented in Table 2 in the paper (including additional rows ommitted from the paper for brevity).
+contains the results presented in Table 2 in the paper (including additional rows omitted from the paper for brevity).
 
 ## Reuse
 
@@ -64,7 +64,7 @@ $ cd /home/blast-evaluation/opal
 $ sbt -J-Xmx32G "; project Tools; runMain org.opalj.support.info.Purity"
 $ sbt -J-Xmx32G "; project Tools; runMain org.opalj.support.info.CallGraph -help"
 ```
-in order to get documentation on further parameter for both the purity and call-graph analyses.
+in order to get documentation on further parameters for both the purity and call-graph analyses.
 The _-J-Xmx_ parameter to _sbt_ sets the amount of available heap space, 32GB is typically enough for most analyses, but if you encounter problems with the heap space, you may want to change this.
 
 You can execute

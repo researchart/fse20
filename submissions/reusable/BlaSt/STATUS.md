@@ -1,11 +1,11 @@
 # Status
 
-We apply for all three badges (availabe, functional and reusable). 
+We apply for all three badges (available, functional and reusable). 
 
 
 ## Available
 
-The artifact is available at [Zenodo](https://doi.org/10.5281/zenodo.3872805).
+The artifact is available at [Zenodo](https://doi.org/10.5281/zenodo.3872848).
 
 
 ## Functional
@@ -20,7 +20,7 @@ The artifact is:
 
 * exercisable: Scripts included in the Docker container can be exercised as described in the README.md. Results are produced as .csv files and can be manipulated by further scripts included in the Docker container or they can be manipulated directly outside of the Docker container.
 
-* valdiation/verification: The artifact can be used to reproduce the results of the paper directly, as the scripts contained in the Docker container are the original scripts that were used to generate these results.
+* validation/verification: The artifact can be used to reproduce the results of the paper directly, as the scripts contained in the Docker container are the original scripts that were used to generate these results.
 
 
 ## Reusable
@@ -37,4 +37,4 @@ The artifact can also be repurposed to facilitate research:
 
 * in various static analysis/programming language domains, e.g., Immutability, by using BlaSt to write the analyses
 
-* on the modularity of static analyses by comparing the complexity of our case study implemenations (Escape Analysis, Purity Analysis, Call Graphs, etc.) to other frameworks and their implementations.
+* on the modularity of static analyses by comparing the complexity of our case study implementations (Escape Analysis, Purity Analysis, Call Graphs, etc.) to other frameworks and their implementations.

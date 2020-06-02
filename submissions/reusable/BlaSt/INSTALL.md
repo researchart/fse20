@@ -14,7 +14,7 @@ How to adapt these settings globally can be found here:
 We give hints in the **README.md** file which settings we recommend for which experiments. However, all experiments require a minimum of 32GB of memory. 
  
 
-1. Get the Artifact from [here](https://doi.org/10.5281/zenodo.3872805).
+1. Get the Artifact from [here](https://doi.org/10.5281/zenodo.3872848).
 
 2. Extract the zip-file to a directory of your choice and find the Dockerfile that was included in the zip-file.
 
