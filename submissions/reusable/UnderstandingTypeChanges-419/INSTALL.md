@@ -14,66 +14,76 @@ In this step we :
    * Performs analysis on the commit history of a project as whole to detect migrations 
    * Reports the edit patterns performed to apply the type change.
 
-Seperating the process into two distince phases facilitates easier exploration of the data.
+Seperating the process into two distince phases facilitates easier exploration of the data, specially when the study has to be run over 100+ projects.
 
 
 ## PREREQUISITES
-1. JDK 8 + (has been tested to work with JDK 11)
-2. Maven 3.6 + 
-3. Python 3+
+1. JDK 10 + (has been tested to work with JDK 11)
+2. Python 3+
+3. pip 
+
+
+
+## SETUP
+
+### Instructions:
+1. Clone the project `https://github.com/ameyaKetkar/RunTypeChangeStudy.git`
+2. Run: `cd RunTypeChangeMiner`
+3. Run: `pip install --user -r requirements.txt`
+4. Run: `python Setup.py <Path to setup> <Path to maven>` 
+   - Example 1 (Windows): `python Setup.py C:\Users\amketk\Artifact  C:\ProgramData\chocolatey\lib\maven\apache-maven-3.6.3\`
+   - Example 2 (MacOS): `python Setup.py /Users/amketk/Artifact /usr/local/Cellar/maven/3.6.3/`
+	 - To find out `<Path To Maven>` run `mvn --version`, which would output the maven version and the path to it. 
+		 
+### Expected Outcome: 
+1. The console will print the activites that are being performed
+2. In the end you should see a folder named `TypeChangeStudy` at the `<Path to Setup>`
+   - It contains 3 projects : `SimpleTypeChangeMiner`, `TypeChangeMiner` and `DataAnalysis`
+   - A folder named `Corpus`
+	 - This will contain a file named `mavenProjectsAll.csv`. It contains the list of projects that will be analyzed.
+	 - This file has one entry currently for the project google/Guice. Users can add any Github Java maven projects to this file.
+   - Another folder named  `apache-tinkerpop-gremlin-server-3.4.4/bin/gremlin-server.sh`
 
 
 ## STEP 1
 
-1. Clone the project: `git clone https://github.com/ameyaKetkar/SimpleTypeChangeMiner.git`
-2. Update the [property file](https://github.com/ameyaKetkar/SimpleTypeChangeMiner/blob/master/paths.properties)
-   
-   * *PathToCorpus*: Location where the subject systems could be found or could be cloned at.
-   * *InputProjects*: List of the csv file containing the name of the project and its git URL. 
-	 * Place this file in the folder *PathToCorpus*
-	 * Each entry in this file should be (ProjectName, Git URL).
-	 * [Sample](https://github.com/ameyaKetkar/SimpleTypeChangeMiner/blob/master/mavenProjectsAll.csv)
-   * *mavenHome*: The path maven executable.
-   
-3. Run the following commands:
-   * `cd ~/SimpleTypeChangeMiner`
-   * `mvn clean install`
-   * `mkdir Output`
-   * `cd Output`
-   * `mkdir ProtosOut`
-   * `mkdir tmp`
-4. Import the project in your favorite IDE and run the main class [Runner.java](https://github.com/ameyaKetkar/SimpleTypeChangeMiner/blob/master/src/main/java/Runner.java)
+### Instructions:
+1. Run: `cd <Path To SetUp>/SimpleTypeChangeMiner`
+2. Run: `java -cp "lib/*" Runner`
+### Expected Outcome: 
+1. The console will print the activities being performed.
+2. You should observe the output being populated at 
+   - `~/SimpleTypeChangeMiner/Output/ProtosOut`
+   - `~/SimpleTypeChangeMiner/Output/dependencies`
 
-5. As the projects get analysed the following output is expected: 
-   * a file `commits_<project_name>.txt` should appear in `~/SimpleTypeChangeMiner/Output/ProtosOut/`
-   * Jars of the third party dependencies required by the project should get downloaded at `~/SimpleTypeChangeMiner/Output/tmp`
-   
+**NOTE:** This step takes a while, because it will analyse all the commits in the project `guice`.
+   If you are a user, who just wants to check out how the tool works (like artifact evaluators), abort the command after a 3-4 minuts of analysis.
+
+
 ## STEP 2
+### Instructions
+1. Run: `cd ~/RunTypeChangeStudy`  (This was the repository that you cloned for the setup stage)
+2. Run: `python CopyPaste.py`
+3. On a seperate terminal: 
+   - Run: `cd <Path to setup>/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
+   - For Linux/Mac:
+	 - Run : `./gremlin-server.sh`
+   - For Windows:
+	 - Run : `gremplin-server.bat`
+   - **NOTE**: Wait for a minute or so, until the server is up on port 8182.  		
+3. Run: `cd <Path to Setup>/TypeChangeMiner`
+4. Run: `java -cp "lib/*" org.osu.TypeFactMiner`
+5. Run: `java -cp "lib/*" org.osu.AnalyseChangePatterns`
+### Expected Outcomes:
+1. The console will print the activities being performed.
+   - **NOTE:** This step takes a while, because it will analyse all the commits in the project `guice` that contain a type change.
+   If you are a user, who just wants to check out how the tool works (like artifact evaluators), abort the command after a 3-4 minuts of analysis.
 
-1. Clone the project : `git clone https://github.com/ameyaKetkar/TypeChangeMiner.git`
-2. Update the [property file](https://github.com/ameyaKetkar/TypeChangeMiner/blob/master/paths.properties)
 
-   * *PathToCorpus*: Location where the subject systems could be found or could be cloned at.
-   * *InputProjects*: List of the csv file containing the name of the project and its git URL. 
-	 * Place this file in the folder *PathToCorpus*
-	 * Each entry in this file should be (ProjectName, Git URL).
-	 * [Sample](https://github.com/ameyaKetkar/SimpleTypeChangeMiner/blob/master/mavenProjectsAll.csv)
-	 
-3. Run the following commands:
-   * `cd ~/TypeChangeMiner`
-   * `mvn clean install`
-   * `mkdir Output`
-   * `mkdir Input`
-   * `cd Input`
-   * Copy the output from *SimpleTypeChangeMiner* (i.e. `~/SimpleTypeChangeMiner/Output`) to input of *TypeChangeMiner* (i.e. `~/TypeChangeMiner/Input`)
-   * Rename `~/TypeChangeMiner/Input/tmp` to `~/TypeChangeMiner/Input/dependencies`
-   
-4. Import the project in your favorite IDE	 
-
-5. Download and unzip this [apache tinkerpop server]().
-   * Run the script `apache-tinkerpop-gremlin-server-3.4.4/bin/gremlin-server.sh`
-   * It will start a in-memory tinkerpop database that contains all the classes, methods and fields declared in *Java Runtime Environment*
-   
-6. To collect the detailed type changes (as discussed in the paper), run the main method in the [class](https://github.com/ameyaKetkar/TypeChangeMiner/blob/master/src/main/java/TypeFactMiner.java)
-
-7. To detect type migrations, run the main method in the [class](https://github.com/ameyaKetkar/TypeChangeMiner/blob/master/src/main/java/MineTypeMigrationAgain.java)
+## STEP 3:
+### Instructions
+1. Run `cd <Path to setup>/TypeChangeStudy/DataAnalysis`
+2. Run `pip install --user -r requirements.txt`
+3. Run `python ToHtml.py`
+### Expected outcomes
+1. open `<Path to Setup>/TypeChangeStudy/DataAnalysis/docs/index.html` in the browser.
