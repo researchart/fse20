@@ -28,7 +28,7 @@ Seperating the process into two distince phases facilitates easier exploration o
 ## SETUP
 
 ### Instructions:
-1. Clone the project `https://github.com/ameyaKetkar/RunTypeChangeStudy.git`
+1. Clone the project `git clone https://github.com/ameyaKetkar/RunTypeChangeStudy.git`
 2. Run: `cd RunTypeChangeMiner`
 3. Run: `pip install --user -r requirements.txt`
 4. Run: `python Setup.py <Path to setup> <Path to maven>` 
