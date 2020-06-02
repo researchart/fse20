@@ -1,0 +1,31 @@
+
+1,assume (all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} < 32.2215 )));,21.0202
+2,assume (all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} < 32.2215 ))) or (all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} < 95.2449 )) and all_k(k>= 3  and k<= 6  impl ( hdg_des_deg{k} >= 11.4942 )) and all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} >= 32.2215 )));,42.7214
+3,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,63.6366
+4,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,85.6302
+5,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,107.7261
+6,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,131.9887
+7,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,156.0964
+8,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,179.5907
+9,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,202.4681
+10,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,225.1567
+11,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,247.4977
+12,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,270.7136
+13,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,293.5598
+14,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,318.5999
+15,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 55.8971 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,341.7197
+16,assume (all_k(k>= 0  and k<= 3  impl ( mcv_cmd_fcs_dps{k} < 53.9918 ))) or (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,365.0206
+17,assume (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,388.1702
+18,assume (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,409.8863
+19,assume (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,433.5523
+20,assume (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,455.2956
+21,assume (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,479.0589
+22,assume (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,502.3336
+23,assume (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,525.3276
+24,assume (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,548.2216
+25,assume (all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} < 97.0113 )) and all_k(k>= 0  and k<= 3  impl ( hcv_cmd_fcs_fps{k} < 45.4774 )));,570.3725
+26,assume (all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} < 44.5486 ))) or (all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} >= 44.5486 )));,592.8006
+27,assume (all_k(k>= 3  and k<= 9  impl  xcv_cmd_fcs_fps{k} < -0.91992*(k-3) +97.0113 ) and all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} < 44.5486 ))) or (all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} >= 44.5486 )));,615.2101
+28,assume (all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} < 44.5486 ))) or (all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} >= 44.5486 )));,638.404
+29,assume (all_k(k>= 3  and k<= 9  impl  xcv_cmd_fcs_fps{k} < -0.92372*(k-3) +97.0113 ) and all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} < 44.5486 ))) or (all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} >= 44.5486 )));,660.0117
+30,assume (all_k(k>= 3  and k<= 6  impl ( airspeed_des_fps{k} >= 44.5486 )));,684.1308

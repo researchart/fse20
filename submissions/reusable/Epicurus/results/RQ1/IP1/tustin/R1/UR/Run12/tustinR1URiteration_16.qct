@@ -1,0 +1,5 @@
+set k_max=10;
+assume (all_k(k>= 0  and k<= 5  impl  xin{k} < 0.059187*(k-0) +0.0063591 +0.001) and all_k(k>= 5  and k<= 10  impl  xin{k} >= 0.059187*(k-0) +0.0063591 -0.001)) or (all_k(k>= 0  and k<= 10  impl  xin{k} < -0.026992*(k-0) +0.73056 )) or (all_k(k>= 0  and k<= 10  impl  xin{k} < 0.018072*(k-0) +0.41751 ) and all_k(k>= 0  and k<= 5  impl ( xin{k} >= 0.46064 ))) or (all_k(k>= 0  and k<= 10  impl  xin{k} < -0.075054*(k-0) +0.86596 ) and all_k(k>= 0  and k<= 5  impl ( xin{k} >= 0.73056 ))) or (all_k(k>= 0  and k<= 10  impl  xin{k} < 0.069965*(k-0) +0.12065 ) and all_k(k>= 0  and k<= 10  impl  xin{k} >= 0.059187*(k-0) +0.0063591 ));
+assume TL==0 and BL==50 and xin>=0;
+(((TL >= yout) and (yout >= BL)) or ((BL >= yout) and (yout >= TL))) impl 
+(yout == (0.5*T*(xin{k} + xin{k-1}) + yout{k-1}));

@@ -1,0 +1,4 @@
+set k_max=101;
+assume (all_k(k>= 0  and k<= 100  impl  TL{k} >= 0.050134*(k-0) +4.8964 ));
+assume BL==0 and xin==0.1;
+abs(yout{100}-10) <= 0.1

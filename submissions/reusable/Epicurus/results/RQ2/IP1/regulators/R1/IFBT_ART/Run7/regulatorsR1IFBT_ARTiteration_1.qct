@@ -1,0 +1,4 @@
+set k_max=100;
+assume (all_k(k>= 50  and k<= 100  impl ( lcv_cmd_fcs_dps_{k} < 78.3089 )) and all_k(k>= 0  and k<= 50  impl ( mcv_cmd_fcs_dps{k} >= 1.6148 )) and all_k(k>= 0  and k<= 50  impl ( beta_adc_deg{k} < 88.0547 )) and all_k(k>= 50  and k<= 100  impl ( hdg_des_deg{k} >= 5.4016 )));
+assume (lcv_cmd_fcs_dps_>0) and ( mcv_cmd_fcs_dps >0) and(ncv_cmd_fcs_dps>0) and (xcv_cmd_fcs_fps>0);
+not(all_k(k<=99 impl lcvdt_cmd_fcs_dps2{k}>50));

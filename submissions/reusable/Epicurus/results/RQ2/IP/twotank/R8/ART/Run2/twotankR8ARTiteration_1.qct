@@ -1,0 +1,4 @@
+set k_max=70;
+assume (t1h>=0 and t1h<=7 and t2h>=0 and t2h<=4); 
+assume ((t2h<2.8735));
+(t2_sh{k} == 1) impl (p_valve_state{k} == 1 and e_valve_state{k}  == 1);

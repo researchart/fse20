@@ -1,0 +1,4 @@
+set k_max=70;
+assume (t1h>=3 and t1h<=7 and t2h>=0 and t2h<=2); 
+assume ((t1h<4.2084) and (t2h<0.98741)) or ((t1h>=4.9539)) or ((t2h>=1.1817) and(t1h<4.2084)) or ((t1h>=4.5102) and(t1h<4.9258)) or ((t1h>=4.2084) and(t1h<4.4927));
+(t2_h{k} < 1) impl (t2_sl{k} == 0.0);

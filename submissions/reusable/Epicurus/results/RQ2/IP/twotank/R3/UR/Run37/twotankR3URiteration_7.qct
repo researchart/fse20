@@ -1,0 +1,4 @@
+set k_max=70;
+assume (t1h>=0 and t1h<=7 and t2h>=3 and t2h<=4); 
+assume ((t2h>=3.8688)) or ((t1h>=5.0243) and (t2h>=3.5378) and(t2h<3.8688));
+all_k(k<=70 impl (t2_h{k}<3 impl t2_sh{k}==0));

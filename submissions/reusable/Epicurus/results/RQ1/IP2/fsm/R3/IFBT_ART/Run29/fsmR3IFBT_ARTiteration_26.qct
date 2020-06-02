@@ -1,0 +1,3 @@
+set k_max=3;
+assume (all_k(k>= 0  and k<= 1  impl ( not supported{k} ))) or (all_k(k>= 0  and k<= 1  impl ( standby{k} )) and all_k(k>= 0  and k<= 1  impl ( supported{k} ))) or (all_k(k>= 0  and k<= 1  impl ( not standby{k} )) and all_k(k>= 0  and k<= 1  impl ( supported{k} )));
+(FiniteStateMachine.STATE{k-1} == 1 and not FiniteStateMachine.good{k-1}) impl (FiniteStateMachine.STATE{k}==2);
