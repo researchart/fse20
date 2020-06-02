@@ -66,8 +66,23 @@ To run the experiments for tables 2 and 3:
 cd /klee-dsa-benchmarks
 ./run_coverage.sh
 ```
+We use _gcov_ and _lcov_ to compute the line coverage.
 To parse the results for table 2:
-TODO: ...
+For each benchmark (libosip, libtasn1, libtiff), run:
+```
+cd /klee-dsa-benchmarks/<benchmark> // benchmark is libosip
+./compute_coverage.sh /output/cse/coverage/libosip/klee-out-<search>_<mode> && ./gen_report.sh /report
+```
+where _search_ is one of `dfs, random-path`, and _mode_ is one of `static, pspa`.
+For example, for _libosip_ with _dfs_ and _pspa_, the expected output is:
+```
+...
+...
+Overall coverage rate:
+  lines......: 10.1% (519 of 5144 lines)
+...
+...
+```
 
 To parse the results for table 3:
 ```
