@@ -96,7 +96,25 @@ cd /klee-dsa-benchmarks/cve/libtasn1/
 ./run_cve_experiments.sh
 ```
 To parse the results for table 4:
-TODO: ...
+S_PA without chopping-aware heuristic (column 1):
+```
+python3.5 parse_cve.py /output/cse/cve/static-without-cah/
+```
+
+PS_PA without chopping-aware heuristic (column 2):
+```
+python3.5 parse_cve.py /output/cse/cve/pspa-without-cah/
+```
+
+S_PA with chopping-aware heuristic (column 3):
+```
+python3.5 parse_cve.py /output/cse/cve/static/
+```
+
+PS_PA with chopping-aware heuristic (column 4):
+```
+python3.5 parse_cve.py /output/cse/cve/pspa/
+```
 
 ### Termination
 To run the experiments for table 5:
