@@ -72,4 +72,4 @@ More specifically, each output file in the `assets` folder is a list of dictiona
 
 NOTE: the `all_metadata_2020.03.04` in `assets` aggregates the outputs for each script and strips out the larger components of the dictionaries, like the adversaries, to allow the results to be loaded in memory for the correlation analysis and plotting. 
 
-Lastly, the correlations were extracted into Google Sheets (`pearson_vs_spearman_correlations.pdf`) for formatting purposes and the visuals are also available in the `imgs` folder. 
+Lastly, the correlations were extracted into Google Sheets (`pearson_vs_spearman_correlations.pdf`) for formatting purposes and the visuals are available in the `imgs` directory or in the `CW + PGD results.ipynb` notebook. 
