@@ -1,0 +1,1 @@
+This is a submission for the Reusable badge. The software is well documented and can be re-used to explore and compare different adaptation strategies as well as testing strategies.
