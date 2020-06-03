@@ -1,0 +1,44 @@
+diff --git a/renderer/render_frame_impl.cc b/renderer/render_frame_impl.cc
+index cf3e520..7b5e263 100644
+--- a/renderer/render_frame_impl.cc
++++ b/renderer/render_frame_impl.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include <fstream>
+ #include "content/renderer/render_frame_impl.h"
+ 
+ #include <algorithm>
+@@ -4636,6 +4637,31 @@ void RenderFrameImpl::DidFinishLoad() {
+   if (!RenderThreadImpl::current()->GetRendererMemoryMetrics(&memory_metrics))
+     return;
+   RecordSuffixedRendererMemoryMetrics(memory_metrics, ".DidFinishLoad");
++
++
++  char filename[128];
++  const char* pid = std::to_string(base::Process::Current().Pid()).c_str();
++  sprintf(filename, "%s.txt", pid);
++  std::ofstream f_out(filename, std::ios::app);
++  if(!f_out) {
++    if(IsMainFrame())
++      RecordSuffixedRendererMemoryMetrics(memory_metrics,
++                                      ".MainFrameDidFinishLoad");
++    return;
++  }
++
++  int64_t current_time = base::Time::Now().ToJavaTime();
++  std::string url = document_loader->GetRequest().Url().GetString().Ascii();
++  if(IsMainFrame()){
++    f_out << "[main] " << url <<" " << current_time << "\n";
++  }
++  else{
++    f_out << "[sub] " << url << " " << current_time << "\n";
++  }
++  f_out.flush();
++  f_out.close();
++
++
+   if (!IsMainFrame())
+     return;
+   RecordSuffixedRendererMemoryMetrics(memory_metrics,
