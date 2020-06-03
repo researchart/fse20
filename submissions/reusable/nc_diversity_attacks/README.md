@@ -70,14 +70,6 @@ More specifically, each output file in the `assets` folder is a list of dictiona
 }
 ```
 
-## Jupyter Notebook
-The results are agregated and visualized in a `jupyter notebook`, which can be viewed directly in GitHub or perused locally:
-```
-# install
-pip install jupyter
-
-# start notebook in working directory
-jupyter notebook
-```
+NOTE: the `all_metadata_2020.03.04` in `assets` agregates the outputs for each script and strips out the larger components of the dictionaries, like the adversaries, to allow the results to be loaded in memory for the correlation analysis and plotting. 
 
 Lastly, the correlations were extracted into Google Sheets (`pearson_vs_spearman_correlations.pdf`) for formatting purposes and the visuals are also available in the `imgs` folder. 

@@ -19,6 +19,15 @@ Note: these are the most recent versions of each library used, lower versions ma
 pip install -r requirements.txt
 ```
 
+The results are agregated and visualized in a `jupyter notebook`, which can be viewed directly in GitHub or perused locally:
+```
+# install
+pip install jupyter
+
+# start notebook in working directory
+jupyter notebook
+```
+
 ## VM-based Setup
 
 1. [Download](https://www.vmware.com/products/workstation-pro/workstation-pro-evaluation.html) and install VMWare Workstation Pro.
