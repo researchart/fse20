@@ -58,5 +58,4 @@ It reports 4 refactorings for type changes, namely
 
 Detailed instructions on how to use RefactoringMiner can be found [here](https://github.com/tsantalis/RefactoringMiner/blob/master/README.md#api-usage-guidelines).
 
-To reproduce the entire study , it can take upto 2 days (depending on the hardware).
 The details for reproducing the entire the study can be found in **INSTALL.md**.
