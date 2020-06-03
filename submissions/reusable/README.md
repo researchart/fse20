@@ -5,9 +5,6 @@ Available + Functional + very carefully documented and well-structured to the ex
 # Compute Time estimate
 This artifact reproduces results shown in Tables 2 and 4 in our FSE 2020 submission. The reproduction of our results involves running 16 different scripts. Running these scripts serially takes us a total compute time of about 54 hours on a machine running Ubuntu 16.04 with a Intel(R) Xeon(R) CPU E5-2623 v3 @ 3.00GHz processor and 192 GB of memory. This compute time estimate does not take into account the reproduction of the results from the Java track of SV-COMP 2020 which is presented in Table 5 of the submission. Since this is a long-running artifact, we urge the artifact reviewers to allow about 54 hours of compute time before they collect results to review the artifact. However, we provide a script that allows any-time collections of the current set of generated results.
 
-# Storage estimate
-Reproduction of the 
-
 # Reproducing data for Tables 2 and 4
 
 ## Run individual benchmarks
@@ -61,4 +58,23 @@ All steps below can be run in parallel to save compute time. The runs of Java Ra
 We urge the artifact reviewers to allocate 54 hours of compute time to reproduce results from Tables 2, 4. The below script can be used to collect the current set of results into a CSV format.
 1. cd fse20/submissions/reusable/java-ranger
 2. perl extract-detailed-results.pl logs/ output.csv
- - this command scans the generated
+ - this command scans the generated logs and captures data from the log files into the output.csv file. This csv file can be imported into a spreadsheet software like Google Sheets or Microsoft Excel for further examination. 
+ 
+ ## Understanding the results
+The columns in the generated output.csv can be understood as follows. We do not explain every column, but just the ones needed to understand Tables 2, 4.
+-  The first three columns of the results describe the name of the benchmark, its total number of symbolic inputs, and the Java Ranger mode for the results. A mode of 1 means that only the baseline symbolic executor - SPF - was run. 
+- The "Total runtime (msec)" column shows the total running time in milliseconds of Java Ranger for the benchmark, given a specific mode. 
+  - The numbers in this column for modes 1 and 5 for a given benchmark can be compared with the "total time (msec)" column 
+  in Table 2. A similar percentage reduction can be computed to match the reduction seen in the "% red. in time" column in Table 2.
+  - Comparing the total running time for modes 2, 3, 4, 5 can derive the data for all benchmarks shown in Table 4a.
+- The "static analysis time (msec)" shows the time in milliseconds spent during static analysis by Java Ranger on this run. This time captures how long it took for Java Ranger to construct static summaries for the benchmark. This column is also shown in Table 2.
+- The "dynamic symbolic execution runtime (msec)" shows the time spent on the non-static analysis parts. 
+  - This time is how long it took Java Ranger to do the symbolic execution with path-merging.
+- The "# execution paths" column shows the total number of execution paths explored by Java Ranger on that benchmark in a given mode. 
+    - This data is also presented in Table 2 under the "# exec. paths" column. This data can also be used to compute the "%red. in # exec. paths" column in Table 2.
+    - Comparing this data for all benchmarks for modes 2, 3, 4, 5 can derive the data shown in Table 4b. 
+- The "# queries to solve" column shows the total number of solver queries run by Java Ranger on that benchmark in a specific mode.
+    - Comparing this column between modes 1 and 5 will provide the percentage reduction in solver queries shown in the "% red. in # queries" column in Table 2. 
+- The "total solver time" captures the total time spent on solving all the queries by the solver used by Java Ranger
+- The "# distinct regions that were instantiated and successfully used" column shows the number of instantiated summaries that were used by Java Ranger. 
+    - This number should be similar to or the same as the "# summ. used" column in Table 2. 
