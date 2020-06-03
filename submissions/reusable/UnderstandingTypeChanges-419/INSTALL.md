@@ -73,7 +73,7 @@ Seperating the process into two distinct phases facilitates easier exploration o
    - For Linux/Mac:
 	 - Run : `./gremlin-server.sh console`
    - For Windows:
-	 - Run : `gremplin-server.bat`
+	 - Run : `gremlin-server.bat`
    - **NOTE**: Wait for a minute or so, until the server is up on port 8182.  		
 3. Run: `cd <SETUP_PATH>/TypeChangeStudy/TypeChangeMiner`
 4. Run: `java -cp "lib/*" org.osu.TypeFactMiner`
