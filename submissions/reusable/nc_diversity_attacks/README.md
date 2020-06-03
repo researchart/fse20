@@ -80,4 +80,4 @@ pip install jupyter
 jupyter notebook
 ```
 
-Lastly, the correlations were extracted into Google Sheets (`pearson_vs_spearman_correlations.pdf`) for formatting purposes. 
+Lastly, the correlations were extracted into Google Sheets (`pearson_vs_spearman_correlations.pdf`) for formatting purposes and the visuals are also available in the `imgs` folder. 
