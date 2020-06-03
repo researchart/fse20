@@ -6,6 +6,7 @@ We are applying for available, functional and reusable badges.
   - We have a comprehensive README.md file for describing how to build and use our codes, how to interpret the results and so on.
   - To make sure our codes could function on any platform, we provide three ways to compile and run our codes -- downlooading a prebuilt docker image, building a docker image locally and using maven to compile the whole project.  
   - We illustrate some example cases in the README.md to help verify and validate the results from our project.
+  - We release the dataset we use in our study which could reproduce every finding we summarize in the paper.
   
 - Third, we deserve the reusable badge.
   - In the README.md file, we describe the code structures and how our tool is designed to help readapt it for other purposes.
