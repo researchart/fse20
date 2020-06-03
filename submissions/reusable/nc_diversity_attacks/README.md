@@ -42,7 +42,7 @@ python _CW_div_mnist.py
 python _CW_div_cifar10.py
 python _CW_div_driving.py
 ```
-At each iteration, a test suite for a given configuration is appended to a Python list and is pickled as output in the `assets` folder. Each script will create it's own output (e.g. `pgd_results_cifar10_ResNet_2020-05-29.pkl`, `cw_results_mnist_FCNet5_2020-05-29.pkl)`.
+At each iteration, a test suite for a given configuration is appended to a Python list and is written in a `.pkl` format output file under in the `assets` directory. Each script will create it's own output (e.g. `pgd_results_cifar10_ResNet_2020-05-29.pkl`, `cw_results_mnist_FCNet5_2020-05-29.pkl)`.
 
 More specifically, each output file in the `assets` folder is a list of dictionaries with the following keys:
 
