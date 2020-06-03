@@ -98,4 +98,5 @@ The data for the rows labeled "SPF" and "XYZ" is already derived by regenerating
   - jbmc  --classpath "java-ranger-dir"/build/merarbiter-v2/:$CLASSPATH  MerArbiter/MerArbiter.class  --unwinding-assertions
      - This command needs to be run from the "java-ranger-dir"/build/merarbiter-v2 directory.
 
-
+# Reproducing results shown in Table 5
+We elide the details required for reproducing the results in Table 5. These results were taken from Java Ranger's participation in SV-COMP 2020. It is possible to re-create the same setup using for SV-COMP 2020 participation. Installation of this setup requires [following the instructions to install BenchExec](https://github.com/sosy-lab/benchexec/blob/master/doc/INSTALL.md), downloading all the participating tool's archives available from [here](https://gitlab.com/sosy-lab/sv-comp/archives-2020/-/tree/master/2020) and finally running all the participating tools. We consider setting up the SV-COMP infrastructure out of scope for this artifact.
