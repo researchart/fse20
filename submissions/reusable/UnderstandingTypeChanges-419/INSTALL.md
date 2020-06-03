@@ -44,7 +44,8 @@ Seperating the process into two distinct phases facilitates easier exploration o
    - It contains 3 projects : `SimpleTypeChangeMiner`, `TypeChangeMiner` and `DataAnalysis`
    - A folder named `Corpus`
 	 - This will contain a file named `mavenProjectsAll.csv`. It contains the list of projects that will be analyzed.
-	 - This file has one entry currently for the project google/Guice. Users can add any Github Java maven projects to this file.
+	 - This file has one entry currently for the project google/Guice. Users can add any Github Java maven projects to this file. 
+	 - The list of all projects used in the strudt are available [here](https://changetype.s3.us-east-2.amazonaws.com/docs/mavenProjectsAll.csv)
    - Another folder named  `apache-tinkerpop-gremlin-server-3.4.4/`
 
 
