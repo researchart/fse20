@@ -62,7 +62,7 @@ We urge the artifact reviewers to allocate 54 hours of compute time to reproduce
 2. perl extract-detailed-results.pl logs/ output.csv
  - this command scans the generated logs and captures data from the log files into the output.csv file. This csv file can be imported into a spreadsheet software like Google Sheets or Microsoft Excel for further examination. 
  
- ## Understanding the results
+ ## Understanding the results generated for Tables 2, 4
 The columns in the generated output.csv can be understood as follows. We do not explain every column, but just the ones needed to understand Tables 2, 4.
 -  The first three columns of the results describe the name of the benchmark, its total number of symbolic inputs, and the Java Ranger mode for the results. A mode of 1 means that only the baseline symbolic executor - SPF - was run. 
 - The "Total runtime (msec)" column shows the total running time in milliseconds of Java Ranger for the benchmark, given a specific mode. 
@@ -80,3 +80,22 @@ The columns in the generated output.csv can be understood as follows. We do not 
 - The "total solver time" captures the total time spent on solving all the queries by the solver used by Java Ranger
 - The "# distinct regions that were instantiated and successfully used" column shows the number of instantiated summaries that were used by Java Ranger. 
     - This number should be similar to or the same as the "# summ. used" column in Table 2. 
+    
+# Reproducing data for Table 3
+The data for the rows labeled "SPF" and "XYZ" is already derived by regenerating the data for Table 2. The data for the row labeled "JBMC" can be generated as follows.
+1. Install JBMC by following the installation instructions [here](https://github.com/diffblue/cbmc/tree/develop/jbmc)
+2. cd "java-ranger-dir"/build/examples
+  - The "java-ranger-dir" refers to the fse20/submissions/reusable/java-ranger directory
+3. Use the following commands to run JBMC on each benchmark from inside the build/examples directory. Only the WBS and TCAS benchmarks can be expected to complete within a few seconds. All the other benchmarks will take longer than a day to complete. These commands assume that the jbmc binary is available in $PATH.
+  - jbmc  --classpath "java-ranger-dir"/build/examples/:$CLASSPATH  jbmc/wbs/WBS_jbmc.class  --unwinding-assertions
+  - jbmc  --classpath "java-ranger-dir"/build/examples/:$CLASSPATH  jbmc/tcas/tcas_jbmc.class  --unwinding-assertions
+  - jbmc  --classpath "java-ranger-dir"/build/examples/:$CLASSPATH  jbmc/replace/replace11.class --unwind 12 --unwinding-assertions 
+   - jbmc  --classpath "java-ranger-dir"/build/examples/:$CLASSPATH  jbmc/nanoxml/DumpXML.class --unwind 10 --unwinding-assertions 
+  - jbmc  --classpath "java-ranger-dir"/build/examples/:$CLASSPATH  jbmc/siena/SENPDriver.class --unwind 8  --unwinding-assertions 
+  - jbmc  --classpath "java-ranger-dir"/build/examples/:$CLASSPATH  jbmc/printtokens2_3/printTokens2.class --unwind 82  --unwinding-assertions 
+  - jbmc  --classpath "java-ranger-dir"/build/examples/:$CLASSPATH  jbmc/schedule2_3/Schedule2.class --unwind 10  --unwinding-assertions 
+  - jbmc  --classpath "java-ranger-dir"/build/examples/:$CLASSPATH  jbmc/apachecli/CLI_jbmc.class --unwind 39  --unwinding-assertions
+  - jbmc  --classpath "java-ranger-dir"/build/merarbiter-v2/:$CLASSPATH  MerArbiter/MerArbiter.class  --unwinding-assertions
+     - This command needs to be run from the "java-ranger-dir"/build/merarbiter-v2 directory.
+
+
