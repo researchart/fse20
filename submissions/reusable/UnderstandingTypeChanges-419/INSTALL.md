@@ -14,7 +14,7 @@ In this step we :
    * Performs analysis on the commit history of a project as whole to detect migrations 
    * Reports the edit patterns performed to apply the type change.
 
-Seperating the process into two distince phases facilitates easier exploration of the data, specially when the study has to be run over 100+ projects.
+Seperating the process into two distinct phases facilitates easier exploration of the data, specially when studying over 100 projects.
 
 
 ## PREREQUISITES
