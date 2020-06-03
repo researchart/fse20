@@ -52,9 +52,9 @@ More specifically, each output file in the `assets` folder is a list of dictiona
 	'attack'                : the type of attack employed: cw or pgd
 	'model'                 : the name of the model for which the tests were generated 
 	'layer'                 : the layer targeted for diversity regularization 
-	'regularization_weight' : the weight given to the diversity component {0, 1, 10, 100, 1000, 10000, 100000, 1000000}
-	'confidence'            : the confidence factor {0, 20, 40} (CW only) 
-    'epsilon'               : the maximum perturbation limit allowed
+	'regularization_weight' : the weight given to the diversity component
+	'confidence'            : the confidence factor (CW only)
+    'epsilon'               : the maximum perturbation limit allowed (PGD only)
 	'adversaries'           : the generated test inputs
 	'pert_acc'              : the model's accuracy when the adversaries are provided as input
 	'orig_acc'              : the model's accuracy when the original inputs are used
