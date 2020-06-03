@@ -70,7 +70,7 @@ Seperating the process into two distinct phases facilitates easier exploration o
 1. Working Directory: `~/RunTypeChangeStudy`
 
    Run: `python 2CopyPaste.py`
-2. On a seperate terminal: 
+2. **On a seperate terminal**: 
    - Run: `cd <SETUP_PATH>/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
    - For Linux/Mac:
 	 - Run : `./gremlin-server.sh console`
@@ -94,8 +94,6 @@ Seperating the process into two distinct phases facilitates easier exploration o
 ### Expected Outcomes:
 1. The console will print the activities being performed.
   
-
-
 ## STEP 3:
 ### Instructions
  Working Directory: `~/RunTypeChangeStudy` 
@@ -105,7 +103,6 @@ Seperating the process into two distinct phases facilitates easier exploration o
  If it throws syntax error, try: 
  
  Run: `python 5Visualize.py`
- 
  
 
 ### Expected outcomes
