@@ -52,7 +52,7 @@ Seperating the process into two distinct phases facilitates easier exploration o
 ## STEP 1
 
 ### Instructions:
-1. Run: `cd <Path To SetUp>/TypeChangeStudy/SimpleTypeChangeMiner`
+1. Run: `cd <SETUP_PATH>/TypeChangeStudy/SimpleTypeChangeMiner`
 2. Run: `java -cp "lib/*" Runner`
 ### Expected Outcome: 
 1. The console will print the activities being performed.
@@ -69,7 +69,7 @@ Seperating the process into two distinct phases facilitates easier exploration o
 1. Run: `cd ~/RunTypeChangeStudy`  (This was the repository that you cloned for the setup stage)
 2. Run: `python CopyPaste.py`
 3. On a seperate terminal: 
-   - Run: `cd <Path to setup>/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
+   - Run: `cd <SETUP_PATH>/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
    - For Linux/Mac:
 	 - Run : `./gremlin-server.sh console`
    - For Windows:
@@ -87,7 +87,7 @@ Seperating the process into two distinct phases facilitates easier exploration o
 
 ## STEP 3:
 ### Instructions
-1. Run `cd <Path to setup>/TypeChangeStudy/DataAnalysis`
+1. Run `cd <SETUP_PATH>/TypeChangeStudy/DataAnalysis`
 2. Run `pip install --user -r requirements.txt`
 3. Run `python ToHtml.py`
 ### Expected outcomes
