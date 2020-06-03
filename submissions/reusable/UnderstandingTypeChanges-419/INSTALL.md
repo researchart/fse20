@@ -18,7 +18,7 @@ Seperating the process into two distince phases facilitates easier exploration o
 
 
 ## PREREQUISITES
-1. JDK 10 + (has been tested to work with JDK 11)
+1. JDK 11 + (has been tested to work with JDK 11, 12, 13)
 2. maven
 3. Python 3+
 4. pip 
