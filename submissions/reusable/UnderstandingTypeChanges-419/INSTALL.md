@@ -69,7 +69,7 @@ Seperating the process into two distinct phases facilitates easier exploration o
 ### Instructions
 1. Working Directory: `~/RunTypeChangeStudy`
 
-   Run: `python CopyPaste.py`
+   Run: `python 2CopyPaste.py`
 2. On a seperate terminal: 
    - Run: `cd <SETUP_PATH>/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
    - For Linux/Mac:
