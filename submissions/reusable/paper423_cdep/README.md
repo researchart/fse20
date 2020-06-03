@@ -10,8 +10,6 @@ cDep currently supports:
 
 <br>
 
-cDep could be got from the github repository: xxxx
-
 The repository contains **all the artifacts** (including all the code and datasets) of the paper:
 
 * **Understanding and Discovering Software Configuration Dependencies in Cloud and Datacenter Systems** <br>
@@ -20,13 +18,13 @@ In Proceedings of the ACM Joint European Software Engineering Conference and Sym
 
 ----
 
-## Building and Running cDep
+## 1. Building and Running cDep
 
 <div align="left">
   <img src="https://github.com/xlab-uiuc/cdep/blob/master/figure/build.png" width="250">
 </div>
 
-### Docker Container Image
+### 1.1 Docker Container Image
 
 We prepare a Docker container image, with which you can directly interact with the pre-built cDep.
 
@@ -47,7 +45,7 @@ The results will be stored at `/tmp/output/cDep_result.csv`.
 
 **The analysis could take several tens of minutes (so be patient).**
 
-### Build Docker Image Locally
+### 1.2 Build Docker Image Locally
 
 We provide the Dockerfile (under the root directory) as well, with which you could build the docker image locally and run the program.
 
@@ -63,7 +61,7 @@ Then the running command is same as above. One example running command is:
 $ ./dockerrun.sh -a hdfs,mapreduce
 ```
 
-### Building cDep in Your Own Environment
+### 1.3 Building cDep in Your Own Environment
 
 We build cDep using Java(TM) SE Runtime Environment (build 12.0.2+10) and Apache Maven 3.6.1.
 We did not guarantee you can build with other Java versions.
@@ -87,7 +85,7 @@ $ ./run.sh -a hdfs,mapreduce
 
 ----
 
-## Reproducibility
+## 2. Reproducibility
 <div align="left">
   <img src="https://github.com/xlab-uiuc/cdep/blob/master/figure/repro.png" width="150">
 </div>
@@ -123,7 +121,7 @@ The two parameters, `mapreduce.output.fileoutputformat.compress` and `mapreduce.
 
 ----
 
-## Datasets
+## 3. Datasets
 <div align="left">
   <img src="https://github.com/xlab-uiuc/cdep/blob/master/figure/dataset.png" width="120">
 </div
@@ -132,7 +130,7 @@ The two parameters, `mapreduce.output.fileoutputformat.compress` and `mapreduce.
  
 We also replease all the datasets included in the paper under the `dataset` directory.
 
-### Configuration Dependency Dataset
+### 3.1 Configuration Dependency Dataset
 
 It contains the following four files:
 * `hadoop_intra.csv` : Intra-component dependencies in each individual component of the Hadoop-based stack;
@@ -145,7 +143,7 @@ All the data sheets are in the format of CSV, with the first row describing the 
 
 The data sheets provide detailed labels of the analysis results presented in our study.
 
-### cDep Findings
+### 3.2 cDep Findings
 
 The found dependency cases from cDep could be found at `cDep_result`.
 It contains the following two files:
@@ -156,7 +154,7 @@ All the data sheets are in the format of CSV, with the first row describing the 
 
 ----
 
-## Code Walkthrough
+## 4. Code Walkthrough
 
 The following graph shows the end-to-end workflow of cDep:
 
@@ -176,40 +174,38 @@ It contains the following main modules:
 
 ----
 
-## Verification and Validation
+## 5. Verification and Validation
 
 We show some configuration dependency cases (found by cDep) and explain why they are dependent on each other.
 
-### Value Relationship Dependency
-
-The first parameter is no less than the second parameter:
-1. `yarn.nm.liveness-monitor.expiry-interval-ms`
-2. `yarn.resourcemanager.nodemanagers.heartbeat-interval-ms`
+### 5.1 Control Dependency
+If the first parameter is true, the second parameter will work.
+1. `fs.client.resolve.topology.enabled`
+2. `net.topology.node.switch.mapping.impl`
 
 Code snippets:
-```
-long expireIntvl = conf.getLong(YarnConfiguration.RM_NM_EXPIRY_INTERVAL_MS,
-    YarnConfiguration.DEFAULT_RM_NM_EXPIRY_INTERVAL_MS);
-long heartbeatIntvl =
-    conf.getLong(YarnConfiguration.RM_NM_HEARTBEAT_INTERVAL_MS,
-        YarnConfiguration.DEFAULT_RM_NM_HEARTBEAT_INTERVAL_MS);
-if (expireIntvl < heartbeatIntvl) {
-    throw new YarnRuntimeException("Nodemanager expiry interval should be no"
-       + " less than heartbeat interval, "
-       + YarnConfiguration.RM_NM_EXPIRY_INTERVAL_MS + "=" + expireIntvl
-       + ", " + YarnConfiguration.RM_NM_HEARTBEAT_INTERVAL_MS + "="
-       + heartbeatIntvl);
+```java
+private void initTopologyResolution(Configuration config) {
+ topologyResolutionEnabled = config.getBoolean(
+      FS_CLIENT_TOPOLOGY_RESOLUTION_ENABLED,
+     FS_CLIENT_TOPOLOGY_RESOLUTION_ENABLED_DEFAULT);
+  if (!topologyResolutionEnabled) {
+    return;
+  }
+ DNSToSwitchMapping dnsToSwitchMapping = ReflectionUtils.newInstance(
+      config.getClass(
+CommonConfigurationKeys.NET_TOPOLOGY_NODE_SWITCH_MAPPING_IMPL_KEY, ScriptBasedMapping.class, DNSToSwitchMapping.class), config);
 }
 ```
 
-### Value Relationship Dependency
+### 5.2 Value Relationship Dependency
 
 If the first parameter is not `null`, then the second parameter has to be `kerberos` to enable authentication.
 1. `hbase.thrift.security.qop`
 2. `hadoop.security.authentication`
 
 Code snippets:
-```
+```java
 if (qop != null) {
     ...
     if (!securityEnabled) {
@@ -220,14 +216,14 @@ if (qop != null) {
 (`qop` stores values of the first parameter, while `securityEnabled` takes the value from the second parameter.)
 
 
-### Overwrite Dependency
+### 5.3 Overwrite Dependency
 
 The second parameter overwrites the first parameter. 
 1. `hadoop.security.service.user.name.key`
 2. `mapreduce.jobhistory.principal`
 
 Code snippets:
-```
+```java
 private Configuration addSecurityConfiguration(Configuration conf) {
     ...
     conf.set(CommonConfigurationKeys.HADOOP_SECURITY_SERVICE_USER_NAME_KEY,
@@ -236,4 +232,35 @@ private Configuration addSecurityConfiguration(Configuration conf) {
 }
 ```
 
+### 5.4 Default Value Dependency 
 
+If the value of the first parameter is not available, the second parameter will serve as its default value.
+1. `yarn.resourcemanager.fail-fast`
+2. `yarn.fail-fast`
+
+Code snippets:
+```java
+public static boolean shouldRMFailFast(Configuration conf) {
+    return conf.getBoolean(YarnConfiguration.RM_FAIL_FAST,
+        conf.getBoolean(YarnConfiguration.YARN_FAIL_FAST,
+            YarnConfiguration.DEFAULT_YARN_FAIL_FAST));
+}
+```
+
+### 5.5 Behavioral Dependency
+
+The first and second parameters work together to determine an ip address.
+1. `fs.ftp.host`
+2. `fs.ftp.host.port`
+
+Code snippets:
+```java
+private FTPClient connect() throws IOException {
+    FTPClient client = null;
+    Configuration conf = getConf();
+    String host = conf.get(FS_FTP_HOST);
+    int port = conf.getInt(FS_FTP_HOST_PORT, FTP.DEFAULT_PORT);
+    ...
+    client.connect(host, port);
+}
+```
