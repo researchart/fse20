@@ -2,7 +2,6 @@
 
 ## Self-setup
 
-### Pre-requisites
 The following steps should be sufficient to get these attacks up and running on most systems running Python 3.7.3+.
 
 ```
@@ -20,7 +19,7 @@ Note: these are the most recent versions of each library used, lower versions ma
 pip install -r requirements.txt
 ```
 
-## VM Instructions
+## VM-based Setup
 
 1. [Download](https://www.vmware.com/products/workstation-pro/workstation-pro-evaluation.html) and install VMWare Workstation Pro.
 	- NOTE: There is a free trial period so you don't have to pay for anything.

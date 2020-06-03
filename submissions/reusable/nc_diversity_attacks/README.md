@@ -42,10 +42,36 @@ python _CW_div_mnist.py
 python _CW_div_cifar10.py
 python _CW_div_driving.py
 ```
-At each iteration, a test suit for a given configuration is appended to a list and is picked as output in the `assets` folder. Each script will create it's own output. 
+At each iteration, a test suite for a given configuration is appended to a Python list and is pickled as output in the `assets` folder. Each script will create it's own output (e.g. `pgd_results_cifar10_ResNet_2020-05-29.pkl`, `cw_results_mnist_FCNet5_2020-05-29.pkl)`.
 
-### Jupyter Notebook
-The results are agregated and visualized in a jupyter notebook, which can be viewed directly in GitHub or perused locally:
+More specifically, each output file in the `assets` folder is a list of dictionaries with the following keys:
+
+```
+{
+	'timestamp'             : the timestamp the test suite was generated
+	'attack'                : the type of attack employed: cw or pgd
+	'model'                 : the name of the model for which the tests were generated 
+	'layer'                 : the layer targeted for diversity regularization 
+	'regularization_weight' : the weight given to the diversity component {0, 1, 10, 100, 1000, 10000, 100000, 1000000}
+	'confidence'            : the confidence factor {0, 20, 40} (CW only) 
+    'epsilon'               : the maximum perturbation limit allowed
+	'adversaries'           : the generated test inputs
+	'pert_acc'              : the model's accuracy when the adversaries are provided as input
+	'orig_acc'              : the model's accuracy when the original inputs are used
+	'attack_success_rate'   : the success rate of the adversarial attack with diversity regularization
+	'neuron_coverage_000'   : the model's neuron coverage when t=0.00
+	'neuron_coverage_020'   : the model's neuron coverage when t=0.20
+	'neuron_coverage_050'   : the model's neuron coverage when t=0.50
+	'neuron_coverage_075'   : the model's neuron coverage when t=0.75
+	'inception_score'       : the inception score of the adversaries
+	'fid_score_64'          : the FID score of the original inputs vs. adversaries at dim=64 (not reported in paper)
+	'fid_score_2048'        : the FID score of the original inputs vs. adversaries at dim=2048 (standard FID measure)
+	'output_impartiality'   : the diversity measure of the adversarial test suite
+}
+```
+
+## Jupyter Notebook
+The results are agregated and visualized in a `jupyter notebook`, which can be viewed directly in GitHub or perused locally:
 ```
 # install
 pip install jupyter
@@ -54,4 +80,4 @@ pip install jupyter
 jupyter notebook
 ```
 
-The correlations were extracted into Google Sheets for formatting purposes. 
+Lastly, the correlations were extracted into Google Sheets (`pearson_vs_spearman_correlations.pdf`) for formatting purposes. 
