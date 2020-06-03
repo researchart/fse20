@@ -59,10 +59,10 @@ More specifically, each output file in the `assets` folder is a list of dictiona
 	'pert_acc'              : the model's accuracy when the adversaries are provided as input
 	'orig_acc'              : the model's accuracy when the original inputs are used
 	'attack_success_rate'   : the success rate of the adversarial attack with diversity regularization
-	'neuron_coverage_000'   : the model's neuron coverage when t=0.00
-	'neuron_coverage_020'   : the model's neuron coverage when t=0.20
-	'neuron_coverage_050'   : the model's neuron coverage when t=0.50
-	'neuron_coverage_075'   : the model's neuron coverage when t=0.75
+	'neuron_coverage_000'   : the model's neuron coverage when threshold t=0.00
+	'neuron_coverage_020'   : the model's neuron coverage when threshold t=0.20
+	'neuron_coverage_050'   : the model's neuron coverage when threshold t=0.50
+	'neuron_coverage_075'   : the model's neuron coverage when threshold t=0.75
 	'inception_score'       : the inception score of the adversaries
 	'fid_score_64'          : the FID score of the original inputs vs. adversaries at dim=64 (not reported in paper)
 	'fid_score_2048'        : the FID score of the original inputs vs. adversaries at dim=2048 (standard FID measure)
