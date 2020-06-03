@@ -7,7 +7,7 @@ In this artifact package, we present our data repository including the input and
 
 ## Download instructions
 
-Our artifact package can be downloaded at [https://doi.org/10.6084/m9.figshare.11948619](https://doi.org/10.6084/m9.figshare.11948619). It is available in the form of a zip file. The decompressed (unzipped) file contains the following directory structure.
+Our artifact package can be downloaded at [https://doi.org/10.6084/m9.figshare.11948619](https://doi.org/10.6084/m9.figshare.11948619). It is available in the form of a zip file. The decompressed (unzipped) file contains the directory structure a shown below. The size of the zipped file is approximately 105 MB, while the unzipped package is approximately 460 MB.
 
 ## Artifacts package structure
 
@@ -51,7 +51,7 @@ NOTE: the data was presented to the participants in randomized order with the to
 
 ### "indexed-stackoverflow-posts" contents
 
-This directory contains the Stack Overflow posts indexed by MAESTRO for its analysis. The posts satisfy the filtering criteria discussed in Section 3.1 of the paper. Each Stack Overflow post is stored in JSON format and its parsable code snippets are stored as `.txt` files. Specifically, the contents in the "indexed-stackoverflow-posts" directory are organized as follows.
+This directory contains the Stack Overflow posts indexed by MAESTRO for its analysis. The posts satisfy the filtering criteria discussed in Section 3.1 of the paper. Each Stack Overflow post is stored in JSON format and its parsable code snippets are stored as `.txt` files. Specifically, the contents in the "indexed-stackoverflow-posts" directory are organized as follows. Note that, by design of Stack Overflow, the question in a post inherits the ID of the post, while the answers in that post have their own independent IDs.
 
 ```
 indexed-stackoverflow-posts
@@ -61,7 +61,7 @@ indexed-stackoverflow-posts
           └── <post ID>-ques-code-snippets (e.g., 2281275-ques-code-snippets)
               └── cs<ID>.txt (e.g., cs1.txt)    # parsable code snippet
           └── <post ans ID>-ans.json (e.g. 2281303-ans.json)
-          └── <post ID>-ans-code-snippets (e.g., 2281303-ans-code-snippets)
+          └── <post ans ID>-ans-code-snippets (e.g., 2281303-ans-code-snippets)
               └── cs<ID>.txt (e.g., cs1.txt)    # parsable code snippet
 ```
 
@@ -83,7 +83,7 @@ The `results.R` script calculates the I-score, IH-score, and M-score values pres
 
 # Reproducing results in the paper:
 
-We now describe the steps to be followed to reproduce the results in our paper. Details about setting up the environment for running the scripts can be found in [INDEX.md](https://github.com/maestro-fla/fse20/blob/master/submissions/functional/fse-894/INSTALL.md).
+We now describe the steps to be followed to reproduce the results in our paper. Details about setting up the environment for running the scripts can be found in [INSTALL.md](https://github.com/maestro-fla/fse20/blob/master/submissions/functional/fse-894/INSTALL.md).
 
 From the unzipped artifacts package, navigate to the scripts directory.
 
