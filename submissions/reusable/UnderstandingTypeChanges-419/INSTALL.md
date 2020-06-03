@@ -31,19 +31,21 @@ Seperating the process into two distince phases facilitates easier exploration o
 1. Clone the project `git clone https://github.com/ameyaKetkar/RunTypeChangeStudy.git`
 2. Run: `cd RunTypeChangeMiner`
 3. Run: `pip install --user -r requirements.txt`
-4. Run: `python Setup.py <Path to setup> <Path to maven>` 
+4. Run: `python Setup.py <SETUP_PATH> <MAVEN_HOME>`
+   - `SETUP_PATH`: The folder where the study should be setup
+   - `MAVEN_HOME`: Path to maven
    - Example 1 (Windows): `python Setup.py C:\Users\amketk\Artifact  C:\ProgramData\chocolatey\lib\maven\apache-maven-3.6.3\`
    - Example 2 (MacOS): `python Setup.py /Users/amketk/Artifact /usr/local/Cellar/maven/3.6.3/`
-   - To find out `<Path To Maven>` run `mvn --version`, which would output the maven version and the path to it. 
+   - To find out `<MAVEN_HOME>` run `mvn --version`, which would output the maven version and the path to it. 
 		 
 ### Expected Outcome: 
 1. The console will print the activites that are being performed
-2. In the end you should see a folder named `TypeChangeStudy` at the `<Path to Setup>`
+2. In the end you should see a folder named `TypeChangeStudy` at the `<SETUP_PATH>`
    - It contains 3 projects : `SimpleTypeChangeMiner`, `TypeChangeMiner` and `DataAnalysis`
    - A folder named `Corpus`
 	 - This will contain a file named `mavenProjectsAll.csv`. It contains the list of projects that will be analyzed.
 	 - This file has one entry currently for the project google/Guice. Users can add any Github Java maven projects to this file.
-   - Another folder named  `apache-tinkerpop-gremlin-server-3.4.4/bin/gremlin-server.sh`
+   - Another folder named  `apache-tinkerpop-gremlin-server-3.4.4/`
 
 
 ## STEP 1
@@ -72,7 +74,7 @@ Seperating the process into two distince phases facilitates easier exploration o
    - For Windows:
 	 - Run : `gremplin-server.bat`
    - **NOTE**: Wait for a minute or so, until the server is up on port 8182.  		
-3. Run: `cd <Path to Setup>/TypeChangeStudy/TypeChangeMiner`
+3. Run: `cd <SETUP_PATH>/TypeChangeStudy/TypeChangeMiner`
 4. Run: `java -cp "lib/*" org.osu.TypeFactMiner`
     - **NOTE:** This step takes a while, because it will analyse all the commits in the project `guice` that contain a type change.
    If you are a user, who just wants to check out how the tool works (like artifact evaluators), abort the command after a 3-4 minuts of analysis.
@@ -88,4 +90,4 @@ Seperating the process into two distince phases facilitates easier exploration o
 2. Run `pip install --user -r requirements.txt`
 3. Run `python ToHtml.py`
 ### Expected outcomes
-1. open `<Path to Setup>/TypeChangeStudy/DataAnalysis/docs/index.html` in the browser.
+1. open `<SETUP_PATH>/TypeChangeStudy/DataAnalysis/docs/index.html` in the browser.
