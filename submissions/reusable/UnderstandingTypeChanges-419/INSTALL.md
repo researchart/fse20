@@ -21,7 +21,7 @@ Seperating the process into two distince phases facilitates easier exploration o
 1. JDK 10 + (has been tested to work with JDK 11)
 2. maven
 3. Python 3+
-4. pip 
+4. pip 3
 
 
 
