@@ -1,0 +1,13 @@
+﻿@using CloudController.Models
+
+@{
+    List<QualityWatchedTypeRelationship> list = new  List<QualityWatchedTypeRelationship>() {
+        new QualityWatchedTypeRelationship(QualityWatchedTypeRelationship.Direction.Direct),
+        new QualityWatchedTypeRelationship(QualityWatchedTypeRelationship.Direction.Inverse)};
+}
+
+@(Html.Kendo().DropDownListFor(m => m)
+        .DataValueField("RelationDirection")
+        .DataTextField("RelationDirection==0?'Direct':'Inverse'")
+        .BindTo((System.Collections.IEnumerable)list)
+)

@@ -1,0 +1,5 @@
+﻿@(Html.Kendo().DropDownListFor(m => m)
+        .DataValueField("Type")
+        .DataTextField("Type")
+        .BindTo((System.Collections.IEnumerable)ViewData["watchedTypes"])
+)

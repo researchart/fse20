@@ -1,0 +1,78 @@
+﻿@using CloudController.Models
+@model dynamic
+
+@{
+
+    ViewBag.Title = "Utility table";
+}
+<div class="row">
+    <div class="col l12 m12 s12">
+
+        <p>Please fill in the utility table</p>
+    </div>
+    <input id="simulationGuid" type="hidden" name="guid" value="@(ViewBag.guid)" />
+</div>
+<div>
+    @(Html.Kendo().Grid<QualityAttributeMappingModel>()
+          .Name("grid")
+          .Columns(columns =>
+          {
+              columns.Bound(c => c.WatchedType).Filterable(true).Sortable(true).Title("Watched Type Name").Width(500);
+              columns.Bound(c => c.SerieType).Title("Watched Type Property").ClientTemplate("#=SerieType!=null?SerieType.SerieName:'null'#").Width(250);
+              columns.Bound(c => c.QA).Title("Label").ClientTemplate("#=QA!=null? QA.Name:''#");
+              columns.Bound(c => c.Relation).Title("Relation with overal utitlity").ClientTemplate("#=Relation.RelationDirection==0?'Direct':'Inverse'#");
+              columns.Bound(c => c.ImportanceCoefficient).Title("Importance Coefficient");
+              //columns.Bound(c => c.WatchedType).Filterable(true).Sortable(true).Title("کد").Width(120).Locked(true).Lockable(false)
+              //   .ClientTemplate("<a target='_blank' title='برای ویرایش کلیک کنید' href='/Admin/Ads/Edit/#=ID#'>#=ID#</a>");
+              //columns.Bound(c => c.QA).Filterable(true).Sortable(true).Title("عنوان").Width(200);
+              //columns.Command(command => {command.Destroy(); }).Width(200);
+          })
+          .ToolBar(toolBar =>
+          {
+
+              toolBar.Save();
+          })
+          .Editable(editable => editable.Mode(GridEditMode.InCell))
+          .Pageable()
+          .Sortable()
+          .Scrollable()
+          .Resizable(resizable => resizable.Columns(true))
+          .HtmlAttributes(new { style = "height:430px;" })
+          .DataSource(dataSource => dataSource
+              .Ajax()
+              //.Batch(true)
+              .ServerOperation(false)
+              //.Events(events => events.Error("error_handler"))
+              .Model(model =>
+              {
+                  model.Id(p => p.WatchedType);
+                  //model.Field(p => p.ProductID).Editable(false);
+                  //model.Field(p => p.Category).DefaultValue(
+                  //    ViewData["defaultCategory"] as Kendo.Mvc.Examples.Models.CategoryViewModel);
+              })
+              .PageSize(20)
+              .Read(read => read.Action("QA_Read", "Monitor", new { guid = ViewBag.guid }))
+              //.Create(create => create.Action("QA_Create", "Monitor", new { guid = ViewBag.guid }))
+              .Update(update => update.Action("QA_Update", "Monitor", new { guid = ViewBag.guid }))
+          //.Destroy(destroy => destroy.Action("QA_Destroy", "Monitor", new { guid = ViewBag.guid }))
+          )
+    )
+</div>
+<br />
+<div class="row">
+    <a class="btn-large waves-effect waves-light orange " href="@Url.Action("Index","Analysis",new {guid=ViewBag.guid})"><i class="trending_up left"></i>Go to analysis page</a>
+</div>
+@section Scripts{
+    <script>
+        function getParentInfo() {
+
+            var row = $(event.srcElement).closest("tr");
+            var grid = $('#grid').data("kendoGrid");
+            //var grid = $(event.srcElement).closest("[data-role=grid]").data("kendoGrid");
+            var dataItem = grid.dataItem(row);
+            console.log(dataItem);
+            //where the OrderID is the model ID
+            return { kind: dataItem.SerieType.WatchedTypeKind }
+        }
+    </script>
+}

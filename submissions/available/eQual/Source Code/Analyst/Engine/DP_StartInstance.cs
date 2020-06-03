@@ -1,0 +1,57 @@
+﻿/*
+Copyright 2013 George Edwards
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License. 
+*/
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace DomainPro.Analyst.Engine
+{
+    public class DP_StartInstance
+    {
+        private string type;
+
+        public string Type
+        {
+            get { return type; }
+            set { type = value; }
+        }
+
+        private List<string> methods = new List<string>();
+
+        public List<string> Methods
+        {
+            get { return methods; }
+            set { methods = value; }
+        }
+
+        private int count;
+
+        public int Count
+        {
+            get { return count; }
+            set { count = value; }
+        }
+
+        private List<DP_StartInstance> instances = new List<DP_StartInstance>();
+
+        public List<DP_StartInstance> Instances
+        {
+            get { return instances; }
+            set { instances = value; }
+        }
+    }
+}

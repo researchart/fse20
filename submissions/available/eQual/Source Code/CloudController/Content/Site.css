@@ -1,0 +1,104 @@
+﻿
+
+/*/* Set padding to keep content from hitting the edges */
+.body-content {
+    text-align: center;
+}
+
+body {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+}
+
+.body-content {
+    flex: 1 0 auto;
+}
+
+.simulationProgressContainer {
+    max-width: 140px;
+    width: 100%;
+    position: relative;
+}
+
+    .simulationProgressContainer .progressbar-text {
+        font-size: 20px;
+        position: absolute;
+        top: 49%;
+        left: 50%;
+        padding: 0px;
+        margin: 0px;
+        -webkit-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+        color: rgb(252, 176, 60);
+    }
+/* styles for validation helpers 
+.field-validation-error {
+    color: #b94a48;
+}
+
+.field-validation-valid {
+    display: none;
+}
+
+input.input-validation-error {
+    border: 1px solid #b94a48;
+}
+
+input[type="checkbox"].input-validation-error {
+    border: 0 none;
+}
+
+.validation-summary-errors {
+    color: #b94a48;
+}
+
+
+.validation-summary-valid {
+    display: none;
+}*/
+
+
+.uploadBox {
+    margin-top: 20px;
+}
+
+#dropBoxLanguage, #dropBoxModel {
+    border: 1px dashed #29b6f6;
+    border-radius: 2px;
+    height: 200px;
+    text-align: center;
+    padding-top: 85px;
+    font-weight: bold;
+    color: #6E6E6E;
+    letter-spacing: 1px;
+}
+
+#languageUploadProgress, #modelUploadProgress {
+    height: 100px;
+    width: 100px;
+    text-align: center;
+    margin: auto;
+    margin-top: -150px;
+    margin-bottom: 80px;
+    pointer-events: none;
+}
+
+.uploadBox .active {
+    background: #B4F9AC;
+    font-size: 16px;
+    color: white;
+    box-shadow: 0px 0px 5px 6px #ccc;
+}
+
+.optimizationSection {
+    margin-top: 20px;
+}
+
+.inputBtn {
+    display: none;
+}
+
+#simulationType {
+    width: 220px;
+}

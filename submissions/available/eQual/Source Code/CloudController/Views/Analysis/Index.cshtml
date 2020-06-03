@@ -1,0 +1,94 @@
+﻿@using CloudController.Models
+@model dynamic
+
+@{
+    ViewBag.Title = "Analyses Summaries";
+    int j = 0;
+    List<int> list = new List<int>();
+}
+
+<h2>
+    Analyses Summaries
+</h2>
+
+<div class="row">
+    @foreach (AnalysisSummary item in Model.AnalysisSummaries)
+    {
+        j++;
+        list.Add(j);
+        <div class="col l6 m12 s12">
+
+            @(Html.Kendo().Chart().HtmlAttributes(new {style = " "})
+                  .Name(Guid.NewGuid().ToString())
+                  //.Title("Market Value of Major Banks")
+                  .Legend(legend => legend
+                      .Position(ChartLegendPosition.Bottom)
+                  )
+                  .SeriesColors(new string[] {"#00f", "#dfdfdf" })
+                  //.SeriesDefaults(seriesDefaults => seriesDefaults.RadarLine().Style(ChartRadarLineStyle.Normal))
+                  .Series(series =>
+                  {
+
+
+                      series.RadarArea(item.List.Select(s => s.OverallUtility));
+                      series.RadarLine(item.List.Select(s => 1)).Width(0).ZIndex(-double.MaxValue).Tooltip(false);
+                      //.Name("Market value as of 2009");
+
+
+                  })
+                  .CategoryAxis(axis => axis
+                      .Categories((Model as UtilityAnalysis).QAList.Select(s => s.QA.Name))
+                      .MajorGridLines(lines => lines.Visible(false))
+                  )
+
+                  .ValueAxis(axis => axis
+                      .Numeric()
+                      .Visible(false)
+                      .Labels(labels => labels.Format("{0}"))
+                      .Line(lines => lines.Visible(false))
+                  )
+                  .Tooltip(tooltip => tooltip
+                      .Visible(true)
+                      .Format("{0}")
+                  )
+                  )
+
+            <span style="top: -40px; font-weight: bold; position: relative">@j</span>
+        </div>
+    }
+</div>
+<div class="row">
+    @(Html.Kendo().MultiSelect()
+          .Name("comparison")
+          .Placeholder("Select comparison items...")
+          .BindTo(list)
+          .Value(new int[] { 1, 2 })
+          )
+    <br/>
+    <div class="btn-large waves-effect waves-light orange " id="compareButton"><i class="done left"></i>Compare</div>
+</div>
+<div class="row" id="showComparisons">
+
+</div>
+@section scripts{
+<script>
+    $(document).ready(function () {
+        var comparisonList = $("#comparison").data("kendoMultiSelect");
+        
+
+        $("#compareButton").click(function () {
+            //alert("Attendees:\n\nRequired: " + required.value() + "\nOptional: " + optional.value());
+            console.log(comparisonList.value());
+            $.ajax({
+                url: "@Url.Action("ComparisonPartial","Analysis")",
+                method: "POST",
+                data: { list: comparisonList.value(), guid: '@(ViewBag.guid)' },
+                traditional:true
+            }).complete(function(data) {
+                console.log(data);
+                $('#showComparisons').html(data.responseText);
+            });
+        });
+    });
+</script>
+}
