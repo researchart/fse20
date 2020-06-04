@@ -1,0 +1,88 @@
+﻿@model System.Linq.IQueryable<CloudController.DAL.Project>
+
+@{
+    ViewBag.Title = "List of projects";
+    //Layout = "_Layout";
+}
+
+
+
+<table class="striped responsive-table">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Model Name</th>
+        <th>Language Name</th>
+        <th>Date Added</th>
+        <th>Edit</th>
+        <th>Delete</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td style="padding-left: 10px;">@item.ID</td>
+            <td>@item.ModelName</td>
+            <td>@item.LanguageName</td>
+            <td>@item.DateAdded</td>
+            <td style="text-align: left;">
+                <a href="@Url.Action("Index", "Main", new {guid = item.SimGuid})" class="btn-floating green ">
+                    <i class="mdi-editor-mode-edit"></i>
+                </a>
+            </td>
+            <td style="text-align: left;">
+                <a class="btn-floating red modal-trigger" data-target="confirmModal" onclick="deleteProject(@item.ID, event)">
+                    <i class="mdi-action-delete"></i>
+                </a>
+            </td>
+
+
+        </tr>
+    }
+    </tbody>
+</table>
+<div class="row" style="margin-top: 30px;">
+    <a class="btn-large waves-effect waves-light orange
+       tooltipped" data-tooltip="Create a new project" data-position="bottom"
+       href="@Url.Action("Index", "Main")">
+        
+        <i class="mdi-content-add left"></i>
+        Create a New Project
+    </a>
+</div>
+<div id="confirmModal" class="modal">
+    <div class="modal-content">
+        <h4>Delete</h4>
+        <p>You are about to delete this project from your repository. Do you want to continue?</p>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class=" modal-action modal-close waves-effect waves-green btn-flat">Cancel</a>
+        <a href="#!" class=" modal-action modal-close waves-effect waves-green btn-flat">Continue</a>
+
+    </div>
+</div>
+@section Scripts
+{
+    <script>
+        
+        function deleteProject(id,event) {    
+            var sender = (event && event.target) || (window.event && window.event.srcElement);
+            
+            $.ajax({
+                url: "/Main/DeleteProject",
+                data: {id:id},
+                type: "POST"
+
+            }).done(function(data) {
+                if (data) {
+                    $(sender).closest('tr').hide(1000 ,function() {
+                        $(sender).closest('tr').remove();
+                        toast('Project successfully deleted!', 1000);
+                    });
+                }
+            });
+        }
+    </script>
+}

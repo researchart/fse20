@@ -1,0 +1,13 @@
+﻿@using CloudController.Models
+@model SeriesType
+
+@(Html.Kendo().DropDownListFor(m => m)
+        .DataTextField("SerieName")
+        .DataValueField("SerieName")
+        .DataSource(d =>
+        //get the additional data using function in the main view
+        d.Read(r => r.Action("GetSeriesNameList", "Monitor").Data("getParentInfo()"))
+
+    )
+    .OptionLabel("Please Select ...")
+)

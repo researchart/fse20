@@ -1,0 +1,102 @@
+﻿@using System.Web.Optimization
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewBag.Title eQual</title>
+    <link href="~/Content/Site.css" rel="stylesheet" type="text/css" />
+    <link href="~/Content/css/materialize.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+    <script src="~/Scripts/jquery-1.10.2.min.js"></script>
+    <script src="~/Scripts/bootstrap.min.js"></script>
+    <script src="~/Content/js/materialize.min.js"></script>
+    <script src="~/Content/js/String.js"></script>
+    <script src="~/Content/progressbar.min.js"></script>
+
+    @Styles.Render("~/Content/kendo/css")
+    @*<link href="~/Content/bootstrap.min.css" rel="stylesheet" type="text/css" />*@
+    <script src="~/Scripts/modernizr-2.6.2.js"></script>
+</head>
+<body>
+    <nav class="blue" role="navigation">
+        <div class="container">
+            <div class="nav-wrapper">
+                @Html.ActionLink("eQual", "Index", "Main", null, new { @id = "logo-container", @class = "brand-logo" })
+
+                <ul class="right">
+                    <li><a href="#">About eQual</a></li>
+                </ul>
+
+                <ul id="nav-mobile" class="side-nav">
+                    <li><a href="#">Navbar Link</a></li>
+                </ul>
+                <a href="#" data-activates="nav-mobile" class="button-collapse"><i class="mdi-navigation-menu"></i></a>
+            </div>
+        </div>
+    </nav>
+    @*<div class="navbar navbar-inverse navbar-fixed-top">
+            <div class="container">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    @Html.ActionLink("eQual", "Index", "Home", null, new {@class = "navbar-brand"})
+                </div>
+                <div class="navbar-collapse collapse">
+                    <ul class="nav navbar-nav">
+                    </ul>
+                </div>
+            </div>
+        </div>*@
+
+    <div class="container body-content">
+        @RenderBody()
+
+    </div>
+    <footer class="page-footer orange">
+        <div class="container">
+            <div class="row">
+                <div class="col l6 s12">
+                    <h5 class="white-text">Why eQual? </h5>
+                    <p class="grey-text text-lighten-4">Explore, optimize, and deliver better products.</p>
+                </div>
+                <div class="col l4 offset-l2 s12">
+                    <h5 class="white-text">External Links</h5>
+                    <ul>
+                        <li><a class="grey-text text-lighten-3" href="http://shahbazian.me">Arman Shahbazian</a></li>
+                        <li><a class="grey-text text-lighten-3" href="http://softarch.usc.edu">Software Architecture Research Group</a></li>
+                        <li><a class="grey-text text-lighten-3" href="http://cs.usc.edu">Computer Science Department of USC</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="footer-copyright">
+            <div class="container">
+                <p>&copy; @DateTime.Now.Year - eQual- A SoftArch Research Project</p>
+                <a class="grey-text text-lighten-4 right" href="#!">More Links</a>
+            </div>
+        </div>
+    </footer>
+        @Scripts.Render("~/bundles/kendo")
+
+    @RenderSection("Scripts")
+    <script>
+        if (!String.prototype.supplant) {
+            String.prototype.supplant = function (o) {
+                return this.replace(/{([^{}]*)}/g,
+                    function (a, b) {
+                        var r = o[b];
+                        return typeof r === 'string' || typeof r === 'number' ? r : a;
+                    }
+                );
+            }
+        }
+        (function ($) {
+            $(function () {
+                $('.button-collapse').sideNav();
+            }); // end of document ready
+        })(jQuery); // end of jQuery name space</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="3.0" xmlns:edmx="http://schemas.microsoft.com/ado/2009/11/edmx">
+ <!-- EF Designer content (DO NOT EDIT MANUALLY BELOW HERE) -->
+  <edmx:Designer xmlns="http://schemas.microsoft.com/ado/2009/11/edmx">
+    <!-- Diagram content (shape and connector positions) -->
+    <edmx:Diagrams>
+      <Diagram DiagramId="92d7258945ec4d52b599dc86845d356c" Name="Diagram1">
+        <EntityTypeShape EntityType="EqualModel.Project" Width="1.5" PointX="3" PointY="3.875" />
+        <EntityTypeShape EntityType="EqualModel.Role" Width="1.5" PointX="5.75" PointY="1" />
+        <EntityTypeShape EntityType="EqualModel.Status" Width="1.5" PointX="5.75" PointY="3.75" />
+        <EntityTypeShape EntityType="EqualModel.User" Width="1.5" PointX="0.75" PointY="1.5" />
+        <EntityTypeShape EntityType="EqualModel.UserLogin" Width="1.5" PointX="3" PointY="1.125" />
+        <EntityTypeShape EntityType="EqualModel.UserRole" Width="1.5" PointX="8" PointY="0.875" />
+        <AssociationConnector Association="EqualModel.FK_Project_User" />
+        <AssociationConnector Association="EqualModel.FK_dbo_UserRole_dbo_Role_RoleId" />
+        <AssociationConnector Association="EqualModel.FK_dbo_UserLogin_dbo_User_IdentityUser_Id" />
+      </Diagram>
+    </edmx:Diagrams>
+  </edmx:Designer>
+</edmx:Edmx>

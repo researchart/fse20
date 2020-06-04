@@ -1,0 +1,47 @@
+﻿@using CloudController.Models
+@using System.Web.Optimization
+@model UtilityAnalysis
+    @{
+        Layout = null;
+    }
+
+<div class="col l12 m12 s12">
+
+    @(Html.Kendo().Chart().HtmlAttributes(new { style = " " })
+                  .Name(Guid.NewGuid().ToString())
+                  //.Title("Market Value of Major Banks")
+                  .Legend(legend => legend
+                      .Position(ChartLegendPosition.Bottom)
+                  )
+                  .SeriesColors(new string[] { "#00f", "#f00", "#800000", "#FF0000", "#FFFF00", "#FF0000", "#00FF00", "#FF0000", "#008080", "#000080", "#FF00FF", "#00FFFF" })
+                  //.SeriesDefaults(seriesDefaults => seriesDefaults.RadarLine().Style(ChartRadarLineStyle.Normal))
+                  .Series(series =>
+                  {
+                      int i = 0;
+                      foreach (AnalysisSummary item in ViewBag.AnalysisSummaries)
+                      {
+                          series.RadarArea(item.List.Select(s => s.OverallUtility)).Name((ViewBag.AnalysisSummariesIndices as IEnumerable<int>).ToList()[i].ToString());
+                          i++;
+                      }
+
+                      //.Name("Market ;value as of 2009");
+
+
+                  })
+                  .CategoryAxis(axis => axis
+                      .Categories((Model as UtilityAnalysis).QAList.Select(s => s.QA.Name))
+                      .MajorGridLines(lines => lines.Visible(false))
+                  )
+
+                  .ValueAxis(axis => axis
+                      .Numeric()
+                      .Visible(false)
+                      .Labels(labels => labels.Format("{0}"))
+                      .Line(lines => lines.Visible(false))
+                  )
+                  .Tooltip(tooltip => tooltip
+                      .Visible(true)
+                      .Format("{0}")
+                  )
+    )
+</div>

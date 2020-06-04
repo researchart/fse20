@@ -1,0 +1,97 @@
+﻿@using CloudController.Models
+@{
+    ViewBag.Title = "In x";
+
+}
+<div class="row">
+    <div class="col l12 m12 s12">
+        <h3 class="header center orange-text">Monitor</h3><br/>
+    </div>
+    <input id="simulationGuid" type="hidden" name="guid" value="@(ViewBag.guid)" />
+</div>
+
+<div class="row simulationRow">
+
+
+</div>
+@section Scripts{
+    <script src="~/Scripts/jquery.signalR-2.2.0.min.js"></script>
+    <script src="/signalr/hubs"></script>
+
+    @* ReSharper disable once NativeTypePrototypeExtending *@
+    <script>
+        var simDictionary = {};
+
+        function SimulationObject(hook, progress) {
+            this.Hook = hook;
+            this.Progress = progress;
+            this.ProgressCircle = null;
+            this.updateProgress = function (p) {
+                if (this.ProgressCircle == null) {
+                    this.addProgressCircleToPage();
+                    console.log("here");
+                }
+                this.Progress = p;
+                //animate the corresponding progress element in the ui
+                this.ProgressCircle.animate(p / 1000, function () {
+                    //this.ProgressCircle.setText(progress / 1000);
+                });
+                this.ProgressCircle.setText(p / 10);
+            }
+            this.addProgressCircleToPage = function () {
+                var supped = '<div class="col l2 m3 s4" ><div class="simulationProgressContainer" id={id}></div></div>'.supplant({ id: this.Hook });
+                console.log(supped);
+                $('.simulationRow:first').append(supped);
+                this.ProgressCircle = new ProgressBar.Circle('#' + this.Hook, {
+                    duration: 400,
+                    color: "#42A5F5",
+                    trailColor: "#ddd",
+                    strokeWidth: 10,
+                    text: {
+                        autoStyle: false
+                    }
+                });
+            }
+        }
+
+        var guid = $("#simulationGuid").val();
+        $(function () {
+            var cloudController = $.connection.cloudController;
+
+            $.extend(cloudController.client, {
+                updateProgress: function (simInfo) {
+                    //Guid,Hook,Progress
+
+                    if (simDictionary[simInfo.Hook] != null) {
+                        simDictionary[simInfo.Hook].updateProgress(simInfo.Progress);
+                    } else {
+                        var obj = new SimulationObject("id" + simInfo.Hook.replace(/-/g, ""), simInfo.Progress);
+                        simDictionary[simInfo.Hook] = obj;
+                        obj.updateProgress(obj.Progress);
+                    }
+                    //check if it's new
+                    //add it to UI if it is
+                    //animate it
+                    console.log(simDictionary[simInfo.Hook]);
+                },
+                simulationsComplete: function () {
+                    console.log("completed");
+                    //hide the ran simulations 
+                    //enable navigation to the analyses page
+                }
+            });
+            $.connection.hub.start().done(function () {
+                $('#sendmessage').click(function () {
+                    // Call the Send method on the hub.
+                    // chat.server.send($('#displayname').val(), $('#message').val());
+                    // Clear text box and reset focus for next comment.
+                    //$('#message').val('').focus();
+                });
+                cloudController.server.subscribeToGuid(guid);
+            });
+
+        });
+
+        
+    </script>
+}

@@ -1,0 +1,99 @@
+﻿@{
+    ViewBag.Title = "Index";
+}
+@{
+    var guid = ViewBag.guid != null ? ViewBag.guid : Guid.NewGuid();
+}
+<input type="hidden" id="simulationGuid" value="@(guid)" />
+<div id="firstSection">
+    <div class="row uploadBox">
+        <div class="col l6 m12 s12">
+            <input type="file" id="languageFileInput" multiple="false" class="inputBtn" accept=".zip" onchange=" handleFiles(this.files, 'UploadLanguage') ">
+            <div class="btn-large waves-effect waves-light orange" id="languageButton"><i class="mdi-editor-attach-file left"></i>Choose Language File</div>
+            <div id="dropBoxLanguage">Drag and Drop Files Here</div>
+            <div id="languageUploadProgress"></div>
+        </div>
+        <div class="col l6 m12 s12">
+            <input type="file" id="modelFileInput" multiple="false" class="inputBtn" accept=".zip" onchange=" handleFiles(this.files, 'UploadModel') ">
+            <div class="btn-large waves-effect waves-light orange" id="modelButton"><i class="mdi-editor-attach-file left"></i>Choose Model File</div>
+            <div id="dropBoxModel">Drag and Drop Files Here</div>
+            <div id="modelUploadProgress"></div>
+        </div>
+    </div>
+
+    <div class="row">
+        <a class='dropdown-button waves-effect waves-light btn-large' data-beloworigin="true" href='#' data-activates='dropdown1' id="simulationType"><i class="mdi-action-settings left"></i>Simulation Type</a>
+
+        <!-- Dropdown Structure -->
+        <ul id='dropdown1' class='dropdown-content'>
+            <li><a href="#!" onclick=" $('#simulationType').html($(this).html()); "><i class="mdi-device-gps-fixed left"></i>Prespecified</a></li>
+            <li class="divider"></li>
+            <li><a href="#!" onclick=" $('#simulationType').html($(this).html()); "><i class="mdi-action-search left"></i>Exploratory</a></li>
+        </ul>
+    </div>
+    <div class="row">
+        <div class="btn-large waves-effect waves-light orange " id="startAnalysisButton"><i class="mdi-file-cloud left"></i>Start Model Analysis</div>
+    </div>
+</div>
+
+<div class="optimizationSection">
+    <div class="row">
+        <div class="preloader-wrapper big active" style="display: none;">
+        </div>
+    </div>
+    <div style="display: none;" id="propertiesTableSection">
+        <div class="row">
+            <form id="propertiesTableForm">
+
+                <input type="hidden" name="guid" value="@(guid)" />
+                <table class="striped responsive-table">
+                    <thead>
+                        <tr>
+                            <th >Property Type</th>
+                            <th >Object Type</th>
+                            <th >Property</th>
+                            <th >Default Value</th>
+                            <th >Lower Bound</th>
+                            <th >Upper Bound</th>
+                            <th >Distribution</th>
+                        </tr>
+                    </thead>
+
+                    <tbody></tbody>
+                </table>
+            </form>
+        </div>
+
+        <div class="row">
+            <div class="btn-large waves-effect waves-light orange " id="sendBoundariesButton">
+                <i class="mdi-image-flash-on left"></i>Update Properties
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Modal Structure -->
+<div id="monitorModal" class="modal">
+    <div class="modal-content">
+        <h4>Success!</h4>
+        <p>
+            You have successfully updated the boundary conditions for simulations. Now you will be redirected to the simulation moniotring page, where you
+            can monitor the progress of simulations happening in real time.
+        </p>
+    </div>
+    <div class="modal-footer">
+        <a id="monitorNavigation" href="@Url.Action("Index","Monitor",new {guid=guid})" onclick="navigateToMonitorPage();" class=" modal-action modal-close waves-effect waves-green btn-flat">Take me There!</a>
+    </div>
+</div>
+<div id="startModal" class="modal">
+    <div class="modal-content">
+        <h4>Files haven't been uploaded yet</h4>
+        <p>Make sure that you have uploaded both language file and model file in zip format.</p>
+    </div>
+    <div class="modal-footer">
+        <a href="#" class="waves-effect waves-green btn-flat modal-action modal-close">OK</a>
+    </div>
+</div>
+@section Scripts{
+    <script src="~/Content/Main.js"></script>
+
+}
