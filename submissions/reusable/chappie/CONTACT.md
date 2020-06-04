@@ -1,5 +1,5 @@
-tbabako1@binghamton.edu - timurbey
+Timur Ergin Babakol - tbabako1@binghamton.edu/timurbey
 
-acanino1@binghamton.edu - acanino1
+Anthony Canino - acanino1@binghamton.edu/acanino1
 
-davidl@binghamton.edu
+Yu David Liu - davidl@binghamton.edu
