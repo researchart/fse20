@@ -2,7 +2,7 @@
 
 Arman Shahbazian | armansha@usc.edu | GitHub: arman2 | corresponding author
 
-Suhrid Karthik | suhrid@usc.edu | GitHub: suhridk
+Suhrid Karthik | skarthik@usc.edu | GitHub: suhridk
 
 Yuriy Brun | brun@cs.umass.edu | GitHub: brunyuriy
 
