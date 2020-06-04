@@ -11,7 +11,7 @@ This artifact reproduces results shown in Tables 2 and 4 in our FSE 2020 submiss
 
 ## Run individual benchmarks
 1. Build jpf-core and java-ranger using the instructions found in INSTALL.md. Ne
-2. cd fse20/submissions/reusable/java-ranger
+2. Navigate to fse20/submissions/reusable/java-ranger, if not already there.
 2. mkdir logs
 
 Next, we run Java Ranger on a benchmark in five different modes. 
