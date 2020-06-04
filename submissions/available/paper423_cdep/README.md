@@ -10,8 +10,6 @@ cDep currently supports:
 
 <br>
 
-The whole artifact could be got from https://doi.org/10.5281/zenodo.3876993 and a github repository https://github.com/xlab-uiuc/cdep-fse.git.
-
 The repository contains **all the artifacts** (including all the code and datasets) of the paper:
 
 * **Understanding and Discovering Software Configuration Dependencies in Cloud and Datacenter Systems** <br>
@@ -53,7 +51,7 @@ We provide the Dockerfile (under the root directory) as well, with which you cou
 
 To build the docker image:
 ```
-$ git clone https://github.com/xlab-uiuc/cdep-fse.git
+$ git clone git@github.com:xlab-uiuc/cdep.git
 $ cd cdep
 $ docker build -t cdep/cdep:1.0 .
 ```
@@ -70,7 +68,7 @@ We did not guarantee you can build with other Java versions.
 
 First, clone the repository,
 ```
-$ git clone https://github.com/xlab-uiuc/cdep-fse.git
+$ git clone git@github.com:xlab-uiuc/cdep.git
 $ cd cdep
 ```
 
