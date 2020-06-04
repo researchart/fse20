@@ -52,7 +52,7 @@ You can extend or customize the search using the custom.py file
 # The optional parameter -i allow you to specify a unique ID for the experiment run. 
 # The output files will be located in a folder associaed with this ID. 
 # If not provided, the current timestamp will be used 
-python ./custom.py -c [-i RUN_ID]
+python ./custom.py -c CONFIG_FILE [-i RUN_ID]
 ``` 
 
 Configuration files are located in the folder **./configurations**:
@@ -118,3 +118,14 @@ Configuration files are located in the folder **./configurations**:
 
 }
 ``` 
+
+### Custom constraints
+
+In addition to search parameters, you can define your own domain specific constraints:
+
+```shell
+python ./custom.py -c CONFIG_FILE -n NB_CONSTRAINTS -p PATH_CONSTRAINTS_FILE [-i RUN_ID]
+``` 
+
+You need to provide a path to the constraint file (plain text) and the number of constraints of the problem.
+An example of custom constraint file is provided in *./data/custom_constraints.txt*. Your constraints script has access to the local property **x_ml** which is a numpy array of the current population (population size * state size  - nb features fed in the model). You constraint script should define a **constraint** variable, a list of all the constraints of your problem. You can use any method from the Numpy API within your constraint script. 

@@ -2,7 +2,7 @@
 
 ## Author 1 (Corresponding Author)
 
-Salah GHAMIZI
+Salah Ghamizi
 
 E-mail: <salah.ghamizi@uni.lu>
 
