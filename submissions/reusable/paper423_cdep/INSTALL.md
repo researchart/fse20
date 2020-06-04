@@ -1,3 +1,6 @@
+## Artifact Downloading
+The whole artifact could be downloaded from https://doi.org/10.5281/zenodo.3876993 and the github repository https://github.com/xlab-uiuc/cdep-fse.git.
+
 ## Building and Running cDep
 
 <div align="left">
@@ -31,7 +34,7 @@ We provide the Dockerfile (under the root directory) as well, with which you cou
 
 To build the docker image:
 ```
-$ git clone git@github.com:xlab-uiuc/cdep.git
+$ git clone https://github.com/xlab-uiuc/cdep-fse.git
 $ cd cdep
 $ docker build -t cdep/cdep:1.0 .
 ```
@@ -48,7 +51,7 @@ We did not guarantee you can build with other Java versions.
 
 First, clone the repository,
 ```
-$ git clone git@github.com:xlab-uiuc/cdep.git
+$ git clone https://github.com/xlab-uiuc/cdep-fse.git
 $ cd cdep
 ```
 
