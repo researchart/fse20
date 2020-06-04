@@ -44,8 +44,8 @@ To shell into the docker container run: `docker exec -it mytc /bin/bash`
    - `SETUP_PATH`: The folder where the study should be setup
    - `MAVEN_HOME`: Path to maven
    - **For Docker** : `python 0Setup.py /data /usr/apache-maven-3.5.4`
-   - Example 2 (Windows): `python 0Setup.py C:\Users\amketk\Artifact  C:\ProgramData\chocolatey\lib\maven\apache-maven-3.6.3\`
-   - Example 3 (MacOS): `python 0Setup.py /Users/amketk/Artifact /usr/local/Cellar/maven/3.6.3/`
+   - Example 1 (Windows): `python 0Setup.py C:\Users\amketk\Artifact  C:\ProgramData\chocolatey\lib\maven\apache-maven-3.6.3\`
+   - Example 2 (MacOS): `python 0Setup.py /Users/amketk/Artifact /usr/local/Cellar/maven/3.6.3/`
    - To find out `<MAVEN_HOME>` run `mvn --version`, which would output the maven version and the path to it. 
 		 
 ### Expected Outcome: 
@@ -55,7 +55,7 @@ To shell into the docker container run: `docker exec -it mytc /bin/bash`
    - A folder named `Corpus`
 	 - This will contain a file named `mavenProjectsAll.csv`. It contains the list of projects that will be analyzed.
 	 - This file has one entry currently for the project google/Guice. Users can add any Github Java maven projects to this file. 
-	 - The list of all projects used in the strudt are available [here](https://changetype.s3.us-east-2.amazonaws.com/docs/mavenProjectsAll.csv)
+	 - The list of all projects used in the study are available [here](https://changetype.s3.us-east-2.amazonaws.com/docs/mavenProjectsAll.csv)
    - Another folder named  `apache-tinkerpop-gremlin-server-3.4.4/`
 
 
