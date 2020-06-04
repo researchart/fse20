@@ -32,7 +32,7 @@ To run the image: `docker run -d --name mytc -i -t ameyaketkar/typechangeminer`
 
 To shell into the docker container run: `docker exec -it mytc /bin/bash`
 
-
+**The docker needs atleast 4GB of memory to run the study**
 
 ## SETUP
 
