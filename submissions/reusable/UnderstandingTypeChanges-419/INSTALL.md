@@ -36,17 +36,22 @@ To shell into the docker container run: `docker exec -it mytc /bin/bash`
 
 ## SETUP
 
+This set up will guide you through running some python scripts with 
+
 ### Instructions:
-1. Clone the project `git clone https://github.com/ameyaKetkar/RunTypeChangeStudy.git`. (Skip for docker)
+1. Clone the project `git clone https://github.com/ameyaKetkar/RunTypeChangeStudy.git` (Skip for docker)
 2. Run: `cd RunTypeChangeMiner`. (Skip for docker)
 3. Run: `pip install --user -r requirements.txt`. (Skip for docker)
+	- if it doesn't work try `pip3 install --user -r requirements.txt`
 4. Run: `python 0Setup.py <SETUP_PATH> <MAVEN_HOME>`
-   - `SETUP_PATH`: The folder where the study should be setup
+   - `SETUP_PATH`: The absolute path of folder where the study should be setup
    - `MAVEN_HOME`: Path to maven
    - **For Docker** : `python 0Setup.py /data /usr/apache-maven-3.5.4`
+   - **IF it throws an error:** try `python3 0Setup.py <SETUP_PATH> <MAVEN_HOME>`
    - Example 1 (Windows): `python 0Setup.py C:\Users\amketk\Artifact  C:\ProgramData\chocolatey\lib\maven\apache-maven-3.6.3\`
    - Example 2 (MacOS): `python 0Setup.py /Users/amketk/Artifact /usr/local/Cellar/maven/3.6.3/`
    - To find out `<MAVEN_HOME>` run `mvn --version`, which would output the maven version and the path to it. 
+   
 		 
 ### Expected Outcome: 
 1. The console will print the activities that are being performed
