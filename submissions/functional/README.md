@@ -20,6 +20,9 @@ Folders of interest:
 We provide a script for each of the experiments in our evaluation.
 The results of the experiment are written to the `/output` directory.
 
+Note: The results in most of the experiments might be affected by the performace of the underlying host machine,
+so some deviations are expected.
+
 ## Statistics
 To run the experiments for table 1:
 ```
