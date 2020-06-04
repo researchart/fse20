@@ -67,3 +67,5 @@ We demonstrate how to set up MTFuzz on your own tested programs with a xml parse
 	python ./mtfuzz_wrapper.py -i mtfuzz_in/ -o seeds/ -l 7961 ./xmlwf @@
 ```
 You can find the following output log at the two terminals if MTFuzz runs correctly.
+![image](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/xmlwf_nn.png?raw=true)
+![image](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/xmlwf_fuzz.png?raw=true)
