@@ -1,7 +1,6 @@
 # Artifact Description
 
-Hereafter are the relevant artifact of FSE paper No. 577 
-[[embed url=https://github.com/gaojun0816/fse20/blob/master/submissions/available/fse-577/article.pdf]].
+Hereafter are the relevant artifact of FSE paper No. 577.
 There are 2 types of the artifact.
 First type is the tool for detecting DICIs and it is named as DICIDer.
 Another type is proof-of-concept which includes 2 apps.
