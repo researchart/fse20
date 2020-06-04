@@ -37,9 +37,9 @@ To shell into the docker container run: `docker exec -it mytc /bin/bash`
 ## SETUP
 
 ### Instructions:
-1. Clone the project `git clone https://github.com/ameyaKetkar/RunTypeChangeStudy.git`
-2. Run: `cd RunTypeChangeMiner`
-3. Run: `pip install --user -r requirements.txt`
+1. Clone the project `git clone https://github.com/ameyaKetkar/RunTypeChangeStudy.git`. (Skip for docker)
+2. Run: `cd RunTypeChangeMiner`. (Skip for docker)
+3. Run: `pip install --user -r requirements.txt`. (Skip for docker)
 4. Run: `python 0Setup.py <SETUP_PATH> <MAVEN_HOME>`
    - `SETUP_PATH`: The folder where the study should be setup
    - `MAVEN_HOME`: Path to maven
