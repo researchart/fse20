@@ -1,17 +1,14 @@
-We are applying for available, functional and reusable badges.
+We are applying for **available**, **functional** and **reusable** badges.
 
-- First, We deserve the available badge because we release the whole datasets and codes on a publicly accessible archival repository.
+- **Available**: The artifacts are available both on Github (TODO: LINK) and Zenodo (TODO: LINK) with a DOI (LINK).
 
-- Second, We deserve the functional badge.
-  - We have a comprehensive README.md file for describing how to build and use our codes, how to interpret the results and so on.
-  - To make sure our codes could function on any platform, we provide three ways to compile and run our codes -- downlooading a prebuilt docker image, building a docker image locally and using maven to compile the whole project.  
-  - We illustrate some example cases in the README.md to help verify and validate the results from our project.
-  - We release the dataset we use in our study which could reproduce every finding we summarize in the paper.
+- **Functional**: Our code is fully functional. We provide the Docker image with pre-built binaries which can be directly used to reproduce the results in the paper. We also release our datasets with detailed descriptions. Specifically:
+  - Our `README.md` documents in detail how to build and run the cDep tool and how to reproduce our results;
+  - Our `README.md` documents two ways to build the cDep from source code: (1) building in a docker image and (2) building in a local environment;
+  - Our `README.md` explains the source code and provide examples to help verify and validate our results.
+  - Our `README.md` explains the the datasets and how to reproduce the findings presented in the paper.
   
-- Third, we deserve the reusable badge.
-  - In the README.md file, we describe the code structures and how our tool is designed to help readapt it for other purposes.
-  - We provide the whole dataset in our study which could be further analyzed by other research projects.
-  - Our tool could easily be extended to support more applications.
-  - Our tool is supported by docker, so that the usage of it won't be limited by platforms.
-  
-  
+- **Reusable**: Building on top of the functional badget, we furthre provide the following features for 
+  - Our `README.md` describes the code structure and how our tool can be furthre developed and enhanced. Our tool could easily be extended to support more applications;
+  - We provide the whole raw dataset in our study which could be further analyzed for other research purposes.
+  - We provide the Docker images so the reuses can be done on any platforms that support Docker.
