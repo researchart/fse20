@@ -22,7 +22,7 @@ docker build -t chappie-fse20 .
 docker run --privileged --cap-add=ALL -it -v /dev:/dev -v /lib/modules:/lib/modules chappie-fse20
 ```
 
-After execution finishes, output data can be found at `./chappie-data` inside the container.
+After execution finishes, output data can be found at `./chappie/chappie-data` inside the container.
 
 **NOTE**: The data reported in the paper was produced through an evaluation with the system described below. As energy consumption varies from system to system, e.g., the number of cores, the OS schedulers, the JVM runtime behavior, etc., a reproduction on a different system may not produce identical results as we reported in the paper. Specifically, `chappie` requires the use of RAPL, which only works on Intel cpus:
 
