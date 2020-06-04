@@ -2,7 +2,7 @@
 This artifact accompanies the submission to FSE 2020 titled "". This artifact presents steps to reproduce the results in the FSE 2020 submission. The tool named XYZ is de-anonymized in this submission to a tool named "Java Ranger". 
 
 # Documentation
-Documentation for Java Ranger as well as high-level overview for it can be found [here](https://sohah.github.io/VeritestingTransformations/). 
+Documentation for Java Ranger as well as high-level overview for it can be found [here](https://vaibhavbsharma.github.io/java-ranger). 
 
 # Compute Time estimate
 This artifact reproduces results shown in Tables 2 and 4 in our FSE 2020 submission. The reproduction of our results involves running 16 different scripts. Running these scripts serially takes us a total compute time of about 54 hours on a machine running Ubuntu 16.04 with a Intel(R) Xeon(R) CPU E5-2623 v3 @ 3.00GHz processor and 192 GB of memory. This compute time estimate does not take into account the reproduction of the results from the Java track of SV-COMP 2020 which is presented in Table 5 of the submission. Since this is a long-running artifact, we urge the artifact reviewers to allow about 54 hours of compute time before they collect results to review the artifact. However, we provide a script that allows any-time collections of the current set of generated results.
@@ -10,7 +10,7 @@ This artifact reproduces results shown in Tables 2 and 4 in our FSE 2020 submiss
 # Reproducing data for Tables 2 and 4
 
 ## Run individual benchmarks
-1. Build jpf-core and java-ranger using the instructions found in INSTALL.md. Ne
+1. Build jpf-core and java-ranger using the instructions found in [INSTALL.md](https://github.com/vaibhavbsharma/fse20/blob/master/submissions/reusable/INSTALL.md).
 2. Navigate to fse20/submissions/reusable/java-ranger, if not already there.
 2. mkdir logs
 
