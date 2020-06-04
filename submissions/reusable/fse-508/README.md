@@ -23,14 +23,13 @@ For the FSE review, we provide a trained Random Forest model in the folder *./ou
 python ./train.py
 ```  
 ## Experiments
-You can either run all the attack experiments or only the analysis.
+You can either run all the attack experiments or the analysis.
 The available experiments are:
 * random: Run a random search (RQ1)
 * papernot: Use an iterative papernot attack (RQ1)
 * f1f2f3f4: Run a multiobjective search with the 4 objectives f1, f2, f3, f4 (RQ2)
-* f1f2f4: Run a multiobjective search with the 3 objectives f1, f2, f3, f4 (RQ2)
-* f1f3f4: Run a multiobjective search with the 3 objectives f1, f2, f3, f4 (RQ2)
-* retrain: Adversarial training with the f1f2f3f4 adversarial (RQ3)
+* f1f2f4: Run a multiobjective search with the 3 objectives f1, f2, f4 (RQ2)
+* f1f3f4: Run a multiobjective search with the 3 objectives f1, f3, f4 (RQ2)
 
 ```shell
 # Running the analysis with pre-run experiments
@@ -39,7 +38,11 @@ python ./experiments_results.py
 
 # Running the whole experiments and display their results 
 # The optional parameter -x allow you to specify only one experiment 
-python ./experiments.py [-x random|f1f2f3f4|f1f3f4|f1f2f4|papernot|retrain]
+python ./experiments.py [-x random|f1f2f3f4|f1f3f4|f1f2f4|papernot]
+
+
+# After running the experiments, you can see the results with
+python ./analysis.py
 ```  
 
 ## Customization
@@ -63,12 +66,13 @@ Configuration files are located in the folder **./configurations**:
 * *model_file* and *scaler_file*: The name of the model nd the scaler inside experiment_path
 * *model_threshold*: The model classification threshold. For Lending Club, the threshold of 0.24 allowed the best performances (Recall, Precision, MCC) when training/testing the model
 * *initial_states*: The set of initial states that will be attacked. Generated for instance from the script *train.py*
+* *max_states*: The number of states to evaluate. The original paper tackles 4,000 states. This may take long, so the code is provided with 200 as default value
 * *training_parameters*: The training parameters is using the script *train.py*
 * *ga_parameters*: The Genetic Algorithm parameters like number of generations and population size
  + *objectives_weight*: The weight of the different objectives. F1, F2, F3, R and F4. F1-F3 refer respectively to the misclassification objective, the minimal perturbation objective and the maximal overdraft amount objective. R refers to a random objective (if set to 1 and the weights F1-F3 are set to 0 the search will be random). F4 refers to the constraint validation. We can restrict to a 2 objective search if the weight of F3 = 0 for instance.
  + *gene_types* defines the size of the vector for each individual of the Genetic Algorithm and the type of mutations allowed (integer of real).
 * *papernot_parameters*: Used for the iterative papernot attack, defines how many tree of the attack should we iterate over and how many random iterations each.
-
+* *record_history*: Whether you want to export the objectives and population of each generation. (To track the progress through time. It adds a ~100Mo of exports per initial state)
 ```json
 {
     
@@ -79,6 +83,7 @@ Configuration files are located in the folder **./configurations**:
     "model_threshold":0.24,
     "scaler_file":"scaler.pickle",
     "initial_states":"attack_candidates.npy",
+    "max_states":200,
     "training_parameters":{
         "n_estimators": 125,
         "min_samples_split": 6,
@@ -110,6 +115,7 @@ Configuration files are located in the folder **./configurations**:
             "int"
         ]
     },
+    "record_history":true,
     
     "papernot_parameters":{
         "nb_estimators":10, 
@@ -124,8 +130,17 @@ Configuration files are located in the folder **./configurations**:
 In addition to search parameters, you can define your own domain specific constraints:
 
 ```shell
-python ./custom.py -c CONFIG_FILE -n NB_CONSTRAINTS -p PATH_CONSTRAINTS_FILE [-i RUN_ID]
+python ./custom.py -c CONFIG_FILE [-i RUN_ID -n NB_CONSTRAINTS -p PATH_CONSTRAINTS_FILE]
 ``` 
 
 You need to provide a path to the constraint file (plain text) and the number of constraints of the problem.
 An example of custom constraint file is provided in *./data/custom_constraints.txt*. Your constraints script has access to the local property **x_ml** which is a numpy array of the current population (population size * state size  - nb features fed in the model). You constraint script should define a **constraint** variable, a list of all the constraints of your problem. You can use any method from the Numpy API within your constraint script. 
+
+
+## Adversarial Training
+
+In research question 3, we suggest that adversarial training helps improve the robustness of the system against adversarial examples.
+You can run the full experiment using 
+```shell
+python ./train.py -c CONFIG_FILE [-n NB_CONSTRAINTS -i RUN_ID]
+``` 
