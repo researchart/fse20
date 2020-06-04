@@ -28,5 +28,5 @@ Alhazen has more requirements, however, those are either contained in the archiv
 
 # Alhazen itself
 
-Download XXX, and follow the instructions in the readme within the archive. 
+Download https://storage.googleapis.com/fse2020-alhazen/artifacts.tar.gz, and follow the instructions in the readme within the archive. 
 
