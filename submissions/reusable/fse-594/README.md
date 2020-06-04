@@ -86,7 +86,8 @@ We record all writes in JavaScript to a memory location and dump the logs in _[r
 
 * __Additional notes:__
    - For a call in new operators, e.g., *var obj = new myConstructor()*, the first entry would be "is\_call\_new"; for a normal function call, e.g., *var ret = myFunc()*, the first entry is "is\_call".
-   - For a write to an object property, e.g., *obj.key = value*, [target\_ID] is the unique ID of *obj*, and [LHS\_ID] is the unique ID of *obj.key*; for a write to a simple identifier, e.g., *var myVar = value*, [target\_ID] and [LHS\_ID] are both the unique ID of *myVar*.
+   - For a write to an object property, e.g., *obj.key = value*, [target\_ID] is the unique ID of *obj*, and [LHS\_ID] is the unique ID of *obj.key*
+   - For a write to a simple identifier, e.g., *var myVar = value*, if the type of myVar is *object*, then [valueof\_LHS], [target\_ID] and [LHS\_ID] are all the unique ID of *myVar*; if myVar is of primitive type, [valueof\_LHS] is the primitive type value, [target\_ID] will be "---", and [LHS\_ID] is the unique ID of *myVar*.
    - Possible values of [RHS\_type] include: "rhs\_is\_number", "rhs\_is\_string", "rhs\_is\_undefined", "rhs\_is\_null", "rhs\_is\_bool", "rhs\_is\_expression", "rhs\_is\_var", "rhs\_is\_prop", "rhs\_is\_new" and "rhs\_is\_call".
    - The above entries in each log are separated by ",elem_js_conflict,", and "---" refers to a dummy entry value.
 
