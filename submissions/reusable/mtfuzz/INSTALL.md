@@ -5,36 +5,36 @@
 - Install LLVM 7.0.0
 
 ### Build MTFuzz
-```
-   cd source
-   ./build.sh  # build llvm coverage passes and CMP passes.
+```bash
+    cd source
+    ./build.sh  # build llvm coverage passes and CMP passes.
 ```
 
 ### Run MTFuzz
 Run MTFuzz on 10 tested programs reported in our paper. We will use program size as an example.
 
 1. Enter size directory
-```sh
-   cd programs/size
+```bash
+    cd programs/size
 ```
 2. Install some required libraries.
-```sh
+```bash
     sudo dpkg --add-architecture i386
     sudo apt-get update
     sudo apt-get install libc6:i386 libncurses5:i386 libstdc++6:i386 lib32z1
 ```
 3. Set CPU scaling and core dump notification with root
-```sh
+```bash
     cd /sys/devices/system/cpu
     echo performance | tee cpu*/cpufreq/scaling_governor
     echo core >/proc/sys/kernel/core_pattern
 ```
 4. Open a terminal to start NN module.
-```sh  
+```bash  
     python nn.py ./size 
 ```
 5. Open another terminal to start fuzzing module.
-```sh
+```bash
     # -l, file len is obtained by maximum file lens in the mtfuzz_in ( ls -lS mtfuzz_in|head )
     python ./mtfuzz_wrapper.py -i mtfuzz_in -o seeds -l 7402 ./size @@
 ```
@@ -52,4 +52,18 @@ We demonstrate how to set up MTFuzz on your own tested programs with a xml parse
     cp ../build_expat.sh .
     ./build_expat.sh
 ```
-3. Collect init training dataset for MTFuzz. Run afl-fuzz with a single input file on xmlwf for about an hour. To save time, we provide a collected dataset in xmlwf_afl_1hr directory.
+3. Collect init training dataset for MTFuzz. Run afl-fuzz with a single input file on xmlwf for about an hour. To save time, we provide a collected dataset in xmlwf_afl_1hr directory. Set up MTFuzz for xmlwf.
+```bash
+	./setup_mtfuzz_xmlwf.sh
+```
+4. Enter xmlwf directory and start nn module.
+```bash
+	cd xmlwf
+	python ./nn.py ./xmlwf
+```
+5. Open another terminal and enter same directory and start fuzzing module
+```bash
+	# -l, file len is obtained by maximum file lens in the mtfuzz_in ( ls -lS mtfuzz_in|head )
+	python ./mtfuzz_wrapper.py -i mtfuzz_in/ -o seeds/ -l 7961 ./xmlwf @@
+```
+You can find the following output log at the two terminals if MTFuzz runs correctly.

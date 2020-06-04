@@ -28,19 +28,19 @@ We provide source code of MTFuzz in source directory. A short usage example of r
 ```
 2. Compile programs to intercept operands of every CMP instrutions with llvm CMP passes.
 ```bash
-   cd src_directory/
-   CC=source/br_pass/afl-clang-fast ./configure && make # instrment every CMP instutions of program 
-   CC=source/br_fast_pass/afl-clang-fast ./configure && make # faster version using fork server 
+    cd src_directory/
+    CC=source/br_pass/afl-clang-fast ./configure && make # instrment every CMP instutions of program 
+    CC=source/br_fast_pass/afl-clang-fast ./configure && make # faster version using fork server 
 ```
 3. Run multi-task nn module.
 ```bash
-   python ./nn.py ./readelf -a 
+    python ./nn.py ./readelf -a 
 ```
 4. Run fuzzing module.
 ```bash
-   python ./mtfuzz_wrapper.py -i mtfuzz_in -o seeds -l 7406 ./readelf -a @@
+    python ./mtfuzz_wrapper.py -i mtfuzz_in -o seeds -l 7406 ./readelf -a @@
 ```
 
 ### Reproducing results
-We provide replication package for all 10 programs reported in our paper. Please check source/programs directory.
+To reproduce our main results reported in paper Table.4, please check source/programs directory.
 We also provide an AWS GPU instance for reviewer who didn't have proper GPU resources to test our tool. The instruction to access AWS instance is shared in email.
