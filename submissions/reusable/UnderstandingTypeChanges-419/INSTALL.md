@@ -23,6 +23,15 @@ Seperating the process into two distinct phases facilitates easier exploration o
 3. Python 3+
 4. pip 3
 
+### Docker
+This environment is also available as a docker container. 
+
+Pull the image from the repository: `docker pull ameyaketkar/typechangeminer`
+
+To run the image: `docker run -d --name mytc -i -t ameyaketkar/typechangeminer`
+
+To shell into the docker container run: `docker exec -it mytc /bin/bash`
+
 
 
 ## SETUP
@@ -34,8 +43,9 @@ Seperating the process into two distinct phases facilitates easier exploration o
 4. Run: `python 0Setup.py <SETUP_PATH> <MAVEN_HOME>`
    - `SETUP_PATH`: The folder where the study should be setup
    - `MAVEN_HOME`: Path to maven
-   - Example 1 (Windows): `python Setup.py C:\Users\amketk\Artifact  C:\ProgramData\chocolatey\lib\maven\apache-maven-3.6.3\`
-   - Example 2 (MacOS): `python Setup.py /Users/amketk/Artifact /usr/local/Cellar/maven/3.6.3/`
+   - **For Docker** : `python 0Setup.py /data /usr/apache-maven-3.5.4'
+   - Example 2 (Windows): `python 0Setup.py C:\Users\amketk\Artifact  C:\ProgramData\chocolatey\lib\maven\apache-maven-3.6.3\`
+   - Example 3 (MacOS): `python 0Setup.py /Users/amketk/Artifact /usr/local/Cellar/maven/3.6.3/`
    - To find out `<MAVEN_HOME>` run `mvn --version`, which would output the maven version and the path to it. 
 		 
 ### Expected Outcome: 
@@ -55,14 +65,16 @@ Seperating the process into two distinct phases facilitates easier exploration o
  Working Directory: `~/RunTypeChangeStudy`
  
  Run: `python 1CollectDepsAndTypeChanges.py`
+ 
 ### Expected Outcome: 
 1. The console will print the activities being performed.
 2. You should observe the output being populated at 
    - `<SETUP_PATH>/TypeChangeStudy/SimpleTypeChangeMiner/Output/ProtosOut`
    - `<SETUP_PATH>/TypeChangeStudy/SimpleTypeChangeMiner/Output/dependencies`
+   - For docker: /data/TypeChangeStudy/SimpleTypeChangeMiner/Output/
 
 **NOTE:** This step takes a while, because it will analyse all the commits in the project `guice`.
-   If you are a user, who just wants to check out how the tool works (like artifact evaluators), abort the command after a 3-4 minuts of analysis.
+   If you are a user, who just wants to check out how the tool works, abort the command after a 3-4 minutes of analysis.
 
 
 ## STEP 2
@@ -70,9 +82,11 @@ Seperating the process into two distinct phases facilitates easier exploration o
 1. Working Directory: `~/RunTypeChangeStudy`
 
    Run: `python 2CopyPaste.py`
+   
 2. **On a seperate terminal**: 
+   - When using Docker, use a separate terminal on your host machine to shell into the container with `docker exec -it mytc /bin/bash`
    - Run: `cd <SETUP_PATH>/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
-   - For Linux/Mac:
+   - For Linux/Mac (and Docker):
 	 - Run : `./gremlin-server.sh console`
    - For Windows:
 	 - Run : `gremlin-server.bat`
