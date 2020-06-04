@@ -1,4 +1,4 @@
-## Authors:
+# Authors:
 
 Arman Shahbazian > armansha@usc.edu > GitHub: arman2 > corresponding author
 
