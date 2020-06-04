@@ -1,4 +1,4 @@
-Badges Applying for: Available, Functional and Reusable
+Badges Applying for: Functional and Reusable
 
 * During our study, the source code of Scone was not available due to which we have build to our infrastructure. We are making Porpoise available in the interest of community to advance the area of field.
 
