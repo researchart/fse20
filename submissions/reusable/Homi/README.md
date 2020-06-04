@@ -120,7 +120,7 @@ $  # "Successfully generate 1enscript.json in the `pgm_config' directory"
 
  ```bash
 $  cd ~/Homi/script
-$  python3.7 Homi.py pgm_config/1enscript.json 18000 homi nurs:cpicnt 1
+$  python3.7 Homi.py pgm_config/1enscript.json 1800 homi nurs:cpicnt 1
  ```
 
 [klee]: https://klee.github.io/releases/docs/v2.0/
