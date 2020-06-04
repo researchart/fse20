@@ -12,14 +12,14 @@ Below is an excerpt from our paper abstract about this work's motivation:
  Our publication data can be reproduced using a docker image. You can either run the image from docker hub:
 
  ```bash
- docker run --privileged --cap-add=ALL -it -v /dev:/dev -v /lib/modules:/lib/modules chappie-fse20
+ docker run --privileged --cap-add=ALL -it -v /dev:/dev -v /lib/modules:/lib/modules timurbey/chappie-fse20:1.0
  ```
 
  or build and run the provided `Dockerfile`:
 
  ```bash
  docker build -t chappie-fse20 .
- docker run --privileged --cap-add=ALL -it -v /dev:/dev -v /lib/modules:/lib/modules chappie-fse20
+ docker run --privileged --cap-add=ALL -it -v /dev:/dev -v /lib/modules:/lib/modules timurbey/chappie-fse20:1.0
  ```
 
  After execution finishes, output data can be found at `./chappie/chappie-data` inside the container.
