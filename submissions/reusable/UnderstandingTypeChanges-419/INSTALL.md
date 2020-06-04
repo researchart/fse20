@@ -68,8 +68,11 @@ This set up will guide you through running some python scripts with
 
 ### Instructions:
  Working Directory: `~/RunTypeChangeStudy`
- 
+
  Run: `python 1CollectDepsAndTypeChanges.py`
+
+**NOTE:** This step takes a while, because it will analyse all the commits in the project `guice`.
+   If you are a user, who just wants to check out how the tool works, abort the command after a 3-4 minutes of analysis.
  
 ### Expected Outcome: 
 1. The console will print the activities being performed.
@@ -77,10 +80,6 @@ This set up will guide you through running some python scripts with
    - `<SETUP_PATH>/TypeChangeStudy/SimpleTypeChangeMiner/Output/ProtosOut`
    - `<SETUP_PATH>/TypeChangeStudy/SimpleTypeChangeMiner/Output/dependencies`
    - For docker: /data/TypeChangeStudy/SimpleTypeChangeMiner/Output/
-
-**NOTE:** This step takes a while, because it will analyse all the commits in the project `guice`.
-   If you are a user, who just wants to check out how the tool works, abort the command after a 3-4 minutes of analysis.
-
 
 ## STEP 2
 ### Instructions
@@ -109,7 +108,7 @@ This set up will guide you through running some python scripts with
    Run: `python 3AnalyseTypeChanges.py`
    
    - **NOTE:** This step takes a while, because it will analyse all the commits in the project `guice` that contain a type change.
-   If you are a user, who just wants to check out how the tool works, abort the command after a 3-4 minutes of analysis.
+   If you are a user, who just wants to check out how the tool works, abort the command after 5 minutes of analysis.
    
 5.  Working Directory: `~/RunTypeChangeStudy` 
 
