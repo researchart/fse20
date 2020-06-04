@@ -18,7 +18,6 @@ docker pull liuyedocker/fse2020-faircon
 docker run --name faircon_demo -it liuyedocker/fse2020-faircon
 ```
 
-=======
 #### 3. Run experiments for checking fairness properties on auction cases (usually less than 1 hour)
 
 ```bash
