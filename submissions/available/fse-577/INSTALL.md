@@ -14,3 +14,8 @@ versions is possible.
 
 # StealthApp & TikTokDownloader
 
+The source of these 2 proof-of-concept apps are Android Studio project.
+They can be installed via Android Studio.
+There are certain requirements for these apps to work properly and those requirements
+are listed in *README.md*.
+
