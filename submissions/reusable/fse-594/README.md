@@ -49,7 +49,7 @@ Therefore, we only released the log files on websites where we detected conflict
 Further, we only keep *.script files on websites where we detected function definition conflicts, as the *.script files were used to identify duplicate function definition and duplicate script inclusion.
 We also sampled 100 websites on which we did not detect any conflict.
 
-The dataset collected by JSObserver is available [here](...), with a DOI of __10.5281/zenodo.3874944__.
+The dataset collected by JSObserver is available [here](https://zenodo.org/record/3874944), with a DOI of __10.5281/zenodo.3874944__.
 
 
 ## Data Collection
