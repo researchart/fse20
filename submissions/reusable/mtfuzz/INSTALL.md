@@ -38,8 +38,10 @@ Run MTFuzz on 10 tested programs reported in our paper. We will use program size
     # -l, file len is obtained by maximum file lens in the mtfuzz_in ( ls -lS mtfuzz_in|head )
     python ./mtfuzz_wrapper.py -i mtfuzz_in -o seeds -l 7402 ./size @@
 ```
-The initial data processing will take around 5-10 minutes. If you see the following log in NN module terminal and fuzzing module terminal, then MTFuzz is running correctly.
+The initial data processing will take around 5-10 minutes. If you see the following log in NN module terminal and fuzzing module terminal, then MTFuzz is running correctly. In fuzzing module terminal, the first red block shows the edge coverage of init seed corpus, then the following lines shows the current edge coverage discovered by MTFuzz. To compute the new edge coverage, users simply need to substrate init edge coverage from current edge coverage. 
 
+![image](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/nn_module.png?raw=true)
+![image](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/fuzzing_module.png?raw=true)
 ### Run MTFuzz on your own tested programs
 We demonstrate how to set up MTFuzz on your own tested programs with a xml parser expat.
 1. Unzip expat source code and move into expat root directory
