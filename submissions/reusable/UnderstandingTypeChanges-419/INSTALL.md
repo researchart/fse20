@@ -126,3 +126,4 @@ To shell into the docker container run: `docker exec -it mytc /bin/bash`
 
 ### Expected outcomes
 1. open `<SETUP_PATH>/TypeChangeStudy/DataAnalysis/docs/index.html` in the browser.
+- If you are using docker `docker cp mytc:/data/TypeChangeStudy/DataAnalysis/docs .` will copy the HTML files generated into the host. 
