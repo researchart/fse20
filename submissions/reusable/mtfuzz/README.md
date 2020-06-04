@@ -43,4 +43,4 @@ We provide source code of MTFuzz in source directory. A short usage example of r
 
 ### Reproducing results
 We provide replication package for all 10 programs reported in our paper. Please check source/programs directory.
-We also provide an AWS GPU instance for reviewer who didn't have proper GPU resources to test our tool. The instrution to access AWS instance is shared in email.
+We also provide an AWS GPU instance for reviewer who didn't have proper GPU resources to test our tool. The instruction to access AWS instance is shared in email.
