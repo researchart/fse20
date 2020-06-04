@@ -91,10 +91,10 @@ To shell into the docker container run: `docker exec -it mytc /bin/bash`
    	- For Windows:
 	    - Run : `gremlin-server.bat`
    - For docker :  
-   	- Use a separate terminal on your host machine to shell into the container with `docker exec -it mytc /bin/bash`
-	- `cd /data/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
-	- `chmod 777 gremlin-server.sh`
-	- `./gremlin-server.sh console`
+	- Use a separate terminal on your host machine to shell into the container with `docker exec -it mytc /bin/bash`
+		- `cd /data/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
+		- `chmod 777 gremlin-server.sh`
+		- `./gremlin-server.sh console`
    - **NOTE**: Wait for a minute or so, until the server is up on port 8182.
    
    
