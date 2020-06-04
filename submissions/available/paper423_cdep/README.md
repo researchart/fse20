@@ -10,6 +10,8 @@ cDep currently supports:
 
 <br>
 
+The whole artifact is accessbile from https://doi.org/10.5281/zenodo.3877326 and a github repository https://github.com/xlab-uiuc/cdep-fse.git.
+
 The repository contains **all the artifacts** (including all the code and datasets) of the paper
 
 * **Understanding and Discovering Software Configuration Dependencies in Cloud and Datacenter Systems** <br>
