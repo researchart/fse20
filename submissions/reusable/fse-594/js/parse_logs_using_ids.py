@@ -1401,8 +1401,8 @@ def usage():
     print(tab*2 + 'Start index, default 0')
     print(tab + '-e | --end')
     print(tab*2 + 'End index, default number of URLs')
-    print(tab + '-t | --type=')
-    print(tab*2 + 'Input type, [url2index|info2index2script] default "url2index"')
+    #print(tab + '-t | --type=')
+    #print(tab*2 + 'Input type, [url2index|info2index2script] default "url2index"')
 
 if __name__ == '__main__':
     main(sys.argv[1:])

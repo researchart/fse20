@@ -157,5 +157,28 @@ def main(argv):
     print('\nIn total %d duplicate function conflicts on %d functions, detected across %d websites'%(conflict_cnt, len(targets), len(ranks)))
 
 
+
+def usage():
+    tab = '\t'
+    print('Usage:')
+    print(tab + 'python %s [OPTIONS]' % (__file__))
+    print(tab + '-d | --exp_dir=')
+    print(tab*2 + 'Exp directory')
+    print(tab + '-u | --user_dir=')
+    print(tab*2 + 'User directory of Chrome')
+    print(tab + '-n | --num=')
+    print(tab*2 + 'Number of task splits, default is 512')
+    print(tab + '-p | --process=')
+    print(tab*2 + 'Maximum number of processes, default is 8')
+    print(tab + '-s | --start')
+    print(tab*2 + 'Start index, default 0')
+    print(tab + '-e | --end')
+    print(tab*2 + 'End index, default number of URLs')
+    print(tab + '-o | --output_dir=')
+    print(tab*2 + 'Output directory where the output file is saved')
+
+
+
+
 if __name__ == '__main__':
     main(sys.argv[1:])

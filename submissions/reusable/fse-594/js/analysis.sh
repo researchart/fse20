@@ -1,7 +1,7 @@
 #!/bin/bash - 
 
 USER_DIR="iso"
-LOG_DIR="/data/isolate_exp_data/js-conflict/large_scale_scripts/reusable_fse20" # Modify this to your local folder where the log files should be saved
+LOG_DIR="/data/isolate_exp_data/js-conflict/large_scale_scripts/reusable_fse20" # Modify this to your local folder where the log files should be saved, please use absolute path
 PROCESSED_DATA_DIR="$LOG_DIR/processed_data"
 FUNC_DATA_DIR="$PROCESSED_DATA_DIR/conflicting_data"
 SCRIPT_DIR=$PWD 
