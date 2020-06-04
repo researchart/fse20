@@ -13,9 +13,9 @@ NUM_PROCESSES=256
 NUM_INSTANCES=512
 
 # You can comment some of the commands below to avoid redoing some computation
-date
-echo python collect_logs.py -u $USER_DIR -d $LOG_DIR -s $START -e $END -n $NUM_INSTANCES -p $NUM_PROCESSES
-time python collect_logs.py -u $USER_DIR -d $LOG_DIR -s $START -e $END -n $NUM_INSTANCES -p $NUM_PROCESSES
+#date
+#echo python collect_logs.py -u $USER_DIR -d $LOG_DIR -s $START -e $END -n $NUM_INSTANCES -p $NUM_PROCESSES
+#time python collect_logs.py -u $USER_DIR -d $LOG_DIR -s $START -e $END -n $NUM_INSTANCES -p $NUM_PROCESSES
 
 #echo $LOG_DIR
 #echo $SCRIPT_DIR
