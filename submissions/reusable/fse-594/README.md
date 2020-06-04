@@ -41,6 +41,17 @@ cd src
 out/Release/Chromium.app/Contents/MacOS/Chromium --no-sandbox
 ```
 
+## Data Availability
+
+The collected dataset in total requires over 3TB of disk space. 
+
+Therefore, we only released the log files on websites where we detected conflicts.
+Further, we only keep *.script files on websites where we detected function definition conflicts, as the *.script files were used to identify duplicate function definition and duplicate script inclusion.
+We also sampled 100 websites on which we did not detect any conflict.
+
+The dataset collected by JSObserver is available [here](...), with a DOI of __10.5281/zenodo.3874944__.
+
+
 ## Data Collection
 
 We provide our data collection script in the *js* folder.
@@ -101,6 +112,43 @@ We saved the source code of scripts in _[rank].[main/sub].[frame\_cnt].[script\_
 
 * The first line of the file is the script URL. The rest are the source code of the script.
 
+
+## Data Analysis
+
+We provide the data analysis scripts in folder *js*.
+To fully automate the analysis, you may change *LOG_DIR* in *analysis.sh* to your local folder where you want to save the log files.
+You can further configure *START*, *END*, *NUM\_PROCESSE*S and *NUM\_INSTANCES* in *analysis.sh*. Then use:
+
+```shell
+cd js
+./analysis.sh
+```
+
+The above command will execute the following python scripts. You may comment some of them to avoid redoing some computation.
+
+* parse_logs\_using\_ids.py: parse *.asg log files to extract write operation information and function calls
+* func-parse\_logs.py: parse *.func log files to extract function definitions
+* func-detect\_conflicts.py: detect function definition conflicts from *.func files
+* preprocess\_conflicts\_using\_ids.py: exclude conflicts involving tmp variables injected by JSObserver
+* extract\_rank2urls.py: extract website URLs from *.frame files
+* categorize\_conflicts.py: classify detected conflicts based on the domain name of conflicting scripts
+* summarize\_conflicts.py: merge all detected conflicts into a single JSON file
+* check\_conflict\_var\_usage\_using\_ids.py: search for function calls after the overwrite of function definitions
+* summarize\_used\_conflicts.py: merge all function definition conflicts where the function was called after being redefined
+* parallel\_select\_duplicate\_funcs.py: identify duplicate function definitions
+* summarize\_duplicate\_funcs.py: compute statistics about duplicate function definitions
+* parallel\_select\_duplicate\_scripts.py: identify duplicate scripts on a website
+* summarize\_duplicate\_funcs.py: compute statistics about duplicate script inclusion
+* compute\_all\_stats.py: compute all statistics about detected conflicts
+
+For more information about the options, use: 
+
+```shell
+python [script_name] --help
+
+# Example
+python parse_logs_using_ids.py --help
+```
 
 ## Contact ##
 
