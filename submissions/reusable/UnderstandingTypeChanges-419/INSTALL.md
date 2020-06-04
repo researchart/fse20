@@ -84,12 +84,17 @@ To shell into the docker container run: `docker exec -it mytc /bin/bash`
    Run: `python 2CopyPaste.py`
    
 2. **On a seperate terminal**: 
-   - When using Docker, use a separate terminal on your host machine to shell into the container with `docker exec -it mytc /bin/bash`
-   - Run: `cd <SETUP_PATH>/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
-   - For Linux/Mac (and Docker):
-	 - Run : `./gremlin-server.sh console`
-   - For Windows:
-	 - Run : `gremlin-server.bat`
+   
+   -  Working Dierctory:`<SETUP_PATH>/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
+   	- For Linux/Mac 
+	    - Run : `./gremlin-server.sh console`
+   	- For Windows:
+	    - Run : `gremlin-server.bat`
+   - For docker :  
+   	- Use a separate terminal on your host machine to shell into the container with `docker exec -it mytc /bin/bash`
+	- `cd /data/TypeChangeStudy/apache-tinkerpop-gremlin-server-3.4.4/bin`
+	- `chmod 777 gremlin-server.sh`
+	- `./gremlin-server.sh console`
    - **NOTE**: Wait for a minute or so, until the server is up on port 8182.
    
    
