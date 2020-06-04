@@ -43,7 +43,7 @@ To shell into the docker container run: `docker exec -it mytc /bin/bash`
 4. Run: `python 0Setup.py <SETUP_PATH> <MAVEN_HOME>`
    - `SETUP_PATH`: The folder where the study should be setup
    - `MAVEN_HOME`: Path to maven
-   - **For Docker** : `python 0Setup.py /data /usr/apache-maven-3.5.4'
+   - **For Docker** : `python 0Setup.py /data /usr/apache-maven-3.5.4`
    - Example 2 (Windows): `python 0Setup.py C:\Users\amketk\Artifact  C:\ProgramData\chocolatey\lib\maven\apache-maven-3.6.3\`
    - Example 3 (MacOS): `python 0Setup.py /Users/amketk/Artifact /usr/local/Cellar/maven/3.6.3/`
    - To find out `<MAVEN_HOME>` run `mvn --version`, which would output the maven version and the path to it. 
