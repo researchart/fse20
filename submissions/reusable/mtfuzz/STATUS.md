@@ -1,0 +1,1 @@
+We are applying for a functional and reusable badge. We provide a complete source code of our tool--MTFuzz and detailed documents to each module of it to foster further research in this area. We also provde all tested programs in our paper to help users to easily reproduce our results reported in the paper.
