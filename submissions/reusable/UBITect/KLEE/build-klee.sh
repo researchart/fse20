@@ -6,7 +6,7 @@ if [ ! -d "build" ]; then
           mkdir build
 fi
 cd build
-make
+make -j32
 make install
 
 export Z3PATH=${CUR_DIR}/z3/prefix
