@@ -1,3 +1,38 @@
+# MTFUZZ
+
+## Table of contents
+
+1. **[Preconfigured AWS (_Recommended for review, it's easy_)]()**
+
+2. **[Run on a local Machine (_Recommeded to experimentation, this will take time_)]()**
+
+3. **[Use MTFuzz on your own program (_Recommended for exending current method_)]()**
+
+# 1. Preconfigured AWS (_Recommended for review, it's easy_)
+
+**NOTE: We have created an AWS account with a pre-configured AWS instance for review. Please request AWS username, password, and `*.pem` file from PC chairs. Follow the instructions below after you have the credentials.**
+
+1. Go to https://aws.amazon.com/console/ and log in with the credentials above
+
+2. Select region "US East (Ohio) us-east-2" as below:
+![Screenshot 2020-06-05 06 10 27](https://user-images.githubusercontent.com/1433964/83867347-4734d880-a6f7-11ea-9e9d-0cb59cd6afaf.png)
+
+3. Choose EC2
+![Screenshot 2020-06-05 06 21 41](https://user-images.githubusercontent.com/1433964/83867639-c0ccc680-a6f7-11ea-9e99-60050eb9c1cc.png)
+
+4. Go to instances on the left
+![Screenshot 2020-06-05 06 22 33](https://user-images.githubusercontent.com/1433964/83867691-d80bb400-a6f7-11ea-82bf-241d20cdfc35.png)
+
+5. Right-click on fse-artifact, go to Instance State, and then start. 
+![Screenshot 2020-06-05 06 23 37](https://user-images.githubusercontent.com/1433964/83868100-52d4cf00-a6f8-11ea-8118-99c48f9f62ae.png)
+
+6. After the instance starts running, right-click and select connect
+![image](https://user-images.githubusercontent.com/1433964/83868259-94657a00-a6f8-11ea-9cb3-787a2d26876b.png)
+
+
+
+# 2. Run on a local Machine (_Recommeded to experimentation, this will take time_)
+
 ### Install prerequisite
 - Make sure your system has python 3.7
 - Install tensorflow-gpu 1.15. Note that you need to install proper CUDA, CuDNN before installing tensorflow-gpu.
