@@ -13,7 +13,7 @@ export Z3PATH=${CUR_DIR}/z3/prefix
 export Z3_INCLUDE_DIRS=${CUR_DIR}/z3/build/include
 
 
-cd../../klee
+cd ../../klee
 if [ ! -d "build" ]; then
           mkdir build
 fi
