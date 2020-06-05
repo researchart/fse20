@@ -1,0 +1,2 @@
+We apply for all three badges: **available, functional, and reusable**.
+We provide detailed instructions on how to fully reproduce FrUITeR's results, as well as how to reuse FrUITeR for future experiments of your own choice on our website \[[Link](https://felicitia.github.io/FrUITeR/)\]. The DOI is also provided in the `index.md` file under the 'available' folder.
