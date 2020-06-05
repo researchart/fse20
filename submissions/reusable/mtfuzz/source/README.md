@@ -7,4 +7,4 @@ This directory contains source code for each modules of MTFuzz.
 - build.sh: build the above 5 pass and mtufzz
 - mtfuzz_wrapper.py: a python wrapper to run mtfuzz fuzzing module
 - nn.py: mtfuzz nn module
-- programs: 10 real world programs reported in the paper
+- programs: 10 real world programs reported in the paper and a program to demo how to compile with MTFuzz.
