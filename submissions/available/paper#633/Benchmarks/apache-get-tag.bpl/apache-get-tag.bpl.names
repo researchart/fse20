@@ -1,0 +1,12 @@
+invariant.
+$pc : b0,b1.
+b0$tagbuf_len: continuous.
+b0$t: continuous.
+$b0$tagbuf_len+t:= b0$tagbuf_len + b0$t.
+$b0$tagbuf_len-t:= b0$tagbuf_len - b0$t.
+b1$tagbuf_len: continuous.
+b1$t: continuous.
+$b1$tagbuf_len+t:= b1$tagbuf_len + b1$t.
+$b1$tagbuf_len-t:= b1$tagbuf_len - b1$t.
+invariant: true, false.
+

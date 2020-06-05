@@ -1,0 +1,1 @@
+Boogie.exe /traceverify /nologo /noinfer /trace /contractInfer  /printAssignment /printModel:4 /printInstrumented /printModelToFile:..\Test\Out\model.txt  /mlHoudini:dt_penalty /printCFG:..\Test\Out\cfgp /proverLog:..\Test\Out\testlog.txt /print:..\Test\Out\parsed.txt ..\Test\In\cegar2.bpl
