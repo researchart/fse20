@@ -54,7 +54,7 @@ $ cd mtfuzz
 $ source activate tensorflow_p36
 ```
 
-12. You may now follow instructions from [§2.2]() to run MTFuzz.
+12. You may now follow instructions from [§2.2](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#22-build-mtfuzz) to run MTFuzz.
 
 # 2. Run on a local Machine (_Recommeded to experimentation, this will take time_)
 
@@ -89,16 +89,23 @@ Run MTFuzz on 10 tested programs reported in our paper. We will use program size
     echo performance | tee cpu*/cpufreq/scaling_governor
     echo core >/proc/sys/kernel/core_pattern
 ```
-4. Open a terminal to start NN module.
+4. Open two terminal sessions (terminal-A and terminal-B). 
+    _Please Note: if you are on aws,
+        (1) open a new terminal;        
+        (2) ssh into the aws container; and 
+        (3) cd to the current directory.
+
+5. In terminal-A, start the MTNN module as follows (**Do not exit/close this terminal**)
 ```bash  
     python nn.py ./size 
 ```
-5. Open another terminal to start fuzzing module.
+5. In terminal-B, start fuzzing module (**Do not close/exit this terminal either**)
 ```bash
     # -l, file len is obtained by maximum file lens in the mtfuzz_in ( ls -lS mtfuzz_in|head )
     python ./mtfuzz_wrapper.py -i mtfuzz_in -o seeds -l 7402 ./size @@
 ```
-The initial data processing will take around 5-10 minutes. If you see the following log in NN module terminal and fuzzing module terminal, then MTFuzz is running correctly. In fuzzing module terminal, the first red block shows the edge coverage of init seed corpus, then the following lines shows the current edge coverage discovered by MTFuzz. To compute the new edge coverage, users simply need to substrate init edge coverage from current edge coverage. 
+
+_Note: The initial data processing will take around 5-10 minutes. If you see the following log in NN module terminal and fuzzing module terminal, then MTFuzz is running correctly. In fuzzing module terminal, the first red block shows the edge coverage of init seed corpus, then the following lines shows the current edge coverage discovered by MTFuzz. To compute the new edge coverage, users simply need to substrate init edge coverage from current edge coverage._
 
 ![image](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/nn_module.png?raw=true)
 ![image](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/fuzzing_module.png?raw=true)
