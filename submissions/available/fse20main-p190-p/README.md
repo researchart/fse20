@@ -91,7 +91,11 @@ in the catch block as in the Figure above.
 
 ### Downloading The Tool
 
-The tool is available to download at: 
+The tool is available to download at: dx.doi.org/10.6084/m9.figshare.12433667
+
+### Reproducing The Result Presented In The Paper
+
+To reproduce the result presented in the paper, we should run ExAssist on the exception bugs and fixes dataset that we also provided here. For each exception bug, we should rebuild the code scenario and invokes ExAssist to highlight exception-prone methods, recommend exceptio types, and recommend the repairing actions. 
 
 ## The Dataset
 
@@ -103,22 +107,21 @@ The description file (exceptionbugs.csv) is a table that describes each exceptio
 
 * Project: The project that contains the bug fix.
 	
-
 * Commit ID: The commit id associates with the bug fix.
 
 * Short Message: The commit message of the bug fix.
 
 * File: The file in the project that contains the bug fix. 
 
-* Method: The API method that causes exceptions. We identify such a method if there is only one method in the \code{try} block of the bug fix or the programmer explicitly indicates the method that causes the exception. Otherwise, we marked this field as \code{MULTIPLE}. We were able to identify the API method that causes exceptions in 424 cases (56.5\%)
+* Method: The API method that causes exceptions. We identify such a method if there is only one method in the try block of the bug fix or the programmer explicitly indicates the method that causes the exception. Otherwise, we marked this field as MULTIPLE. We were able to identify the API method that causes exceptions in 424 cases (56.5%)
 
 * Exception: The exception type occurs in the bug.
 
 * Log: This field indicates whether or not the bug fix contains log statements
 
-* Handle Strategy: This field indicates the handling strategy of programmers. We classified the handling strategy into 3 main types including \code{IGNORE, HANDLE, RETHROW}. \code{IGNORE} means that programmers add \code{catch} blocks but did not perform any handling actions on bug fixes. Note that, we separated logging actions from handling actions. \code{RETHROW} means that programmers re-throw another exception in the bug fix, and pass the handling responsibility for the called method. \code{HANDLE} means that programmers perform at least one handling actions in the bug fixes. 
+* Handle Strategy: This field indicates the handling strategy of programmers. We classified the handling strategy into 3 main types including IGNORE, HANDLE, RETHROW. IGNORE means that programmers add catch blocks but did not perform any handling actions on bug fixes. Note that, we separated logging actions from handling actions. RETHROW means that programmers re-throw another exception in the bug fix, and pass the handling responsibility for the called method. HANDLE means that programmers perform at least one handling actions in the bug fixes. 
 	
-* Handle Type: If the previous field is marked as HANDLE, this field indicates the type of handling actions performed by programmers. RETURN_VALUE means that programmers add a \code{return} statement with a default value, e.g. \code{return false;}. While,  \code{ASSIGN\_VALUE} means that programmers assign a default value to variables, e.g. \code{var = false;}. Otherwise, \code{METHOD\_CALL} means that the programmers call at least a method in handling code.
+* Handle Type: If the previous field is marked as HANDLE, this field indicates the type of handling actions performed by programmers. RETURN_VALUE means that programmers add a return statement with a default value, e.g. return false;. While, ASSIGN_VALUE means that programmers assign a default value to variables, e.g. var = false;. Otherwise, METHOD_CALL means that the programmers call at least a method in handling code.
 
 * Github Link: This field stores the Github link for the commit associated with the bug fix. Users can view the code changes in the bug fix by opening this link in a web browser. 
 
@@ -126,6 +129,6 @@ The second file (projects.csv) stores the information about the projects that we
 
 The final part of the dataset is the folder (codechanges) that contains code changes in bug fixes. Each bug fix corresponds with a sub-folder labeled by the index of the bug fix in the description file. A sub-folder includes the pre-version (the bug version) and the post-version (the fix version)  of the source file associated with the bug fix.
 
-### Downloading the tool
+### Downloading The Dataset
 
-The dataset is available to download at: 
+The dataset is available to download at: dx.doi.org/10.6084/m9.figshare.12433667
