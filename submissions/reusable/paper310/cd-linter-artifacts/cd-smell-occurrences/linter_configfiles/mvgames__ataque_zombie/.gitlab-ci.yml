@@ -1,0 +1,68 @@
+stages:
+  - build
+  - test
+
+bin_linux:
+  stage: build
+  image: gcc
+  before_script:
+  - apt-get update && apt-get install -y make libncurses5-dev libgpm-dev
+  script:
+  - make linux
+  artifacts:
+    name: "ataque_zombie_linux_${CI_COMMIT_REF_NAME}"
+    paths:
+    - ataque_zombie
+  when: manual
+  allow_failure: false
+
+bin_linux_en:
+  stage: build
+  image: gcc
+  before_script:
+  - apt-get update && apt-get install -y make libncurses5-dev libgpm-dev
+  script:
+  - make linux_en
+  artifacts:
+    name: "ataque_zombie_linux_english_${CI_COMMIT_REF_NAME}"
+    paths:
+    - ataque_zombie
+  when: manual
+  allow_failure: false
+
+bin_windows:
+  stage: build
+  image: gcc
+  before_script:
+  - apt-get update && apt-get install -y make mingw-w64
+  script:
+  - make windows
+  artifacts:
+    name: "ataque_zombie_windows_${CI_COMMIT_REF_NAME}"
+    paths:
+    - ataque_zombie.exe
+  when: manual
+  allow_failure: false
+
+bin_windows_en:
+  stage: build
+  image: gcc
+  before_script:
+  - apt-get update && apt-get install -y make mingw-w64
+  script:
+  - make windows_en
+  artifacts:
+    name: "ataque_zombie_windows_english_${CI_COMMIT_REF_NAME}"
+    paths:
+    - ataque_zombie.exe
+  when: manual
+  allow_failure: false
+
+test_linux:
+  stage: test
+  image: busybox:latest
+  script:
+  - ./ataque_zombie --test
+  dependencies:
+  - bin_linux
+

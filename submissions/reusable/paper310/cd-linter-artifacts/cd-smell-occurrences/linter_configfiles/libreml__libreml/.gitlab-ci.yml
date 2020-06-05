@@ -1,0 +1,174 @@
+image: registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst14/amd64:80f4a16af18b8641874fe037710dcaad4710ff50
+
+variables:
+  # Store everything under the /builds directory. This is a separate Docker
+  # volume. Note that GitLab CI will only cache stuff inside the build
+  # directory.
+  XDG_CACHE_HOME: "${CI_PROJECT_DIR}/cache"
+  BST_LOGS:  "${CI_PROJECT_DIR}/cache/buildstream/logs"
+  GET_SOURCES_ATTEMPTS: 3
+  LIBREML_CACHE_SERVER_ADDRESS: 'libreml-cache.libreml.org'
+
+  # Generic variable for invoking buildstream
+  BST: bst --colors
+
+  # Default directory for artifacts to be checked out to
+  OUTPUT_DIR: output
+
+  # Auto Updater
+  AUTO_UPDATER_URL: "https://gitlab.com/BuildStream/infrastructure/gitlab-merge-request-generator"
+  AUTO_UPDATER_BRANCH: "v0.0.6"
+
+stages:
+  - update
+  - build
+  - testing
+  - push
+  - compose_libreml
+  - package
+
+before_script:
+  # Configure Buildstream
+  - mkdir -p ~/.config
+  - |
+    cat > ~/.config/buildstream.conf << EOF
+    # Get a lot of output in case of errors
+    logging:
+      error-lines: 80
+    EOF
+
+.bst_artifact_push_settings_template: &bst_artifact_push_settings |
+    mkdir -p /etc/ssl/CAS
+    if [ -n "$GITLAB_CAS_PUSH_CERT" ] && [ -n "$GITLAB_CAS_PUSH_KEY" ]; then
+        echo "$GITLAB_CAS_PUSH_CERT" > /etc/ssl/CAS/server.crt
+        echo "$GITLAB_CAS_PUSH_KEY" > /etc/ssl/CAS/server.key
+
+        echo "projects:" >> ~/.config/buildstream.conf
+        echo "  libreml:" >> ~/.config/buildstream.conf
+        echo "    artifacts:" >> ~/.config/buildstream.conf
+        echo "      url: https://${LIBREML_CACHE_SERVER_ADDRESS}:11002" >> ~/.config/buildstream.conf
+        echo "      client-key: /etc/ssl/CAS/server.key" >> ~/.config/buildstream.conf
+        echo "      client-cert: /etc/ssl/CAS/server.crt" >> ~/.config/buildstream.conf
+        echo "      push: true" >> ~/.config/buildstream.conf
+    fi
+
+.special_jobs_template: &special_jobs
+    refs:
+        - master
+        - staging
+        - /^v.*$/ #protected tags that start with v
+
+# Testing for 1 as a boolean is not ideal, but 
+# boolean values are not permitted in gitlab yaml
+# https://gitlab.com/gitlab-org/gitlab-ce/issues/44506
+.build_bst_artifact_template: &build_bst_artifact
+    stage: build
+    script:
+        - ${BST} -o target_arch ${ARCH} -o blas_impl ${BLAS_IMPL} build ${BST_ARTIFACT}
+        - test 1 -eq ${NO_CHECKOUT} || ${BST} -o target_arch ${ARCH} -o blas_impl ${BLAS_IMPL} checkout ${BST_ARTIFACT} ${OUTPUT_DIR}
+    artifacts:
+        when: always
+        paths:
+            - ${BST_LOGS}
+            - ${OUTPUT_DIR}
+    tags:
+        - high_load
+    only:
+        - merge_requests
+
+.push_bst_artifact_template: &publish_bst_artifact
+    stage: push
+    script:
+        - *bst_artifact_push_settings
+        - ${BST} -o target_arch ${ARCH} -o blas_impl ${BLAS_IMPL} build ${BST_ARTIFACT}
+        - test 1 -eq ${NO_CHECKOUT} || ${BST} -o target_arch ${ARCH} -o blas_impl ${BLAS_IMPL} checkout ${BST_ARTIFACT} ${OUTPUT_DIR}
+    artifacts:
+        when: always
+        paths:
+            - ${BST_LOGS}
+            - ${OUTPUT_DIR}
+    tags:
+        - high_load
+    only:
+        <<: *special_jobs
+
+.track_artifact_deps_template: &track_bst_artifact
+    stage: update
+    before_script:
+        - git clone --depth 1 --branch $AUTO_UPDATER_BRANCH $AUTO_UPDATER_URL auto_updater
+        - cd auto_updater && python3 setup.py install && cd -
+        - url_host=`git remote get-url origin | sed -e "s#https://gitlab-ci-token:.*@##g"`
+        - git remote set-url origin "https://gitlab-ci-token:${LIBREML_GIT_KEY}@${url_host}"
+    script:
+        - git config user.name "LibreML"
+        - git config user.email "libreml@libreml.com"
+        - git branch master origin/master
+        - GITLAB_TOKEN=$LIBREML_API_KEY auto_updater --verbose
+          --nobuild
+          --overwrite
+          --push
+          --create_mr
+          --gitlab_project="libreml/libreml"
+          $BST_ARTIFACT
+    only:
+        - schedules
+
+track_libreml_deps:
+    <<: *track_bst_artifact
+    variables:
+        BST_ARTIFACT: libreml.bst
+
+### libreml builds
+
+build_libreml_openblas:
+    <<: *build_bst_artifact
+    variables:
+        BST_ARTIFACT: libreml.bst
+        ARCH: x86_64
+        BLAS_IMPL: openblas
+
+#### publish libreml sysroot
+
+publish_libreml_openblas:
+    <<: *publish_bst_artifact
+    variables:
+        BST_ARTIFACT: libreml.bst
+        ARCH: x86_64
+        BLAS_IMPL: openblas
+
+###
+docker_test:
+    before_script: []
+    image: docker:stable
+    services:
+        - docker:dind
+    stage: package
+    dependencies:
+        - build_libreml_openblas
+    script:
+        - export DOCKER_HOST=tcp://docker:2375/
+        - docker import ${OUTPUT_DIR}/libreml.tar.gz ${DOCKER_IMAGE}
+        - docker run -w /examples -v $(pwd)/examples:/examples ${DOCKER_IMAGE} ./run_examples.sh
+    variables:
+        DOCKER_IMAGE: ${CI_REGISTRY_IMAGE}/libreml:${CI_COMMIT_REF_SLUG}
+    only:
+        - merge_requests
+
+docker_deploy:
+    before_script: []
+    image: docker:stable
+    services:
+        - docker:dind
+    stage: package
+    dependencies:
+        - publish_libreml_openblas
+    script:
+        - export DOCKER_HOST=tcp://docker:2375/
+        - docker import ${OUTPUT_DIR}/libreml.tar.gz ${DOCKER_IMAGE}
+        - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+        - docker push ${DOCKER_IMAGE}
+    variables:
+        DOCKER_IMAGE: ${CI_REGISTRY_IMAGE}/libreml:${CI_COMMIT_REF_SLUG}
+    only:
+        <<: *special_jobs
+

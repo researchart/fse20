@@ -1,0 +1,48 @@
+---
+# -*- coding: utf-8 -*-
+include:
+  - '/gci-templates/activate-dind.yml'
+  - '/gci-templates/stages.yml'
+  - '/gci-templates/job/info.yml'
+  - '/gci-templates/job/.base.yml'
+  - '/gci-templates/job/ansible-lint.yml'
+  - '/gci-templates/job/yaml-lint.yml'
+  - '/gci-templates/job/ansible-syntax-check.yml'
+  - '/gci-templates/job/molecule.yml'
+  - '/gci-templates/job/bats.yml'
+  - '/gci-templates/job/bash-lint.yml'
+  - '/gci-templates/job/docker-lint.yml'
+  - '/gci-templates/job/terraform/lint.yml'
+
+ansible-lint:
+  variables:
+    working_directory: "test/ansible"
+
+ansible-syntax-check:
+  variables:
+    working_directory: "test/ansible"
+
+molecule:
+  variables:
+    working_directory: "test/ansible-role-testmolecule"
+
+bats:
+  variables:
+    working_directory: "test/bash"
+
+bash-lint:
+  variables:
+    working_directory: "test/bash"
+
+docker-lint:
+  variables:
+    working_directory: "test/docker"
+
+terraform-syntax-check:
+  variables:
+    working_directory: "test/terraform"
+
+terraform-lint:
+  variables:
+    working_directory: "test/terraform"
+

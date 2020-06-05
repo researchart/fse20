@@ -1,0 +1,178 @@
+image: registry.gitlab.com/josm/docker-library/openjdk-8-git:latest
+
+before_script:
+- export GRADLE_USER_HOME=`pwd`/.gradle
+- mkdir -p "$GRADLE_USER_HOME" && echo "org.gradle.caching=true" >> "$GRADLE_USER_HOME/gradle.properties"
+
+cache:
+  paths:
+  - .gradle/caches/build-cache-*
+
+assemble:
+  stage: build
+  script:
+  - ./gradlew assemble
+  artifacts:
+    paths:
+    - build/
+
+assemble on java11:
+  stage: build
+  image: registry.gitlab.com/josm/docker-library/openjdk-11-git:latest
+  script:
+  - ./gradlew assemble
+  artifacts:
+    paths:
+    - build/
+
+assemble on java12:
+  stage: build
+  image: registry.gitlab.com/josm/docker-library/openjdk-12-git:latest
+  script:
+  - ./gradlew assemble
+  artifacts:
+    paths:
+    - build/
+
+assemble on java13:
+  stage: build
+  image: registry.gitlab.com/josm/docker-library/openjdk-13-git:latest
+  script:
+  - ./gradlew assemble
+  artifacts:
+    paths:
+    - build/
+  allow_failure: true
+
+assemble on java14:
+  stage: build
+  image: registry.gitlab.com/josm/docker-library/openjdk-14-git:latest
+  script:
+    - ./gradlew assemble
+  artifacts:
+    paths:
+      - build/
+  allow_failure: true
+
+test:
+  stage: test
+  script:
+  - ./gradlew build dokka
+  artifacts:
+    paths:
+    - build/
+  dependencies:
+  - assemble
+
+test on java11:
+  stage: test
+  image: registry.gitlab.com/josm/docker-library/openjdk-11-git:latest
+  script:
+  - ./gradlew build
+  dependencies:
+  - assemble on java11
+
+test on java12:
+  stage: test
+  image: registry.gitlab.com/josm/docker-library/openjdk-12-git:latest
+  script:
+  - ./gradlew build
+  dependencies:
+  - assemble on java12
+
+test on java13:
+  stage: test
+  image: registry.gitlab.com/josm/docker-library/openjdk-13-git:latest
+  script:
+  - ./gradlew build
+  dependencies:
+  - assemble on java13
+  allow_failure: true
+
+test on java14:
+  stage: test
+  image: registry.gitlab.com/josm/docker-library/openjdk-14-git:latest
+  script:
+  - ./gradlew build
+  dependencies:
+  - assemble on java14
+  allow_failure: true
+
+publish to / Gradle Plugin Portal:
+  stage: deploy
+  environment:
+    name: maven / Gradle Plugin Portal
+    url: https://plugins.gradle.org/plugin/org.openstreetmap.josm
+  script:
+  - ./gradlew -Pgradle.publish.secret="$GRADLE_PUBLISH_SECRET" -Pgradle.publish.key="$GRADLE_PUBLISH_KEY" publishPlugins
+  dependencies:
+  - test
+  only:
+  - tags@floscher/gradle-josm-plugin
+
+publish to / GitLab.com Maven:
+  stage: deploy
+  environment:
+    name: maven / gitlab.com
+    url: https://gitlab.com/floscher/gradle-josm-plugin/-/packages
+  script:
+  - ./gradlew publishAllPublicationsToGitlabRepository
+  - ./gradlew releaseToGitlab
+  dependencies:
+  - test
+  only:
+  - tags@floscher/gradle-josm-plugin
+
+publish to / pages branch:
+  stage: deploy
+  environment:
+    name: maven / pages branch plus KDoc
+    url: https://gitlab.com/floscher/gradle-josm-plugin/tree/pages
+  script:
+  - |
+    mkdir -p ~/.ssh/
+    echo "$SSH_GITLAB_PUBLIC_KEY" >> ~/.ssh/known_hosts
+    echo "$SSH_DEPLOY_PRIVATE_KEY" > ~/.ssh/id_rsa
+    chmod -R 600 ~/.ssh
+    git clone --depth 1 --branch pages git@gitlab.com:floscher/gradle-josm-plugin.git public
+  - |
+    version=`git describe --always --dirty`
+    longVersion=`git describe --always --long --dirty`
+    rm -rf build/maven/
+    mv public/maven/ build/maven/
+    ./gradlew publishAllPublicationsToBuildDirRepository dokka
+    mv build/maven/ public/maven/
+    mv build/docs/kdoc/ "public/kdoc/$version/"
+  - |
+    cd public/
+    git rm --ignore-unmatch kdoc/current kdoc/latest
+    ln -s "./$version" kdoc/latest
+    git stage .
+  - |
+    git config user.name "Deploy with GitLab CI"
+    git config user.email "incoming+floscher/gradle-josm-plugin@incoming.gitlab.com"
+    git commit -a -m "Update Maven repository and KDoc documentation to $longVersion"
+    git push origin pages
+  dependencies:
+  - test
+  only:
+  - tags@floscher/gradle-josm-plugin
+
+demo:
+  stage: test
+  script:
+    - ./gradlew :demo:build
+    - ./gradlew :demo:compileJava_minJosm
+    - ./gradlew :demo:compileJava_latestJosm
+    - cd demo/
+    - ./gradlew build
+    - cd ..
+    - ./gradlew publish
+    - USE_LOCAL_PLUGIN_VERSION=true ./gradlew :demo:build
+  allow_failure: true
+  only:
+    changes:
+      - "demo/**/*"
+      - ".gitlab-ci.yml"
+      - "*.gradle.kts"
+

@@ -1,0 +1,17 @@
+image: node:latest
+pages:
+  stage: deploy
+  cache:
+    paths:
+    - node_modules/
+  script:
+  - npm install
+  - npx ember build --environment production
+  - mv public .public
+  - mv dist public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,20 @@
+image: registry.gitlab.com/upbhack/website-builder-docker:v6
+
+test:
+  script:
+  - hugo -v
+  except:
+  - master
+
+pages:
+  script:
+  - user=git ./get-members.sh
+  - user=git ./build-satzung.sh
+  - hugo -v
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+

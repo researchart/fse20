@@ -1,0 +1,50 @@
+image: "scorpil/rust:stable"
+
+stable:cargo:
+  image: rustdocker/rust:stable
+  script:
+  # Print version info for debugging
+  - rustc --version && cargo --version
+
+  # Don't parallelize, so errors are more readable
+  - cargo test --verbose --jobs 1 --release
+
+  # Ensure documentation builds
+  - cargo doc
+
+  # Ensure that dds-utils runs properly
+  - cd dds-utils && cargo run --bin dds-info ../examples/dxt1.dds
+
+beta:cargo:
+  image: rustdocker/rust:beta
+  script:
+  # Print version info for debugging
+  - rustc --version && cargo --version
+
+  # Don't parallelize, so errors are more readable
+  - cargo test --verbose --jobs 1 --release
+
+  # Ensure documentation builds
+  - cargo doc
+
+  # Ensure that dds-utils runs properly
+  - cd dds-utils && cargo run --bin dds-info ../examples/dxt1.dds
+
+nightly:cargo:
+  image: rustdocker/rust:nightly
+  script:
+  # Print version info for debugging
+  - rustc --version && cargo --version
+
+  # Don't parallelize, so errors are more readable
+  - cargo test --verbose --jobs 1 --release
+
+  # Run benchmarks
+  - cargo bench --verbose --jobs 1
+
+  # Ensure documentation builds
+  - cargo doc
+
+  # Ensure that dds-utils runs properly
+  - cd dds-utils && cargo run --bin dds-info ../examples/dxt1.dds
+

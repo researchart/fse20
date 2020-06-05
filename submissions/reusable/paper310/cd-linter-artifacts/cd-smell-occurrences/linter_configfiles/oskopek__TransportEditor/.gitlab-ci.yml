@@ -1,0 +1,133 @@
+image: maven:3-jdk-8
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=./.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+
+cache:
+  paths:
+    - ./.m2/repository
+  # keep cache across branch
+  key: "$CI_BUILD_REF_NAME"
+
+before_script:
+  - apt-get update
+  - apt-get install -y openjfx bc
+
+stages:
+  - build
+  - test
+  - deploy
+
+build-job:
+  stage: build
+  script:
+    - "mvn clean compile $MAVEN_CLI_OPTS"
+  artifacts:
+    paths:
+      - transport-benchmark/target/
+      - transport-core/target/
+      - transport-docs/target/
+      - transport-editor/target/
+      - transport-planners/target/
+      - transport-report/target/
+      - transport-thirdparty/target/
+
+unittest-job:
+  stage: test
+  dependencies:
+    - build-job
+  script:
+    - "mvn package $MAVEN_CLI_OPTS  -Dcheckstyle.skip=true"
+    - echo "TotalInstructionCoverage:" `bash calculate_coverage.sh`
+  artifacts:
+    paths:
+      - transport-benchmark/target/
+      - transport-core/target/
+      - transport-docs/target/
+      - transport-editor/target/
+      - transport-planners/target/
+      - transport-report/target/
+      - transport-thirdparty/target/
+
+integrationtest-job:
+  stage: test
+  dependencies:
+    - build-job
+  script:
+    - "mvn verify $MAVEN_CLI_OPTS -Pit -Dcheckstyle.skip=true"
+    - echo "TotalInstructionCoverage:" `bash calculate_coverage.sh it`
+  artifacts:
+    paths:
+      - transport-benchmark/target/
+      - transport-core/target/
+      - transport-docs/target/
+      - transport-editor/target/
+      - transport-planners/target/
+      - transport-report/target/
+      - transport-thirdparty/target/
+
+#uitest-headless-job:
+#  stage: test
+#  dependencies:
+#    - build-job
+#  script:
+#    - "mvn verify $MAVEN_CLI_OPTS -Pit,ut-only-headless -Dcheckstyle.skip=true"
+#    - echo "TotalInstructionCoverage:" `cat transport-editor/target/site/jacoco-it/jacoco.xml | grep -E '<counter type="INSTRUCTION"[^>]*/>' -o | tail -n 1 | sed -E 's@<counter type="INSTRUCTION"[ ]+missed="([0-9]+)"[ ]+covered="([0-9]+)"[ ]*/>@scale=2;100*(\2)/(\1+\2)@' | bc`
+#  artifacts:
+#    paths:
+#      - transport-editor/target/
+
+#uitest-headful-job:
+#  stage: test
+#  dependencies:
+#    - build-job
+#  before_script:
+#    - apt-get update
+#    - apt-get install -y xvfb
+#    - "export DISPLAY=:99.0"
+#    - "Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &"
+#    - sleep 3 # give xvfb some time to start
+#  script:
+#    - "mvn verify $MAVEN_CLI_OPTS -Pit,ut-only -Dcheckstyle.skip=true"
+#    - echo "TotalInstructionCoverage:" `cat transport-editor/target/site/jacoco-it/jacoco.xml | grep -E '<counter type="INSTRUCTION"[^>]*/>' -o | tail -n 1 | sed -E 's@<counter type="INSTRUCTION"[ ]+missed="([0-9]+)"[ ]+covered="([0-9]+)"[ ]*/>@scale=2;100*(\2)/(\1+\2)@' | bc`
+#  artifacts:
+#    paths:
+#      - transport-benchmark/target/
+#      - transport-core/target/
+#      - transport-docs/target/
+#      - transport-editor/target/
+#      - transport-planners/target/
+#      - transport-report/target/
+#      - transport-thirdparty/target/
+
+deploy-job:
+  stage: deploy
+  script:
+    - "true"
+  artifacts:
+    paths:
+      - "transport-benchmark/target/*.jar"
+      - "transport-core/target/*.jar"
+      - "transport-docs/target/*.jar"
+      - "transport-editor/target/*.jar"
+      - "transport-planners/target/*.jar"
+      - "transport-report/target/*.jar"
+      - "transport-thirdparty/target/*.jar"
+
+#build-docs:
+#  stage: build
+#  before_script:
+#    - apt-get update
+#    - apt-get install -y asciidoctor texlive-latex-base texlive-fonts-recommended texlive-fonts-extra make texlive-latex-extra python-pip
+#    - pip install did
+#    - bash .lfs_install.sh
+#  script:
+#    - 'old="`pwd`"'
+#    - 'cd transport-docs'
+#    - 'bash build.sh'
+#    - 'cd "$old"'
+#  artifacts:
+#     paths:
+#        - "transport-docs/target/docs"
+

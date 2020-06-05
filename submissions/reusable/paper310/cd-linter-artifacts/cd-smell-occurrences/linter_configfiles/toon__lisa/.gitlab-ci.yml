@@ -1,0 +1,29 @@
+image: golang:alpine
+
+before_script:
+  - apk add --update make
+
+stages:
+  - exec
+  - deploy
+
+cache:
+  paths:
+    - CHANGES.html
+
+run:
+  stage: exec
+  script:
+  - make run
+  only:
+    variables:
+      - $GITLAB_TOKEN
+
+pages:
+  stage: deploy
+  script:
+    - make public/
+  artifacts:
+    paths:
+      - public
+

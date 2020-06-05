@@ -1,0 +1,59 @@
+image: registry.gitlab.com/zaaksysteem/zaaksysteem-builder:latest
+
+stages:
+  - build
+  - test
+  - deploy
+  - Release
+
+variables:
+  CONTAINER_PREFIX: registry.gitlab.com/${CI_PROJECT_PATH}
+  DOCKER_HUB_CONTAINER_PREFIX: ${CI_PROJECT_PATH}
+  DOCKER_DRIVER: overlay2
+  ECR_CONTAINER_REGISTRY_API: 368693275776.dkr.ecr.eu-central-1.amazonaws.com/zs-api
+  ECR_CONTAINER_REGISTRY_API2CSV: 368693275776.dkr.ecr.eu-central-1.amazonaws.com/zs-api2csv
+  ECR_CONTAINER_REGISTRY_FRONTEND: 368693275776.dkr.ecr.eu-central-1.amazonaws.com/zs-frontend
+
+before_script:
+  - "docker login -u \"${BUILD_USERNAME}\" -p \"${BUILD_PASSWORD}\" registry.gitlab.com"
+  - "docker login -u \"${DOCKER_HUB_USERNAME}\" -p \"${DOCKER_HUB_PASSWORD}\""
+
+deploy:
+  script:
+    # Backend
+    - >
+        mvn deploy:deploy-file
+
+
+deploy:
+  stage: deploy
+  before_script:
+    - mvn install:install-file -Dfile=blabla -DgroupId=hello
+  script:
+    # Backend
+    - docker pull ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}
+    - docker tag ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG} ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+    - docker push ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+    # Frontend
+    - docker pull ${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}
+    - docker tag ${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG} ${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+    - mvn install:install-file -Dfile=blabla -DgroupId=hello
+    - docker push ${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+    # app-api2csv
+    - docker pull ${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}
+    - docker tag ${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG} ${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+    - docker push ${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+  after_script:
+    - mvn deploy:deploy-file -Dfile=blabla -DgroupId=hello
+  environment:
+    name: ${CI_COMMIT_REF_SLUG}
+    url: https://${CI_COMMIT_REF_SLUG}.zaaksysteem.nl
+  only:
+    - mvn install:install-file -Dfile=blabla -DgroupId=hello
+    - master@zaaksysteem/zaaksysteem
+    - trial@zaaksysteem/zaaksysteem
+    - development@zaaksysteem/zaaksysteem
+    - preprod@zaaksysteem/zaaksysteem
+    - production@zaaksysteem/zaaksysteem
+
+

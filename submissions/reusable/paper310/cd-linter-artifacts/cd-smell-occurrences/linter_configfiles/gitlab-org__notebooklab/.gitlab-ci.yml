@@ -1,0 +1,42 @@
+image: node:7.7.3
+
+cache:
+  paths:
+    - node_modules/
+    - .yarn
+
+before_script:
+  - yarn global add node-gyp
+  - yarn config set cache-folder .yarn
+
+compile:
+  stage: test
+  script:
+    - yarn install
+    - yarn run webpack
+
+lint:
+  stage: test
+  script:
+    - yarn install
+    - yarn run eslint
+
+test:
+  stage: test
+  script:
+    - yarn install
+    - yarn test
+
+pages:
+  stage: deploy
+  script:
+    - mkdir .public
+    - cp -r * .public
+    - mv .public public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+  environment: deploy
+

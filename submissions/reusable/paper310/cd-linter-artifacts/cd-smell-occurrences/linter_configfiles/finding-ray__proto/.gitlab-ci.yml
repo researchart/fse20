@@ -1,0 +1,28 @@
+# Docker Hub has a rich database of pre-built images that can be used
+# Docker Hub: hub.docker.com
+
+stages:
+    - docs 
+
+#####################
+# Build Sphinx Docs #
+#####################
+# use docker image with latex preinstalled
+# there is no official latex image see below for options
+
+pages:
+    image: python
+    stage: docs
+    script:
+        - apt-get --yes update && apt-get --yes install git
+        - pip install -r requirements.txt
+        - pip install -U setuptools
+        - python setup.py docs
+        - cp -r docs/_build/html/ .
+        - mv html public
+    tags:
+        - docker
+    artifacts:
+        paths:
+        - public
+

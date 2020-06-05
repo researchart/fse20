@@ -1,0 +1,14 @@
+# based on https://rlesur.gitlab.io/bookdown-gitlab-pages
+image: rocker/verse:3.4.3
+
+pages:
+  stage: deploy
+  script:
+    - Rscript -e "install.packages(c( 'here', 'knitr','readxl','tidyverse','htmltools'))"
+    - Rscript -e "bookdown::render_book('index.Rmd', 'all', output_dir = 'public')"
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

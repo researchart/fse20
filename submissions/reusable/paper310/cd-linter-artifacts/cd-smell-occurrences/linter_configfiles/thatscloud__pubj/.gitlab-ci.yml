@@ -1,0 +1,54 @@
+stages:
+  - build
+  - test
+  - artefact
+  - publish
+
+cache:
+  paths:
+    - .gradle/wrapper
+    - .gradle/caches
+
+build:
+  stage: build
+  script:
+    - ./gradlew -i -g .gradle classes
+
+test:
+  stage: test
+  script:
+    - ./gradlew -i -g .gradle check
+  artifacts:
+    when: always
+    paths: 
+      - build/reports/tests
+    expire_in: 1 week
+    
+artefact:
+    stage: artefact
+    script:
+      - ./gradlew -i -g .gradle assemble
+    artifacts:
+      paths:
+        - build/libs/*.jar
+      expire_in: 1 week
+      
+publish:
+    stage: publish
+    script:
+      - > 
+        ./gradlew -i -g .gradle 
+        -PbintrayUser=$BINTRAY_USER 
+        -PbintrayKey=$BINTRAY_KEY 
+        -PsonatypeOssUser=$SONATYPE_OSS_USER 
+        -PsonatypeOssPassword=$SONATYPE_OSS_PASSWORD
+        bintrayUpload
+    only:
+      - master
+    when: manual
+    artifacts:
+      paths:
+        - build/libs/*.jar
+        - build/publications/mavenJava/*.xml
+      expire_in: 1 week
+

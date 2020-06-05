@@ -1,0 +1,9 @@
+test:
+  stage: test
+  script:
+    - curl -sL https://deb.nodesource.com/setup_5.x | sh
+    - apt-get install -y nodejs build-essential
+    - npm i --no-progress
+    - npm run verify
+
+

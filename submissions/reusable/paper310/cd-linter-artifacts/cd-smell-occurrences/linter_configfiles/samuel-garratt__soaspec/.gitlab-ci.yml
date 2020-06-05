@@ -1,0 +1,66 @@
+image: ruby:2.5
+
+before_script:
+  - ruby -v
+  - which ruby
+  - gem install bundler rake
+  - bundle install --jobs $(nproc) --path vendor # Install dependencies into ./vendor/ruby
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - vendor/ruby
+
+ruby_2.3:
+  stage: test
+  image: ruby:2.3
+  script:
+    - bundle exec rake
+
+ruby_2.4:
+  stage: test
+  image: ruby:2.4
+  script:
+    - bundle exec rake
+
+ruby_2.5:
+  stage: test
+  image: ruby:2.5
+  script:
+    - bundle exec rake
+  artifacts:
+    paths:
+      - coverage/
+
+ruby_2.6:
+  stage: test
+  image: ruby:2.6
+  script:
+    - bundle exec rake
+
+cucumber:
+  image: samuelgarratt/soaspec
+  stage: test
+  script:
+    - bundle exec cucumber
+
+doctest:
+  image: samuelgarratt/soaspec
+  stage: test
+  script:
+    - bundle exec rake yard:doctest
+
+pages:
+  stage: deploy
+  dependencies:
+    - ruby_2.5
+  script:
+    - mv demo/ public/
+    - mv coverage/ public/coverage
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+

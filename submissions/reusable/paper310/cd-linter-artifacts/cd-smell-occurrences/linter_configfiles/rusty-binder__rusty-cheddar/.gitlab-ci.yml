@@ -1,0 +1,46 @@
+stable:
+  image: scorpil/rust:stable
+  stage: test
+  script:
+  - cargo build
+  - cargo build --release
+  - apt-get update
+  - apt-get -y install python python-pip
+  - pip install 'CppHeaderParser>=2.7.2,<3.0.0'
+  - cargo test
+
+beta:
+  image: scorpil/rust:beta
+  stage: test
+  script:
+  - cargo build
+  - cargo build --release
+  - apt-get update
+  - apt-get -y install python python-pip
+  - pip install 'CppHeaderParser>=2.7.2,<3.0.0'
+  - cargo test
+
+nightly:
+  image: scorpil/rust:nightly
+  stage: test
+  script:
+  - cargo build
+  - cargo build --release
+  - apt-get update
+  - apt-get -y install python python-pip
+  - pip install 'CppHeaderParser>=2.7.2,<3.0.0'
+  - cargo test
+
+pages:
+  image: scorpil/rust:stable
+  stage: deploy
+  only:
+  - master
+  artifacts:
+    paths:
+    - public
+  script:
+  - cargo doc
+  - cp -R target/doc public
+  - echo "<meta http-equiv=refresh content=0;url=cheddar/index.html>" > public/index.html
+

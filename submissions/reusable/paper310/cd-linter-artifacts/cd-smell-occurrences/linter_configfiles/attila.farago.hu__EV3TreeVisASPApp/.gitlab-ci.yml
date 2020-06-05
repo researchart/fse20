@@ -1,0 +1,19 @@
+variables:
+  PROJECT_NAME: "EV3TreevisASPApp"
+  GIT_SUBMODULE_STRATEGY: normal
+  SUBMODULE1_DIR: "Ev3TreeVis"
+  SUBMODULE1_PROJECTNAME: "Ev3TreeVisApp"
+before_script:
+  - echo "starting build for %PROJECT_NAME%"
+  - echo "Restoring NuGet Packages..."
+  - nuget restore "%PROJECT_NAME%.sln"
+  - cd "%SUBMODULE1_DIR%" && nuget restore "%SUBMODULE1_PROJECTNAME%.sln" && cd ..
+stages:
+  - build
+build:
+  stage: build
+  script:
+  - echo "Release build..."
+  - '"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe" /maxcpucount /nologo /property:Configuration=Release "%PROJECT_NAME%.sln" /p:DeployOnBuild=True /p:PublishProfile="EV3TreeVis - Web Deploy.pubxml" /p:Password=%AZURE_DEPLOY_PASSWORD% /p:Username="$EV3TreeVis"'
+  
+

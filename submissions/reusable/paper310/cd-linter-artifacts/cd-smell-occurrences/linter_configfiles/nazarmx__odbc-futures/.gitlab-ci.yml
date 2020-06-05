@@ -1,0 +1,199 @@
+# https://hub.docker.com/_/rust/
+image: rust
+variables:
+  RUST_BACKTRACE: '1'
+
+before_script:
+ - cat /etc/*[_-]release
+ - rustc --version && cargo --version
+ - |-
+     export DEBIAN_FRONTEND=noninteractive \
+     CARGO_HOME=$CI_PROJECT_DIR/.cargo \
+     APT_ARCHIVES=$CI_PROJECT_DIR/apt/archives \
+     APT_LISTS=$CI_PROJECT_DIR/apt/lists
+ - export APT_OPTIONS="-yqq -o Dir::State::Lists=$APT_LISTS -o Dir::Cache::Archives=$APT_ARCHIVES -o Dpkg::Use-Pty=0"
+ - mkdir -p $CARGO_HOME $APT_ARCHIVES $APT_LISTS
+ - apt-get $APT_OPTIONS update
+ - apt-get $APT_OPTIONS install --no-install-recommends unixodbc-dev
+ - cd odbc-futures
+pages:
+  stage: deploy
+  before_script:
+    - cat /etc/*[_-]release
+    - rustc --version && cargo --version
+  script:
+    - cargo doc --color always --no-deps --all
+    - rm -rf public
+    - mv target/doc public
+    - find public -type f -exec gzip -f -k {} +
+  artifacts:
+    paths:
+      - public
+    expire_in: 30mins
+  allow_failure: false
+  when: manual
+  only:
+    - master
+    - tags
+
+'cargo build':
+  stage: build
+  except:
+    - tags
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - target
+      - .cargo
+      - apt
+  artifacts:
+    paths:
+      - target
+      - .cargo
+      - apt
+    expire_in: 30mins
+  script:
+    - cargo test --no-run --color always --all
+
+'.cargo test': &cargo_test
+  stage: test
+  except:
+    - tags
+  artifacts:
+    when: on_failure
+    paths:
+      - '*.log*'
+      - '/tmp/*.log'
+
+'cargo test MSSQL':
+  <<: *cargo_test
+  services:
+   # https://hub.docker.com/r/microsoft/mssql-server-linux/
+   - microsoft/mssql-server-linux
+  variables:
+    ACCEPT_EULA: 'Y'
+    SA_PASSWORD: 'SQL_Server_2017'
+    # https://docs.microsoft.com/en-us/sql/relational-databases/native-client/applications/using-connection-string-keywords-with-sql-server-native-client?view=sql-server-2017
+    ODBC_CONNECTION_STRING_MSSQL: "\
+      Driver={ODBC Driver 17 for SQL Server};\
+      Server=microsoft-mssql-server-linux;\
+      Database=master;\
+      Uid=sa;\
+      Pwd=SQL_Server_2017;\
+      Mars_Connection=yes;\
+      Regional=no;\
+      QuotedId=yes;\
+      AutoTranslate=no;\
+      APP=odbc-futures;\
+      AnsiNPW=yes;\
+    "
+  script:
+    - apt-get $APT_OPTIONS install --no-install-recommends apt-transport-https
+    - apt-key adv --fetch-keys https://packages.microsoft.com/keys/microsoft.asc
+    - curl -L https://packages.microsoft.com/config/debian/9/prod.list > /etc/apt/sources.list.d/mssql-release.list
+    - apt-get $APT_OPTIONS update
+    - apt-get $APT_OPTIONS install --no-install-recommends msodbcsql17
+    - cat /etc/odbc*.ini
+    - cargo test --color always --all -- --nocapture --color always
+
+'cargo test MySQL':
+  <<: *cargo_test
+  services:
+   - mysql
+  variables:
+    MYSQL_CONNECTOR_VERSION: '8.0.11'
+    MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+    MYSQL_ROOT_PASSWORD: ''
+    # https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-configuration-connection-parameters.html
+    ODBC_CONNECTION_STRING_MYSQL: "\
+      Driver={MySQL Unicode};\
+      server=mysql;\
+      uid=root;\
+      pwd=;\
+      database=mysql;\
+      charset=utf8mb4;\
+      NO_PROMPT=1;\
+      BIG_PACKETS=1;\
+      MULTI_STATEMENTS=1;\
+      FORWARD_CURSOR=1;\
+      NO_CACHE=1;\
+    "
+  script:
+    - apt-get $APT_OPTIONS install --no-install-recommends libssl1.1 libstdc++6
+    - curl -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/8.0/mysql-connector-odbc-${MYSQL_CONNECTOR_VERSION}-linux-debian9-x86-64bit.tar.gz" | tar -xzf - -C /opt
+    - |-
+        echo "[MySQL Unicode]
+        Description = MySQL ODBC 8.0 Unicode Driver
+        Driver = /opt/mysql-connector-odbc-${MYSQL_CONNECTOR_VERSION}-linux-debian9-x86-64bit/lib/libmyodbc8w.so
+        Setup = /opt/mysql-connector-odbc-${MYSQL_CONNECTOR_VERSION}-linux-debian9-x86-64bit/lib/libmyodbc8S.so" | odbcinst -i -d -r
+    - cat /etc/odbc*.ini
+    - cargo test --color always --test common -- --nocapture --color always
+
+'cargo test MariaDB':
+  <<: *cargo_test
+  services:
+   # https://hub.docker.com/_/mariadb/
+   - mariadb
+  variables:
+    MARIADB_CONNECTOR_VERSION: '3.0.7'
+    MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+    MYSQL_ROOT_PASSWORD: ''
+    # https://mariadb.com/kb/en/library/about-mariadb-connector-odbc/#connection-parameters
+    ODBC_CONNECTION_STRING_MARIADB: "\
+      Driver={MariaDB ODBC 3.0 Driver};\
+      Server=mariadb;\
+      UID=root;\
+      PWD=;\
+      DB=mysql;\
+      NO_PROMPT;\
+      CHARSET=utf8mb4;\
+    "
+  script:
+     - curl -LO http://ftp.debian.org/debian/pool/main/o/openssl/libssl1.0.0_1.0.2l-1~bpo8+1_amd64.deb
+     - dpkg -i libssl1.0.0_1.0.2l-1~bpo8+1_amd64.deb
+     - curl -L https://downloads.mariadb.com/Connectors/odbc/connector-odbc-${MARIADB_CONNECTOR_VERSION}/mariadb-connector-odbc-${MARIADB_CONNECTOR_VERSION}-ga-debian-x86_64.tar.gz | tar -xzf - -C /usr/local
+     - |-
+          echo '[MariaDB ODBC 3.0 Driver]
+          Description = MariaDB Connector/ODBC v.3.0
+          Driver = /usr/local/lib/libmaodbc.so' | odbcinst -i -d -r
+     - cat /etc/odbc*.ini
+     - cargo test --color always --test common -- --nocapture --color always
+
+'cargo test PostgreSQL':
+  <<: *cargo_test
+  services:
+   # https://hub.docker.com/_/postgres/
+   - postgres
+  variables:
+    POSTGRES_PASSWORD: ''
+    # https://odbc.postgresql.org/docs/config.html
+    ODBC_CONNECTION_STRING_POSTGRES: "\
+      Driver={PostgreSQL Unicode};\
+      Server=postgres;\
+      Database=postgres;\
+      Uid=postgres;\
+      Pwd=;\
+      MaxLongVarcharSize=-4;\
+      TextAsLongVarchar=1;\
+    "
+  script:
+    - apt-get $APT_OPTIONS install --no-install-recommends odbc-postgresql
+    - cat /etc/odbc*.ini
+    - cargo test --color always --test common -- --nocapture --color always
+
+'cargo test SQLite':
+  <<: *cargo_test
+  variables:
+    # http://ch-werner.de/sqliteodbc/html/index.html
+    ODBC_CONNECTION_STRING_SQLITE3: "\
+      Driver={SQLite3};\
+      Database=sqlite3.db;\
+      LongNames=true;\
+      BigInt=true;\
+      FKSupport=true;\
+    "
+  script:
+    - apt-get $APT_OPTIONS install --no-install-recommends libsqliteodbc libsqlite3-0
+    - cat /etc/odbc*.ini
+    - cargo test --color always --test common -- --nocapture --color always
+

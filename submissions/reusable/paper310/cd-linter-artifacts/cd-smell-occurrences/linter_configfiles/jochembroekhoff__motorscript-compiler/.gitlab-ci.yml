@@ -1,0 +1,75 @@
+stages:
+  - build
+  - graal
+  - bundle
+
+compile:
+  stage: build
+  image: maven:3-jdk-8
+  script:
+    # Extract the version of MotorScript Compiler from the pom.xml
+    # Note: "mvn help:evaluate" is run once to prevent download progress messages from messing with the output
+    - mvn help:evaluate -Dexpression=project.version
+    - export MOSC_VERSION=`mvn help:evaluate -Dexpression=project.version | grep "^[^\[]"`
+    - echo $MOSC_VERSION > mosc_version.txt
+    - echo Detected MotorScript Compiler version $MOSC_VERSION
+    # Compile and package the project using Maven
+    - mvn compile
+    - mvn package
+  artifacts:
+    paths:
+      - mosc_version.txt
+      - target/original-motorscript-compiler-*.jar
+      - target/motorscript-compiler-*.jar
+    expire_in: 30 days
+
+graal:
+  stage: graal
+  image: oracle/graalvm-ce:1.0.0-rc13
+  before_script:
+    - yum install -y upx
+  script:
+    - export MOSC_VERSION=`cat mosc_version.txt`
+    - echo Detected MotorScript Compiler version $MOSC_VERSION
+    - native-image --static -H:IncludeResources="reports/.*\.json$" -H:ReflectionConfigurationFiles=src/main/resources/graal_reflection_config.json -jar target/motorscript-compiler-$MOSC_VERSION.jar
+    - strip motorscript-compiler-$MOSC_VERSION
+    - upx -9 motorscript-compiler-$MOSC_VERSION
+  dependencies:
+    - compile
+  artifacts:
+    paths:
+      - motorscript-compiler-*
+    expire_in: 30 days
+
+bundle:
+  stage: bundle
+  image: alpine:3.8
+  script:
+    - export MOSC_VERSION=`cat mosc_version.txt`
+    - echo Detected MotorScript Compiler version $MOSC_VERSION
+    - mkdir -p bin/any
+    - mkdir -p bin/linux-amd64
+    - cp target/original-motorscript-compiler-$MOSC_VERSION.jar bin/any/
+    - cp target/motorscript-compiler-$MOSC_VERSION.jar bin/any/
+    - cp motorscript-compiler-$MOSC_VERSION bin/linux-amd64/
+  dependencies:
+    - compile
+    - graal
+  artifacts:
+    paths:
+      - bin/any/*
+      - bin/linux-amd64/*
+    expire_in: 30 days
+
+pages:
+  stage: build
+  image: python:3.7
+  before_script:
+    - pip install mkdocs
+  script:
+    - mkdocs build --site-dir public
+    - find public -type f -iregex '.*\.\(htm\|html\|txt\|text\|js\|css\)$' -execdir gzip -f --keep {} \;
+  artifacts:
+    paths:
+      - public
+

@@ -1,0 +1,125 @@
+variables:
+  DOCKER_IMG: "registry.gitlab.com/offa/plug/ci"
+  GTEST_COLOR: "yes"
+
+stages:
+  - build-docker-images
+  - build
+
+
+
+# -----------------------------------------
+# --- CI Builds
+# -----------------------------------------
+gcc-9:
+  image: ${DOCKER_IMG}/gcc-9:latest
+  stage: build
+  script:
+    - script/ci_build.sh -asan -ubsan
+
+gcc-8:
+  image: ${DOCKER_IMG}/gcc-8:latest
+  stage: build
+  script:
+    - script/ci_build.sh -asan -ubsan
+
+gcc-7:
+  image: ${DOCKER_IMG}/gcc-7:latest
+  stage: build
+  script:
+    - script/ci_build.sh -asan -ubsan
+
+clang-9:
+  image: ${DOCKER_IMG}/clang-9:latest
+  stage: build
+  script:
+    - script/ci_build.sh -asan -ubsan
+
+clang-8:
+  image: ${DOCKER_IMG}/clang-8:latest
+  stage: build
+  script:
+    - script/ci_build.sh -asan -ubsan
+
+clang-7:
+  image: ${DOCKER_IMG}/clang-7:latest
+  stage: build
+  script:
+    - script/ci_build.sh -asan # UBSan disabled, see #129
+
+clang-6:
+  image: ${DOCKER_IMG}/clang-6:latest
+  stage: build
+  script:
+    - script/ci_build.sh -asan -ubsan
+
+clang-5:
+  image: ${DOCKER_IMG}/clang-5:latest
+  stage: build
+  script:
+    - script/ci_build.sh -asan -ubsan
+
+coverage:
+  image: ${DOCKER_IMG}/gcc-8:latest
+  stage: build
+  script:
+    - script/ci_build.sh -cov
+
+
+# -----------------------------------------
+# --- CI Images
+# -----------------------------------------
+.docker_build_template: &build_ci_definition
+  image: docker:latest
+  stage: build-docker-images
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+  only:
+    - schedules
+    - web
+    - /^docker-.*$/
+
+build-ci-gcc-9:
+  <<: *build_ci_definition
+  script:
+    - script/image_build.sh gcc-9
+
+build-ci-gcc-8:
+  <<: *build_ci_definition
+  script:
+    - script/image_build.sh gcc-8
+
+build-ci-gcc-7:
+  <<: *build_ci_definition
+  script:
+    - script/image_build.sh gcc-7
+
+build-ci-clang-9:
+  <<: *build_ci_definition
+  script:
+    - script/image_build.sh clang-9
+
+build-ci-clang-8:
+  <<: *build_ci_definition
+  script:
+    - script/image_build.sh clang-8
+
+build-ci-clang-7:
+  <<: *build_ci_definition
+  script:
+    - script/image_build.sh clang-7
+
+build-ci-clang-6:
+  <<: *build_ci_definition
+  script:
+    - script/image_build.sh clang-6
+
+build-ci-clang-5:
+  <<: *build_ci_definition
+  script:
+    - script/image_build.sh clang-5
+

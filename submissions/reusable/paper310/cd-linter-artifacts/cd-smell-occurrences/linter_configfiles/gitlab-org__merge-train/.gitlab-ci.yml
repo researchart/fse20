@@ -1,0 +1,72 @@
+---
+variables:
+  # Building the image needs to be enabled by default, allowing us to rebuild it
+  # for every push to `master`.
+  BUILD_IMAGE: '1'
+
+stages:
+  - test
+  - build
+  - merge
+
+shellcheck:
+  image: koalaman/shellcheck-alpine
+  stage: test
+  except:
+    - schedules
+    - triggers
+    - web
+  only:
+    changes:
+      - bin/*
+  script:
+    - shellcheck bin/configure-ssh
+    - shellcheck bin/docker
+    - shellcheck bin/merge-train
+
+build:image:
+  services:
+    - docker:dind
+  stage: build
+  image: docker:git
+  only:
+    refs:
+      - pushes
+    changes:
+      - Dockerfile
+      - .dockerignore
+      - bin/*
+      - config/*
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+  script:
+    # When building the image, we want to push into the container registry of
+    # the project CI runs in, instead of a fixed one. This ensures that on
+    # GitLab.com we push into the GitLab.com registry, while on the ops instance
+    # we push into the ops instance's registry.
+    - ./bin/docker "${CI_REGISTRY_IMAGE}:latest"
+
+merge:foss:
+  image: "${CI_REGISTRY_IMAGE}:latest"
+  stage: merge
+  variables:
+    SOURCE_PROJECT: gitlab-org/gitlab
+    TARGET_PROJECT: gitlab-org/gitlab-foss
+    SSH_PUBLIC_KEY: $FOSS_SSH_PUBLIC_KEY
+    SSH_PRIVATE_KEY: $FOSS_SSH_PRIVATE_KEY
+  only:
+    refs:
+      - api
+      - schedules
+      - triggers
+      - web
+    variables:
+      - $MERGE_FOSS == '1'
+  script:
+    - bash /app/bin/merge-train foss
+  cache:
+    paths:
+      - source
+      - target
+    key: 'merge:foss:$SOURCE_PROJECT:$TARGET_PROJECT:$SOURCE_BRANCH:$TARGET_BRANCH'
+

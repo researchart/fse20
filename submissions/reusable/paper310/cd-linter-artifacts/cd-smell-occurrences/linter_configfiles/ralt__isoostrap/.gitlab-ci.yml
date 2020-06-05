@@ -1,0 +1,75 @@
+build debian release:
+  image: "debian:stretch"
+  only:
+    - tags
+  script:
+    - apt-get update -qq
+    - apt-get install -y devscripts pbuilder aptitude
+    - /usr/lib/pbuilder/pbuilder-satisfydepends
+    - dpkg-buildpackage -b -us -uc
+    - mkdir -p artifacts
+    - mv ../*.deb artifacts/
+    - mv ../*.changes artifacts/
+    - mv ../*.buildinfo artifacts/
+  artifacts:
+    paths:
+      - artifacts/
+    expire_in: 1 year
+
+build debian nightly:
+  image: "debian:stretch"
+  except:
+    - tags
+  script:
+    - apt-get update -qq
+    - apt-get install -y devscripts pbuilder aptitude
+    - /usr/lib/pbuilder/pbuilder-satisfydepends
+    - dpkg-buildpackage -b -us -uc
+    - mkdir -p artifacts
+    - mv ../*.deb artifacts/
+    - mv ../*.changes artifacts/
+    - mv ../*.buildinfo artifacts/
+  artifacts:
+    paths:
+      - artifacts/
+    expire_in: 1 day
+
+build fedora nightly:
+  image: "fedora:27"
+  except:
+    - tags
+  script:
+
+    - dnf install -y make sbcl curl gzip pandoc git wget man rubygems python ruby-devel gcc redhat-rpm-config rpm-build
+    - gem install fpm
+    - ./configure --prefix=/usr
+    - make SHASUM=sha256sum
+    - temp=$(mktemp -d)
+    - make install DESTDIR="$temp"
+    - fpm -s dir -t rpm -n isoostrap -v $(date +%s) -C "$temp" -d qemu -d iproute2 -d tar
+    - mkdir -p artifacts/
+    - mv *.rpm artifacts/
+  artifacts:
+    paths:
+      - artifacts/
+    expire_in: 1 day
+
+build fedora release:
+  image: "fedora:27"
+  only:
+    - tags
+  script:
+    - dnf install -y make sbcl curl gzip pandoc git wget man rubygems python ruby-devel gcc redhat-rpm-config rpm-build
+    - gem install fpm
+    - ./configure --prefix=/usr
+    - make SHASUM=sha256sum
+    - temp=$(mktemp -d)
+    - make install DESTDIR="$temp"
+    - fpm -s dir -t rpm -n isoostrap -v "$CI_COMMIT_TAG" -C "$temp" -d qemu -d iproute2 -d tar
+    - mkdir -p artifacts/
+    - mv *.rpm artifacts/
+  artifacts:
+    paths:
+      - artifacts/
+    expire_in: 1 day
+

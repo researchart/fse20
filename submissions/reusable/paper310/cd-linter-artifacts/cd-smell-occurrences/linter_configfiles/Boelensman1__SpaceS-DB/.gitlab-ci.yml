@@ -1,0 +1,30 @@
+before_script:
+  - echo "deb http://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+  - apt-get update -y
+  - apt-get install -y --force-yes libssl-dev build-essential wget yarn
+  - curl -L https://git.io/n-install | bash -s -- -y lts
+  - . /root/.bashrc
+  - cp config/default.sample.yaml config/default.yaml
+  - cp config/test.sample.yaml config/test.yaml
+  - yarn install
+
+stages:
+  - lint
+  - test
+  - coverage
+
+lint:
+  stage: lint
+  script:
+    - yarn run lint
+
+test:
+  stage: test
+  script:
+    - yarn run test
+
+coverage:
+  stage: coverage
+  script:
+    - yarn run coverage
+

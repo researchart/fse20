@@ -1,0 +1,50 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  GL_IMAGE: $CI_REGISTRY/${CI_PROJECT_PATH}:latest
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+  - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build -t $GL_IMAGE .
+    - docker push $GL_IMAGE
+  only:
+    - master
+
+# rspec:
+#   stage: test
+#   script:
+#     - docker-compose run app bundle update
+#     - docker-compose run app bundle exec rspec
+# rubocop:
+#   stage: test
+#   script:
+#     - docker-compose run app bundle update
+#     - docker-compose run app bundle exec rubocop
+#tag:
+#  stage: tag
+
+# tag-smoke:
+#   stage: tag
+#   image: docker:latest
+#   services:
+#     - docker:dind
+#   script:
+#     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+#     - docker pull $GL_IMAGE
+#     - docker tag $GL_IMAGE $SMOKE_IMAGE
+#     - docker push $SMOKE_IMAGE
+#   only:
+#     - branches
+#   except:
+#     - master
+#deploy:
+#  stage: deploy
+

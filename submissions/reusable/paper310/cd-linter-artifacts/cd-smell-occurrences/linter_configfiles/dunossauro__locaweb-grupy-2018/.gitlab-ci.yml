@@ -1,0 +1,21 @@
+image: "python:3.7"
+
+stages:
+  - test
+
+before_script:
+  - apt update -y
+  - apt upgrade -y
+  - pip3 install tox
+
+test:
+  stage: test
+  script:
+    - tox
+  artifacts:
+    name: LT-DEVCONF-$CI_PIPELINE_ID
+    paths:
+      - htmlcov
+      - mutpy_report
+    expire_in: 1 week
+

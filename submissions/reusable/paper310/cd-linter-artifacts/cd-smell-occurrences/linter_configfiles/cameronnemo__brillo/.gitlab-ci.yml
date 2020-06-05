@@ -1,0 +1,23 @@
+image:
+        name: cameronnemo/gitlab-ci-brillo-musl
+        entrypoint: [""]
+
+stages:
+        - lint
+        - build
+
+cppcheck:
+        stage: lint
+        script: cppcheck --inline-suppr --error-exitcode=3 .
+
+make:
+        stage: build
+        script: make
+
+make-glibc:
+        stage: build
+        image:
+                name: cameronnemo/gitlab-ci-brillo
+                entrypoint: [""]
+        script: make
+

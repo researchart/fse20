@@ -1,0 +1,17 @@
+# Using a small Linux container available from Docker Hub
+image: alpine
+
+
+release:
+  only:
+    - tags
+  stage: deploy
+  script:
+    # For tags automatically create sdist-archives, a release at
+    # gitlab and upload the archives to the release.
+    - apk --no-cache add py-pip python py3-pip python3
+    - pip install -r requirements.txt
+    - python2 ./setup.py sdist
+    - pip3 install gitlab-release
+    - gitlab_release $PRIVATE_TOKEN dist/*
+

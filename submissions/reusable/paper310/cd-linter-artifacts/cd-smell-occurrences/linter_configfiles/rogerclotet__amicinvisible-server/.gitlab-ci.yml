@@ -1,0 +1,56 @@
+image: golang:1.9
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  variables:
+    CACHE: .cache
+  cache:
+    paths:
+    - .cache/
+    - vendor/
+  script:
+  - go get github.com/golang/dep/cmd/dep
+  - go get github.com/alecthomas/gometalinter
+  - go get jrubin.io/zb
+  - ln -s /builds /go/src/gitlab.com
+  - cd /go/src/gitlab.com/rogerclotet/amicinvisible-server
+  - dep ensure
+  - gometalinter --install
+  - gometalinter --vendor
+  - zb test
+
+coverage:
+  stage: test
+  cache:
+    paths:
+    - vendor/
+  script:
+  - go get github.com/golang/dep/cmd/dep
+  - go get github.com/ory/go-acc
+  - ln -s /builds /go/src/gitlab.com
+  - cd /go/src/gitlab.com/rogerclotet/amicinvisible-server
+  - dep ensure
+  - go-acc ./...
+  - go tool cover -html=coverage.txt -o coverage.html
+  artifacts:
+    paths:
+    - coverage.html
+
+pages:
+  stage: deploy
+  dependencies:
+  - coverage
+  script:
+  - mkdir public
+  - mv coverage.html index.html
+  - mv index.html public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

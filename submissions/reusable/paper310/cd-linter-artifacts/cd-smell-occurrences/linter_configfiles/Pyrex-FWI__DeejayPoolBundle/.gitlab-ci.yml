@@ -1,0 +1,19 @@
+
+
+image: php:7.1
+
+before_script:
+- bash Tests/gitlab-ci/docker_install.sh > /dev/null
+- echo "date.timezone = Europe/Paris" >/usr/local/etc/php/php.ini
+- curl --silent --show-error https://getcomposer.org/installer | php
+- php composer.phar install --prefer-dist -o
+
+test:Fonctionnel:
+  #speed up build
+  cache:
+    paths:
+    - ./vendor/
+  script:
+  - vendor/bin/phpunit -c phpunit.xml --exclude-group online --coverage-text --colors=never --debug --verbose
+
+

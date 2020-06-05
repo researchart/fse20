@@ -1,0 +1,62 @@
+stages:
+  - test
+  - docs
+
+# split the test suite with an actual testsuite and a code quality test
+test_py37:
+  image: python:3.7
+  stage: test
+  script:
+    - pytest -k "not CodeQualityTest"
+  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+)\%\s*$/'
+  before_script:
+    - python --version
+    - pip install -r requirements.txt
+    - pip install -r test-requirements.txt
+    - pip install .
+
+# code quality test only on master
+test_code_quality:
+  image: python:3.7
+  stage: test
+  script:
+    - pytest -k CodeQualityTest
+  only:
+    - master
+  before_script:
+    - python --version
+    - pip install -r requirements.txt
+    - pip install -r test-requirements.txt
+    - pip install .
+
+# test building docs before trying to push them 
+test_doc_build:
+  image: python:3.7
+  stage: test
+  script:
+    - cd doc
+    - make html
+  before_script:
+    - python --version
+    - pip install -r requirements.txt
+    - pip install -r docs-requirements.txt
+    - pip install .
+
+pages:
+  stage: docs
+  image: python:3.7
+  script:
+    - cd doc
+    - make html
+    - mv build/html ../public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+  before_script:
+    - python --version
+    - pip install -r requirements.txt
+    - pip install -r docs-requirements.txt
+    - pip install .
+

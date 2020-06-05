@@ -1,0 +1,155 @@
+variables:
+  WINDOWS_CMAKE_IMAGE: cunity/windows-1803-cmake:latest
+
+
+stages:
+  - build
+  - test
+  - results
+  - release
+
+.cunit-build-template: &cunit-build
+  script:
+    - git clean -f -d -x
+    - mkdir build-${CI_JOB_NAME}
+    - cd build-${CI_JOB_NAME}
+    - cmake -G "Unix Makefiles" ..
+    - cmake --build . -- -j2
+    - ctest --output-on-failure    
+    - ./Examples/CI/cicd-pass-plain
+    - ./Examples/CI/cicd-pass-setupfuncs
+    - junit2html --summary-matrix Examples/CI/*-Results.xml
+    - cpack -G TGZ CUnit
+  artifacts:
+    paths:
+    - CUnit/CUnit/CUnitCI.h
+    - build-*/cunit-*.tar.gz
+    - build-*/cunit-*.deb
+    - build-*/Examples/CI/*-Results.*
+    reports:
+      junit: build-*/Examples/CI/*-Results.xml
+
+cunit-ubuntu-19.04-power9:
+  <<: *cunit-build
+  stage: build
+  tags:
+    - ubuntu-19.04-power9
+  when: manual
+  only:
+    variables:
+      - $GITLAB_LINUX_POWER9
+
+cunit-ubuntu-18.04:
+  <<: *cunit-build
+  stage: build
+  image: registry.gitlab.com/cunity/linux-cmake-builders/ubuntu-18.04:master
+
+cunit-ubuntu-17.10: 
+  <<: *cunit-build
+  stage: build
+  image: registry.gitlab.com/cunity/linux-cmake-builders/ubuntu-17.10:master
+
+cunit-solaris-amd64-gcc8:
+  <<: *cunit-build
+  variables:
+    CC: /usr/bin/gcc
+    CXX: /usr/bin/g++
+  stage: build
+  tags:
+    - solaris-11-amd64-gcc8
+  except:
+    - schedules
+  only:
+    variables:
+      - $GITLAB_SOLARIS
+
+cunit-solaris-amd64-sstudio123:
+  <<: *cunit-build
+  variables:
+    CC: /opt/solarisstudio12.3/bin/c99
+    CXX: /opt/solarisstudio12.3/bin/CC
+  stage: build
+  tags:
+    - solaris-11-amd64-sstudio123
+  except:
+    - schedules
+  only:
+    variables:
+      - $GITLAB_SOLARIS
+
+cmake-direxample-ubuntu-18.04:
+  stage: test
+  needs: ["cunit-ubuntu-18.04"]
+  image: registry.gitlab.com/cunity/linux-cmake-builders/ubuntu-18.04:master
+  script:
+  - cd CMakeExamples/CMakeSubmodule
+  - ln -s ../../. cunit-x.y.z
+  - mkdir bld
+  - cd bld
+  - cmake ..
+  - cmake --build .
+  - ./test-program
+  dependencies:
+  - cunit-ubuntu-18.04
+
+
+cmake-pkgexample-ubuntu-18.04:
+  stage: test
+  needs: ["cunit-ubuntu-18.04"]
+  image: registry.gitlab.com/cunity/linux-cmake-builders/ubuntu-18.04:master
+  script:
+    - find . -type f -name "*.tar.gz"
+    - mkdir -p packages/cunit
+    - tar -vxf build-cunit-ubuntu-18.04/cunit-3.2.*.tar.gz --strip-components=1 -C packages/cunit
+    - cd CMakeExamples/CMakeFindPackage
+    - mkdir bld
+    - cd bld
+    - cmake .. -DCUnit_DIR=$(pwd)/../../../packages/cunit/CUnit/share/cmake
+    - cmake --build .
+    - ./test-program
+  dependencies:
+    - cunit-ubuntu-18.04
+
+cunit-win2019-vs2015:
+  stage: build
+  image: registry.gitlab.com/cunity/windows-cmake-docker/win2019-vs2015:master
+  tags:
+    - cunity-windows-2019-docker
+  script:
+    - mkdir build-win2019-vs2015
+    - cd build-win2019-vs2015
+    - cmake -G "Visual Studio 14 2015 Win64" .. 
+    - cmake --build . --config Release 
+    - ctest -C Release
+  artifacts:
+    paths:
+      - build-win2019-vs2015\\Examples\\CI\\*-Results.*
+  except: 
+    - schedules
+  only:
+    variables:
+      - $GITLAB_WIN2019
+
+results:
+  stage: results
+  image: registry.gitlab.com/cunity/linux-cmake-builders/ubuntu-18.04:master
+  script:    
+    - sh merge-results.sh
+    - junit2html --summary-matrix *-Results.xml
+
+
+pages:
+  image: registry.gitlab.com/cunity/doxygen-image/ubuntu-18.04-doxygen:master
+  stage: release
+  dependencies:
+  - cunit-ubuntu-18.04
+  script:
+  - doxygen Doxyfile
+  - mv doc/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+  - feature-cunit-ci
+

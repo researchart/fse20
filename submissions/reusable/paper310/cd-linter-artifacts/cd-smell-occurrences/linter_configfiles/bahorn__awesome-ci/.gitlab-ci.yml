@@ -1,0 +1,33 @@
+image: node:10-stretch
+
+cache:
+    paths:
+      - node_modules
+
+stages:
+  - test
+  - deployment
+
+before_script:
+  - npm install
+
+lint:
+  stage: test
+  script:
+    - CI=true npm run lint
+
+test_app:
+  stage: test
+  script:
+    - CI=true npm test
+
+deploy:
+  stage: deployment
+  only:
+    - master
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby ruby-dev rubygems-integration
+    - gem install dpl
+    - dpl --provider=heroku --app=test-app-bh --api-key=$HEROKU_APIKEY
+

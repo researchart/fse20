@@ -1,0 +1,36 @@
+stages:
+  - build
+  - deploy
+
+build-resume:
+  image: zachbrennan/resume:pdflatex
+  stage: build
+  script:
+    - pdflatex -halt-on-error resume.tex
+  artifacts:
+    paths:
+      - ./resume.pdf
+    expire_in: 1 hr
+
+deploy:
+  image: zachbrennan/resume:deploy
+  stage: deploy
+  dependencies:
+    - build-resume
+  script:
+    - apt-get update && apt-get -y install --no-install-recommends openssh-client
+    - mkdir ~/.ssh
+    - chmod 700 ~/.ssh
+    - eval $(ssh-agent)
+    - bash -c 'ssh-add <(echo "$ID_RSANEW")'
+    - bash -c 'echo > /id_rsa.pub <(echo "$ID_RSANEW")'
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - ls
+    - pwd
+    - 'scp -P "$PORT" resume.pdf family@HiveRacing.cc:/var/www/html/content'
+    - 'scp -P "$PORT" resume.tex family@HiveRacing.cc:/var/www/html/content'
+
+
+
+
+

@@ -1,0 +1,17 @@
+variables:
+  FILE: "test"
+  DIRE: "example"
+
+build:
+  image: adnrv/texlive:adnamc
+  script:
+    - cd $DIRE
+    - latexmk -pdf -pdflatex="pdflatex --shell-escape %O %S" $FILE
+    - mv $FILE.pdf ..
+    
+  artifacts:
+    paths:
+      - $FILE.pdf
+  tags:
+    - docker
+

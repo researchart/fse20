@@ -1,0 +1,108 @@
+# Dependencies are managed in the Dockerfile in the inkscape-ci-docker
+# Git repository. Change them there, wait a bit, and then we'll use
+# the new ones here in these builds.
+image: registry.gitlab.com/inkscape/inkscape-ci-docker/extensions
+
+stages:
+  - build
+  - test
+  - coverage
+  - deploy
+variables:
+  GIT_DEPTH: "10"
+  GIT_SUBMODULE_STRATEGY: recursive
+
+
+.tests:
+  artifacts:
+    name: "coverage"
+    when: always
+    paths:
+      - .coverage-*
+      - htmlcov
+
+
+test:python27:
+  extends: .tests
+  script:
+    - source /root/pyenv-init
+    - pyenv shell 2.7.14
+    - tox -e py27-normal
+
+
+test:python36:
+  extends: .tests
+  script:
+    - source /root/pyenv-init
+    - pyenv shell 3.6.8
+    - tox -e py36-normal
+
+
+test:python37:
+  extends: .tests
+  script:
+    - source /root/pyenv-init
+    - pyenv shell 3.7.2
+    - tox -e py37-normal
+
+
+test:coverage:
+  stage: coverage
+  script:
+    - source /root/pyenv-init
+    - pyenv shell 3.7.2
+    - pip install coverage
+    - coverage3 combine .coverage-*
+    - coverage3 report -m
+    - coverage3 html --ignore-errors --title="Coverage for Inkscape Extensions (${CI_COMMIT_REF_NAME} branch)"
+    - echo -e "\n\n"
+      "Coverage report successfully created; you can access the full HTML report at\n"
+      "  https://${CI_PROJECT_NAMESPACE}.gitlab.io/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts/htmlcov/index.html"
+      "\n\n"
+    - pyenv shell 3.6.8
+    - pip install pylint
+    - python3.6 tests/add_pylint.py htmlcov/index.html
+  dependencies:
+    - test:python27
+    - test:python36
+    - test:python37
+  when: always
+  coverage: '/TOTAL.+?(\d+%)/'
+  artifacts:
+    paths:
+      - htmlcov/
+
+
+test:validate-inx:
+  script:
+    - apt-get update && apt-get install libxml2-utils
+    - xmllint --noout --relaxng inkscape.extension.rng *.inx
+
+
+sphinx:
+  stage: test
+  when: always
+  script:
+    - sphinx-apidoc -F -o source inkex
+    - python3 setup.py build_sphinx -s source
+    - echo -e "\n\n"
+      "Documentation for inkex module successfully created; you can access the HTML version at\n"
+      "  https://${CI_PROJECT_NAMESPACE}.gitlab.io/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts/build/sphinx/html/index.html"
+      "\n\n"
+  artifacts:
+    paths:
+      - build/sphinx/
+
+pages:
+  stage: deploy
+  only:
+    - master@inkscape/extensions
+  when: always
+  script:
+    - mkdir -p public
+    - if test -e htmlcov; then cp -r htmlcov public/coverage; fi
+    - if test -e build/sphinx/html; then cp -r build/sphinx/html public/documentation; fi
+  artifacts:
+    paths:
+      - public
+

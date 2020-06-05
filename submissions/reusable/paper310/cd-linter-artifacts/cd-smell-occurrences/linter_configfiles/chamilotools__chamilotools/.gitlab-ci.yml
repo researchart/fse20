@@ -1,0 +1,19 @@
+python:
+  script:
+    - apt-get update -qy
+    - apt-get install -y python-dev python-pip
+    - pip install pep8 pyflakes
+#    - pip install rstcheck
+#    - rstcheck $(git ls-files '*.rst')
+    - pip install -r requirements.txt
+    - make quick
+pages:
+  script:
+  - cp -r doc/all_types.html public/
+  - cp -r doc/quizz_python.html public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,39 @@
+image: haskell:8
+
+variables:
+  STACK_ROOT: "${CI_PROJECT_DIR}/.stack"
+
+cache:
+  paths:
+    - .stack
+    - .stack-work
+    - target
+
+before_script:
+  - apt-get update
+  - apt-get install -y libstdc++-6-dev g++ libzmq3-dev pkg-config xz-utils make
+
+test:8.6:
+  script:
+    - stack --no-terminal --resolver lts-13 --install-ghc test
+
+test:8.4:
+  script:
+    - stack --no-terminal --resolver lts-12 --install-ghc test
+
+test:8.2:
+  script:
+    - stack --no-terminal --resolver lts-11 --install-ghc test
+
+test:8.0:
+  script:
+    - stack --no-terminal --resolver lts-9 --install-ghc test
+
+test:7.10:
+  script:
+    - stack --no-terminal --resolver lts-6 --install-ghc test
+
+test:7.8:
+  script:
+    - stack --no-terminal --resolver lts-2 --install-ghc test
+

@@ -1,0 +1,45 @@
+image: "ruby:2.4"
+
+stages:
+  - test
+  - release
+
+cache:
+  paths:
+    - vendor/ruby
+
+before_script:
+  - gem install bundler  --no-ri --no-rdoc
+  - bundle install --jobs $(nproc) --path vendor
+  - mkdir -p tmp
+
+rubocop:
+  stage: test
+  script:
+    - rubocop
+
+rspec:
+  stage: test
+  services:
+    - name: docker.elastic.co/elasticsearch/elasticsearch:5.6.3
+      alias: elasticsearch
+  variables:
+    ELASTICSEARCH_URL: elasticsearch:9200
+    ELASTICSEARCH_USERNAME: elastic
+    ELASTICSEARCH_PASSWORD: changeme
+  script:
+    - rspec
+
+release-gem:
+  stage: release
+  only:
+    - tags
+  script:
+    - mkdir -p ~/.gem
+    - 'echo -e "---\n:rubygems_api_key: $RUBYGEMS_API_KEY" > ~/.gem/credentials'
+    - chmod 0600 ~/.gem/credentials
+    - GEM_VERSION=$(echo $CI_COMMIT_TAG|sed 's/[^.0-9]//g')
+    - sed -i -e "s/0.0.0/$GEM_VERSION/g" lib/mindex/version.rb
+    - gem build mindex.gemspec
+    - gem push mindex-$GEM_VERSION.gem -k rubygems
+

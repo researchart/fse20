@@ -1,0 +1,45 @@
+image: docker:stable
+
+services:
+    - docker:stable-dind
+
+variables:
+    REPOSITORY: "${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}"
+    OS: "${CI_BUILD_REF_NAME}"
+
+before_script:
+    - docker login -u "${REGISTRY_USER}" -p "${REGISTRY_TOKEN}"
+
+stages:
+    - digits
+
+.digits_template: &digits_definition
+    stage: digits
+    script:
+    - VERSION="${CI_BUILD_NAME:1}"
+    # FIXME: re-add "--pull" when github.com/moby/moby/issues/33946 is fixed
+    - docker build -t "${REPOSITORY}:${VERSION}"
+             --build-arg "repository=nvidia/caffe"
+             "${VERSION}"
+    - if [[ "${LATEST}" == true ]]; then
+          docker tag "${REPOSITORY}:${VERSION}" "${REPOSITORY}:latest";
+      fi
+    - docker push "${REPOSITORY}"
+
+v3.0:
+    <<: *digits_definition
+
+v3.3:
+    <<: *digits_definition
+
+v4.0:
+    <<: *digits_definition
+
+v5.0:
+    <<: *digits_definition
+
+v6.0:
+    variables:
+        LATEST: "true"
+    <<: *digits_definition
+

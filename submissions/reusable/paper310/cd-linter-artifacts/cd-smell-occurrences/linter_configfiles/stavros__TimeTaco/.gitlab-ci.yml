@@ -1,0 +1,36 @@
+image: python:3.7
+
+stages:
+  - test
+  - build
+  - deploy
+
+test:
+  cache:
+    paths:
+      - venv/
+  before_script:
+    # The --pre here is because Poetry can't get its shit together and release
+    # a version that contains a fix in a year.
+    - pip install --pre virtualenv poetry pre-commit
+    - virtualenv venv
+    - source venv/bin/activate
+    - poetry config virtualenvs.create false
+    - poetry install --no-root
+    - mypy --version
+    - python manage.py migrate
+    - python manage.py collectstatic --noinput
+  script:
+    - pre-commit run -a
+    - python manage.py test
+  stage: test
+
+deploy to production:
+  image: ilyasemenov/gitlab-ci-git-push
+  stage: deploy
+  script:
+   - git-push ssh://dokku@projects.stavros.io:16022/timetaco
+  environment: production
+  only:
+    - master
+

@@ -1,0 +1,14 @@
+image: "ruby:2.3"
+
+before_script:
+  - apt-get update --yes
+  - apt-get upgrade --yes
+  - gem install bundler --no-ri --no-rdoc
+  - bundle install --jobs $(nproc) --path ./vendor/bundle
+
+rspec:
+  script:
+    - bundle exec rspec
+  tags:
+    - shared
+

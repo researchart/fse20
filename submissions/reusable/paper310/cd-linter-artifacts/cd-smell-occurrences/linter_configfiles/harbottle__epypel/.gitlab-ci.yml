@@ -1,0 +1,93 @@
+variables:
+  GIT_STRATEGY: clone
+  LC_ALL: en_US.UTF-8
+  REPO_NAME: epypel
+  REPO_URL_BASE: https://harbottle.gitlab.io/epypel
+  REPO_FOLDER: 7/x86_64/
+  GPG_NAME: Richard Grainger
+  GPG_FILE_NAME: harbottle-epypel
+  GPG_KEY_ID: 540ecf1b
+  GPG_PUBLIC_KEY: |
+    -----BEGIN PGP PUBLIC KEY BLOCK-----
+    Version: GnuPG v2.0.22 (GNU/Linux)
+
+    mQENBFf82UsBCAC9QQNkX1WtimanmKp4aabl3gEY85IhHTOnKKc3p3IuG7iIalW+
+    TGt+GCLEU7irEZj4RI1a4ltP37SxlsorwIBdg7YbZvo313yWkva/IcyeGdzC0u6u
+    NJy5GHjc9VMuYz+Kv6jY0V+/AajtHJdiCogNKT2c3M9ptvf+8MYGtcF4cQs6eCn7
+    mdeMo4Yo+ZhTKD85c4AXKoWgHjZeWDZUbtFaQwV3ORKYXW0N4pI43OQDRej7WKiy
+    ERVNNgj7QucfknjsfpgwQOWTJpEchVbVJ8Zs1U659HStj1iOdqMZkVnq9CNwbS4q
+    Ucy11mQ5V4bF8i+N7yiqkBDrfyhSPACJeI2nABEBAAG0JVJpY2hhcmQgR3JhaW5n
+    ZXIgPGdyYWluZ2VyQGdtYWlsLmNvbT6JATkEEwECACMFAlf82UsCGwMHCwkIBwMC
+    AQYVCAIJCgsEFgIDAQIeAQIXgAAKCRDZl9b1VA7PG9UaB/0RjeLkj7UFUcrCJo4B
+    mGtDPCoVLiwAgBHOa44PypuUYmoHUwz5E2gq3ySThcuqy19mutQFmvHTk+JbD53V
+    PIGeV++753webMF28fAo7Wzhqt2RvaufRSETmSybn7Ev9w8TRMpMoOjdlUkJl6XZ
+    IqPE10aUa2SPV/YrRpshU8jvL6b5vSG3iMK78VUioYk2Cpa9tZMR1sNLnQJF7eMl
+    AKtOf3s1J9bICPpS3ogFx1QpDGwHS6PPT7lxTaFIl1YQ2aKdTfGDsbKoZpLqce0X
+    ox3I1sz0/lxo8C2UbrV00fxAGI4O75hFFEetxU8vycs3EOlLL8UawLsdQw16t1hz
+    9SECuQENBFf82UsBCADEEoRrCfftA6P1/lm2M8I9lqt/iauOG7py+ipRE0nwZ2cO
+    r+q/Kst7K8xgbVgd1RnFo6mCWl7XvUL+n6yYcqZyztvTKnum68jmgqumQBcyqeny
+    pYmZcAoVGr+cKHwXshY5NpYj5ZFRhV5rPqQnowd/PuH67sW4rwQRlQZFOKiDvHSm
+    +sy0hZhPvusi1B3lZROCoq3jQs1y+oMTorAL2kmsesENrAoVyPAPgCFPIi2WSybz
+    Ivt9AnZiUXQygnA1Jco66isPpQlX9DFqkCOc0OlvzKbf/GYHJc3lNYkry9h9UCbo
+    gdKm0n5BzvhFdmkRLV0b7bpzurF3T79f/5F2PGUZABEBAAGJAR8EGAECAAkFAlf8
+    2UsCGwwACgkQ2ZfW9VQOzxvzDQgAo6aZWK7fRLPVy4Ys6QhjzQLRLtbXBShs21U0
+    ttD/ybUKGk7NdUQtmfAD5ffmj7LZfytgOIMxQIx6fDhlnNKhZn0KVmIRlrekv4A+
+    Ci51EuMjENEsdVne8MoXFPRNsG0Frde4OOTC8l6OqQ5zw93o8E7w6m6PIS/aYCX8
+    8SK1CUqJbaOjUM/tX72R0prw9xV0oH7Wxzumxy7WOG6jmmUc7Gdeq5a3HHqgzjza
+    jtwhMSnHbtt/9BACttUgBuPxI+bL4Gy2uTjRdD20fg8hfF8oii4c2zWHKGmk6gXA
+    rGEbVxV+/FfI59O/BuWhNlJR/jXV3zIE0i4azEtToOw/MFK6ZA==
+    =YS8y
+    -----END PGP PUBLIC KEY BLOCK-----
+
+stages:
+  - bootstrap
+  - build
+  - test
+  - deploy
+
+cache:
+  untracked: false
+
+bootstrap:
+  stage: bootstrap
+  image: docker
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker pull $CI_REGISTRY_IMAGE:latest || true
+    - docker build --pull --cache-from $CI_REGISTRY_IMAGE:latest -t $CI_REGISTRY_IMAGE:latest .
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    changes:
+      - Dockerfile
+
+build:
+  stage: build
+  image: $CI_REGISTRY_IMAGE:latest
+  script:
+    - rm -rf *.rpm
+#    - bundle install --quiet && bundle exec fpm -s python -t rpm --python-pip /usr/bin/pip --python-install-bin /usr/bin --python-install-lib /usr/lib/python2.7/site-packages --debug --debug-workspace tableauserverclient
+    - bundle install --deployment --quiet && bundle exec rake build
+  artifacts:
+    paths:
+    - '*.rpm'
+    - public
+    expire_in: 1 week
+
+test:
+  stage: test
+  image: $CI_REGISTRY_IMAGE:latest
+  script:
+  - bundle install --deployment --quiet && bundle exec rake test
+
+pages:
+  stage: deploy
+  image: ruby:2.3
+  script:
+  - pwd
+  artifacts:
+    paths:
+    - public
+  when: manual
+

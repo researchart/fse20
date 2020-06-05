@@ -1,0 +1,45 @@
+image: registry.gitlab.com/archbuild/docker:latest
+
+stages:
+  - package
+
+before_script:
+  ##
+  ## Define packager
+  ##
+  #- echo 'PACKAGER="$PACKAGER"' >> /etc/makepkg.conf
+  #- echo 'GPGKEY="$GPGKEY"' >> /etc/makepkg.conf
+  ##
+  ## Add GPG key into keyring
+  ##
+  #- sudo -u builder -H sh -c "mkdir ~/.gnupg"
+  #- sudo -u builder -H sh -c "echo allow-loopback-pinentry >> ~/.gnupg/gpg-agent.conf"
+  #- sudo -u builder -H sh -c "gpg-connect-agent reloadagent /bye"
+  #- sudo -u builder -H sh -c "echo $GPG_PASSPHRASE | gpg --pinentry-mode loopback --batch --passphrase-fd 0 -v --import <(echo $GPG_PRIVATE_KEY)"
+  ##
+  ## Choose mirror and update package list
+  ##
+  - array=(US CA SE FR GR DE CZ DK)
+  - size=${#array[@]}
+  - index=$(($RANDOM % $size))
+  - country=${array[$index]}
+  - echo $country
+  - curl -o /etc/pacman.d/mirrorlist "https://www.archlinux.org/mirrorlist/?country=$country&protocol=https&ip_version=4"
+  - sed -i 's/^#//' /etc/pacman.d/mirrorlist
+  - pacman -Syy
+
+package:
+  stage: package
+  retry: 2
+  script:
+  - chown -R builder:builder $PWD
+  - sudo -u builder -H gpg --recv-keys 14F26682D0916CDD81E37B6D61B7B526D98F0353
+    #- sudo -u builder -H makepkg -s --sign --noconfirm
+  - sudo -u builder -H makepkg -s --noconfirm
+  - ls
+  artifacts:
+    name: "$CI_PROJECT_NAME"
+    paths:
+    - "*.xz"
+    expire_in: 2 days
+

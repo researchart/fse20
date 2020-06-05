@@ -1,0 +1,25 @@
+image: debian:jessie
+
+before_script:
+- apt-get update
+- apt-get install -qq zim
+- cp GitLabPagesTemplate.html /usr/share/zim/templates/html/GitLabPagesTemplate.html
+
+test:
+  stage: test
+  script:
+  - ./build_zim.sh
+  only:
+  - branches
+  - tags
+
+pages:
+  stage: deploy
+  script:
+  - ./build_zim.sh
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

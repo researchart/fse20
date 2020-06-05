@@ -1,0 +1,17 @@
+# @uthor :frank akouemo
+#----------------------
+image: alpine:latest
+
+pages:
+  stage: deploy
+  script:
+  - echo '-> Nothing to do...'
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

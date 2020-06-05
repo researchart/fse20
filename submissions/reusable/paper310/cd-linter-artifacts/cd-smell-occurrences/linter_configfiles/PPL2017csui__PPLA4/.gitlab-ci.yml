@@ -1,0 +1,49 @@
+# Select image from https://hub.docker.com/r/_/php/
+image: php:5.6
+before_script:
+  - bash gitlabci/before_script.sh > /dev/null
+  - bash gitlabci/install_dependency.sh > /dev/null
+  - bash gitlabci/setup_database.sh
+
+services:
+  - mysql:latest
+
+variables:
+  # Configure mysql environment variables (https://hub.docker.com/r/_/mysql/)
+  MYSQL_DATABASE: PPLA4
+  MYSQL_ROOT_PASSWORD: secret
+  HEROKU_API_KEY: c55dbde4-e0e8-4a06-bc92-75cac23b7ce5
+
+code_coverage:
+  stage: test
+  script:
+    - bash gitlabci/install_phpunit.sh > /dev/null
+    - bash gitlabci/install_xdebug.sh > /dev/null
+    - vendor/bin/phpunit --coverage-text --colors=never --configuration phpunit.xml
+    - mkdir test/
+    - cp -r /tmp/report test/
+  artifacts:
+   paths:
+   - test/
+
+staging:
+  stage: deploy
+  script:
+    - bash gitlabci/install_ruby.sh
+    - gem install dpl
+    - dpl --provider=heroku --app=jojotravel --api-key=$HEROKU_API_KEY
+  only:
+    - develop
+
+pages:
+  stage: deploy
+  dependencies:
+  - code_coverage
+  script:
+  - mv public public_old
+  - mkdir public/
+  - mv test/ public/
+  artifacts:
+    paths:
+    - public/
+

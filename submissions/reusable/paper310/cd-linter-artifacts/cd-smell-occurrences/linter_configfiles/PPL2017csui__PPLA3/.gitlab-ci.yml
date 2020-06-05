@@ -1,0 +1,77 @@
+image: openjdk:8-jdk
+image: php:5.6
+
+services:
+  - postgres:latest
+  
+variables:
+  POSTGRES_DB: mydb-test
+  POSTGRES_USER: runner
+  POSTGRES_PASSWORD: ""
+  HEROKU_API_KEY: daafe8d1-4a95-42dd-824e-14e0a0319c55
+  
+cache:
+  paths:
+  - vendor/
+  
+before_script:
+  - >
+    set -xe
+    && apt-get update -yqq
+    && apt-get install -yqq
+    git
+    libicu-dev
+    libpq-dev
+    libzip-dev
+    zlib1g-dev
+    wget
+    lib32stdc++6
+    lib32z1
+  - >
+    docker-php-ext-install
+    pdo_pgsql
+    pgsql
+    sockets
+    intl
+    zip
+  - curl -sS https://getcomposer.org/installer | php
+  - php composer.phar self-update
+  - php composer.phar install --no-progress --no-interaction
+  - wget https://phar.phpunit.de/phpunit-5.7.phar 
+  - chmod +x phpunit-5.7.phar
+  - mv phpunit-5.7.phar /usr/local/bin/phpunit
+  - pecl install xdebug
+  - docker-php-ext-enable xdebug
+  - cp .env.gitlab-ci .env
+  - php artisan key:generate
+  - php artisan help config:clear
+  - php artisan route:clear
+  - php artisan migrate:refresh --seed
+
+test:
+  script:
+  - phpunit --coverage-text --colors=never --configuration phpunit.xml
+  artifacts:
+    paths:
+      - coverage/
+
+develop:
+  type: deploy
+  script:
+    - apt-get update -qy
+    - apt-get install -y rubygems
+    - gem install dpl
+    - dpl --provider=heroku --app=absen-in --api-key=$HEROKU_API_KEY
+  only:
+  - dev
+
+staging:
+  type: deploy
+  script:
+    - apt-get update -qy
+    - apt-get install -y rubygems
+    - gem install dpl
+    - dpl --provider=heroku --app=absen-in --api-key=$HEROKU_API_KEY
+  only:
+    - master
+

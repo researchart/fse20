@@ -1,0 +1,42 @@
+image: python:3.6-alpine
+
+stages:
+  - test
+  - deploy
+
+before_script:
+   - pip install twine
+
+test:
+  stage: test
+  script:
+   - python setup.py sdist
+   - pip install dist/*
+   - pip install mock unittest2
+   - apk add git
+   - git config gitlab.url   "http://your-server-url"
+   - git config gitlab.token "your-token"
+   - cd gitgitlab && python -m unittest2 test/gitgitlab_test.py
+
+deploy_staging:
+  stage: deploy
+  variables:
+    TWINE_USERNAME: $STAGING_USERNAME
+    TWINE_PASSWORD: $STAGING_PASSWORD
+  script:
+    - VERSION_APPEND=${CI_JOB_ID} python setup.py sdist
+    - twine upload --repository-url $REPOSITORY_URL dist/*
+  except:
+    - tags
+
+deploy_production:
+  stage: deploy
+  variables:
+    TWINE_USERNAME: $PRODUCTION_USERNAME
+    TWINE_PASSWORD: $PRODUCTION_PASSWORD
+  script:
+    - python setup.py sdist
+    - twine upload dist/*
+  only:
+    - tags
+

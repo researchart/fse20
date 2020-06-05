@@ -1,0 +1,60 @@
+# Django jet is blocking migration to 2.0
+# error:     from django.views.i18n import javascript_catalog
+# ImportError: cannot import name 'javascript_catalog'
+django==1.11.8
+django-jet
+django-countries
+django-jsonfield
+pyyaml
+tldextract
+docutils
+typing
+# django-nested-admin (doesn't work with Django Jet).
+
+# scanners
+requests
+# use mozzila certificate bundle by default
+certifi
+pytz
+celery[redis]
+django-celery-beat
+# https://github.com/pi-bjl/celery-statsd/commit/5d61d7756f115dbf05a7eeb8314495b53ee1955e
+django-statsd-mozilla
+Pillow  # screenshots
+python-resize-image  # screenshots
+untangle  # dns scans https://github.com/stchris/untangle
+django_uwsgi
+
+dnspython  # dnsrecon
+netaddr  # dnsrecon
+
+# tests (of scanners)
+httmock
+freezegun
+colorama
+
+django-silk
+
+# logging
+colorlog
+
+# website
+django_compressor  # bundle javascript and css
+csscompressor  # css compression
+# brotlipy  # doesn't work, some vague errors not worth the time: compression handled elsewhere
+# slimit does not work with vue.js
+django-proxy
+
+# sentry client
+raven
+
+# allow recursive comparison of dictionaries
+deepdiff
+influxdb
+urllib3
+
+# loading json is faster in simplejson
+# https://stackoverflow.com/questions/712791/what-are-the-differences-between-json-and-simplejson-python-modules
+# needed for mapping reasons.
+simplejson
+

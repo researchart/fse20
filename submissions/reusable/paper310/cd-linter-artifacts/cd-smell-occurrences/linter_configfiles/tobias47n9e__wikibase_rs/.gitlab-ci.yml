@@ -1,0 +1,40 @@
+stages:
+  - code_style
+  - tests
+
+.code_style_script:
+  before_script:
+    - rustup component add rustfmt
+  script:
+    - cargo fmt --all -- --check
+
+.test_script:
+  script:
+    - rustc --version && cargo --version
+    - cargo test --all --verbose
+
+stable_code_latest:
+  extends: .code_style_script
+  image: rust:latest
+  stage: code_style
+
+latest:
+  extends: .test_script
+  image: rust:latest
+  stage: tests
+
+stable_1.38:
+  extends: .test_script
+  image: rust:1.37
+  stage: tests
+
+stable_1.37:
+  extends: .test_script
+  image: rust:1.37
+  stage: tests
+
+stable_1.36:
+  extends: .test_script
+  image: rust:1.36
+  stage: tests
+

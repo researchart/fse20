@@ -1,0 +1,51 @@
+# Using the official GCC Docker image as default
+image: gcc:7.3.0
+
+# Columns of the pipeline
+stages:
+  - static analysis
+  - build
+  - test
+
+# Static code analysis job via Clang Static Analyzer
+static analysis:
+  stage: static analysis
+  image: rsmmr/clang
+  script:
+    - scan-build --status-bugs g++ calculator.cpp
+
+# Compilation job via GCC
+build:
+  stage: build
+  script:
+    # g++ compilation arguments enable code coverage output
+    - g++ -fprofile-arcs -ftest-coverage -fPIC calculator.cpp -o calculator
+  # Pass below artifacts to the next jobs
+  artifacts:
+    paths:
+      - calculator
+      - calculator.gcno
+
+# Unit testing via Catch
+unit tests:
+  stage: test
+  before_script:
+    - cd unit_tests
+    - curl -L -O "https://github.com/catchorg/Catch2/releases/download/v2.2.3/catch.hpp"
+  script:
+    - g++ -std=c++11 catch_unit_tests.cpp -o catch_unit_tests
+    - ./catch_unit_tests
+
+# Module testing and code coverage reporting
+module tests:
+  stage: test
+  before_script:
+    - apt update && apt -y install gcovr
+  script:
+    - test $(./calculator 1 + 1) = 2
+    - test $(./calculator 100 - 10) = 90
+    - test $(./calculator 25 \* 5) = 125
+    - (! ./calculator 30 / 5) # Should fail as division is unsupported
+    - gcovr -r .
+  coverage: /^TOTAL.*\s+(\d+\%)$/
+

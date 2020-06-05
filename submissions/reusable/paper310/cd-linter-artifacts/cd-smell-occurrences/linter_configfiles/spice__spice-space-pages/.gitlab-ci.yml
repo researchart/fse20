@@ -1,0 +1,18 @@
+rst:
+  image: python:latest
+  before_script:
+  - pip install Pygments restructuredtext_lint
+
+  script:
+  - RET=0; for RST in *.rst ; do rst-lint --encoding utf-8 $RST; RET=$(( $RET+$? )); done; (exit $RET)
+
+trigger_build:
+  image: fedora:latest
+  stage: deploy
+  needs: ["rst"]
+  only:
+    variables:
+    - $TOKEN
+  script:
+  - curl -X POST -F token=$TOKEN -F ref=master https://gitlab.freedesktop.org/api/v4/projects/spice%2Fspice-space/trigger/pipeline
+

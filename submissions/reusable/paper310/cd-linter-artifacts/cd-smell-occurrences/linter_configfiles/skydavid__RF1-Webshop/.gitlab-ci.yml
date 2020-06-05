@@ -1,0 +1,15 @@
+image: php:5.6
+
+cache:
+  paths:
+  - vendor/
+
+before_script:
+- bash ci/docker_install.sh > /dev/null
+- curl -sS https://getcomposer.org/installer | php
+- php composer.phar install
+
+test:app:
+  script:
+  - phpunit --configuration phpunit.xml.dist
+

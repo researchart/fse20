@@ -1,0 +1,112 @@
+stages:
+- prepare
+- test
+- build
+- release
+
+variables:
+  GOROOT: /usr/local/go
+  CI_IMAGE: ${CI_REGISTRY_IMAGE}/ci:1.9-0
+
+image: $CI_IMAGE
+
+.docker: &docker
+  services:
+  - docker:dind
+  variables: &docker_variables
+    DOCKER_DRIVER: overlay2
+    DOCKER_HOST: tcp://docker:2375
+  tags:
+  - docker
+
+#
+# Prepare stage
+#
+
+build ci image:
+  <<: *docker
+  stage: prepare
+  image: docker:git
+  script:
+  - apk add -U make bash
+  - make release_ci_image
+  only:
+  - /\Adocker-ci-image\/.*/@tmaczukin/hanging-droplets-cleaner
+
+#
+# Test stage
+#
+
+codequality:
+  <<: *docker
+  stage: test
+  variables:
+    <<: *docker_variables
+    DOCKER_DRIVER: overlay2
+    CODEQUALIT_VERSION: 0.71.0
+  script:
+  - make codequality
+  artifacts:
+    paths:
+    - codeclimate.json
+    expire_in: 1 week
+  cache: {}
+  dependencies: []
+
+.unit_tests: &unit_tests
+  stage: test
+  artifacts:
+    paths:
+    - coverprofile.html
+    - coverprofile.txt
+    - coverprofile.func.txt
+    expire_in: 1 week
+  tags:
+  - docker
+
+unit tests (no race):
+  <<: *unit_tests
+  script:
+    - make test
+
+unit tests:
+  <<: *unit_tests
+  script:
+  - make race_test
+
+race conditions detector:
+  <<: *docker
+  stage: test
+  script:
+  - make check_race_conditions
+  tags:
+  - docker
+
+#
+# Build stage
+#
+
+compile:
+  stage: build
+  script:
+  - make compile
+  artifacts:
+    paths:
+    - gcp-exporter
+    expire_in: 7d
+  tags:
+  - docker
+
+#
+# Release stage
+#
+
+release image:
+  <<: *docker
+  stage: release
+  script:
+  - make release_image
+  only:
+  - master
+  - tags
+

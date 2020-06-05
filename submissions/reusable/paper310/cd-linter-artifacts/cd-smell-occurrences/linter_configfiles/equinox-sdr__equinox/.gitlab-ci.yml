@@ -1,0 +1,60 @@
+
+stages:
+        - build
+        - test
+
+equinox_build:debian:
+    image: debian:latest
+    before_script:
+        - apt-get update -qq && apt-get install -y -qq  libcppunit-dev cmake pkg-config build-essential libconfig++-dev valgrind libeigen3-dev doxygen
+    stage: build
+    script:
+        - mkdir -p build
+        - cd build
+        - cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+        - make
+        - cd ..
+
+    artifacts:
+        paths:
+            - build/
+
+equinox_test:debian:
+    image: debian:latest
+    before_script:
+        - apt-get update -qq && apt-get install -y -qq  libcppunit-dev cmake pkg-config build-essential libconfig++-dev valgrind libeigen3-dev doxygen
+    stage: test
+    dependencies:
+        - equinox_build:debian
+    script:
+        - cd build
+        - make CTEST_OUTPUT_ON_FAILURE=1 test
+
+equinox_build:opensuse:
+    image: opensuse/tumbleweed
+    before_script:
+        - zypper ref && zypper install -y -l gcc-c++ cppunit-devel cmake pkg-config libconfig++-devel valgrind eigen3-devel doxygen patterns-devel-C-C++-devel_C_C++
+    stage: build
+    script:
+        - mkdir -p build
+        - cd build
+        - cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+        - make
+        - cd ..
+
+    artifacts:
+        paths:
+            - build/
+
+equinox_test:opensuse:
+    image: opensuse/tumbleweed
+    before_script:
+        - zypper ref && zypper install -y -l gcc-c++ cppunit-devel cmake pkg-config libconfig++-devel valgrind eigen3-devel doxygen patterns-devel-C-C++-devel_C_C++
+    stage: test
+    dependencies:
+        - equinox_build:opensuse
+    script:
+        - cd build
+        - make CTEST_OUTPUT_ON_FAILURE=1 test
+
+

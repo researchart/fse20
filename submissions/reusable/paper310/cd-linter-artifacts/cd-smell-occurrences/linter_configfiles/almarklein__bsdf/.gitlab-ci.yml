@@ -1,0 +1,181 @@
+# This file defines the CI for the BSDF repo.
+
+# ---------- Python lite
+
+job_python_lite_py34:
+  image: almarklein/py34
+  script:
+    - cd python_lite
+    - pip install invoke flake8 pytest pytest-cov
+    #
+    - python --version
+    - invoke -l
+    #
+    - invoke lint
+    - invoke test-unit
+    - invoke test-shared
+
+
+job_python_lite_py37:
+  image: almarklein/py37
+  variables:
+    BSDF_TEST_EXCLUDES: 'ndarray'
+  script:
+    - cd python_lite
+    - pip install invoke pytest pytest-cov
+    #
+    - python --version
+    - invoke -l
+    #
+    - invoke test-unit
+    - invoke test-shared
+
+
+# ---------- Python
+
+job_python_py27:
+  image: python:2.7
+  variables:
+    BSDF_TEST_EXCLUDES: 'ndarray'
+  script:
+    - cd python
+    - pip install invoke pytest pytest-cov
+    #
+    - python --version
+    - invoke -l
+    #
+    - invoke test-unit
+    #- invoke test-shared  test service runs on Python 3.x
+
+
+job_python_pypy3:
+  image: pypy:3
+  variables:
+    BSDF_TEST_EXCLUDES: 'ndarray'
+  script:
+    - cd python
+    - pip install invoke pytest pytest-cov
+    #
+    - python --version
+    - invoke -l
+    #
+    - invoke test-unit
+    - invoke test-shared
+
+
+job_python_py34:
+  image: almarklein/py34
+  script:
+    - cd python
+    - pip install invoke pytest pytest-cov
+    #
+    - python --version
+    - invoke -l
+    #
+    - invoke test-unit
+    - invoke test-shared
+
+
+job_python_py37:
+  image: almarklein/py37
+  variables:
+    BSDF_TEST_EXCLUDES: 'ndarray,recursion1'
+  script:
+    - cd python
+    - pip install invoke pytest pytest-cov
+    #
+    - python --version
+    - invoke -l
+    #
+    - invoke test-unit
+    - invoke test-shared
+
+
+job_python_py36:  # The main runner
+  image: almarklein/py36
+  script:
+    - cd python
+    - pip install invoke flake8 pytest pytest-cov
+    #
+    - python --version
+    - invoke -l
+    #
+    - invoke lint
+    - invoke test-unit
+    - invoke test-shared
+    # Test installation and CLI
+    - python setup.py install  # or pip install .
+    - cd ~
+    - bsdf create foo.bsdf '[2, 3] * 4'
+    - bsdf view foo.bsdf
+
+
+# ---------- Octave / Matlab
+
+job_matlab_octave:
+  image: almarklein/octave
+  script:
+    - cd matlab
+    - pip3 install invoke
+    #
+    - python3 --version
+    - octave-cli --version
+    - invoke -l
+    #
+    - invoke test-unit --octave
+    - invoke test-shared --octave
+
+
+# ---------- Node / JavaScript
+
+job_javascript_node:
+  image: almarklein/nodejs
+  script:
+    - cd javascript
+    - pip3 install invoke
+    #- npm install -g jshint -- done in Dockerfile
+    #
+    - python3 --version
+    - nodejs --version || node --version
+    - invoke -l
+    #
+    - invoke lint
+    - invoke test-unit
+    - invoke test-shared
+
+
+# ---------- Deploy stage
+
+validation:
+  stage: deploy
+  image: almarklein/py36
+  script:
+    - pip install invoke
+    #
+    - python --version
+    - invoke -l
+    #
+    - invoke check-whitespace
+    - invoke check-versions
+
+
+pages:  # this name matters
+  stage: deploy
+  image: almarklein/py36
+  script:
+    - pip install invoke markdown pygments
+    #
+    - python --version
+    - invoke -l
+    #
+    - invoke python.update-readme
+    - invoke python-lite.update-readme
+    - invoke build-pages
+    - mv _docs/_pages public  # the name of the artifact matters
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+    - website
+

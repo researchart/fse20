@@ -1,0 +1,19 @@
+image: nixos/nix:2.0
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+  - nix-channel --add https://nixos.org/channels/nixos-18.03 nixpkgs
+  - nix-channel --update
+  - mkdir -p ~/.config/nixpkgs
+  - cp -r . ~/.config/nixpkgs/
+
+stages:
+  - build
+
+user-environment:
+  stage: build
+  script:
+    - nix-env -i user-environment
+

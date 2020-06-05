@@ -1,0 +1,48 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.sila-standard.sila_java.servers</groupId>
+        <artifactId>examples</artifactId>
+        <version>0.0.3-SNAPSHOT</version>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.sila-standard.sila_java.servers.examples</groupId>
+    <artifactId>thermostat</artifactId>
+    <version>0.0.3-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.sila-standard.sila_java.library</groupId>
+                <artifactId>maven_plugin</artifactId>
+                <version>0.0.3-SNAPSHOT</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <protobufVersion>${protobuf.version}</protobufVersion>
+                            <grpcVersion>${grpc.version}</grpcVersion>
+                            <features>
+                                <param>${project.parent.parent.parent.basedir}/${sila_base.path}/feature_definitions/org/silastandard/examples/TemperatureController.sila.xml</param>
+                            </features>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>sila_java.servers.examples.thermostat.ThermostatServer</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+

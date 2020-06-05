@@ -1,0 +1,42 @@
+image: "rust:latest"
+
+stages:
+  - build
+  - deploy
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  GUTENBERG_VERSION: "0.4.2"
+  GUTENBERG_RELEASE: "https://github.com/Keats/gutenberg/releases/download/v$GUTENBERG_VERSION/gutenberg-v$GUTENBERG_VERSION-x86_64-unknown-linux-gnu.tar.gz"
+  ANSIBLE_HOST_KEY_CHECKING: "False"
+
+build:static:
+  stage: build
+  script:
+    - rustc --version && cargo --version
+    - curl -L $GUTENBERG_RELEASE -o gutenberg.tar.gz
+    - tar xzvf gutenberg.tar.gz
+    - ./gutenberg build
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 day
+
+deploy:static:
+  image: python:3.6
+  stage: deploy
+  environment: Production
+  only: 
+    - master
+  dependencies:
+    - build:static
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - pip install ansible
+  script:
+    - ansible-playbook deploy.yml -i "$DEPLOY_HOST" -e ansible_port=1222
+

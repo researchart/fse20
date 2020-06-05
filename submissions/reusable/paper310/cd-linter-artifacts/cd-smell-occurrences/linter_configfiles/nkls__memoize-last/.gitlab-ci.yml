@@ -1,0 +1,33 @@
+image: node:8
+
+stages:
+  - test
+  - publish
+
+cache:
+  paths:
+  - node_modules/
+  - ${HOME}/.cache/yarn
+  - ${HOME}/.npm
+
+All tests:
+  stage: test
+  before_script:
+    - yarn install --freeze-lockfile
+  script:
+    - yarn test
+
+Publish to npm:
+  stage: publish
+  before_script:
+    - yarn install --freeze-lockfile
+
+  only:
+    - tags
+
+  script:
+    - yarn build
+    - $(yarn bin)/npm-publish-git-tag
+
+
+

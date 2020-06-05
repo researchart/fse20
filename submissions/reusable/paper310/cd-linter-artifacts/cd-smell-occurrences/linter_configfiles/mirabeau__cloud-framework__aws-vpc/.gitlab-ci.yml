@@ -1,0 +1,16 @@
+---
+stages:
+  - test
+
+before_script:
+  - apt-get update -qy
+  - apt-get install -y python python-pip
+  - pip install --upgrade cfn-lint ansible-lint yamllint
+
+test:
+  stage: test
+  script:
+    - find . -regextype posix-extended -regex '.*\.y(a)?ml' -exec yamllint "{}" \;
+  #  - find files -name *.yaml -exec cfn-lint "{}" \;
+    - ansible-lint .
+

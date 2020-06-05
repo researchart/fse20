@@ -1,0 +1,80 @@
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: fedora:29
+  before_script:
+    - dnf install gcc git mingw32-gcc mingw64-gcc unzip xz zip -y
+    - export CHOOSENIM_NO_ANALYTICS=1
+    - export CHOOSENIM_CHOOSE_VERSION="stable"
+    - curl https://nim-lang.org/choosenim/init.sh -sSf > init.sh
+    - sh init.sh -y
+  script:
+    - export PATH="$HOME/.nimble/bin:$PATH"
+    - mkdir -p dist/
+
+    # Linux x86 64-bit
+    - nimble build -d:release --passc:"-flto" -y
+    - strip clr
+    - mkdir -p clr-linux-x86_64/
+    - mv clr clr-linux-x86_64/
+    - cp README.md LICENSE.md clr-linux-x86_64/
+    - tar cfJ dist/clr-linux-x86_64.tar.xz clr-linux-x86_64/
+
+    # pcre64.dll/pcre32.dll must be distributed with the Windows executable
+    - curl -O https://nim-lang.org/download/dlls.zip
+    - unzip dlls.zip
+
+    # Windows 64-bit
+    - nimble build -d:release --passc:"-flto" -d:mingw
+    - strip clr.exe pcre64.dll
+    - mkdir -p clr-windows-x86_64/
+    - mv clr.exe pcre64.dll clr-windows-x86_64/
+    - cp README.md LICENSE.md clr-windows-x86_64/
+    - zip -r9 dist/clr-windows-x86_64.zip clr-windows-x86_64/
+
+    # Windows 32-bit
+    # Pretend the 32-bit compiler is a 64-bit one since it's not using
+    # the right one for some reason
+    - rm /usr/bin/x86_64-w64-mingw32-gcc
+    - ln -s /usr/bin/i686-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc
+    - nimble build -d:release --passc:"-flto" -d:mingw --cpu:i386
+    - strip clr.exe pcre32.dll
+    - mkdir -p clr-windows-x86/
+    - mv clr.exe pcre32.dll clr-windows-x86/
+    - cp README.md LICENSE.md clr-windows-x86/
+    - zip -r9 dist/clr-windows-x86.zip clr-windows-x86/
+  artifacts:
+    expire_in: 30 days
+    paths:
+      - dist/
+
+deploy:
+  stage: deploy
+  image: fedora:29
+  dependencies:
+    - build
+  only:
+    - tags
+  before_script:
+    - dnf install golang -y
+    - go get github.com/itchio/gothub
+  script:
+    - export PATH="$HOME/go/bin:$PATH"
+    - gothub release
+          --tag "$CI_COMMIT_TAG" || true
+    - gothub upload
+          --tag "$CI_COMMIT_TAG"
+          --name "clr-$CI_COMMIT_TAG-linux-x86_64.tar.xz"
+          --file "dist/clr-linux-x86_64.tar.xz"
+    - gothub upload
+          --tag "$CI_COMMIT_TAG"
+          --name "clr-$CI_COMMIT_TAG-windows-x86_64.zip"
+          --file "dist/clr-windows-x86_64.zip"
+    - gothub upload
+          --tag "$CI_COMMIT_TAG"
+          --name "clr-$CI_COMMIT_TAG-windows-x86.zip"
+          --file "dist/clr-windows-x86.zip"
+

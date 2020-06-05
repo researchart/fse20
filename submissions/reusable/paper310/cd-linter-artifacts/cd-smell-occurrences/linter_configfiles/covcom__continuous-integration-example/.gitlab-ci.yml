@@ -1,0 +1,81 @@
+image: node:latest
+
+stages:
+  - code-testing
+  - staging-server
+  - acceptance-testing
+
+linting:
+  stage: code-testing
+  script:
+    - npm install
+    - npm run linter
+
+dependency-checks:
+  stage: code-testing
+  script:
+    - npm install
+    - npm run dependency
+
+code-duplication:
+  stage: code-testing
+  script:
+    - npm install
+    - npm run duplication
+
+unit-testing:
+  stage: code-testing
+  script:
+  - npm install
+  - npm test
+
+code-coverage:
+  stage: code-testing
+  script:
+    - npm install
+    - npm run coverage
+    - npm run check-coverage
+
+coverage-report:
+  stage: staging-server
+  script:
+    - npm install
+    - npm run coverage
+    #- mv ./docs/coverage/ public/
+  artifacts:
+    paths:
+      - docs
+    expire_in: 30 days
+  only:
+    - master
+
+deploy-staging-server:
+  stage: staging-server
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby ruby-dev rubygems-integration
+  - gem install dpl
+  - dpl --provider=heroku --app=notes-api-test --api-key=95023c27-5a9d-4250-a3fd-d2e19e0dac02
+  only:
+  - master
+
+acceptance-tests:
+  stage: acceptance-testing
+  script:
+    - npm install --only=dev
+    - npm run acceptance
+  only:
+    - master
+
+# https://docs.gitlab.com/ce/ci/examples/test-and-deploy-python-application-to-heroku.html
+
+# production:
+#   type: deploy
+#   script:
+#   - apt-get update -qy
+#   - apt-get install -y ruby-dev
+#   - gem install dpl
+#   - dpl --provider=heroku --app=gitlab-ci-python-test-prod --api-key=$HEROKU_PRODUCTION_API_KEY
+#   only:
+#   - tags
+

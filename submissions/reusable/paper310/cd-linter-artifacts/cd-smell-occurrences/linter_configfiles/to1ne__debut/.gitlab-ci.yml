@@ -1,0 +1,12 @@
+image: cytopia/ansible:latest
+
+variables:
+  PLAYBOOK: "./playbook.yml"
+
+stages:
+  - test
+
+lint:
+  stage: test
+  script: ansible-playbook --syntax-check --list-tasks $PLAYBOOK
+

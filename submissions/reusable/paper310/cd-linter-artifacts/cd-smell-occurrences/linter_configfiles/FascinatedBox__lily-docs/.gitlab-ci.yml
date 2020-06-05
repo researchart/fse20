@@ -1,0 +1,29 @@
+before_script:
+  - apt-get update && apt-get -y install cmake python-markdown naturaldocs
+
+pages:
+  stage: deploy
+  script:
+  - git clone --depth 1 https://gitlab.com/fascinatedbox/lily
+  - cd lily
+  - cmake .
+  - make
+  - make install
+  - cd ../gen_core
+  - mkdir packages
+  - cd packages
+  - git clone --depth 1 https://gitlab.com/fascinatedbox/lily-mkdir mkdir
+  - cd mkdir
+  - cmake .
+  - make
+  - cd ../../..
+  - python sitegen.py lily/src/lily_pkg_core.c
+  - mv output .public
+  - rm -r *
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

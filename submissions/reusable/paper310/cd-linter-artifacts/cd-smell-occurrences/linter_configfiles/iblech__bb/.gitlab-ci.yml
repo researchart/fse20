@@ -1,0 +1,12 @@
+pages:
+  stage: deploy
+  image: nixos/nix:latest
+  script:
+    - nix-shell -p gnumake -p pandoc -p perl --run make
+    - mv build public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

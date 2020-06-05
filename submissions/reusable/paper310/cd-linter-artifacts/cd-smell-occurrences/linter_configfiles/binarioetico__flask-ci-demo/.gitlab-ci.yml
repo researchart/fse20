@@ -1,0 +1,31 @@
+#.gitlab-ci.yml - https://docs.gitlab.com/ee/ci/yaml/
+
+test:
+  image: python:3-alpine
+  script:
+    - pip install -r requirements.txt
+    - python base_test.py
+  
+staging:
+  image: claudyus/dind-ci-push
+  stage: deploy
+  script:
+    - /ssh/config.sh 
+    - git push -f dokku@dokku.krudo.host:flask-dev HEAD:refs/heads/master
+  environment:
+    name: staging
+    url: http://flask-dev.dokku.krudo.host
+
+production:
+  image: claudyus/dind-ci-push
+  stage: deploy
+  script:
+    - /ssh/config.sh 
+    - git push -f dokku@dokku.krudo.host:flask HEAD:refs/heads/master
+  only:
+    - master
+  when: manual
+  environment:
+    name: production
+    url: http://flask.dokku.krudo.host
+

@@ -1,0 +1,28 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+image: mstrasuns/ubuntu-dlang:2.081
+
+stages:
+  - test
+
+unittest:
+  stage: test
+  script:
+    - dub test
+
+samples:
+  stage: test
+  script:
+    - ci/test-samples.sh
+  coverage: '/is \d+\.\d+% covered/'
+  artifacts:
+    paths:
+      - cov/source-*.lst
+    expire_in: 1 week
+
+expected-compiles:
+  stage: test
+  script:
+    - ci/test-expected.sh
+

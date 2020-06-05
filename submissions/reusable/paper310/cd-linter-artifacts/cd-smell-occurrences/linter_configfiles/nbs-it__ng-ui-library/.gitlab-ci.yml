@@ -1,0 +1,13 @@
+image: node:9-alpine
+
+pages:
+  stage: build
+  script:
+    - apk -U add nodejs-npm
+    - sh ci/create_client_files.sh
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

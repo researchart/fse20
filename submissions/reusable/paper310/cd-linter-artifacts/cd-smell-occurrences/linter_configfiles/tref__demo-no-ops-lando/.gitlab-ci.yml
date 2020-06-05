@@ -1,0 +1,202 @@
+image: thereference/docker-drupal-tools:7.2
+
+stages:
+- Build
+- Validate
+- QA
+- Deploy DEV
+- Deploy TST
+- Deploy ACC
+- Pregolive
+- Golive
+
+Build docroot:
+  tags:
+    - beluga
+  stage: Build
+  except:
+  - develop
+  script:
+  - sleep 5
+
+phplint:
+  tags:
+  - beluga
+  except:
+  - develop
+  - acceptance
+  - master
+  - tags
+  stage: Validate
+  script:
+  - sleep 10
+
+phpcs:
+  tags:
+  - beluga
+  except:
+  - develop
+  - acceptance
+  - master
+  - tags
+  stage: Validate
+  script:
+  - phpcs --config-set installed_paths /root/.composer/vendor/drupal/coder/coder_sniffer
+  # If I made changes, phpcs on the files that are changed.
+  - phpcs --standard=Drupal web/modules/custom/
+
+phpmd:
+  tags:
+  - beluga
+  except:
+  - develop
+  - acceptance
+  - master
+  - tags
+  stage: Validate
+  script:
+  - sleep 10
+
+phpunit:
+  tags:
+  - beluga
+  except:
+  - develop
+  - acceptance
+  - master
+  - tags
+  stage: QA
+  script:
+  - sleep 10
+
+phpsec:
+  tags:
+  - beluga
+  except:
+  - develop
+  - acceptance
+  - master
+  - tags
+  stage: Validate
+  script:
+  - sleep 10
+
+behat-smoketest:
+  tags:
+  - beluga
+  except:
+  - develop
+  - acceptance
+  - master
+  - tags
+  stage: QA
+  script:
+  - sleep 10
+
+Deploy DEV:
+  stage: Deploy DEV
+  tags:
+  - beluga
+  only:
+  - develop
+  script:
+  - sync_code develop
+
+Deploy TST:
+  stage: Deploy TST
+  tags:
+  - beluga
+  only:
+  - develop
+  script:
+  - sleep 15
+
+Deploy ACC:
+  stage: Deploy ACC
+  tags:
+  - beluga
+  only:
+  - acceptance
+  script:
+  - sync_code acceptance
+
+Blazemeter:
+  tags:
+  - beluga
+  stage: Pregolive
+  only:
+  - acceptance
+  script:
+  - sleep 5
+
+Pentest:
+  tags:
+  - beluga
+  stage: Pregolive
+  only:
+  - acceptance
+  script:
+  - sleep 5
+
+Deploy PROD:
+  tags:
+  - beluga
+  stage: Golive
+  only:
+  - master
+  script:
+  - sync_code master
+
+# Commands that will make reading all above a way more easier.
+
+.devops: &devops |
+  # Install the Platform.sh CLI.
+  if [ ! -f /usr/local/bin/platform ] || [[ ! "$(platform --version)" == *"$VERSION" ]]; then
+    echo "Downloading the Platform.sh CLI version $VERSION"
+    curl -sfSL -o platform.phar https://github.com/platformsh/platformsh-cli/releases/download/v3.36.0/platform.phar
+    if [[ "$(shasum platform.phar 2>/dev/null)" != "$SHA1"* ]]; then
+      echo "SHA1 checksum mismatch for platform.phar"
+      exit 1
+    fi
+    chmod +x platform.phar
+    mv platform.phar /usr/local/bin/platform
+    echo "Platform.sh CLI installed"
+  fi
+
+  echo $PLATFORMSH_CLI_TOKEN
+
+
+  function ensure_auth() {
+    if [[ -e ~/.ssh/known_hosts ]]; then
+      return 0
+    fi
+    git config --global user.email "ref_beluga@reference.be"
+    git config --global user.name "Beluga Buildbot"
+    which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )
+    mkdir ~/.ssh
+    touch ~/.ssh/known_hosts
+    echo "$PLATFORMSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+    chmod 600 ~/.ssh/id_rsa
+    eval "$(ssh-agent -s)"
+    ssh-add ~/.ssh/id_rsa
+    ssh-keyscan -t rsa git.eu-2.platform.sh >> ~/.ssh/known_hosts
+    ssh-keyscan -t rsa ssh.eu-2.platform.sh >> ~/.ssh/known_hosts
+  }
+
+  function sync_code() {
+    ensure_auth
+    echo "Pushing code to platform"
+    platform project:set-remote $PLATFORMSH_PROJECT_ID
+    platform push --force --target=$1 --project=$PLATFORMSH_PROJECT_ID
+  }
+
+  function sync_database() {
+    ensure_auth
+    platform db:dump --project=$PLATFORMSH_PROJECT_ID -e $1 -f $1.sql
+    scp $1.sql $3:/app/tmp
+    ssh $3 "mysql -h database.internal main < tmp/$1.sql"
+  }
+
+before_script:
+- *devops
+

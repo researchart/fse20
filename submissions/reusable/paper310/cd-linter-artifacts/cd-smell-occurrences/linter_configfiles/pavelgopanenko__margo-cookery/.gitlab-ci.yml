@@ -1,0 +1,36 @@
+---
+stages:
+  - page
+  - container
+
+build:
+  stage: page
+  image: node:7.3.0
+  script:
+    - npm install --save-dev
+    - NODE_ENV=production npm run-script build
+    - cp dist/* ./static
+  artifacts:
+    name: "cookery-${CI_BUILD_REF_NAME}"
+    paths:
+      - ./static
+      - ./index.html
+  tags:
+    - docker
+
+docker:
+  stage: container
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - mkdir -p dist
+    - docker build -f Dockerfile -t ${CI_REGISTRY_IMAGE}:latest ./
+    - docker login -u gitlab-ci-token -p ${CI_BUILD_TOKEN} ${CI_REGISTRY}
+    - docker push ${CI_REGISTRY_IMAGE}:latest
+  tags:
+    - docker
+  only:
+    - master
+
+

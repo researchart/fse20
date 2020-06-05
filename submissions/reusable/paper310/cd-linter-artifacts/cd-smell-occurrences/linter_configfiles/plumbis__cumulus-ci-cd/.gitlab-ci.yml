@@ -1,0 +1,21 @@
+---
+stages:
+   - validate yaml syntax
+   - network validation with behave
+
+lint:
+   stage: validate yaml syntax
+   script:
+      - bash linter.sh
+
+# The reason .behave.sh is used, is because when `vagrant up`
+# is run, it creates a .vagrant file to track the VMs
+# However when gitlab runs, if the task fails (i.e., behave)
+# gitlab immediately halts and deletes any created files (i.e., .vagrant dir)
+# So as a result, if behave fails you can't destroy the VMs
+# To address this the bash script handles this.
+behave:
+   stage: network validation with behave
+   script:
+      - bash .behave.sh
+

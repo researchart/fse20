@@ -1,0 +1,68 @@
+stages:
+- prepare
+- test
+- compile
+- release
+
+variables:
+  CI_REGISTRY_IMAGE: registry.gitlab.com/tmaczukin/hanging-droplets-cleaner
+  CI_IMAGE: ${CI_REGISTRY_IMAGE}/ci:1.8
+
+.docker_job: &docker_job
+  image: $CI_IMAGE
+  services:
+  - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_HOST: tcp://docker:2375
+  tags:
+  - docker
+
+build_ci_image:
+  <<: *docker_job
+  stage: prepare
+  image: docker:git
+  script:
+  - apk add -U make bash
+  - make release_ci_image
+  only:
+  - /\Adocker-ci-image\/.*/@tmaczukin/hanging-droplets-cleaner
+
+.go_job: &go_job
+  image: $CI_IMAGE
+  script:
+  - GODIR="$GOPATH/src/gitlab.com/tmaczukin/hanging-droplets-cleaner"
+  - mkdir -p "$(dirname "$GODIR")"
+  - ln -sfv "$(pwd -P)" "$GODIR"
+  - cd "$GODIR"
+  - make deps $CI_JOB_NAME
+  except:
+  - /\Adocker-ci-image\/.*/@tmaczukin/hanging-droplets-cleaner
+  tags:
+  - docker
+
+test:
+  <<: *go_job
+  stage: test
+
+static_code_analysis:
+  <<: *go_job
+  stage: test
+
+compile:
+  <<: *go_job
+  stage: compile
+  artifacts:
+    paths:
+    - hanging-droplets-cleaner
+    expire_in: 7d
+
+release:
+  <<: *docker_job
+  stage: release
+  script:
+  - make release_image
+  except:
+  - /\Adocker-ci-image\/.*/@tmaczukin/hanging-droplets-cleaner
+
+

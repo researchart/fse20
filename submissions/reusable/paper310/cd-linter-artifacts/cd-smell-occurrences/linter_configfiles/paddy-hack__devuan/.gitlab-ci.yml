@@ -1,0 +1,71 @@
+# .gitlab-ci.yml -- to automate Docker Devuan image builds
+# Copyright (C) 2017-2019  Olaf Meeuwissen
+#
+# License: GPL-3.0+
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  DEBIAN_VERSION: jessie-20180426
+  DEVUAN_RELEASE: ascii
+  TZ: UTC
+  LC_ALL: C
+
+image: docker:latest
+services:
+  - docker:dind
+
+stages:
+  - migrate
+  - build
+  - derive
+
+before_script:
+  - echo "$CI_REGISTRY_PASSWORD"
+         | docker login --username "$CI_REGISTRY_USER"
+                        --password-stdin "$CI_REGISTRY"
+
+build:ceres:
+  stage: build
+  script:
+    - ./build.sh ceres
+
+derive:ceres:
+  stage: derive
+  script:
+    - ./derive.sh ceres
+
+build:beowulf:
+  stage: build
+  script:
+    - ./build.sh beowulf
+
+derive:beowulf:
+  stage: derive
+  script:
+    - ./derive.sh beowulf
+
+build:ascii:
+  stage: build
+  script:
+    - ./build.sh ascii
+
+derive:ascii:
+  stage: derive
+  script:
+    - ./derive.sh ascii
+
+build:jessie:
+  stage: build
+  script:
+    - ./build.sh jessie
+
+derive:jessie:
+  stage: derive
+  script:
+    - ./derive.sh jessie
+
+migrate:
+  stage: migrate
+  script:
+    - ./migrate.sh
+

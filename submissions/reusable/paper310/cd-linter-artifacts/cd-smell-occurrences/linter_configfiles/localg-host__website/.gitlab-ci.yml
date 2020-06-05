@@ -1,0 +1,28 @@
+pelican:
+  stage: build
+  image: python:3.5
+  script:
+    - echo "fr_FR.UTF-8 UTF-8" > /etc/locale.gen
+    - apt-get update
+    - apt-get install -y locales
+    - pip install pelican
+    - make publish
+  artifacts:
+    paths:
+      - output
+
+deploy:
+  stage: deploy
+  image: registry.gitlab.com/hashbangfr/docker_archlinux:salt
+  tags:
+    - deploy
+  script:
+    - /usr/local/bin/salt-notif.py /gitlabci/build project=${CI_PROJECT_NAME} branch=${CI_BUILD_REF_NAME} ci_project_id=${CI_PROJECT_ID} ci_build_id=${CI_BUILD_ID}
+  only:
+    - master
+  dependencies:
+    - pelican
+  artifacts:
+    paths:
+      - output
+

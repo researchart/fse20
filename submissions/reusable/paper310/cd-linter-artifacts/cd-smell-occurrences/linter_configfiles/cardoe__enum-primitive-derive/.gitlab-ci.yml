@@ -1,0 +1,34 @@
+stages:
+    - build
+
+build-1_32:
+    stage: build
+    image: rust:1.32-slim
+    dependencies: []
+    script:
+        - cargo build --verbose
+        - cargo test --verbose
+        - cargo doc --verbose
+
+build-beta:
+    stage: build
+    image: rust:latest
+    dependencies: []
+    before_script:
+        - rustup default beta
+    script:
+        - cargo build --verbose
+        - cargo test --verbose
+        - cargo doc --verbose
+
+build-nightly:
+    stage: build
+    image: rust:latest
+    dependencies: []
+    before_script:
+        - rustup default nightly
+    script:
+        - cargo build --verbose
+        - cargo test --verbose
+        - cargo doc --verbose
+

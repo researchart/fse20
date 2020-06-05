@@ -1,0 +1,70 @@
+image: registry.gitlab.com/omicronns.main/cpp-project-template-docker
+
+before_script:
+  - export PROJECT_NAME=$CI_PROJECT_NAME
+  - export CONAN_USER_HOME=$(pwd)
+  - export CONAN_PACKAGE_VERSION=${CI_COMMIT_TAG##*-}
+  - export CONAN_PACKAGE_CHANNEL=${CI_COMMIT_TAG%-*}
+  - export CONAN_REFERENCE=$PROJECT_NAME/$CONAN_PACKAGE_VERSION@$CONAN_LOGIN_USERNAME/$CONAN_PACKAGE_CHANNEL
+  - export PYTHON=python3
+  - git clone --branch release/v1 https://gitlab-ci-token:$CI_BUILD_TOKEN@gitlab.com/omicronns.main/conan/conan-home.git .conan
+
+after_script:
+  - export CONAN_USER_HOME=$(pwd)
+  - conan remove \* --force
+
+
+stages:
+  - test
+  - export
+  - build
+
+
+.export_template: &export_template
+    stage: export
+    tags:
+        - docker
+    only:
+        - /^stable-.*$/
+        - /^testing-.*$/
+    except:
+        - branches
+    script:
+        - conan export . $CONAN_LOGIN_USERNAME/$CONAN_PACKAGE_CHANNEL
+        - conan upload $CONAN_REFERENCE $CONAN_UPLOAD_CONFIG --confirm --force
+
+.build_package_template: &build_package_template
+    stage: build
+    only:
+        - /^stable-.*$/
+        - /^testing-.*$/
+    except:
+        - branches
+    variables:
+        GIT_STRATEGY: none
+    script:
+        - conan install . $CONAN_REFERENCE $CONAN_BUILD_CONFIG --build=$PROJECT_NAME --build=outdated -e build=true
+        - conan upload $CONAN_REFERENCE $CONAN_UPLOAD_CONFIG --confirm --force --all
+
+
+test:
+  stage: test
+  script:
+    - conan install -if build . -e build=true
+    - conan build -bf build .
+    - build/bin/$PROJECT_NAME-test
+  tags:
+    - docker
+
+export:
+    <<: *export_template
+    tags:
+        - docker
+
+gcc7_x86_64:
+    <<: *build_package_template
+    tags:
+        - docker
+    variables:
+        CONAN_BUILD_CONFIG: "--profile gcc7_x86_64"
+

@@ -1,0 +1,22 @@
+stages:
+  - test
+
+variables:
+  PIPENV_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+
+cache:
+  paths:
+    - "$CI_PROJECT_DIR/pipenv-cache"
+    - "$CI_PROJECT_DIR/.venv"
+
+test:
+  image: python:3.6.6
+  script:
+   - apt-get update -qq && apt-get install -y -qq ffmpeg espeak libespeak-dev python3-numpy python-numpy libncurses-dev libncursesw5-dev sox
+   - pip install pipenv
+   - pipenv sync --dev
+   - pipenv run python -c "import nltk; nltk.download('punkt')"
+   - pipenv run pytest --cov training_speech
+  coverage: '/TOTAL.*(\d{2}\.?(?:\d+)?)%/'
+
+

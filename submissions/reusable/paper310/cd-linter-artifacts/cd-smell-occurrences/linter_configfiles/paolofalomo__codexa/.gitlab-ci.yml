@@ -1,0 +1,42 @@
+
+variables:
+  # Configure mysql service (https://hub.docker.com/_/mysql/)
+  MYSQL_DATABASE: wordpress_tests
+  MYSQL_ROOT_PASSWORD: mysql
+  WORDPRESS_ZIPFILE_NAME: "code-examples-snippets"
+before_script:
+  # Install dependencies
+
+  # update the docker
+  - apt-get clean
+  - apt-get -yqq update
+
+  # instll the required packages for the running CI tests
+  - apt-get -yqqf install zip unzip subversion mysql-client libmysqlclient-dev --fix-missing
+
+  # PHP extensions
+  - docker-php-ext-enable mbstring mcrypt mysqli pdo_mysql intl gd zip bz2
+
+  # Set up WordPress tests
+  - bash bin/install-wp-tests.sh wordpress_tests root mysql mysql latest true
+
+Testing with PHPUINIT PHP5.3:MySQL:
+  stage: test
+  image: tetraweb/php:5.3
+  services:
+    - mysql:5.6
+  script:
+  - phpunit --configuration phpunit.xml.dist
+  - mkdir code-examples-snippets
+  - cp code-examples-snippets.php code-examples-snippets/code-examples-snippets.php
+  - cp readme.txt code-examples-snippets/readme.txt
+  - cp -R assets code-examples-snippets/assets/
+  artifacts:
+    name: "$WORDPRESS_ZIPFILE_NAME-$CI_COMMIT_REF_NAME"
+    when: on_success
+    paths:
+    - 'code-examples-snippets.zip'
+    - 'code-examples-snippets/'
+
+
+

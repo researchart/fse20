@@ -1,0 +1,14 @@
+image: iquiw/alpine-emacs
+
+before_script:
+- apk add --update make
+
+stages:
+  - test
+  - deploy
+
+ert:
+  stage: test
+  script:
+  - make test
+

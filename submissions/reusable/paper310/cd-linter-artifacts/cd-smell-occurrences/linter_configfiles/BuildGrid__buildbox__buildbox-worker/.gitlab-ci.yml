@@ -1,0 +1,79 @@
+image: docker:stable
+services:
+    - docker:dind
+
+stages:
+  - build
+  - test
+  - release
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
+
+build:
+  stage: build
+
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build --pull -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+tests:
+  stage: test
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run -w /buildbox-worker/build $CONTAINER_TEST_IMAGE sh -c 'cmake -DBUILD_TESTING=ON .. && make && make test'
+
+release-image:
+  stage: release
+  script:
+      - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+      - docker pull $CONTAINER_TEST_IMAGE
+      - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+      - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+       - master
+
+# Check C++ code formatting using clang-format
+# Since the GitLab CI API doesn't currently provide an MR Commit SHA so that we can
+# run all the files modified in the current MR (Single Commit is doable) we just
+# run clang-format for the diff between "empty tree magic SHA" and the current commit
+# on all the C++ files (by extension: c,cc,cpp,cxx,h)
+# Discussion on the "empty tree magic SHA": https://stackoverflow.com/questions/9765453/
+check_formatting:
+    image: ubuntu:bionic
+    stage: build
+    before_script:
+        - apt-get update && apt-get install -y clang-format-6.0 git-core
+    script:
+        - echo `which clang-format-6.0`
+        - ln -s `which clang-format-6.0` /usr/bin/clang-format
+        - cd "$CI_PROJECT_DIR"
+        - export CLANG_FORMAT_SINCE_COMMIT="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+        - export CLANG_FORMAT_DIRS="."
+        - linter_errors=$(git-clang-format-6.0 --commit "$CLANG_FORMAT_SINCE_COMMIT" -q --diff --style file --extensions c,cc,cpp,cxx,h  "$CLANG_FORMAT_DIRS" | grep -v --color=never "no modified files to format" || true)
+        - echo "$linter_errors"
+        - if [[ ! -z "$linter_errors" ]]; then echo "Detected formatting issues; please fix"; exit 1; else echo "Formatting is correct"; exit 0; fi
+
+e2e:
+    image: registry.gitlab.com/buildgrid/buildbox/buildbox-e2e:latest
+    stage: test
+    dependencies: []
+    script:
+        - BUILDBOX_WORKER_SOURCE_ROOT=`pwd` end-to-end-test.sh
+
+trigger_e2e_rebuild:
+    image: ubuntu:bionic
+    stage: release
+    variables:
+        GIT_STRATEGY: none
+    script:
+        - apt-get update && apt-get install -y curl
+        - curl --request POST --form "token=$CI_JOB_TOKEN" --form ref=master https://gitlab.com/api/v4/projects/buildgrid%2Fbuildbox%2Fbuildbox-e2e/trigger/pipeline
+    only:
+        - master
+

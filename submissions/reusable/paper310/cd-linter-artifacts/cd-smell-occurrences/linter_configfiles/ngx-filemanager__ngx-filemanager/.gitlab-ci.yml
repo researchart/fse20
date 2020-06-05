@@ -1,0 +1,69 @@
+image: node:11.6.0
+variables:
+    GIT_SSL_NO_VERIFY: "true"
+
+cache:
+  key: "$CI_BUILD_REF_NAME"
+  untracked: true
+  paths:
+    - node_modules/
+    - bower_components/
+
+before_script:
+    - git config --global url."https://".insteadOf git://
+    - export PATH=$PATH:node_modules/.bin
+    - npm install --unsafe-perm
+
+build:
+  stage: build
+  script:
+    - npm build
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - dist
+
+test:
+  stage: test
+  script:
+    - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+    - sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+    - apt update && apt-get install -y google-chrome-stable
+    - npm run test:ci
+  artifacts:
+    expire_in: 1 week
+    paths:
+        - coverage/*
+
+staging:
+  stage: deploy
+  only:
+    - staging
+  script: echo "DEPLOY STAGING"
+  environment: staging
+  dependencies:
+    - build
+
+production:
+  stage: deploy
+  only:
+    - production
+  script: echo "DEPLOY PRODUCTION"
+  environment: production
+  dependencies:
+    - build
+
+pages:
+  stage: deploy
+  script:
+    - rm -rf public/*
+    - mkdir -p public/
+    - mv landing-page/* public/
+    - mv coverage/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+

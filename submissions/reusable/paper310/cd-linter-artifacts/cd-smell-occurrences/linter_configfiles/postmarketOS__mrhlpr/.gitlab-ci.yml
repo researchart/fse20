@@ -1,0 +1,9 @@
+---
+flake8:
+  image: alpine:latest
+  before_script:
+  - apk -q add py3-pip
+  - pip3 -q install flake8
+  script:
+  - /usr/bin/flake8 .
+

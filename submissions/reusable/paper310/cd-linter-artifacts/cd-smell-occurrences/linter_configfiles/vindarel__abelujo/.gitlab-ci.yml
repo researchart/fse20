@@ -1,0 +1,45 @@
+# https://docs.gitlab.com/ce/ci/yaml/README.html
+
+# We try a ready image with nodejs and python, instead of the python:2.7
+# Easier, but we don't test nodejs installation.
+image: beevelop/nodejs-python
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - test
+  - release
+
+cache:
+  paths:
+  - node_modules/
+  - .yarn
+
+
+.py: &py
+  only:
+    - master
+  # note: we can't have a before_script here and one above.
+  before_script:
+    - apt-get update -qy
+    - make debian-nosudo
+    # - virtualenv .
+    # - source bin/activate
+    - pip install -U pip
+    - make pip-nosudo
+    # - make pip
+    - make pip-dev
+    - make db
+
+py-qa:
+  <<: *py
+  stage: test
+  allow_failure: true
+  script: make qa
+
+test:
+  <<: *py
+  stage: test
+  script: make unit
+

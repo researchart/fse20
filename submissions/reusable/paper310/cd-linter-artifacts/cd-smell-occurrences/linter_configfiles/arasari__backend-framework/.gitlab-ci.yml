@@ -1,0 +1,46 @@
+image: docker:stable
+
+services:
+- docker:dind
+
+stages: [test]
+
+cache:
+    paths:
+    - ~/.cache
+
+test:
+    stage: test
+    image: registry.gitlab.com/alex-oleshkevich/base-python:latest
+    variables:
+        DJANGO_SETTINGS_MODULE: sample.settings
+    script:
+    - pip install -e .
+    - cd __testproject/
+    - coverage run ./manage.py test arasari --no-input
+    - coverage report
+    coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+
+#build:
+#    stage: build
+#    tags: [hoenggerberg-docker]
+#    only: [master]
+#    image: appuio/gitlab-runner-oc:1.5.1-1
+#    environment:
+#        name: $CI_COMMIT_REF_SLUG
+#        url: https://components.metro.muehlemann-popp.ch
+#    artifacts:
+#        name: "$CI_COMMIT_REF_NAME"
+#        paths:
+#        - ./dist
+#    script:
+#    - oc login console.appuio.ch --token=$KUBE_TOKEN
+#    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+#    - docker login -u serviceaccount -p `oc whoami -t` registry.appuio.ch
+#    - docker build
+#        --cache-from $CONTAINER_IMAGE:$CI_COMMIT_REF_NAME
+#        -t $OS_IMAGE_NAME:$CI_COMMIT_REF_NAME
+#        -t $CONTAINER_IMAGE:latest -t $CONTAINER_IMAGE .
+#    - docker push $CONTAINER_IMAGE:latest
+#    - docker push $OS_IMAGE_NAME:$CI_COMMIT_REF_NAME
+

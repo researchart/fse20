@@ -1,0 +1,27 @@
+image: python:3.6
+services:
+- docker:dind
+
+stages:
+- check
+- build_image
+
+check:
+  before_script:
+    - pip install -U pre-commit pytest
+    - pip install .
+  script:
+    - pre-commit run -a
+    - python setup.py test
+  stage: check
+
+build_image:
+  image: docker:git
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/stavros/caduceus .
+    - docker push registry.gitlab.com/stavros/caduceus:latest
+  only:
+    - master
+  stage: build_image
+

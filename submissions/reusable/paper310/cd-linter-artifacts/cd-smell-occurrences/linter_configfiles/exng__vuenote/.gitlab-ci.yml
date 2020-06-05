@@ -1,0 +1,56 @@
+stages:
+  - test
+  - build
+  - deploy
+
+.base:
+  image: node:lts-jessie
+  before_script:
+    - npm i -g yarn@^1.9
+    - yarn
+  artifacts:
+    paths:
+      - dist/
+      - .quasar/
+  cache:
+    paths:
+      - node_modules/
+
+lint:
+  extends: .base
+  stage: test
+  script:
+    - yarn lint
+
+build:
+  extends: .base
+  stage: build
+  script:
+    - yarn build
+
+# audit-check:
+#   script:
+#     - npm install npm@latest -g
+#     - rm -rf node_modules
+#     - npm install
+#     - npm audit || exit 0
+
+# version-check:
+#   script:
+#     - yarn outdated || exit 0 # Dont let ci fail because of minor updates
+
+pages:
+  extends: .base
+  stage: deploy
+  script:
+    - PUBLIC=vuenote yarn build
+    - mkdir public
+    - mv dist/pwa-mat/* public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+  except:
+    - schedules
+

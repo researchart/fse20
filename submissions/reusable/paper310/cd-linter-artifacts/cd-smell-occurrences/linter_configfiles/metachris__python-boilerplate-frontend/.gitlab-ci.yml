@@ -1,0 +1,13 @@
+stages:
+  - test
+
+variables:
+  SKIP_PRERENDER: "1"
+
+npm-build:
+  image: node:6-alpine
+  stage: test
+  script:
+    - npm install
+    - npm run build
+

@@ -1,0 +1,33 @@
+image: registry.gitlab.com/alelec/docker-android
+
+stages:
+  - build
+  - release
+
+build:
+  stage: build
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+  script:
+  - bash ./build_from_ci.sh
+  - mv ./dist/*.zip ./
+  - ls *.zip
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - ./navdy-display-alelec-*.zip
+
+release:
+  stage: release
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  image: python:3
+  script:
+    - pip3 install gitlab_release
+    - python3 -m gitlab_release --link-artifact ./navdy-display-alelec-*.zip
+  artifacts:
+    paths:
+    - ./navdy-display-alelec-*.zip
+  only:
+    - tags
+

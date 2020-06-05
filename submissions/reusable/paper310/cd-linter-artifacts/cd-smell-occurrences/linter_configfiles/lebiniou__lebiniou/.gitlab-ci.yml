@@ -1,0 +1,198 @@
+variables:
+  VSN: "3.41"
+
+before_script:
+  - apt-get -qq update || true
+  - apt-get -qq install autoconf pkg-config make libglib2.0-dev libfftw3-dev libxml2-dev libfreetype6-dev libswscale-dev libmagickwand-dev || true
+  - apt-get -qq install libjack-dev libsndfile1-dev libjansson-dev || true
+  - apt-get -qq install libsdl2-ttf-dev libcaca-dev pandoc || true
+  - apt-get -qq install libulfius-dev || true
+
+stages:
+  - build
+  - test
+  - deploy
+
+build:clang:
+  image: debian:sid
+  stage: build
+  script:
+    - apt-get -qq install clang libomp-dev
+    - autoreconf -i
+    - CC=clang ./configure
+    - make
+
+build:sid:
+  image: debian:sid
+  stage: build
+  script:
+    - apt-get -qq install gcc devscripts
+    - autoreconf -i
+    - CC=gcc ./configure
+    - make dist
+    - tar xvf lebiniou-$VSN.tar.gz
+    - ln -s lebiniou-$VSN.tar.gz lebiniou_$VSN.orig.tar.gz
+    - cd lebiniou-$VSN
+    - cp -r ../debian .
+    - debuild -uc -us --lintian-opts -I --pedantic
+  artifacts:
+    name: "lebiniou-sid-$VSN"
+    paths:
+    - lebiniou_$VSN-1_amd64.deb
+
+#build:opengl:
+#  image: debian:sid
+#  stage: build
+#  script:
+#    - apt-get -qq install gcc libglu1-mesa-dev
+#    - autoreconf -i
+#    - CC=gcc ./configure --enable-opengl
+#    - make
+
+build:webcam-less:
+  image: debian:sid
+  stage: build
+  script:
+    - apt-get -qq install gcc
+    - autoreconf -i
+    - CC=gcc ./configure --disable-webcam
+    - make
+
+build:buster:
+  image: debian:buster
+  stage: build
+  script:
+    - apt-get -qq install gcc devscripts
+    - autoreconf -i
+    - CC=gcc ./configure
+    - make dist
+    - tar xvf lebiniou-$VSN.tar.gz
+    - ln -s lebiniou-$VSN.tar.gz lebiniou_$VSN.orig.tar.gz
+    - cd lebiniou-$VSN
+    - cp -r ../debian .
+    - sed -i "s/4.5.0/4.3.0/g" debian/control
+    - debuild -uc -us
+  artifacts:
+    name: "lebiniou-buster-$VSN"
+    paths:
+    - lebiniou_$VSN-1_amd64.deb
+
+build:stretch:
+  image: debian:stretch
+  stage: build
+  script:
+    - apt-get -qq install gcc devscripts
+    - autoreconf -i
+    - CC=gcc ./configure
+    - make dist
+    - tar xvf lebiniou-$VSN.tar.gz
+    - ln -s lebiniou-$VSN.tar.gz lebiniou_$VSN.orig.tar.gz
+    - cd lebiniou-$VSN
+    - cp -r ../debian .
+    - echo 10 > debian/compat
+    - sed -i "s/debhelper-compat (= 12)/debhelper (>= 10)/g" debian/control
+    - sed -i "s/4.5.0/3.9.8/g" debian/control
+    - sed -i "s/, libulfius-dev//" debian/control
+    - grep -v Rules-Requires-Root debian/control > debian/control.tmp
+    - mv debian/control.tmp debian/control
+    - debuild -uc -us
+  artifacts:
+    name: "lebiniou-stretch-$VSN"
+    paths:
+    - lebiniou_$VSN-1_amd64.deb
+
+build:stretch-test:
+  image: debian:stretch
+  stage: build
+  script:
+    - apt-get -qq install gcc devscripts
+    - autoreconf -i
+    - CC=gcc ./configure --enable-test-plugins
+    - make dist
+    - tar xvf lebiniou-$VSN.tar.gz
+    - ln -s lebiniou-$VSN.tar.gz lebiniou_$VSN.orig.tar.gz
+    - cd lebiniou-$VSN
+    - cp -r ../debian .
+    - echo 10 > debian/compat
+    - sed -i "s/debhelper-compat (= 12)/debhelper (>= 10)/g" debian/control
+    - sed -i "s/4.5.0/3.9.8/g" debian/control
+    - sed -i "s/, libulfius-dev//" debian/control
+    - echo >> debian/rules
+    - echo "override_dh_auto_configure:" >> debian/rules
+    - echo -e "\tdh_auto_configure -- --enable-test-plugins" >> debian/rules
+    - grep -v Rules-Requires-Root debian/control > debian/control.tmp
+    - mv debian/control.tmp debian/control
+    - debuild -uc -us
+  artifacts:
+    name: "lebiniou-stretch-test-$VSN"
+    paths:
+    - lebiniou_$VSN-1_amd64.deb
+
+build:bionic:
+  image: ubuntu:bionic
+  stage: build
+  script:
+    - apt-get -qq install gcc devscripts debhelper
+    - autoreconf -i
+    - CC=gcc ./configure
+    - make dist
+    - tar xvf lebiniou-$VSN.tar.gz
+    - ln -s lebiniou-$VSN.tar.gz lebiniou_$VSN.orig.tar.gz
+    - cd lebiniou-$VSN
+    - cp -r ../debian .
+    - echo 10 > debian/compat
+    - sed -i "s/debhelper-compat (= 12)/debhelper (>= 11)/g" debian/control
+    - sed -i "s/4.5.0/4.1.4/g" debian/control
+    - sed -i "s/unstable/bionic/g" debian/changelog
+    - grep -v Rules-Requires-Root debian/control > debian/control.tmp
+    - mv debian/control.tmp debian/control
+    - debuild -uc -us
+  artifacts:
+    name: "lebiniou-bionic-$VSN"
+    paths:
+    - lebiniou_$VSN-1_amd64.deb
+
+build:archlinux:
+  image: archlinux
+  stage: build
+  script:
+    - pacman --noconfirm -Sy archlinux-keyring
+    - pacman --noconfirm -S autoconf automake grep pkg-config gcc make pandoc jansson
+    - pacman --noconfirm -S fftw libxml2 freetype2 libmagick6 ffmpeg sdl2_ttf libcaca
+    - autoreconf -i
+    - export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:/usr/lib/imagemagick6/pkgconfig"
+    - export PATH="$PATH:/usr/bin/core_perl"
+    - ./configure
+    - make distcheck
+  artifacts:
+    name: "lebiniou-archlinux-$VSN"
+    paths:
+    - lebiniou-$VSN.tar.gz
+
+test:
+  image: debian:sid
+  stage: test
+  only:
+    - /^test-/
+    - /^version-/
+  script:
+    - apt-get -qq install gcc lebiniou-data
+    - autoreconf -i
+    - ./configure --prefix=/usr --enable-debug --enable-xdebug
+    - make
+    - make install
+    - lebiniou --version
+    - lebiniou --help
+    - lebiniou -i NULL -o NULL --stats
+
+deploy:tar:
+  image: debian:stable
+  stage: deploy
+  only:
+    - /^version-/
+  script:
+    - apt-get -qq install gcc
+    - autoreconf -i
+    - ./configure
+    - make distcheck
+

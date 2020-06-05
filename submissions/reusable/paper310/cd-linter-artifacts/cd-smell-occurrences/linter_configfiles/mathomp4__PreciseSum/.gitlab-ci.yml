@@ -1,0 +1,72 @@
+# use the official gcc image, based on debian
+# can use verions as well, like gcc:5.2
+# see https://hub.docker.com/_/gcc/
+
+stages:
+   - build
+   - test
+
+build:gcc8:
+   image: gcc:8
+   stage: build
+   #If you need extra packages, use apt to get them before_script
+   #before_script: 
+   #   - apt update && apt -y install tree
+   script:
+      - make FC=gfortran
+   artifacts:
+      paths:
+         - '*.exe'
+
+# run tests using the binary built before
+test:gcc8:
+   image: gcc:8
+   stage: test
+   script: 
+      - ./test.exe
+   dependencies:
+      - build:gcc8
+
+build:gcc7:
+   image: gcc:7
+   stage: build
+   #If you need extra packages, use apt to get them before_script
+   #before_script: 
+   #   - apt update && apt -y install tree
+   script:
+      - make FC=gfortran
+   artifacts:
+      paths:
+         - '*.exe'
+
+# run tests using the binary built before
+test:gcc7:
+   image: gcc:7
+   stage: test
+   script: 
+      - ./test.exe
+   dependencies:
+      - build:gcc7
+
+build:gcc6:
+   image: gcc:6
+   stage: build
+   #If you need extra packages, use apt to get them before_script
+   #before_script: 
+   #   - apt update && apt -y install tree
+   script:
+      - make FC=gfortran
+   artifacts:
+      paths:
+         - '*.exe'
+
+# run tests using the binary built before
+test:gcc6:
+   image: gcc:6
+   stage: test
+   script: 
+      - ./test.exe
+   dependencies:
+      - build:gcc6
+
+

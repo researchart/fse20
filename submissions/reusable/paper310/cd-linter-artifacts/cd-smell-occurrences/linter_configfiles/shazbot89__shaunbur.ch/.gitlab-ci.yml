@@ -1,0 +1,27 @@
+variables:
+  S3_BUCKET_NAME: "shaunbur.ch"
+  S3_REGION: "us-east-1"
+
+deploy to production:
+  environment:
+    name: Production
+    url: http://shaunbur.ch
+  stage: deploy
+  image: ruby:latest
+  script:
+  - gem install dpl
+  - dpl --provider=s3 --acl=public_read --bucket=$S3_BUCKET_NAME --region=$S3_REGION
+  only:
+  - master
+
+pages:
+  environment: Test
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+      - public
+

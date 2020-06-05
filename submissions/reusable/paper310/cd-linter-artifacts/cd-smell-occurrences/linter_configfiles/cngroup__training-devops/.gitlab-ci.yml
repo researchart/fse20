@@ -1,0 +1,56 @@
+stages:
+    - install
+    - test
+    - build
+    - deploy
+
+install_node_modules:
+    stage: install
+    artifacts:
+        untracked: true
+        paths:
+            - node_modules/
+            - frontend/node_modules/
+
+    script:
+        - npm install
+        - cd frontend
+        - npm install
+
+test:
+    stage: test
+    script:
+        - cd frontend
+        - npm run test
+
+build:
+    stage: build
+    artifacts:
+        paths:
+        - node_modules/
+        - frontend/build
+        - index.js
+    script:
+        - rm -rf node_modules
+        - npm install --prod-only
+        - cd frontend
+        - npm run build
+
+deploy:
+    stage: deploy
+    variables:
+        dest: /opt/cn
+        domain: test.devops
+    dependencies:
+        - build
+    script:
+        - lxc exec unified-marten mkdir -- -p $dest
+        - tar cf - . | lxc exec unified-marten -- tar xvf - -C $dest
+        - lxc exec unified-marten mv $dest/cnapp.service /etc/systemd/system/
+        - lxc exec unified-marten systemctl daemon-reload
+        - lxc exec unified-marten systemctl enable cnapp
+        - lxc exec unified-marten systemctl start cnapp
+
+
+
+

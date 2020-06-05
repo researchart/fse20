@@ -1,0 +1,46 @@
+image: ubuntu:latest
+variables:
+  WORK_DIR: ${CI_PROJECT_NAME}
+  BRANCH: ${CI_COMMIT_REF_NAME}
+  REPO: https://gitlab.com/johandurancerdas/gitlab-cicd-tutorial.git
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  environment: 
+    name: Test
+    url: "$TST_URL"
+  before_script:
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - mkdir -p ~/.ssh
+  - eval $(ssh-agent -s)
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    - ssh-add <(echo "$PRIVATE_KEY")
+    - rm -rf .git
+    - ssh -o StrictHostKeyChecking=no ubuntu@"$TST_SERVER" "rm -rf ~/${WORK_DIR}; mkdir ~/${WORK_DIR}; git init; git clone -b ${BRANCH} ${REPO}; cd ${WORK_DIR}; npm install; npm install forever -g; npm run stop; npm run ci"
+  only:
+    - branches
+  except:
+    - master
+    
+    
+deploy:
+  stage: deploy
+  environment: 
+    name: Production
+    url: "$PRD_URL"
+  before_script:
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - mkdir -p ~/.ssh
+  - eval $(ssh-agent -s)
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    - ssh-add <(echo "$PRIVATE_KEY")
+    - rm -rf .git
+    - ssh -o StrictHostKeyChecking=no ubuntu@"$PRD_SERVER" "rm -rf ~/${WORK_DIR}; mkdir ~/${WORK_DIR}; git init; git clone -b ${BRANCH} ${REPO}; cd ${WORK_DIR}; npm install; npm install forever -g; npm run stop; npm run start-background"
+  only:
+    - master
+

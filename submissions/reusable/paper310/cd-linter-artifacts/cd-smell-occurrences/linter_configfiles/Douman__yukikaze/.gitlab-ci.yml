@@ -1,0 +1,14 @@
+stages:
+    - test
+
+test:cargo:
+    image: "rustlang/rust:nightly"
+    stage: test
+    script:
+        - rustc --version && cargo --version
+        - cargo check --no-default-features
+        - cargo check
+        - cargo check --features encoding,websocket,docs
+        - cargo test
+        - cargo test websocket --features websocket
+

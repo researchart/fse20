@@ -1,0 +1,30 @@
+image: mono:latest
+
+stages:
+     - build
+
+before_script:
+     - uname -a
+     - mono --version
+     - msbuild /version
+     - nuget restore -NonInteractive
+
+debug:
+    stage: build
+    artifacts:
+        paths:
+             - TraceRoutePlus/bin/Debug/
+    script:
+         - cd TraceRoutePlus && msbuild /p:Configuration="Debug";Platform="Any CPU";OutputPath="bin/Debug/"
+
+release:
+    stage: build
+    artifacts:
+        paths:
+             - TraceRoutePlus/bin/Release/
+    script:
+         - cd TraceRoutePlus && msbuild /p:Configuration="Release";Platform="Any CPU";OutputPath="bin/Release/"
+
+
+
+

@@ -1,0 +1,43 @@
+image: "rust:latest"
+
+stages:
+- test
+- deploy_docs
+
+test:stable:
+  before_script:
+  - apt-get update -yqq
+  - apt-get install -yqq libluajit-5.1-dev
+  - rustup toolchain add stable
+  script:
+  - cargo +stable test
+  stage: test
+test:beta:
+  before_script:
+  - apt-get update -yqq
+  - apt-get install -yqq libluajit-5.1-dev
+  - rustup toolchain add beta
+  script:
+  - cargo +beta test
+  stage: test
+test:nightly:
+  before_script:
+  - apt-get update -yqq
+  - apt-get install -yqq libluajit-5.1-dev
+  - rustup toolchain add nightly
+  script:
+  - cargo +nightly test
+  stage: test
+
+pages:
+  script:
+  - cargo doc
+  - mkdir public
+  - mv target/doc/* public
+  stage: deploy_docs
+  artifacts:
+    paths:
+    - public/               
+  only:
+  - master 
+

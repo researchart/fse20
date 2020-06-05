@@ -1,0 +1,12 @@
+image: node:10.5.0
+
+services:
+  - postgres:9.6.9
+
+lint:
+  script:
+   - npm install
+   - npm install gulp eslint --global
+   - echo "module.exports = {};" > src/config.js
+   - npm run lint
+

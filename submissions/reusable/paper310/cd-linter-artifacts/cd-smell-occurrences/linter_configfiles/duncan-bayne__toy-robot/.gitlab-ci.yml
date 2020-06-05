@@ -1,0 +1,9 @@
+image: ruby:2.6.2
+before_script:
+  - gem install bundler --no-document
+  - bundle install --without development
+
+rspec:
+  script:
+    - bundle exec rake
+

@@ -1,0 +1,12 @@
+image: node:latest
+
+test:
+
+  script:
+  - yarn install
+  - yarn build
+  - yarn test
+
+  only:
+  - master
+

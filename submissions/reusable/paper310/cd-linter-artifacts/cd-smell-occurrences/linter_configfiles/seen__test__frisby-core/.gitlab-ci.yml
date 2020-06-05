@@ -1,0 +1,27 @@
+image: node:9
+
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+  - npm install
+
+stages:
+  - test
+  - deploy
+
+npm_test:
+  stage: test
+  script:
+    - echo Running test
+
+release:
+  stage: deploy
+  only:
+    - master
+  script:
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+    - npm publish
+    - rm -f .npmrc
+

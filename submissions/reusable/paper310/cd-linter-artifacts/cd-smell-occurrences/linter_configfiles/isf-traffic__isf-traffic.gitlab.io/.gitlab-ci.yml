@@ -1,0 +1,89 @@
+# Uses project's container image from the container registry (see Dockerfile)
+image: registry.gitlab.com/isf-traffic/isf-traffic.gitlab.io
+
+stages:
+    - build
+    - deploy
+    - notify
+
+build:update:
+    stage: build
+    script:
+        - ./update.py -su
+    artifacts:
+        #  Update artifacts are available for 1 day
+        when: on_success
+        expire_in: 1d
+        untracked: true
+        paths:
+            - public
+    only:
+        variables:
+            - $DAILY_UPDATE
+
+build:release:
+    stage: build
+    script:
+        - ./update.py -sl
+    artifacts:
+        when: on_success
+        expire_in: 6h
+        untracked: true
+        paths:
+            - public
+    only:
+        variables:
+            - $CI_COMMIT_TAG =~ /^isf\-traffic\-.*/
+            - $FORCE_RELEASE
+
+pages:
+    stage: deploy
+    script:
+        #  Outputs files list in public/ for debugging
+        - ls -l public/
+    when: on_success
+    artifacts:
+        #  Forwards update's public/ artifacts to pages:deploy
+        paths:
+            - public
+    only:
+        variables:
+            - $CI_COMMIT_TAG =~ /^isf\-traffic\-.*/
+            - $DAILY_UPDATE
+            - $FORCE_RELEASE
+    except:
+        variables:
+            - $NO_DEPLOY
+
+notify:update:
+    stage: notify
+    script:
+        #  Outputs files list in public/ for debugging
+        - ls -l public/
+        - ./notify.py -u
+    when: on_success
+    dependencies:
+        - build:update
+    only:
+        variables:
+            - $DAILY_UPDATE
+    except:
+        variables:
+            - $NO_NOTIFICATION
+
+notify:release:
+    stage: notify
+    script:
+        #  Outputs files list in public/ for debugging
+        - ls -l public/
+        - ./notify.py -l
+    when: on_success
+    dependencies:
+        - build:release
+    only:
+        - /^isf\-traffic\-.*/
+    except:
+        variables:
+            - $NO_NOTIFICATION
+            - $FORCE_RELEASE
+

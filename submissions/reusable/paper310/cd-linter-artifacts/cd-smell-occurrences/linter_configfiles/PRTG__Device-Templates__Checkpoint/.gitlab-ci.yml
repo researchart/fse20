@@ -1,0 +1,34 @@
+image:  ruby:2.1
+stages:
+  - build
+variables:
+  PRTG_TEMPLATETGT: $CI_PROJECT_DIR\PRTG-$CI_PROJECT_NAME
+  PRTG_TEMPLATESRC: $CI_PROJECT_DIR\PRTG
+  PRTG_ARTIFACTNAME: PRTG-$CI_PROJECT_NAME
+
+PRTGDistZip:
+  stage: build
+  script:
+    - set
+    - echo 'Creating ${PRTG_ARTIFACTNAME} zip'
+    - mkdir .junk
+    - mv * .junk
+    - cd .junk/PRTG
+    - find . -name '.gitkeep' -delete
+    - mv */ ../..
+    - cd ../..
+    - echo 'Created ${PRTG_ARTIFACTNAME} zip'
+    
+#    - cd $PRTG_TEMPLATESRC
+  artifacts:
+    name: "${PRTG_ARTIFACTNAME}"
+    untracked: false
+    paths:
+      - Custom Sensors
+      - devicetemplates
+      - lookups
+      - MIB
+      - notifications
+      - snmplibs
+      - webroot
+

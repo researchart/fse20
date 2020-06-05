@@ -1,0 +1,98 @@
+docker:
+  script:
+    - cd examples/docker
+    - ./test.sh
+  tags:
+    - docker
+docker-compose:
+  script:
+    - cd examples/docker-compose
+    - ./test.sh
+  tags:
+    - docker
+docker-compose-links:
+  script:
+    - cd examples/docker-compose-links
+    - ./test.sh
+  tags:
+    - docker
+docker-compose-networking:
+  script:
+    - cd examples/docker-compose-networking
+    - ./test.sh
+  tags:
+    - docker
+docker-compose-volumes:
+  script:
+    - cd examples/docker-compose-volumes
+    - ./test.sh
+  tags:
+    - docker
+
+test-wait-time-30s:
+  script: ./tests/wait-time/30s.sh
+  tags:
+    - docker
+test-wait-time-1m:
+  script: ./tests/wait-time/1m.sh
+  tags:
+    - docker
+test-wait-time-5m:
+  script: ./tests/wait-time/5m.sh
+  tags:
+    - docker
+
+test-stderr:
+  script: ./tests/stderr.sh
+  tags:
+    - docker
+
+docker-dind_isolated:
+  script:
+    - cd examples/docker
+    - ./test.sh
+  tags:
+      - dind_isolated
+docker-compose-dind_isolated:
+  script:
+    - cd examples/docker-compose
+    - ./test.sh
+  tags:
+      - dind_isolated
+docker-compose-links-dind_isolated:
+  script:
+    - cd examples/docker-compose-links
+    - ./test.sh
+  tags:
+      - dind_isolated
+docker-compose-networking-dind_isolated:
+  script:
+    - cd examples/docker-compose-networking
+    - ./test.sh
+  tags:
+      - dind_isolated
+docker-compose-volumes-dind_isolated:
+  script:
+    - cd examples/docker-compose-volumes
+    - ./test.sh
+  tags:
+      - dind_isolated
+
+test-wait-time-30s-dind_isolated:
+  script: ./tests/wait-time/30s.sh
+  tags:
+      - dind_isolated
+test-wait-time-1m-dind_isolated:
+  script: ./tests/wait-time/1m.sh
+  tags:
+      - dind_isolated
+test-wait-time-5m-dind_isolated:
+  script: ./tests/wait-time/5m.sh
+  tags:
+      - dind_isolated
+
+test-stderr-dind_isolated:
+  script: ./tests/stderr.sh
+  tags:
+      - dind_isolated
+

@@ -1,0 +1,16 @@
+build_image:
+  variables:
+    FLUTTER_VERSION: "empty"
+  image: docker:git
+  services:
+    - docker:dind
+  when: manual
+  script:
+    - echo "FLUTTER_VERSION="$FLUTTER_VERSION
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build --build-arg FLUTTER_VERSION=$FLUTTER_VERSION -t registry.gitlab.com/germansaprykin/flutter-docker:$FLUTTER_VERSION .
+    - docker push registry.gitlab.com/germansaprykin/flutter-docker:$FLUTTER_VERSION
+
+
+
+

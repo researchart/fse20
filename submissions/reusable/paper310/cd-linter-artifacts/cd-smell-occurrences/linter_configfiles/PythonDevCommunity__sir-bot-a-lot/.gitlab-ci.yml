@@ -1,0 +1,30 @@
+image: python:3.5
+
+stages:
+  - lint
+  - test
+  - deploy
+
+lint:
+  stage: lint
+  script:
+    - python setup.py flake8
+
+test:
+  stage: test
+  script:
+    - python setup.py test
+
+doc-test:
+  stage: test
+  script:
+    - pip install -r requirements_dev.txt
+    - sphinx-build -nW -b html -d docs/_build/doctrees docs/ docs/_build/html
+
+doc-build:
+  stage: deploy
+  only:
+    - master
+  script:
+    - curl -X POST http://readthedocs.org/build/sir-bot-a-lot
+

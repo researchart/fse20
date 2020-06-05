@@ -1,0 +1,13 @@
+#gitlab pages script
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r site/* .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

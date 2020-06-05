@@ -1,0 +1,23 @@
+image: "rustdocker/rust:nightly"
+
+cache:
+  key: "$CI_JOB_NAME"
+  untracked: true
+  paths:
+    - $HOME/.cargo/
+    - target/
+
+variables:
+  RUST_BACKTRACE: "1"
+
+before_script:
+  - rustup component add rustfmt-preview
+  - rustup component add clippy-preview
+
+test:cargo:
+  script:
+    - rustc --version && cargo --version
+    - cargo fmt -- --check
+    - cargo clippy
+    - cargo t
+

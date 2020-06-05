@@ -1,0 +1,12 @@
+image: registry.gitlab.com/gopherburrow/golang-git
+
+test:
+  script:
+    - export PACKAGE="${CI_PROJECT_URL#https://}"
+    - export PACKAGE_DIR="${GOPATH}/src/${PACKAGE}"
+    - export PACKAGE_PARENT_DIR="${PACKAGE_DIR%/*}"
+    - mkdir -p "${PACKAGE_PARENT_DIR}"
+    - ln -s "${CI_PROJECT_DIR}" "${PACKAGE_DIR}"
+    - cd "${PACKAGE_DIR}" ; go get ./... ; cd "${CI_PROJECT_DIR}"
+    - go test -cover ${PACKAGE}
+

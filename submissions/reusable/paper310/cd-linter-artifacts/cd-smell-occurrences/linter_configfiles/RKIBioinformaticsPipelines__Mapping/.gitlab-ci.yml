@@ -1,0 +1,34 @@
+image: continuumio/miniconda3:latest
+
+cache:
+  paths:
+    - $CI_PROJECT_DIR/.conda_cache
+    - $CI_PROJECT_DIR/.apt-cache
+before_script:
+  - conda update -y -n base conda
+  - conda install conda-build  
+  - apt-get update
+  - apt-get -o dir::cache::archives=".apt-cache" install -y texlive-lang-german texlive-xetex texlive-fonts-extra texlive-math-extra
+  - bash gitlab-ci.sh
+  - source activate $CI_PROJECT_DIR/.conda_cache/mapping-4
+
+stages:
+  - test
+  - test_conda_build
+test:
+  only:
+    - unstable_development
+    - master
+  stage: test
+  script:
+    - cd test
+    - ./test_mapping.py
+ 
+test_conda_build: 
+   only:
+    - unstable_development
+    - master
+   stage: test_conda_build
+   script:
+    - cd .conda && conda build . -c conda-forge -c bioconda   
+

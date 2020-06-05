@@ -1,0 +1,184 @@
+# GitLab CI help:      <https://docs.gitlab.com/ee/ci/yaml/>
+# GitLab environments: <https://docs.gitlab.com/ee/ci/variables/>
+image: docker:stable
+
+variables:
+  APP_IMAGE: $CI_REGISTRY_IMAGE/app
+  SOURCES_IMAGE: $CI_REGISTRY_IMAGE/sources
+  NGINX_IMAGE: $CI_REGISTRY_IMAGE/nginx
+  NODE_IMAGE: tarampampam/node:10.10-alpine
+  POSETGRES_IMAGE: postgres:9.6.10-alpine
+  REDIS_IMAGE: redis:4.0.11-alpine
+
+stages:
+- prepare
+- test
+- build
+
+cache:
+  key: "${CI_PROJECT_PATH_SLUG}-${CI_COMMIT_REF_SLUG}"
+  paths:
+  - "${CI_PROJECT_DIR}/.build/"
+  - src/vendor/
+  - src/node_modules/
+
+before_script:
+- mkdir -p "${CI_PROJECT_DIR}/.build"
+- function composer_install() {
+  composer install --no-interaction --ansi --no-suggest --prefer-dist;
+  }
+
+# Job template for a working with docker
+.with-docker: &with-docker
+  services:
+  - docker:dind
+  before_script:
+  - which make || ( apk add --no-cache make > /dev/null )
+  - mkdir -p "${CI_PROJECT_DIR}/.build"
+  - docker login -u gitlab-ci-token -p "$CI_JOB_TOKEN" registry.gitlab.com
+  script: /bin/true
+  cache: {} # Disable cache during work with docker
+
+# ----------------------------------------------------------------------------------------------------------------------
+
+Build service images (branch):
+  <<: *with-docker
+  stage: prepare
+  only: &branch-only
+  - branches
+  except: &build-image-except
+    variables:
+    - $CI_COMMIT_TITLE =~ /\[skip.?build\]/i
+  variables:
+    PULL_TAG: "$CI_COMMIT_REF_SLUG" # Here it looks like 'master' or 'some-branch-name'
+    PUBLISH_TAGS: "$CI_COMMIT_REF_SLUG"
+  script: &build-app-image-script
+  - make PULL_TAG="$PULL_TAG" PUBLISH_TAGS="$PUBLISH_TAGS" app-push
+  - make PULL_TAG="$PULL_TAG" PUBLISH_TAGS="$PUBLISH_TAGS" nginx-push
+
+Build service images (latest):
+  <<: *with-docker
+  stage: prepare
+  only: &latest-only
+    refs:
+    - master
+  except: *build-image-except
+  variables:
+    PULL_TAG: latest
+    PUBLISH_TAGS: latest
+  script: *build-app-image-script
+
+Build service images (stable):
+  <<: *with-docker
+  stage: prepare
+  only: &stable-only
+  - /^v\d+\.\d+\.\d+$/
+  except: &stable-except
+  - branches
+  variables:
+    PULL_TAG: "$CI_COMMIT_REF_NAME" # Here it looks like 'v1.2.0'
+    PUBLISH_TAGS: "$CI_COMMIT_REF_NAME stable"
+  script: *build-app-image-script
+
+# ----------------------------------------------------------------------------------------------------------------------
+
+Execute phpunit (branch): &execute-phpunit
+  stage: test
+  image: $APP_IMAGE:$CI_COMMIT_REF_SLUG
+  only: *branch-only
+  except: &tests-except
+    variables:
+    - $CI_COMMIT_TITLE =~ /\[skip.?test\]/i
+  coverage: '/^\s*Lines:\s*\d+.\d+\%/'
+  variables:
+    DB_CONNECTION: 'pgsql'
+    POSTGRES_DB: &pg-db-name 'app'
+    POSTGRES_USER: &pg-username 'app'
+    POSTGRES_PASSWORD: &pg-password 'app'
+    DB_HOST: 'postgres'
+    DB_PORT: 5432
+    DB_DATABASE: *pg-db-name
+    DB_USERNAME: *pg-username
+    DB_PASSWORD: *pg-password
+    REDIS_HOST: 'redis'
+    REDIS_PORT: 6379
+  services:
+  - $POSETGRES_IMAGE # https://docs.gitlab.com/ce/ci/services/postgres.html
+  - $REDIS_IMAGE     # https://docs.gitlab.com/ce/ci/services/redis.html
+  script:
+  - docker-php-ext-enable xdebug
+  - cd ./src
+  - composer_install
+  - php ./vendor/bin/phpunit --colors=never --coverage-text
+
+Execute phpunit (stable):
+  <<: *execute-phpunit
+  image: $APP_IMAGE:$CI_COMMIT_REF_NAME
+  only: *stable-only
+
+Execute phpstan (branch): &execute-phpstan
+  stage: test
+  image: $APP_IMAGE:$CI_COMMIT_REF_SLUG
+  only: *branch-only
+  except: *tests-except
+  script:
+  - cd ./src
+  - composer_install
+  - php ./vendor/bin/phpstan analyze --ansi --level=2 ./app
+
+Execute phpstan (stable):
+  <<: *execute-phpstan
+  image: $APP_IMAGE:$CI_COMMIT_REF_NAME
+  only: *stable-only
+
+Execute npm build (branch): &execute-npm-build
+  stage: test
+  image: $NODE_IMAGE
+  only: *branch-only
+  except: *tests-except
+  script:
+  - cd ./src
+  - npm install
+  - npm run production
+
+Execute npm build (stable):
+  <<: *execute-npm-build
+  only: *stable-only
+
+# ----------------------------------------------------------------------------------------------------------------------
+
+Build sources image (branch):
+  <<: *with-docker
+  stage: build
+  only: *branch-only
+  except: *build-image-except
+  variables:
+    TAG_NAME: $CI_COMMIT_REF_SLUG # Here it looks like 'master' or 'some-branch-name'
+    PUBLISH_TAGS: "$CI_COMMIT_REF_SLUG"
+  script: &build-sources-image-script
+  - docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd)/src:/app:rw"
+    $APP_IMAGE:$TAG_NAME composer install --no-interaction --ansi --no-suggest --prefer-dist --no-dev
+  - docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd)/src:/app:rw" --workdir "/app"
+    $NODE_IMAGE sh -c "npm install && npm run production"
+  - make PUBLISH_TAGS="$PUBLISH_TAGS" sources-push
+
+Build sources image (latest):
+  <<: *with-docker
+  stage: build
+  only: *latest-only
+  except: *build-image-except
+  variables:
+    TAG_NAME: latest
+    PUBLISH_TAGS: latest
+  script: *build-sources-image-script
+
+Build sources image (stable):
+  <<: *with-docker
+  stage: build
+  only: *stable-only
+  except: *stable-except
+  variables:
+    TAG_NAME: $CI_COMMIT_REF_NAME # Here it looks like 'v1.2.0'
+    PUBLISH_TAGS: "$CI_COMMIT_REF_NAME stable"
+  script: *build-sources-image-script
+

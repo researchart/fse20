@@ -1,0 +1,50 @@
+image: docker:19.03
+services:
+- docker:19.03-dind
+before_script:
+- apk --no-cache -q add curl jq
+variables:
+  CI_REGISTRY_IMAGE: antora/antora
+.defs:
+- &get_antora_version
+  ANTORA_VERSION=${ANTORA_VERSION:-$(curl -s 'https://gitlab.com/api/v4/projects/4180516/repository/tags?order_by=updated&sort=desc&per_page=1' | jq -rM '.[].name[1:]')}
+- &sub_antora_version
+  sed -i "s/@latest/@$ANTORA_VERSION/g" Dockerfile
+- &docker_build
+  docker build --pull -t "$CI_REGISTRY_IMAGE:$ANTORA_VERSION" .
+- &docker_list_image
+  docker images "$CI_REGISTRY_IMAGE:$ANTORA_VERSION"
+build:
+  stage: build
+  except:
+  - master@antora/docker-antora
+  script:
+  - *get_antora_version
+  - *sub_antora_version
+  - *docker_build
+  - *docker_list_image
+deploy:
+  stage: deploy
+  only:
+  - master@antora/docker-antora
+  script:
+  - |
+    echo "Antora version requested: ${ANTORA_VERSION:-none}"
+  - *get_antora_version
+  - *sub_antora_version
+  - *docker_build
+  - *docker_list_image
+  - CI_REGISTRY_IMAGE_VERSION=$(curl -s https://registry.hub.docker.com/v2/repositories/antora/antora/tags/ | jq -rM '.results[].name | select(. == "'$ANTORA_VERSION'")')
+  - |
+    if [ ! -z $CI_REGISTRY_IMAGE_VERSION ]; then
+      echo "Skipping publishing. $CI_REGISTRY_IMAGE:$ANTORA_VERSION has already been published."
+      exit 0
+    fi
+  - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  - echo "Publishing $CI_REGISTRY_IMAGE:$ANTORA_VERSION"
+  - docker push "$CI_REGISTRY_IMAGE:$ANTORA_VERSION"
+  - if [ -z "${ANTORA_VERSION/*-*}" ]; then CI_REGISTRY_IMAGE_TAG=testing; else CI_REGISTRY_IMAGE_TAG=latest; fi
+  - echo "Tagging $CI_REGISTRY_IMAGE:$ANTORA_VERSION as $CI_REGISTRY_IMAGE_TAG"
+  - docker tag "$CI_REGISTRY_IMAGE:$ANTORA_VERSION" "$CI_REGISTRY_IMAGE:$CI_REGISTRY_IMAGE_TAG"
+  - docker push "$CI_REGISTRY_IMAGE:$CI_REGISTRY_IMAGE_TAG"
+

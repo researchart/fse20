@@ -1,0 +1,40 @@
+image: java:8-jdk
+
+stages:
+  - git-robot
+  - build
+
+gradle-build:
+  stage: build
+  only:
+    - master
+    - pushes
+  except:
+    - schedules
+  allow_failure: false
+  script:
+    - ./gradlew clean build
+
+git-merge-upstream:
+  stage: git-robot
+  only:
+    - schedules
+    - master
+  except:
+    - pushes
+  allow_failure: false
+  script:
+    - git config --global user.name "Git Robot"
+    - git config --global user.email "git-robot@opentransitmap.org"
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - git clone git@gitlab.com:${CI_PROJECT_PATH}.git
+    - cd ${CI_PROJECT_NAME}
+    - git remote add upstream https://github.com/schildbach/public-transport-enabler.git
+    - git fetch upstream
+    - git merge upstream/master
+    - ./gradlew clean build
+    - git push --force origin master
+

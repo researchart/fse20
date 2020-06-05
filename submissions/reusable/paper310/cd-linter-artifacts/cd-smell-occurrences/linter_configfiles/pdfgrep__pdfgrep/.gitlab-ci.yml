@@ -1,0 +1,36 @@
+before_script:
+  - apt-get update -qq
+  - apt-get install -y -qq build-essential gcovr autoconf pkg-config
+  - apt-get install -y -qq libpoppler-cpp-dev libgcrypt20-dev libpcre3-dev asciidoc dejagnu texlive-latex-base
+
+test:
+  image: debian:stretch
+  script:
+    - export CXXFLAGS="-Wformat -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -fexceptions -fstack-protector-strong -grecord-gcc-switches"
+    - ./autogen.sh
+    - ./configure --enable-coverage
+    - if grep -q '^exit' testsuite/pdfgrep.tests/*.exp; then false; else true; fi
+    - make distcheck
+    - make check
+    - gcovr -r .
+  artifacts:
+    paths:
+      - testsuite/pdfgrep.log
+    when: on_failure
+    expire_in: 1 week
+
+test:libunac:
+  image: debian:stretch
+  script:
+    - apt-get install -y libunac1-dev
+    - export CXXFLAGS="-Wformat -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -fexceptions -fstack-protector-strong -grecord-gcc-switches"
+    - ./autogen.sh
+    - ./configure --with-unac
+    - if grep -q '^exit' testsuite/pdfgrep.tests/*.exp; then false; else true; fi
+    - LC_ALL=C.UTF-8 make check
+  artifacts:
+    paths:
+      - testsuite/pdfgrep.log
+    when: on_failure
+    expire_in: 1 week
+

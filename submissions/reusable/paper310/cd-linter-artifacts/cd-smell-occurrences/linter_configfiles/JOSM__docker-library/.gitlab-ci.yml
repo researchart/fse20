@@ -1,0 +1,23 @@
+image: docker:stable
+
+include:
+  - template: Container-Scanning.gitlab-ci.yml
+
+# See https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#use-docker-in-docker-executor
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+services:
+- docker:dind
+before_script:
+- docker info
+
+build:
+  environment:
+    name: GitLab docker registry for JOSM
+    url: https://gitlab.com/JOSM/docker-library/container_registry
+  stage: build
+  script: ./build.sh
+  only:
+  - master@JOSM/docker-library
+

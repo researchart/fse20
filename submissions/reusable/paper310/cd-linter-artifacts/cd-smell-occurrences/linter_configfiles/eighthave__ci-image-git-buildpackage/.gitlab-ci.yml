@@ -1,0 +1,60 @@
+image: docker:git
+services:
+- docker:dind
+
+stages:
+- build
+- test
+- release
+
+variables:
+  TEST_IMAGE: ${CI_REGISTRY_IMAGE}:$CI_BUILD_REF_NAME
+  RELEASE_IMAGE: ${CI_REGISTRY_IMAGE}:latest
+  GITLAB_RUNNER_IMAGE: gitlab/gitlab-runner:alpine
+
+before_script:
+  - echo $CI_BUILD_TOKEN | docker login -u gitlab-ci-token --password-stdin ${CI_REGISTRY}
+
+build:
+  stage: build
+  script:
+    - apk add --no-cache bash
+    - /bin/bash -n overlay/usr/share/gitlab-ci-common overlay/usr/bin/gitlab-ci-*
+    - echo Building ${RELEASE_IMAGE}
+    - docker build -t $TEST_IMAGE .
+    - docker push $TEST_IMAGE
+
+test:
+  stage: test
+  script:
+    - echo Testing ${TEST_IMAGE}
+    - git clone https://salsa.debian.org/debian/pidcat.git
+    - cd pidcat
+    - printf
+        "image\x3a ${TEST_IMAGE}\n\ntest:\n  script:\n    - git remote set-url origin https://salsa.debian.org/debian/pidcat.git\n    - /usr/bin/gitlab-ci-git-buildpackage\n"
+        > .gitlab-ci.yml
+    - docker pull ${TEST_IMAGE}
+    - docker run --rm --interactive
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        --volume $PWD:$PWD --workdir $PWD
+        ${GITLAB_RUNNER_IMAGE}
+        exec docker
+          --docker-volumes "/var/run/docker.sock:/var/run/docker.sock"
+          --env "HOSTNAME=$HOSTNAME"
+          --env "CI_PROJECT_NAMESPACE=debian"
+          --env "CI_PROJECT_NAME=pidcat"
+          --env "CI_COMMIT_REF_NAME=`git symbolic-ref HEAD --short`"
+          --env "CI_COMMIT_SHA=`git rev-parse HEAD`"
+          test
+
+release:
+  stage: release
+  script:
+    - echo Publishing ${RELEASE_IMAGE}
+    - docker pull $TEST_IMAGE
+    - docker tag $TEST_IMAGE $RELEASE_IMAGE
+    - docker push $RELEASE_IMAGE
+  only:
+    - master
+    - tags
+

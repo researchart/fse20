@@ -1,0 +1,30 @@
+image: ruby:2.3
+
+variables:
+  JEKYLL_ENV: production
+  LC_ALL: C.UTF-8
+
+before_script:
+  - cd src
+  - bundle install
+
+test:
+  stage: test
+  script:
+    - jekyll build -d test
+  artifacts:
+    paths:
+      - src/test
+  except:
+    - master
+
+pages:
+  script:
+    - jekyll build -d public
+    - mv public ..
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

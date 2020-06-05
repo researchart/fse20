@@ -1,0 +1,74 @@
+stages:
+  - build
+  - deploy
+
+.setup: &setup
+  before_script:
+    # create all loopback devices
+    - mknod /dev/loop0 -m0660 b 7 0
+    - mknod /dev/loop1 -m0660 b 7 1
+    - mknod /dev/loop2 -m0660 b 7 2
+    - mknod /dev/loop3 -m0660 b 7 3
+    - mknod /dev/loop4 -m0660 b 7 4
+    - mknod /dev/loop5 -m0660 b 7 5
+    - mknod /dev/loop6 -m0660 b 7 6
+    - mknod /dev/loop7 -m0660 b 7 7
+    - mknod /dev/loop8 -m0660 b 7 8
+    - mknod /dev/loop9 -m0660 b 7 9
+
+    # install archiso
+    - pacman --noconfirm -Syu
+    - pacman --noconfirm -S base base-devel
+    - pacman --noconfirm -S archiso
+
+    # disable mkinitcpio auto detection
+    - sed -i 's/autodetect //' /etc/mkinitcpio.conf
+
+default:
+  stage: build
+  image: archlinux/base:latest
+  <<: *setup
+  script:
+    - make default
+    - mv *.iso archlinux-installer.iso
+
+  artifacts:
+    name: "archlinux-installer"
+    paths:
+      - archlinux-*.iso
+
+ssh:
+  stage: build
+  image: archlinux/base:latest
+  <<: *setup
+  script:
+    - make ssh
+    - mv *.iso archlinux-installer-ssh.iso
+
+  artifacts:
+    name: "archlinux-installer-ssh"
+    paths:
+      - archlinux-*.iso
+
+pages:
+  stage: deploy
+  image: registry.gitlab.com/pages/hugo:0.55.4
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+  script:
+    # install theme
+    - mkdir themes
+    - git submodule add https://github.com/halogenica/beautifulhugo.git themes/beautifulhugo
+
+    # make readme the mainpage
+    - mkdir content
+    - cp README.md content/_index.md
+
+    # render page
+    - hugo
+
+  artifacts:
+    paths:
+    - public
+

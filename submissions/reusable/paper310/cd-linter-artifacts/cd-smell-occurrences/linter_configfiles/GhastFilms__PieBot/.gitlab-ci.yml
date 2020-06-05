@@ -1,0 +1,24 @@
+# This file is a template, and might need editing before it works on your project.
+# use the official gcc image, based on debian
+# can use verions as well, like gcc:5.2
+# see https://hub.docker.com/_/gcc/
+image: alpine:latest
+
+build:
+  stage: build
+  # instead of calling g++ directly you can also use some build toolkit like make
+  # install the necessary build tools when needed
+  # before_script: 
+  #   - apt update && apt -y install make autoconf 
+  script: 
+    - apk add --no-cache bash cmake make g++ linux-headers git openssl-dev libcurl
+    - sh build.sh
+  artifacts:
+    paths:
+      - piebot/piebot
+      - piebot/config.txt
+  # depending on your build setup it's most likely a good idea to cache outputs to reduce the build time
+  # cache:
+  #   paths:
+  #     - "*.o"
+

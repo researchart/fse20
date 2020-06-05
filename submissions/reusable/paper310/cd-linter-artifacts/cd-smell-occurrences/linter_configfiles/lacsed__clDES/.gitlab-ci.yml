@@ -1,0 +1,15 @@
+image: fedora
+
+pages:
+  script:
+  - dnf install -y cmake doxygen graphviz mscgen make gcc-c++
+  - mkdir -p build && cd build
+  - cmake -DCMAKE_BUILD_TYPE=doc ..
+  - make doc
+  - mv doc/html/ ../public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

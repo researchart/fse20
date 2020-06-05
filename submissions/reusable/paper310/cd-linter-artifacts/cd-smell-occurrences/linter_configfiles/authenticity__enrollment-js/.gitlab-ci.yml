@@ -1,0 +1,27 @@
+image: docker:latest
+
+stages:
+- build
+- test
+
+# https://docs.gitlab.com/ce/ci/variables/#predefined-variables-environment-variables
+variables:
+  CONTAINER_TEST_IMAGE: registry.gitlab.com/authenticity/enrollment-js:$CI_BUILD_REF_NAME
+  SHARED_VOLUMES: -v /var/run/docker.sock:/var/run/docker.sock -v /cache:/cache
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+build-image:
+  stage: build
+  script:
+    - docker build --pull -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+test-build:
+  stage: test
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run --rm $CONTAINER_TEST_IMAGE docker/test.sh
+
+

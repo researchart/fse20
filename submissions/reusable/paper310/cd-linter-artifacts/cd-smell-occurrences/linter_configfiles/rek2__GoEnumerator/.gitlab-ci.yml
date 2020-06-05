@@ -1,0 +1,14 @@
+image: golang:1.12
+
+variables:
+  REPO_NAME: GoEnumerator
+
+stages:
+  - build
+
+
+build:
+  stage: build
+  script:
+    - go build ./...
+

@@ -1,0 +1,92 @@
+image: docker:stable
+
+variables:
+    SERVICE_NAME: service-profile-query
+    IMAGE_NAME: districted/$SERVICE_NAME
+    DOCKER_DRIVER: overlay2
+
+services:
+    - docker:dind
+
+stages:
+    - build
+    - test
+    - package-staging
+    - deploy-staging
+    - package-prod
+    - deploy-prod
+
+before_script:
+    - export GRADLE_USER_HOME=`pwd`/.gradle
+
+cache:
+    paths:
+        - .gradle/wrapper
+        - .gradle/caches
+
+build:
+    image: openjdk:11.0.3-jdk-slim-stretch
+    stage: build
+    script:
+        - ./gradlew clean build -x test
+    artifacts:
+        paths:
+            - build/libs/*.jar
+        expire_in: 1 day
+
+test:
+    image: openjdk:11.0.3-jdk-slim-stretch
+    stage: test
+    script:
+        - ./gradlew test
+
+package-staging:
+    stage: package-staging
+    only:
+        - staging
+    script:
+        - docker build -t $IMAGE_NAME:staging .
+        - echo $DOCKER_REGISTRY_PASSWORD | docker login -u $DOCKER_REGISTRY_LOGIN --password-stdin
+        - docker push $IMAGE_NAME:staging
+
+deploy-staging:
+    image: ubuntu
+    retry: 2
+    stage: deploy-staging
+    only:
+        - staging
+    script:
+        - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+        - eval $(ssh-agent -s)
+        - echo "$STAGING_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+        - mkdir -p ~/.ssh
+        - chmod 700 ~/.ssh
+        - ssh-keyscan districted.org >> ~/.ssh/known_hosts
+        - chmod 644 ~/.ssh/known_hosts
+        - ssh debian@districted.org "sudo docker service update --force --image $IMAGE_NAME:staging districted-staging-stack_$SERVICE_NAME"
+
+package-prod:
+    stage: package-prod
+    only:
+        - master
+    script:
+        - docker build -t $IMAGE_NAME:prod .
+        - echo $DOCKER_REGISTRY_PASSWORD | docker login -u $DOCKER_REGISTRY_LOGIN --password-stdin
+        - docker push $IMAGE_NAME:prod
+
+deploy-prod:
+    image: ubuntu
+    retry: 2
+    stage: deploy-prod
+    only:
+        - master
+    script:
+        - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+        - eval $(ssh-agent -s)
+        - echo "$STAGING_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+        - mkdir -p ~/.ssh
+        - chmod 700 ~/.ssh
+        - ssh-keyscan districted.org >> ~/.ssh/known_hosts
+        - chmod 644 ~/.ssh/known_hosts
+        - ssh debian@districted.org "sudo docker service update --force --image $IMAGE_NAME:prod districted-prod-stack_$SERVICE_NAME"
+

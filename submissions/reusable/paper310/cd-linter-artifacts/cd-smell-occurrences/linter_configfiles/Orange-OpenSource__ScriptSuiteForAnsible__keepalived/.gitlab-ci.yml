@@ -1,0 +1,39 @@
+image: registry.gitlab.com/role_unit/role_unit_containers:build
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DEBIAN_FRONTEND: noninteractive
+
+services:
+- docker:dind
+
+before_script:
+  - apk add py-dnspython # needed for ansible dig
+  - apk add ipvsadm      # needed for keepalived cluster tests
+
+# Test models
+
+.keepalived_template: &keepalived_definition
+  script:
+    - RU_ENV_IMAGE=${CI_JOB_NAME/*_/} tests/bash_unit tests/tests_keepalived_${CI_JOB_NAME/_*/}
+
+# Test jobs
+
+single_debian8:
+  <<: *keepalived_definition
+
+cluster_debian8:
+  <<: *keepalived_definition
+
+syntax_debian8:
+  <<: *keepalived_definition
+
+single_debian9:
+  <<: *keepalived_definition
+
+cluster_debian9:
+  <<: *keepalived_definition
+
+syntax_debian9:
+  <<: *keepalived_definition
+

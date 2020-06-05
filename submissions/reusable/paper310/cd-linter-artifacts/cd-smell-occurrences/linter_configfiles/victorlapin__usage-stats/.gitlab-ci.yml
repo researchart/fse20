@@ -1,0 +1,28 @@
+image: jangrewe/gitlab-ci-android
+
+variables:
+  CI_PROJECT_NAME: "UsageStats"
+
+before_script:
+  - export GRADLE_USER_HOME=$(pwd)/.gradle
+  - chmod +x ./gradlew
+
+cache:
+  key: ${CI_PROJECT_ID}
+  paths:
+    - .gradle/
+
+stages:
+  - build
+
+buildRelease:
+  stage: build
+  script:
+    - ./gradlew assembleRelease
+  artifacts:
+    name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA:0:8}"
+    paths:
+    - build/outputs/apk/release
+  only:
+    - master
+

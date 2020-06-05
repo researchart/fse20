@@ -1,0 +1,23 @@
+## YAML Template.
+---
+variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+ 
+before_script:
+    - chmod +x bin/*.sh
+ 
+stages:
+    - test
+    - production
+ 
+test_svn:
+    stage: test
+ 
+    script:
+        - cd bin
+        - ./deploy.sh --svn https://svn.codemacher.de/repos/1809-structured-content
+        
+    only:
+        - tags
+ 
+

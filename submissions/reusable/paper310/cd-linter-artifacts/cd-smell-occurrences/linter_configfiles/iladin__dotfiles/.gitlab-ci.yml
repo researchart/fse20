@@ -1,0 +1,25 @@
+zsh_cfg:
+      script:
+        - source bin/makeEnvy.sh
+
+.makeEmacs:
+    script:
+        - bin/makeEmacs.sh
+        - bin/makeSpacemacs.sh
+.makeVim:
+    script:
+        - bin/makeVim.sh
+        - bin/makeSPF13vim.sh
+makeFasd:
+    script:
+        - bin/makeFasd.sh
+makeFont.sh:
+    script:
+        - bin/makeFont.sh
+.makeJunest:
+    script:
+        - bash -x bin/makeJunest.sh
+.makeGnuCobol:
+    script:
+        - bin/makeGnuCobol.sh
+

@@ -1,0 +1,21 @@
+image: registry.gitlab.com/paddy-hack/nikola
+
+test:
+  script:
+   - nikola build
+  except:
+   - master
+  tags:
+   - shared
+
+pages:
+  script:
+    - nikola build
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+  tags:
+    - shared
+

@@ -1,0 +1,137 @@
+image: node:12-alpine
+
+stages:
+  - install
+  - build
+  - test
+  - deploy
+
+before_script:
+  - echo "CPU $(awk '/siblings/ {print $3}' /proc/cpuinfo | uniq)x$(awk '/cpu MHz/ {print $4}' /proc/cpuinfo | sort -nrk 1 | head -1) MHz"
+  - echo "Memory $(($(awk '/MemTotal/ {print $2}' /proc/meminfo)/1024)) gB"
+  - node -v
+  - npm -v
+  - pwd
+  - ls -alh --color | grep "^d" && ls -alh --color | grep -v "^d"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+  - node_modules/
+  - packages/ag/node_modules/
+  - demo/redux/node_modules/
+  - yarn.lock
+
+##
+# DEFAULTS
+##
+
+.defaults: &defaults
+  except:
+  - tags
+  retry: 2
+
+.e2e: &e2e
+  <<: *defaults
+  dependencies:
+  - build
+  - install
+  image: registry.hub.docker.com/atlassianlabs/docker-node-jdk-chrome-firefox:latest
+  stage: test
+
+.deploy: &deploy
+  <<: *defaults
+  dependencies:
+  - build
+  - chrome
+  - install
+  - unit
+#  - firefox
+  image: node:12
+  only:
+  - master@wallzero/react-digest
+  stage: deploy
+
+##
+# INSTALL
+##
+
+install:
+  <<: *defaults
+  artifacts:
+    expire_in: 2 hrs
+    paths:
+    - node_modules/
+  script:
+  - yarn install --frozen-lockfile
+  - yarn e2e:install
+  stage: install
+
+##
+# BUILD
+##
+
+build:
+  <<: *defaults
+  artifacts:
+    expire_in: 2 hrs
+    paths:
+    - lib/
+    - public/
+  dependencies:
+  - install
+  script:
+  - yarn build:gitlab
+  - yarn copy:stats
+  stage: build
+
+##
+# TEST
+##
+
+unit:
+  <<: *defaults
+  artifacts:
+    expire_in: 2 hrs
+    paths:
+    - public/
+  dependencies:
+  - build
+  - install
+  script:
+  - yarn unit:ci
+  - yarn copy:coverage
+  stage: test
+
+chrome:
+  <<: *e2e
+  script:
+  - ln -sf /opt/google/chrome/google-chrome /usr/bin/google-chrome
+  - google-chrome --version
+  - npm run e2e:chrome:gitlab
+
+#firefox:
+#  <<: *e2e
+#  script:
+#  - ln -sf /opt/firefox /usr/bin/firefox
+#  - firefox --version
+#  - npm run e2e:firefox:gitlab
+
+##
+# DEPLOY
+##
+
+publish:
+  <<: *deploy
+  script:
+  - yarn release
+
+pages:
+  <<: *deploy
+  artifacts:
+    paths:
+    - lib/
+    - public/
+  script:
+  - echo "deploying demo to gitlab pages"
+

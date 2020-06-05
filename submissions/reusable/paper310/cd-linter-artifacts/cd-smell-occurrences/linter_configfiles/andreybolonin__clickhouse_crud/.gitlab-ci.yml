@@ -1,0 +1,39 @@
+image: ubuntu:latest
+
+services:
+  - yandex/clickhouse-server
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq zip unzip curl git software-properties-common
+  - LC_ALL=C.UTF-8 add-apt-repository ppa:ondrej/php -y
+  - apt-add-repository "deb http://repo.yandex.ru/clickhouse/xenial stable main" -y
+  - apt-get update -qq
+  - apt-get install -y php7.1 php7.1-xml php7.1-zip php7.1-curl composer
+  # - apt-get install -y clickhouse-server-base clickhouse-server-common clickhouse-client --allow-unauthenticated
+  # - service clickhouse-server start
+  - php -v
+  - composer install -o --ignore-platform-reqs
+ # - clickhouse-client --query="CREATE DATABASE clickhouse_crud;"
+ # - clickhouse-client --query="USE clickhouse_crud;"
+ # - clickhouse-client --query="CREATE TABLE clickhouse_crud.article(id String, name String, description String, created_at DateTime, created_date Date) ENGINE = MergeTree(created_date, (id, created_date), 8192);"
+  - bin/console clickhouse:database:create
+  - bin/console clickhouse:schema:update
+
+test:
+  script:
+    - vendor/bin/phpunit
+#  artifacts:
+#    paths:
+#      - coverage/
+#
+#pages:
+#  stage: deploy
+#  script:
+#    - mv coverage/ public/
+#  artifacts:
+#    paths:
+#      - public
+#    expire_in: 30 days
+#  only:
+#    - master
+

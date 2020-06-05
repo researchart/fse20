@@ -1,0 +1,66 @@
+stages:
+  - build
+
+variables:
+  BUILDER_IMAGE_REVISION: "0.0.35"
+  GCR_REGISTRY: "gcr.io/top-chain-204115/gitlab"
+  GCR_REGISTRY_PUBLIC: "launcher.gcr.io/gitlab/gitlab"
+  HELM_VERSION: "2.12.0"
+  HELM_URL: "https://kubernetes-helm.storage.googleapis.com/helm-v${HELM_VERSION}-linux-amd64.tar.gz"
+
+before_script:
+  - echo "https://gitlab-ci-token:$CI_JOB_TOKEN@gitlab.com" > ~/.git-credentials
+  - git config --global credential.helper 'store'
+  # Install Helm for usage
+  - curl -s ${HELM_URL} | tar zxf -
+  - mv linux-amd64/helm /usr/bin/
+  - chmod +x /usr/bin/helm
+  - helm version --client
+  # Login to Gitlab, Google image registries
+  - docker login -u _json_key -p "$GCR_AUTH_CONFIG" https://gcr.io
+  - docker login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+  # yq is required by the image listing helper script
+  - apt-get update && apt-get install -y jq python-pip python-dev build-essential
+  - pip install yq
+  # Set GL_RELEASE_VERSION - no tag means use latest upstream Cloud Native Gitlab chart
+  - . ci-scripts/set-release-version.sh
+  - . ci-scripts/set-container-tag.sh
+
+build:
+  image: "registry.gitlab.com/gitlab-org/gitlab-omnibus-builder/ruby_docker:${BUILDER_IMAGE_REVISION}"
+  stage: build
+  script:
+    - build-scripts/build-marketplace-release.sh
+  tags:
+  - docker
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_HOST: tcp://docker:2375
+  services:
+  - docker:dind
+    #  except:
+    #  - tags
+
+    # publish:
+    #   image: "registry.gitlab.com/gitlab-org/gitlab-omnibus-builder/ruby_docker:${BUILDER_IMAGE_REVISION}"
+    #   stage: build
+    #   script:
+    #     - MAJOR_VERSION_NUMBER="$(ci-scripts/get-major-version.sh "${CI_COMMIT_REF_NAME}")"
+    #     - docker build -t "$CI_REGISTRY_IMAGE/deployer:latest" -t "$CI_REGISTRY_IMAGE/deployer:$MAJOR_VERSION_NUMBER" -t deployer -t $GCR_REGISTRY/deployer:$MAJOR_VERSION_NUMBER -f deployer/Dockerfile  --build-arg TAG=$MAJOR_VERSION_NUMBER  --build-arg REGISTRY=$GCR_REGISTRY .
+    #     # Push to Gitlab registry
+    #     - docker push "$CI_REGISTRY_IMAGE/deployer:$MAJOR_VERSION_NUMBER"
+    #     - docker push "$CI_REGISTRY_IMAGE/deployer:latest"
+    #     # Push to Google registry
+    #     - docker push "$GCR_REGISTRY/deployer:$MAJOR_VERSION_NUMBER"
+    #     # Push all images referenced in the Helm images
+    #     - TAG="$MAJOR_VERSION_NUMBER" build-scripts/mirror-helm-images.sh
+    #   tags:
+    #   - docker
+    #   variables:
+    #     DOCKER_DRIVER: overlay2
+    #     DOCKER_HOST: tcp://docker:2375
+    #   services:
+    #   - docker:dind
+    #   only:
+    #   - tags
+

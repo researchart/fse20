@@ -1,0 +1,43 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+before_script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  - apk add --no-cache py-pip
+  - pip install docker-compose
+
+build-master:
+  stage: build
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE" .
+    - docker push "$CI_REGISTRY_IMAGE"
+  only:
+    - master
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+  except:
+    - master
+    
+test-master:
+  stage: test
+  script:
+    - docker pull $CI_REGISTRY_IMAGE
+    - docker run -i --rm "$CI_REGISTRY_IMAGE" ci/test.sh
+  only:
+    - master
+  
+test:
+  stage: test
+  script:
+    - docker pull $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+    - docker run -i --rm "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" ci/test.sh
+  except:
+    - master
+    
+

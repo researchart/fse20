@@ -1,0 +1,17 @@
+image: python:3.5
+
+services:
+  - postgres:latest
+
+
+variables:
+  POSTGRES_DB: weiqi
+  POSTGRES_USER: weiqi
+  POSTGRES_PASSWORD: weiqi
+  WEIQI_TEST_DB: "postgres://weiqi:weiqi@postgres/weiqi"
+
+pytest:
+  script:
+    - pip install --upgrade -r requirements.txt
+    - py.test --cov=weiqi --tb=native --benchmark-skip weiqi
+

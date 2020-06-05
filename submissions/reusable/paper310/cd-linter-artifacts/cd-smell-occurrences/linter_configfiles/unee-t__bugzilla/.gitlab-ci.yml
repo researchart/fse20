@@ -1,0 +1,30 @@
+stages:
+      - build
+      - deploy
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+   - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+
+deploy:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - apk add --no-cache gettext curl
+    - curl -fs -o /usr/local/bin/ecs-cli https://s3.amazonaws.com/amazon-ecs-cli/ecs-cli-linux-amd64-latest
+    - chmod +x /usr/local/bin/ecs-cli
+    - /usr/local/bin/ecs-cli --version
+    - /usr/local/bin/ecs-cli configure -c $CI_COMMIT_REF_NAME
+    - envsubst < docker-compose.yml.AWS-ECS > docker-compose.yml
+    - /usr/local/bin/ecs-cli compose -p $CI_COMMIT_REF_NAME service up
+    - /usr/local/bin/ecs-cli compose ps
+  only:
+   - master
+

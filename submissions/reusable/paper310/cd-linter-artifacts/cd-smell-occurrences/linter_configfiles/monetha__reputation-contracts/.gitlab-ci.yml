@@ -1,0 +1,28 @@
+image: node:latest
+
+before_script:
+- apt-get -qq update
+- apt-get install -y jq
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+build and test:
+  script:
+  - npm install
+  - npm run compile
+  - npm run test
+  - for file in build/contracts/*.json; do jq '.abi' < "$file" > "${file%.json}.abi"; done
+  - for file in build/contracts/*.json; do jq -r '.bytecode' < "$file" > "${file%.json}.bin"; done
+  - mkdir artifacts && for solfile in contracts/*.sol; do ./node_modules/.bin/truffle-flattener $solfile > artifacts/${solfile##*/}; done
+  - for file in contracts/*.sol; do f=$(basename -- ${file%.*}); cp "build/contracts/${f}.abi" artifacts/; cp "build/contracts/${f}.bin" artifacts/; done
+  - 'echo "Compiler: $(./node_modules/.bin/solcjs --version)" > artifacts/README.md'
+  - 'echo "Contracts commit: ${CI_COMMIT_SHA}" >> artifacts/README.md'
+  artifacts:
+    paths:
+    - artifacts/
+    expire_in: 1 month
+

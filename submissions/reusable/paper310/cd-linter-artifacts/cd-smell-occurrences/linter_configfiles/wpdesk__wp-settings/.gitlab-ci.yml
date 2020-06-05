@@ -1,0 +1,311 @@
+variables:
+  WPDESK_CI_VERSION: 1.10.19
+  MYSQL_ROOT_PASSWORD: mysql
+  MYSQL_DATABASE: wptest
+  MYSQL_USER: mysql
+  MYSQL_PASSWORD: mysql
+  MYSQL_INNODB_LOG_BUFFER_SIZE: 32M
+  PHP_ERROR_REPORTING: E_ALL
+  COMPOSER_ALLOW_SUPERUSER: 1
+  GIT_STRATEGY: fetch
+  ACCEPTANCE_ERROR_PATH: ${CI_PROJECT_DIR}/acceptance
+
+stages:
+  - tools
+  - tests
+  - pre-deploy
+  - deploy
+
+.template: &job-test-template
+  stage: tests
+  coverage: '/^\s*Lines:\s*\d+.\d+\%/'
+
+.template: &job-test-integration-template
+  <<: *job-test-template
+  services:
+    - mysql:5.6
+  script:
+    - echo ${WPDESK_CI_VERSION}
+    - ls -l
+    - php --version
+    - cat /tmp/wordpress-develop/src/wp-includes/version.php
+    - cat /tmp/woocommerce/woocommerce.php
+    - composer update --no-progress
+    - if [[ -f tests/integration/prepare.sh ]]; then sh tests/integration/prepare.sh; fi
+    - vendor/bin/phpunit --configuration phpunit-integration.xml --coverage-text --colors=never
+  only:
+    - tags
+
+.template: &job-test-integration-template-fast
+  <<: *job-test-integration-template
+  script:
+    - echo ${WPDESK_CI_VERSION}
+    - ls -l
+    - php --version
+    - cat /tmp/wordpress-develop/src/wp-includes/version.php
+    - cat /tmp/woocommerce/woocommerce.php
+    - composer update --no-progress
+    - if [[ -f tests/integration/prepare.sh ]]; then sh tests/integration/prepare.sh; fi
+    - vendor/bin/phpunit --configuration phpunit-integration.xml --no-coverage
+  except:
+    - tags
+  only:
+
+.template: &job-test-unit-template
+  <<: *job-test-template
+  script:
+    - echo ${WPDESK_CI_VERSION}
+    - ls -l
+    - php --version
+    - cat /tmp/wordpress-develop/src/wp-includes/version.php
+    - cat /tmp/woocommerce/woocommerce.php
+    - composer update --no-progress
+    - vendor/bin/phpunit --configuration phpunit-unit.xml --coverage-text --colors=never
+  only:
+    - tags
+
+.template: &job-test-unit-template-fast
+  <<: *job-test-unit-template
+  script:
+    - echo ${WPDESK_CI_VERSION}
+    - ls -l
+    - php --version
+    - cat /tmp/wordpress-develop/src/wp-includes/version.php
+    - cat /tmp/woocommerce/woocommerce.php
+    - composer update --no-progress
+    - vendor/bin/phpunit --configuration phpunit-unit.xml --no-coverage
+  except:
+    - tags
+  only:
+
+.template: &job-deploy-template
+  image: wpdesknet/amazon-svn-deploy
+  stage: deploy
+  dependencies:
+    - build to deploy
+    - unit test lastest coverage
+    - integration test lastest coverage
+  retry: 2
+  when: manual
+  only:
+    - tags
+
+before_script:
+  - cd ${CI_PROJECT_DIR}
+
+phpmetric metrics:
+  stage: tools
+  image: wpdesknet/phpunit-woocommerce:0-0
+  allow_failure: true
+  when: manual
+  artifacts:
+    when: always
+    expire_in: 1 month
+    name: "metrics"
+    paths:
+      - ${CI_PROJECT_DIR}/phpmetric
+  script:
+    - echo ${WPDESK_CI_VERSION}
+    - composer require phpmetrics/phpmetrics
+    - composer update --no-progress
+    - php ./vendor/bin/phpmetrics --report-html=phpmetric .
+
+churn metrics:
+  stage: tools
+  image: wpdesknet/phpunit-woocommerce:0-0
+  allow_failure: true
+  when: manual
+  script:
+    - echo ${WPDESK_CI_VERSION}
+    - composer require bmitch/churn-php
+    - composer update --no-progress
+    - vendor/bin/churn run classes inc
+
+#code style test:
+# stage: tests
+#  image: wpdesknet/phpunit-woocommerce:0-0
+#  allow_failure: true
+#  script:
+#    - echo ${WPDESK_CI_VERSION}
+#    - composer update --no-progress
+#    - vendor/bin/phpcs
+
+unit test lastest:
+  <<: *job-test-unit-template-fast
+  image: wpdesknet/phpunit-woocommerce:0-0
+
+integration test lastest:
+  <<: *job-test-integration-template-fast
+  image: wpdesknet/phpunit-woocommerce:0-0
+
+unit test lastest coverage:
+  <<: *job-test-unit-template
+  image: wpdesknet/phpunit-woocommerce:0-0
+
+integration test lastest coverage:
+  <<: *job-test-integration-template
+  image: wpdesknet/phpunit-woocommerce:0-0
+
+integration test php7-1 wc-1:
+  <<: *job-test-integration-template-fast
+  image: wpdesknet/phpunit-woocommerce:1-1
+
+integration test php7 wc-2:
+  <<: *job-test-integration-template-fast
+  image: wpdesknet/phpunit-woocommerce:2-2
+
+integration test php-7 wc-3:
+  <<: *job-test-integration-template-fast
+  image: wpdesknet/phpunit-woocommerce:2-3
+
+integration test php5-6:
+  <<: *job-test-integration-template-fast
+  image: wpdesknet/phpunit-woocommerce:3-0
+
+integration test php5-5:
+  <<: *job-test-integration-template-fast
+  image: wpdesknet/phpunit-woocommerce:4-0
+
+integration test current woocommerce:
+  <<: *job-test-integration-template-fast
+  image: wpdesknet/phpunit-woocommerce:0-0
+  allow_failure: true
+  before_script:
+    - cd /tmp
+    - rm -rf woocommerce
+    - git clone https://github.com/woocommerce/woocommerce.git
+    - cd ${CI_PROJECT_DIR}
+
+acceptance test:
+  image: wpdesknet/node
+  variables:
+    CI_DEBUG_SERVICES: trace
+  services:
+    - name: mysql:5.6
+      alias: mysqltests
+    - name: wpdesknet/apache-woocommerce:latest
+      alias: wootests
+    - name: selenium/standalone-chrome
+      alias: selenium
+  artifacts:
+    when: always
+    expire_in: 1 day
+    name: "error logs"
+    paths:
+      - ${CI_PROJECT_DIR}/acceptance
+  stage: tests
+  allow_failure: true
+  script:
+    - cd ${CI_PROJECT_DIR}
+    - composer update --no-progress --no-dev
+    - if [[ -f ${CI_PROJECT_DIR}/tests/acceptance/prepare.sh ]]; then sh ${CI_PROJECT_DIR}/tests/acceptance/prepare.sh; fi
+
+    - export MYSQL_IP=$(awk '/^[[:space:]]*($|#)/{next} /mysqltests/{print $1; exit}' /etc/hosts)
+    - export WOOTESTS_IP=$(awk '/^[[:space:]]*($|#)/{next} /wootests/{print $1; exit}' /etc/hosts)
+    - echo "http://wootests/wpdesk_init.php?mysql_ip=${MYSQL_IP}&wootests_ip=${WOOTESTS_IP}"
+    - wget -O /tmp/wpdesk_init.txt "http://wootests/wpdesk_init.php?mysql_ip=${MYSQL_IP}&wootests_ip=${WOOTESTS_IP}"
+    - tail -50 /tmp/wpdesk_init.txt
+
+    - sh /tmp/clone.sh git@gitlab.com:wpdesk/plugins-tests.git /tmp/tests headless
+    - cd /tmp/tests
+    - npm install
+    - npm install -g grunt-cli
+    - cd node_modules/.bin
+    - ./webdriver-manager update
+    - cd ../
+    - mkdir -p ${CI_PROJECT_DIR}/acceptance/reports/html/screenshot
+    - grunt chrome-${CI_PROJECT_NAME}
+
+
+apigen docs:
+  image:
+    name: wpdesknet/apigen
+  stage: pre-deploy
+  artifacts:
+    expire_in: 1 day
+    name: "docs"
+    paths:
+      - docs/
+  script:
+    - echo ${WPDESK_CI_VERSION}
+    - ls -l
+    - /app/vendor/bin/apigen generate
+    - php /app/hooks-docs.php ${CI_PROJECT_DIR}
+  only:
+    - tags
+
+pages:
+  stage: deploy
+  dependencies:
+    - apigen docs
+  script:
+    - rm -rf public
+    - mv docs/ public/
+    - 'curl -X POST --data-urlencode "payload={\"text\": \"Dokumentacja projektu ${CI_PROJECT_NAME} w wersji ${CI_COMMIT_REF_NAME} umieszczona w <https://gitlab.com/wpdesk/${CI_PROJECT_NAME}/pages|pages> \", }" https://hooks.slack.com/services/${SLACK_AUTH}'
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - public
+  only:
+    - tags
+
+build to deploy:
+  image: wpdesknet/phpunit-woocommerce:4-0
+  stage: pre-deploy
+  artifacts:
+    expire_in: 1 month
+    name: "production release"
+    paths:
+      - release
+      - release.zip
+  script:
+    - echo ${WPDESK_CI_VERSION}
+    - php --version
+    - ls -l
+    - /tmp/set_version.sh ${CI_COMMIT_REF_NAME}
+    - rm -rf ${CI_PROJECT_DIR}/release ${CI_PROJECT_DIR}/release.zip /tmp/release
+    - mkdir /tmp/release
+    - mkdir -p ${CI_PROJECT_DIR}/release/${CI_PROJECT_NAME}
+    - cp -rf ${CI_PROJECT_DIR}/* /tmp/release
+    - cp -rf /tmp/release/* ${CI_PROJECT_DIR}/release/${CI_PROJECT_NAME}
+    - cd ${CI_PROJECT_DIR}/release/${CI_PROJECT_NAME}
+    - composer install --no-dev --no-progress --optimize-autoloader
+    - rm -rf build-coverage release tests docs .git .editorconfig .gitignore .gitlab-ci.yml apigen.neon phpunit.xml acceptance test_soap.php .gitlab
+    - rm -rf composer.json composer.lock phpcs.xml.dist phpunit-integration.xml phpunit-unit.xml composer.phar wp-cli.phar
+    - cd ../
+    - zip -r -q ../release.zip ./
+  only:
+    - tags
+
+deploy to shop:
+  <<: *job-deploy-template
+  script:
+    - echo ${WPDESK_CI_VERSION}
+    - /tmp/deploy_shop.sh ${CI_PROJECT_NAME} release.zip ${CI_PROJECT_NAME}.zip
+    - 'curl -X POST --data-urlencode "payload={\"text\": \"Projekt <https://gitlab.com/wpdesk/${CI_PROJECT_NAME}|${CI_PROJECT_NAME}> zdeployowany do sklepu w wersji ${CI_COMMIT_REF_NAME}\", }" https://hooks.slack.com/services/${SLACK_AUTH}'
+  environment:
+    name: wpdesk shop
+    url: https://wpdeskplugin.s3.amazonaws.com/${CI_PROJECT_NAME}.zip
+
+deploy to demo:
+  <<: *job-deploy-template
+  script:
+    - echo ${WPDESK_CI_VERSION}
+    - /tmp/deploy_demo.sh release/${CI_PROJECT_NAME} ${CI_PROJECT_NAME}
+    - 'curl -X POST --data-urlencode "payload={\"text\": \"Projekt <https://gitlab.com/wpdesk/${CI_PROJECT_NAME}|${CI_PROJECT_NAME}> zdeployowany do demo w wersji ${CI_COMMIT_REF_NAME}\", }" https://hooks.slack.com/services/${SLACK_AUTH}'
+  environment:
+    name: wpdesk demo
+    url: https://demo.wpdesk.org
+
+deploy to repository:
+  <<: *job-deploy-template
+  script:
+    - echo ${WPDESK_CI_VERSION}
+    - rm -rf /tmp/svn-repository
+    - mkdir /tmp/svn-repository
+    - /tmp/deploy_repository.sh ${CI_PROJECT_NAME} ${CI_PROJECT_DIR}/release/${CI_PROJECT_NAME} /tmp/svn-repository
+    - 'curl -X POST --data-urlencode "payload={\"text\": \"Projekt <https://gitlab.com/wpdesk/${CI_PROJECT_NAME}|${CI_PROJECT_NAME}> zdeployowany do repozytorium WP w wersji ${CI_COMMIT_REF_NAME}\", }" https://hooks.slack.com/services/${SLACK_AUTH}'
+  environment:
+    name: wordpress repository
+    url: https://downloads.wordpress.org/plugin/${CI_PROJECT_NAME}.${CI_COMMIT_REF_NAME}.zip
+

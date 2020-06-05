@@ -1,0 +1,17 @@
+# This file is a template, and might need editing before it works on your project.
+image: python:latest
+
+variables:
+  LC_ALL: "C.UTF-8"
+  LANG: "C.UTF-8"
+
+before_script:
+  - python -V                                   # Print out python version for debugging
+  - apt update && apt install -y python3-dev
+  - python setup.py build
+
+test:
+  script:
+  - pip install tox
+  - tox -e py37,py38,flake8
+

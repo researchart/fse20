@@ -1,0 +1,20 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+- build
+
+variables:
+  CONTAINER_IMAGE: $DOCKER_HUB_USERNAME/$CI_PROJECT_NAME
+
+before_script: 
+  - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t $CONTAINER_IMAGE:$CI_JOB_ID -t $CONTAINER_IMAGE:latest .
+    - docker push $CONTAINER_IMAGE
+

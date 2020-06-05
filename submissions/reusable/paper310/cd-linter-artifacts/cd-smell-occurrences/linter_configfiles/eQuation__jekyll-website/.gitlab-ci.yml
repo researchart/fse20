@@ -1,0 +1,26 @@
+# .gitlab-ci.yml - Gitlab CI/CD configuration
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: ruby:2.3
+  script:
+  - gem install jekyll
+  - jekyll build -d public
+  artifacts:
+    paths:
+     - public/
+
+deploy:
+  stage: deploy
+  image: python:3.6.6-stretch
+  script:
+  - pip install --upgrade awscli
+  - aws s3 cp ./public s3://johnmollberg.com/public --recursive
+  - aws s3 cp ./support/index.html s3://johnmollberg.com/index.html
+  only:
+  - master
+

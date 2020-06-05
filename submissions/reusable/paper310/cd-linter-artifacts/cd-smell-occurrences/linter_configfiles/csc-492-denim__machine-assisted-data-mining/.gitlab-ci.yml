@@ -1,0 +1,58 @@
+stages:
+  - setup
+  - static
+  - build
+  - test
+  - deploy
+
+variables:
+  GO_VERSION: "1.10.1"
+
+setup_script:
+  stage: setup
+  image: atlassian/default-image:latest
+  script:
+    - ./setup.sh
+    - source /etc/profile.d/go.sh
+    - go test ./src/sanity/
+  tags:
+    - gitlab-org
+
+static_analysis:
+  stage: static
+  image: golang:${GO_VERSION}-stretch
+  script:
+    - ./setup.sh
+    - ./test/scripts/static_analysis.sh
+
+white_box_test:
+  stage: test
+  image: golang:${GO_VERSION}-stretch
+  script:
+    - ./setup.sh
+    - ./test/scripts/white_box.sh
+  artifacts:
+    paths:
+      - coverage/
+
+black_box_test:
+  stage: test
+  image: golang:${GO_VERSION}-stretch
+  script:
+    - ./setup.sh
+    - ./test/scripts/black_box.sh
+
+pages:
+  stage: deploy
+  dependencies:
+    - white_box_test
+  script:
+    - mv coverage/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - development
+    - master
+

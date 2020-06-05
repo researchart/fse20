@@ -1,0 +1,38 @@
+---
+# GitLab Continuous Integration (CI) configuration
+
+# Full list of language images at https://hub.docker.com/r/library/ruby/tags/.
+
+before_script:
+  - which ruby
+  - ruby --version
+  - bin/install-dependencies
+
+.test-scripts: &test-scripts
+  script:
+    # Test all dependencies are in fact installed.
+    - bin/run bundle:check
+    # Check source code style.
+    - bin/run lint:style
+    # Check for code smells.
+    - bin/run lint:maintainability
+    # Run test suite.
+    - bin/run spec
+
+test-2.6:
+  image: 'ruby:2.6'
+  <<: *test-scripts
+
+test-2.5:
+  image: 'ruby:2.5'
+  <<: *test-scripts
+
+test-2.4:
+  image: 'ruby:2.4'
+  <<: *test-scripts
+
+test-2.3:
+  image: 'ruby:2.3'
+  <<: *test-scripts
+...
+

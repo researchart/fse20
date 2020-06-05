@@ -1,0 +1,15 @@
+image: "rust:latest"
+
+test:cargo:
+  script:
+  - apt-get update
+  - apt-get -y install qemu-system
+  - rustup default nightly-2019-11-01
+  - rustup show
+  - rustc --version && cargo --version
+  - rustup component add rust-src
+  - rustup component add llvm-tools-preview
+  - cargo install cargo-xbuild
+  - cargo install bootimage --version "^0.7.3"
+  #- cargo xtest
+

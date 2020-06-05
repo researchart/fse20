@@ -1,0 +1,14 @@
+stages:
+  - build
+
+build:
+  stage: build
+  image: rust
+  script:
+    - rustup component add rustfmt
+    - cargo fmt --all -- --check
+    - cargo build --verbose
+    - cargo test --verbose
+    - rustup component add clippy-preview
+    - cargo clippy
+

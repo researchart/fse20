@@ -1,0 +1,370 @@
+# Based on GitLab's Auto DevOps Template
+
+image: alpine:latest
+
+variables:
+
+  TEST_DISABLED: "true"
+
+  POSTGRES_USER: user
+  POSTGRES_PASSWORD: testing-password
+  POSTGRES_ENABLED: "true"
+  POSTGRES_DB: $CI_ENVIRONMENT_SLUG
+
+  DOCKER_DRIVER: overlay2
+
+  # For pushing to Docker Hub (master branch only)
+  DOCKER_HUB: docker.io
+  DOCKER_HUB_REGISTRY: docker.io/jakesys/aws
+  DOCKER_HUB_USER: jakesys
+  # DOCKER_HUB_PASSWORD needs to be set as a protected variable via GitLab console
+
+stages:
+  - build
+  - test
+  - tag
+  - push
+
+build:
+  stage: build
+  image: docker:stable-git
+  services:
+  - docker:stable-dind
+  script:
+    - setup_docker
+    - build
+  only:
+    - branches
+
+test:
+  services:
+    - postgres:latest
+  variables:
+    POSTGRES_DB: test
+  stage: test
+  image: gliderlabs/herokuish:latest
+  script:
+    - setup_test_db
+    - cp -R . /tmp/app
+    - /bin/herokuish buildpack test
+  only:
+    - branches
+  except:
+    variables:
+      - $TEST_DISABLED
+
+code_quality:
+  stage: test
+  image: docker:stable
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - setup_docker
+    - code_quality
+  artifacts:
+    paths: [gl-code-quality-report.json]
+  only:
+    - branches
+  except:
+    variables:
+      - $CODE_QUALITY_DISABLED
+
+license_management:
+  stage: test
+  image: docker:stable
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - setup_docker
+    - license_management
+  artifacts:
+    paths: [gl-license-management-report.json]
+  only:
+    - branches
+  only:
+    variables:
+      - $GITLAB_FEATURES =~ /\blicense_management\b/
+  except:
+    variables:
+      - $LICENSE_MANAGEMENT_DISABLED
+
+sast:
+  stage: test
+  image: docker:stable
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - setup_docker
+    - sast
+  artifacts:
+    paths: [gl-sast-report.json]
+  only:
+    refs:
+      - branches
+    variables:
+      - $GITLAB_FEATURES =~ /\bsast\b/
+  except:
+    variables:
+      - $SAST_DISABLED
+
+dependency_scanning:
+  stage: test
+  image: docker:stable
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - setup_docker
+    - dependency_scanning
+  artifacts:
+    paths: [gl-dependency-scanning-report.json]
+  only:
+    refs:
+      - branches
+    variables:
+      - $GITLAB_FEATURES =~ /\bdependency_scanning\b/
+  except:
+    variables:
+      - $DEPENDENCY_SCANNING_DISABLED
+
+container_scanning:
+  stage: test
+  image: docker:stable
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - setup_docker
+    - container_scanning
+  artifacts:
+    paths: [gl-container-scanning-report.json]
+  only:
+    refs:
+      - branches
+    variables:
+      - $GITLAB_FEATURES =~ /\bsast_container\b/
+  except:
+    variables:
+      - $CONTAINER_SCANNING_DISABLED
+
+tag_with_version:
+  stage: tag
+  image: docker:stable
+  services:
+    - docker:stable-dind
+  script:
+    - setup_docker
+    - tag_version
+  only:
+    - branches
+
+push_to_docker_hub:
+  stage: push
+  image: docker:stable
+  services:
+    - docker:stable-dind
+  script:
+    - setup_docker
+    - push_to_docker_hub
+  only:
+    - master
+
+# ---------------------------------------------------------------------------
+
+.auto_devops: &auto_devops |
+  # Auto DevOps variables and functions
+  [[ "$TRACE" ]] && set -x
+  auto_database_url=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${CI_ENVIRONMENT_SLUG}-postgres:5432/${POSTGRES_DB}
+  export DATABASE_URL=${DATABASE_URL-$auto_database_url}
+  export CI_APPLICATION_REPOSITORY=$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG
+  export CI_APPLICATION_TAG=$CI_COMMIT_SHA
+  export CI_CONTAINER_NAME=ci_job_build_${CI_JOB_ID}
+  export TILLER_NAMESPACE=$KUBE_NAMESPACE
+  # Extract "MAJOR.MINOR" from CI_SERVER_VERSION and generate "MAJOR-MINOR-stable" for Security Products
+  export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+
+  function registry_login() {
+    if [[ -n "$CI_REGISTRY_USER" ]]; then
+      echo "Logging to GitLab Container Registry with CI credentials..."
+      docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+      echo ""
+    fi
+  }
+
+  function container_scanning() {
+    registry_login
+
+    docker run -d --name db arminc/clair-db:latest
+    docker run -p 6060:6060 --link db:postgres -d --name clair --restart on-failure arminc/clair-local-scan:v2.0.1
+    apk add -U wget ca-certificates
+    docker pull ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}
+    wget https://github.com/arminc/clair-scanner/releases/download/v8/clair-scanner_linux_amd64
+    mv clair-scanner_linux_amd64 clair-scanner
+    chmod +x clair-scanner
+    touch clair-whitelist.yml
+    retries=0
+    echo "Waiting for clair daemon to start"
+    while( ! wget -T 10 -q -O /dev/null http://docker:6060/v1/namespaces ) ; do sleep 1 ; echo -n "." ; if [ $retries -eq 10 ] ; then echo " Timeout, aborting." ; exit 1 ; fi ; retries=$(($retries+1)) ; done
+    ./clair-scanner -c http://docker:6060 --ip $(hostname -i) -r gl-container-scanning-report.json -l clair.log -w clair-whitelist.yml ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG} || true
+  }
+
+  function code_quality() {
+    docker run --env SOURCE_CODE="$PWD" \
+               --volume "$PWD":/code \
+               --volume /var/run/docker.sock:/var/run/docker.sock \
+               "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  }
+
+  function license_management() {
+    # Extract "MAJOR.MINOR" from CI_SERVER_VERSION and generate "MAJOR-MINOR-stable"
+    LICENSE_MANAGEMENT_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+
+    docker run --volume "$PWD:/code" \
+                                    "registry.gitlab.com/gitlab-org/security-products/license-management:$LICENSE_MANAGEMENT_VERSION" analyze /code
+  }
+
+  function sast() {
+    case "$CI_SERVER_VERSION" in
+      *-ee)
+
+        # Deprecation notice for CONFIDENCE_LEVEL variable
+        if [ -z "$SAST_CONFIDENCE_LEVEL" -a "$CONFIDENCE_LEVEL" ]; then
+          SAST_CONFIDENCE_LEVEL="$CONFIDENCE_LEVEL"
+          echo "WARNING: CONFIDENCE_LEVEL is deprecated and MUST be replaced with SAST_CONFIDENCE_LEVEL"
+        fi
+
+        docker run --env SAST_CONFIDENCE_LEVEL="${SAST_CONFIDENCE_LEVEL:-3}" \
+                   --volume "$PWD:/code" \
+                   --volume /var/run/docker.sock:/var/run/docker.sock \
+                   "registry.gitlab.com/gitlab-org/security-products/sast:$SP_VERSION" /app/bin/run /code
+        ;;
+      *)
+        echo "GitLab EE is required"
+        ;;
+    esac
+  }
+
+  function dependency_scanning() {
+    case "$CI_SERVER_VERSION" in
+      *-ee)
+        docker run --env DEP_SCAN_DISABLE_REMOTE_CHECKS="${DEP_SCAN_DISABLE_REMOTE_CHECKS:-false}" \
+                   --volume "$PWD:/code" \
+                   --volume /var/run/docker.sock:/var/run/docker.sock \
+                   "registry.gitlab.com/gitlab-org/security-products/dependency-scanning:$SP_VERSION" /code
+        ;;
+      *)
+        echo "GitLab EE is required"
+        ;;
+    esac
+  }
+
+  function setup_docker() {
+    if ! docker info &>/dev/null; then
+      if [ -z "$DOCKER_HOST" -a "$KUBERNETES_PORT" ]; then
+        export DOCKER_HOST='tcp://localhost:2375'
+      fi
+    fi
+  }
+
+  function setup_test_db() {
+    if [ -z ${KUBERNETES_PORT+x} ]; then
+      DB_HOST=postgres
+    else
+      DB_HOST=localhost
+    fi
+    export DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DB_HOST}:5432/${POSTGRES_DB}"
+  }
+
+  function build() {
+    registry_login
+
+    if [[ -f Dockerfile ]]; then
+      echo "Building Dockerfile-based application..."
+      docker build \
+        --build-arg HTTP_PROXY="$HTTP_PROXY" \
+        --build-arg http_proxy="$http_proxy" \
+        --build-arg HTTPS_PROXY="$HTTPS_PROXY" \
+        --build-arg https_proxy="$https_proxy" \
+        --build-arg FTP_PROXY="$FTP_PROXY" \
+        --build-arg ftp_proxy="$ftp_proxy" \
+        --build-arg NO_PROXY="$NO_PROXY" \
+        --build-arg no_proxy="$no_proxy" \
+        -t "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG" .
+    else
+      echo "Building Heroku-based application using gliderlabs/herokuish docker image..."
+      docker run -i \
+        -e BUILDPACK_URL \
+        -e HTTP_PROXY \
+        -e http_proxy \
+        -e HTTPS_PROXY \
+        -e https_proxy \
+        -e FTP_PROXY \
+        -e ftp_proxy \
+        -e NO_PROXY \
+        -e no_proxy \
+        --name="$CI_CONTAINER_NAME" -v "$(pwd):/tmp/app:ro" gliderlabs/herokuish /bin/herokuish buildpack build
+      docker commit "$CI_CONTAINER_NAME" "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG"
+      docker rm "$CI_CONTAINER_NAME" >/dev/null
+      echo ""
+
+      echo "Configuring $CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG docker image..."
+      docker create --expose 5000 --env PORT=5000 --name="$CI_CONTAINER_NAME" "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG" /bin/herokuish procfile start web
+      docker commit "$CI_CONTAINER_NAME" "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG"
+      docker rm "$CI_CONTAINER_NAME" >/dev/null
+      echo ""
+    fi
+
+    echo "Pushing to GitLab Container Registry..."
+    docker push "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG"
+    echo ""
+  }
+
+  function get_image_version() {
+    registry_login
+
+    echo "Retrieving Version Information from Image..."
+    docker create --name version "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG"
+    docker cp version:/.version .
+    echo ""
+  }
+
+  function tag_version() {
+    get_image_version
+    local IMAGE_VERSION="$(cat .version)"
+
+    echo "Tagging Image with Version and 'latest'..."
+    docker tag "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG" "$CI_APPLICATION_REPOSITORY:$IMAGE_VERSION"
+    docker tag "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG" "$CI_APPLICATION_REPOSITORY:latest"
+    echo ""
+
+    echo "Pushing to GitLab Container Registry..."
+    docker push "$CI_APPLICATION_REPOSITORY:$IMAGE_VERSION"
+    docker push "$CI_APPLICATION_REPOSITORY:latest"
+    echo ""
+  }
+
+  function push_to_docker_hub() {
+    get_image_version
+    local IMAGE_VERSION="$(cat .version)"
+
+    echo "Tagging Image for Docker Hub..."
+    docker tag "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG" "$DOCKER_HUB_REGISTRY:$IMAGE_VERSION"
+    docker tag "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG" "$DOCKER_HUB_REGISTRY:latest"
+    echo ""
+
+    echo "Logging into Docker Hub..."
+    docker login -u "$DOCKER_HUB_USER" -p "$DOCKER_HUB_PASSWORD" "$DOCKER_HUB"
+    echo ""
+
+    echo "Pushing to GitLab Container Registry..."
+    docker push "$DOCKER_HUB_REGISTRY:$IMAGE_VERSION"
+    docker push "$DOCKER_HUB_REGISTRY:latest"
+    echo ""
+  }
+
+before_script:
+  - *auto_devops
+

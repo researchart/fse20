@@ -1,0 +1,10 @@
+image: pank/docker-ox
+
+pages:
+  script:
+  - emacs --batch --no-init-file --load publish.el --funcall org-publish-all
+  artifacts:
+    paths:
+    - public
+
+

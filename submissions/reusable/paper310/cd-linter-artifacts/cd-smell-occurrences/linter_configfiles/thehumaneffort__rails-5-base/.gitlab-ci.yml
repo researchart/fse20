@@ -1,0 +1,110 @@
+image: docker:latest
+variables:
+  DOCKER_DRIVER: overlay
+services:
+  - docker:dind
+
+# And now, the rest of the GitLab CI file:
+
+variables:
+  ENV: staging
+  REPLICAS: "1"
+  WORKERS: "1"
+  ENV_SLUG: staging
+
+
+stages:
+  - build
+  - deploy
+  - stop_review
+
+build:
+  stage: build
+  script:
+    - export IMAGE=$CI_REGISTRY_IMAGE:${CI_BUILD_TAG:="v"$CI_BUILD_REF}
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build -t builder -f Dockerfile-dev .
+    - docker run --rm -v $PWD:/application builder bash -c 'SECRET_KEY_BASE=onetwo RAILS_ENV=production bundle exec rake assets:precompile'
+    - docker build -t $CI_REGISTRY_IMAGE:v$CI_BUILD_REF -f Dockerfile .
+    - docker push $CI_REGISTRY_IMAGE:v$CI_BUILD_REF
+    - docker rmi -f $CI_REGISTRY_IMAGE:v$CI_BUILD_REF
+
+deploy_review:
+  image: thehumaneffort/kubectl-and-envsubst:v1.0.1
+  stage: deploy
+  variables:
+    ENV: staging
+    ENV_SLUG: '$CI_ENVIRONMENT_SLUG'
+    APP_HOST: 'http://$CI_BUILD_REF_NAME.b.$DOMAIN'
+    ASSET_HOST: 'http://$CI_BUILD_REF_NAME.b.$DOMAIN'
+  script:
+    - export NAME="review"-"$CI_ENVIRONMENT_SLUG"
+    - export IMAGE=$CI_REGISTRY_IMAGE:${CI_BUILD_TAG:="v"$CI_BUILD_REF}
+    - export VIRTUAL_HOST="http://$CI_BUILD_REF_NAME.b.$DOMAIN/*"
+    - export BRANCH_DB=wl-radio-"$CI_ENVIRONMENT_SLUG"
+    - bin/kubectl patch deployment $NAME -p '{"spec":{"replicas":0}}' || echo "No deployment to shut down."
+    - bin/kubectl exec $(bin/kubectl get pod | grep postgres | awk '{print $1}') -- bash -c 'export PGHOST=postgres PGUSER=$POSTGRES_USER PGPASSWORD=$POSTGRES_PASSWORD; pg_dump -Fc --no-acl --no-owner -d wl-radio-staging > /tmp/dbdump.pgd; dropdb '"$BRANCH_DB"'; createdb '"$BRANCH_DB"'; pg_restore -Fc --no-acl --no-owner -d '"$BRANCH_DB"' < /tmp/dbdump.pgd ; rm /tmp/dbdump.pgd'
+    - DOLLAR='$' envsubst < deploy/kube.tmpl.yaml | bin/kubectl apply -f -
+  environment:
+    name: $CI_BUILD_REF_NAME
+    url: http://$CI_BUILD_REF_NAME.b.$DOMAIN
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+    - develop
+
+stop_review:
+  image: thehumaneffort/kubectl-and-envsubst:v1.0.1
+  stage: stop_review
+  environment:
+    name: $CI_BUILD_REF_NAME
+    action: stop
+  script:
+    - export NAME="review"-"$CI_ENVIRONMENT_SLUG"
+    - bin/kubectl delete deployment $NAME
+    - bin/kubectl delete service $NAME
+  when: manual
+
+deploy_staging:
+  image: thehumaneffort/kubectl-and-envsubst:v1.0.1
+  stage: deploy
+  variables:
+    RAILS_ENV: staging
+    RACK_ENV: staging
+    ENV_SLUG: staging
+    APP_HOST: 'https://$STAGING_DOMAIN'
+    ASSET_HOST: 'https://$STAGING_DOMAIN'
+  script:
+    - export NAME="$CI_PROJECT_NAME""-staging"
+    - export IMAGE=$CI_REGISTRY_IMAGE:${CI_BUILD_TAG:="v"$CI_BUILD_REF}
+    - export VIRTUAL_HOST="http://$STAGING_DOMAIN/"'*'",https://$STAGING_DOMAIN/"'*'
+    - DOLLAR='$' envsubst < deploy/kube.tmpl.yaml | bin/kubectl apply -f -
+  environment:
+    name: staging
+    url: https://$STAGING_DOMAIN
+  only:
+    - develop
+
+deploy_production:
+  image: thehumaneffort/kubectl-and-envsubst:v1.0.1
+  stage: deploy
+  variables:
+    ENV: production
+    ENV_SLUG: production
+    APP_HOST: 'https://$PRODUCTION_DOMAIN'
+    ASSET_HOST: 'https://$PRODUCTION_DOMAIN'
+    REPLICAS: "2"
+    WORKERS: "2"
+  script:
+    - export NAME="$CI_PROJECT_NAME""-production"
+    - export IMAGE=$CI_REGISTRY_IMAGE:${CI_BUILD_TAG:="v"$CI_BUILD_REF}
+    - export VIRTUAL_HOST="http://$PRODUCTION_DOMAIN/"'*'",https://$PRODUCTION_DOMAIN/"'*'
+    - DOLLAR='$' envsubst < deploy/kube.tmpl.yaml | bin/kubectl apply -f -
+  environment:
+    name: production
+    url: https://$PRODUCTION_DOMAIN/
+  only:
+    - master
+

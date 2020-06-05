@@ -1,0 +1,62 @@
+image: openjdk:10
+
+before_script:
+- export PATH=$JAVA_HOME/bin:$PATH
+
+build:
+  stage: build
+  script:
+  - ./gradlew jar
+
+javadoc:
+  stage: build
+  script:
+  - ./gradlew javadoc
+  artifacts:
+    expire_in: 1d
+    paths:
+    - build/docs
+
+check:
+  stage: test
+  script:
+  - ./gradlew check
+  artifacts:
+    expire_in: 1d
+    paths:
+    - build/reports
+    reports:
+      junit: build/test-results/test/TEST-*.xml
+
+integration-test:
+  stage: test
+  services:
+  - winsent/geoserver
+  script:
+  - ./gradlew integrationTest
+  artifacts:
+    expire_in: 1d
+    paths:
+    - build/reports
+    reports:
+      junit: build/test-results/integrationTest/TEST-*.xml
+ 
+coverage-report:
+  stage: deploy
+  image: yongjhih/codacy-coverage-reporter
+  script:
+  - codacy-coverage-reporter -l Java -r build/reports/jacoco/test/jacocoTestReport.xml
+  only:
+  - master
+
+pages:
+  stage: deploy
+  script:
+  - mv build public
+  artifacts:
+    paths:
+    - public
+  when: always
+  only:
+  - master
+

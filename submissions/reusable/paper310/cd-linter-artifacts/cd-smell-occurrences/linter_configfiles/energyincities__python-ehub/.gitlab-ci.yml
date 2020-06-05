@@ -1,0 +1,26 @@
+image: continuumio/miniconda3:latest
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  GLPK_CACHE_DIR: "$CI_PROJECT_DIR/.chache/glpk"
+
+  LD_LIBRARY_PATH: "/lib:/usr/lib:/usr/local/lib"
+
+cache:
+  paths:
+    - .cache/glpk
+    - .cache/pip
+
+before_script:
+  - apt update
+  - echo 'y\r' | apt-get install build-essential
+  - pip install -r requirements.txt
+  - pip install pytest
+  - apt install unzip
+  - mkdir -p $GLPK_CACHE_DIR
+  - "[ -e $GLPK_CACHE_DIR/glpk] || (curl -SLO http://ftp.gnu.org/gnu/glpk/glpk-4.65.tar.gz -o $GLPK_CACHE_DIR/glpk && tar -xzf glpk-4.65.tar.gz && cd glpk-4.65 && ./configure && make && make check && make install && cd ..)"
+
+test:
+  script:
+    - pytest
+

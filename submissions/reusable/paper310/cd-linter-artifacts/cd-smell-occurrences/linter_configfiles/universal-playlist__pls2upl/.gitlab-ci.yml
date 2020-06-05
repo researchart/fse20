@@ -1,0 +1,13 @@
+image: python:3
+
+stages:
+  - static_check
+
+before_script:
+  - pip install -r requirements_dev.txt
+
+static_check:
+  stage: static_check
+  script:
+    - flake8 .
+

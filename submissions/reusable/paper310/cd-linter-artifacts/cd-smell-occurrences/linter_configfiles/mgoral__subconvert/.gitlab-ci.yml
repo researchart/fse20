@@ -1,0 +1,86 @@
+image: python:3.5
+
+stages:
+    - test
+    - deploy
+
+variables:
+    XDG_CACHE_HOME: "$CI_PROJECT_DIR/.cache"
+
+cache:
+    paths:
+        - $XDG_CACHE_HOME/pip/
+        - $XDG_CACHE_HOME/apt/
+    key: "$CI_JOB_NAME"
+
+before_script:
+    - ci/apt install -y -qqq --no-install-recommends xvfb ffmpeg libmpv1 libmediainfo0v5 x11-utils
+    - pip3 install tox
+
+.test: &test
+    stage: test
+    script:
+        - tox -e $CI_JOB_NAME -- -n `nproc`
+
+py35:
+    <<: *test
+    image: python:3.5
+
+py36:
+    <<: *test
+    image: python:3.6
+
+py37:
+    <<: *test
+    image: python:3.7
+
+test-dist:
+    stage: test
+    before_script:
+        - ci/apt install -y -qqq --no-install-recommends pyqt5-dev-tools virtualenv
+    script:
+        - ci/dist_test sdist
+        - ci/dist_test bdist
+        - ci/dist_test bdist_wheel
+
+coverage:
+    <<: *test
+    artifacts:
+        name: coverage
+        expire_in: 14 days
+        paths:
+            - coverage.xml
+            - htmlcov/
+
+dist:
+    stage: deploy
+    before_script:
+        - ci/apt install -y -qqq --no-install-recommends pyqt5-dev-tools asciidoctor make
+        - pip3 install -rreqs/requirements-deploy.txt
+    only:
+        - tags
+        - triggers
+    script:
+        # https://github.com/pypa/setuptools/issues/1064
+        - python3 setup.py sdist
+        - python3 setup.py bdist_wheel
+        - twine upload dist/* -u "$PYPI_USER" -p "$PYPI_PASS"
+    artifacts:
+        name: "${CI_PROJECT_NAME}-{$CI_BUILD_REF_NAME}"
+        paths:
+            - dist/
+
+pages:
+    stage: deploy
+    before_script:
+        - ci/apt install -y -qq --no-install-recommends asciidoctor
+    script:
+        - ci/gen-pages
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+        - tags
+        - triggers
+

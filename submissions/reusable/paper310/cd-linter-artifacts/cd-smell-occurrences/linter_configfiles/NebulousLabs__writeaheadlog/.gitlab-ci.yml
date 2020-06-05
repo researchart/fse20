@@ -1,0 +1,20 @@
+image: golang:1.10
+
+stages:
+  - lint
+  - test
+ 
+before_script:
+  - make deps
+
+lint:
+  stage: lint
+  script: make test-lint
+
+test:
+  stage: test
+  script: make cover
+  artifacts:
+    paths:
+      - coverage.out
+

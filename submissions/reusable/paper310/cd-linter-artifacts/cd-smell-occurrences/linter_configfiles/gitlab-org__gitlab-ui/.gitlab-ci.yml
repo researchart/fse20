@@ -1,0 +1,246 @@
+variables:
+  PUPPETEER_VERSION: '1.18.0'
+  PUPPETEER_IMAGE: $CI_REGISTRY_IMAGE/puppeteer:$PUPPETEER_VERSION
+  DANGER_GITLAB_API_TOKEN: $GITLAB_TOKEN
+
+include:
+  - template: Code-Quality.gitlab-ci.yml
+  - template: License-Management.gitlab-ci.yml
+  - template: Dependency-Scanning.gitlab-ci.yml
+  - template: SAST.gitlab-ci.yml
+
+stages:
+  - pre-build
+  - test
+  - build
+  - deploy
+  - publish
+  - manual
+
+.puppeteer:
+  image: $PUPPETEER_IMAGE
+  needs: ['build_docker_image']
+
+.node:
+  image: node:12
+  variables:
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
+
+.yarn_install:
+  before_script:
+    - yarn install
+
+build_docker_image:
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+  services:
+    - docker:19.03.0-dind
+  image: docker:stable
+  stage: pre-build
+  script:
+    - 'mkdir -p ~/.docker'
+    - >
+      echo '{"experimental": "enabled"}' > ~/.docker/config.json
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - ./bin/build-docker.sh
+
+danger-review:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:danger
+  stage: test
+  needs: []
+  only:
+    variables:
+      - $DANGER_GITLAB_API_TOKEN
+  except:
+    refs:
+      - master
+  script:
+    - danger --fail-on-errors=true
+
+build_package:
+  extends: [.node, .yarn_install]
+  variables:
+    TAR_ARCHIVE_NAME: gitlab-ui.$CI_COMMIT_REF_SLUG.tgz
+  needs: []
+  tags:
+    - gitlab-org # This allows us to use higher performance runners
+  stage: build
+  script:
+    - yarn build
+    - yarn pack --filename $TAR_ARCHIVE_NAME
+    - DEPENDENCY_URL="$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/raw/$TAR_ARCHIVE_NAME"
+    - echo "The package.json dependency URL is $DEPENDENCY_URL"
+    - echo $DEPENDENCY_URL > .dependency_url
+  artifacts:
+    when: always
+    paths:
+      - dist
+      - src/scss/utilities.scss
+      - scss_to_js/scss_variables.*
+      - $TAR_ARCHIVE_NAME
+      - .dependency_url
+
+build_storybook:
+  extends: [.node, .yarn_install]
+  needs: []
+  tags:
+    - gitlab-org # This allows us to use higher performance runners
+  stage: build
+  script:
+    - yarn storybook-static
+    - mkdir public
+    - mv storybook/* public
+  artifacts:
+    paths:
+      - public
+
+lint:
+  extends: [.node, .yarn_install]
+  needs: []
+  stage: test
+  script:
+    - yarn build-scss-variables
+    - yarn eslint
+    - yarn prettier
+    - yarn stylelint
+    - >
+      grep -r -i '<style' --include \*.vue components
+      && echo "Vue components should not contain <style tags"
+      && exit 1
+      || echo "No Vue component contains <style tags"
+
+generate_utility_classes:
+  extends: [.node]
+  needs: []
+  stage: test
+  script:
+    - yarn generate-utilities
+
+visual:
+  extends: [.puppeteer, .yarn_install]
+  tags:
+    - gitlab-org # This allows us to use higher performance runners
+  needs:
+    - build_docker_image
+  stage: test
+  script:
+    - yarn test:visual
+  artifacts:
+    when: always
+    paths:
+      - tests/__image_snapshots__/
+
+visual_gitlab_integration:
+  extends: visual
+  script:
+    - yarn test:visual:gitlab
+
+unit_tests:
+  extends: [.node, .yarn_install]
+  needs: []
+  stage: test
+  script:
+    - yarn test:unit
+
+update_screenshots:
+  extends: [.puppeteer, .yarn_install]
+  tags:
+    - gitlab-org # This allows us to use higher performance runners
+  stage: manual
+  when: manual
+  script:
+    - yarn test:visual:update
+    - git config --global user.email "gitlab-bot@gitlab.com"
+    - git config --global user.name "GitLab Bot"
+    - git add .
+    - "git commit -m 'chore: update snapshots'"
+    - git push https://gitlab-bot:$GITLAB_TOKEN@gitlab.com/gitlab-org/gitlab-ui.git HEAD:$CI_COMMIT_REF_NAME &>/dev/null
+
+review:
+  stage: deploy
+  needs:
+    - build_storybook
+  script:
+    - rsync -av --delete public /srv/nginx/pages/$CI_COMMIT_REF_SLUG
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: http://$CI_COMMIT_REF_SLUG.$APPS_DOMAIN
+    on_stop: review_stop
+  only:
+    - branches@gitlab-org/gitlab-ui
+  except:
+    - master
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+review_stop:
+  stage: manual
+  needs: 
+    - review
+  script:
+    - rm -rf public /srv/nginx/pages/$CI_COMMIT_REF_SLUG
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+  only:
+    - branches@gitlab-org/gitlab-ui
+  except:
+    - master
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+pages:
+  stage: deploy
+  needs:
+    - build_storybook
+  script:
+    - echo "Deploying to Pages"
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+create_integration_branch:
+  when: manual
+  extends: .node
+  stage: manual
+  needs:
+    - build_package
+  script:
+    - INTEGRATION_BRANCH="$CI_COMMIT_REF_NAME-gitlab-ui-integration-test"
+    - git config --global user.email "gitlab-bot@gitlab.com"
+    - git config --global user.name "GitLab Bot"
+    - git clone https://gitlab.com/gitlab-org/gitlab.git gitlab --depth=1
+    - cd gitlab
+    - (git remote set-branches origin '*' && git fetch origin $INTEGRATION_BRANCH && git checkout $INTEGRATION_BRANCH) || git checkout -b $INTEGRATION_BRANCH
+    - yarn add @gitlab/ui@`cat ../.dependency_url`
+    - git add package.json yarn.lock
+    - 'git commit -m "GitLab UI: $CI_COMMIT_REF_NAME integration test"'
+    - git push -u https://gitlab-bot:$GITLAB_TOKEN@gitlab.com/gitlab-org/gitlab.git HEAD
+  only:
+    - /.+/@gitlab-org/gitlab-ui
+
+publish_to_npm:
+  extends: [.node, .yarn_install]
+  # We need to run `publish` after pages, so that pages will get deployed
+  # properly, as the publish-to-npm step will create a new commit and this
+  # could lead to a side-effect where pages don't get published because of
+  # the commit being made before `pages` had a chance to run
+  stage: publish
+  # This job doesn't use the DAG feature, because we don't want it to
+  # run in case another job in the previous stages fails
+  dependencies:
+    - build_package
+  script:
+    - $(yarn bin)/semantic-release
+  only:
+    - master@gitlab-org/gitlab-ui
+

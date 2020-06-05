@@ -1,0 +1,10 @@
+build:
+  script:
+   - "set NETFramework=\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\BuildTools\\MSBuild\\15.0\\Bin\""
+   - "%NETFramework%\\nuget.exe restore %CI_PROJECT_NAME%.sln"
+   - "%NETFramework%\\msbuild.exe %CI_PROJECT_NAME%.sln /p:Configuration=Release"
+   - "del /F /S /Q ZFH\\bin\\Release\\*.exe.config"
+  artifacts:
+   paths:
+    - "ZFH\\bin\\Release"
+

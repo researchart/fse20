@@ -1,0 +1,23 @@
+before_script:
+  # setup texmf
+  - TEXMFHOME=`kpsewhich -var-value TEXMFHOME`
+  - LOCALTEX=$TEXMFHOME/tex/latex
+
+  - mkdir -p $LOCALTEX  
+
+build:
+  image: adnrv/texlive:tools
+  script:
+    # link these files in the local texmf
+    - ln -s `pwd` $LOCALTEX/mcv-academic
+    # process and build our example
+    - cd example
+    - make all
+  artifacts:
+    paths:
+      - ./example/example-*.pdf
+  tags:
+    - docker
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+

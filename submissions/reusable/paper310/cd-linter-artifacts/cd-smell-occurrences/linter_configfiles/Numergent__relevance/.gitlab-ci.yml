@@ -1,0 +1,12 @@
+image: clojure:lein-2.7.0
+
+before_script:
+  - wget -q https://numergent.com/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2
+  - tar -xvf phantomjs-2.1.1-linux-x86_64.tar.bz2
+  - PATH=$PATH:.:./phantomjs-2.1.1-linux-x86_64/bin/
+  - lein deps
+
+test: 
+  script: 
+    - lein with-profile test doo once
+

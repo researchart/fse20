@@ -1,0 +1,331 @@
+# Exemple de configuration
+#
+# foo:
+#   dependencies:
+#   stage:
+#   image:
+#   allow_failure:
+#   when:
+#   only:
+#   except:
+#   environment:
+#   variables:
+#   before_script:
+#   script:
+#   after_script:
+#   artifacts:
+
+stages:
+    - test
+    - build
+    - deploy
+    - production
+
+cache:
+    untracked: true
+    key: "$CI_PROJECT_ID-$CI_JOB_STAGE"
+    paths:
+        - composer-cache/
+        - .yarn
+
+test:unit:
+    stage: test
+    image: edbizarro/gitlab-ci-pipeline-php:7.2
+    except:
+        - schedules
+    script:
+        - cp .env.testing .env
+        - COMPOSER_CACHE_DIR=composer-cache composer install --prefer-dist --no-interaction --no-suggest
+        - touch storage/database.sqlite
+        - php artisan key:generate
+        - php artisan jwt:secret --force
+        - vendor/bin/phpunit
+
+test:phpstan:
+    stage: test
+    image: edbizarro/gitlab-ci-pipeline-php:7.2
+    except:
+        - schedules
+    script:
+        - cp .env.testing .env
+        - COMPOSER_CACHE_DIR=composer-cache composer install --prefer-dist --no-interaction --no-suggest
+        - touch storage/database.sqlite
+        - php artisan key:generate
+        - php artisan jwt:secret --force
+        - php artisan code:analyse --no-progress --level=5
+
+test:composer-outdated:
+    stage: test
+    image: edbizarro/gitlab-ci-pipeline-php:7.2
+    allow_failure: true
+    only:
+        - schedules
+    script:
+        - COMPOSER_CACHE_DIR=composer-cache composer install --prefer-dist --no-interaction --no-suggest
+        - composer show -mlDo --strict
+
+pages:
+    stage: deploy
+    image: cfinfrastructure/mkdocs
+    allow_failure: true
+    only:
+        #        changes:
+        #            - mkdocs.yml
+        #            - docs/**/*
+        refs:
+            - dev
+    except:
+        - schedules
+    script:
+        - mkdocs build --site-dir ./public
+    artifacts:
+        paths:
+            - public
+        expire_in: 1 hour
+
+build:review:
+    dependencies: []
+    stage: build
+    image: edbizarro/gitlab-ci-pipeline-php:7.2-alpine-lts
+    only:
+        refs:
+            - merge_requests
+        variables:
+            - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev"
+    environment:
+        name: review/$CI_COMMIT_REF_NAME
+        url: http://$CI_ENVIRONMENT_SLUG.radiophonix.org
+    script:
+        - node --version
+        - yarn --pure-lockfile --cache-folder .yarn
+        - echo 'RADIOPHONIX_FEATURES_CONFIG=development' > .env
+        - echo 'RADIOPHONIX_ENV=review' >> .env
+        - echo -n 'RADIOPHONIX_API_URL=http://' >> .env
+        - echo -n $CI_ENVIRONMENT_SLUG >> .env
+        - echo -n '.radiophonix.org/api/v1/' >> .env
+        - yarn run build-dev
+        - COMPOSER_CACHE_DIR=composer-cache composer install --prefer-dist --no-interaction --no-dev
+        - mkdir -p artefacts
+        - cp deploy/Envoy.review.blade.php artefacts/Envoy.blade.php
+        - tar -jcf artefacts/radiophonix.tar.bz2 --exclude=./artefacts --exclude=./node_modules --exclude=./.yarn --exclude=./tests --exclude=./.git --exclude=./server.php .
+    artifacts:
+        paths:
+            - ./artefacts/radiophonix.tar.bz2
+            - ./artefacts/Envoy.blade.php
+        expire_in: 1 week
+
+deploy:review:
+    dependencies:
+        - build:review
+    stage: deploy
+    image: edbizarro/gitlab-ci-pipeline-php:7.2
+    allow_failure: true
+    only:
+        refs:
+            - merge_requests
+        variables:
+            - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev"
+    environment:
+        name: review/$CI_COMMIT_REF_NAME
+        url: http://$CI_ENVIRONMENT_SLUG.radiophonix.org
+        on_stop: stop:review
+    variables:
+        GIT_STRATEGY: none
+    before_script:
+        # Ajout de la clef ssh de déploiement
+        - 'which ssh-agent || ( sudo apt-get update -y && sudo apt-get install openssh-client -y )'
+        - eval $(ssh-agent -s)
+        - ssh-add <(echo "$DEV_PRIVATE_KEY")
+        - mkdir -p ~/.ssh
+        - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+        # Installation de Envoy
+        - COMPOSER_CACHE_DIR=composer-cache composer global require laravel/envoy:^1.4 --prefer-source
+    script:
+        # Chaque release est dans un dossier nommé selon le slug de la review
+        - echo $CI_ENVIRONMENT_SLUG
+        - cp ./artefacts/Envoy.blade.php Envoy.blade.php
+        - ~/.composer/vendor/bin/envoy run deploy --slug=$CI_ENVIRONMENT_SLUG
+
+stop:review:
+    dependencies: []
+    stage: deploy
+    when: manual
+    only:
+        refs:
+            - merge_requests
+        variables:
+            - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev"
+    environment:
+        name: review/$CI_COMMIT_REF_NAME
+        action: stop
+    variables:
+        GIT_STRATEGY: none
+    before_script:
+        # Ajout de la clef ssh de déploiement
+        - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+        - eval $(ssh-agent -s)
+        - ssh-add <(echo "$DEV_PRIVATE_KEY")
+        - mkdir -p ~/.ssh
+        - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    script:
+        # Chaque release est dans un dossier nommé selon le slug de la review
+        - foldername=$CI_ENVIRONMENT_SLUG
+
+        # On supprime le dossier de la release
+        - ssh -p22 runcloud@5.39.88.195 'rm -rf webapps/reviews/"'$foldername'"'
+
+build:dev:
+    dependencies: []
+    stage: build
+    image: edbizarro/gitlab-ci-pipeline-php:7.2-alpine-lts
+    only:
+        - dev
+    except:
+        - schedules
+    script:
+        - node --version
+        - yarn --pure-lockfile --cache-folder .yarn
+        - echo 'RADIOPHONIX_FEATURES_CONFIG=development' > .env
+        - echo 'RADIOPHONIX_ENV=dev' >> .env
+        - echo "RADIOPHONIX_API_URL=https://dev.radiophonix.org/api/v1/" >> .env
+        - yarn run build-dev
+        - COMPOSER_CACHE_DIR=composer-cache composer install --prefer-dist --no-interaction --no-dev
+        - mkdir -p artefacts
+        - cp deploy/Envoy.dev.blade.php artefacts/Envoy.blade.php
+        - tar -jcf artefacts/radiophonix.tar.bz2 --exclude=./artefacts --exclude=./node_modules --exclude=./.yarn --exclude=./tests --exclude=./.git --exclude=./server.php .
+    artifacts:
+        paths:
+            - ./artefacts/radiophonix.tar.bz2
+            - ./artefacts/Envoy.blade.php
+        expire_in: 1 week
+
+deploy:dev:
+    dependencies:
+        - build:dev
+    stage: deploy
+    image: edbizarro/gitlab-ci-pipeline-php:7.2
+    only:
+        - dev
+    except:
+        - schedules
+    environment:
+        name: dev
+        url: https://dev.radiophonix.org
+    variables:
+        GIT_STRATEGY: none
+    before_script:
+        # Ajout de la clef ssh de déploiement
+        - 'which ssh-agent || ( sudo apt-get update -y && sudo apt-get install openssh-client -y )'
+        - eval $(ssh-agent -s)
+        - ssh-add <(echo "$DEV_PRIVATE_KEY")
+        - mkdir -p ~/.ssh
+        - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+        # Installation de Envoy
+        - COMPOSER_CACHE_DIR=composer-cache composer global require laravel/envoy:^1.4 --prefer-source
+    script:
+        - ls -al
+        - cp ./artefacts/Envoy.blade.php Envoy.blade.php
+        - ~/.composer/vendor/bin/envoy run deploy
+
+build:staging:
+    dependencies: []
+    stage: build
+    image: edbizarro/gitlab-ci-pipeline-php:7.2-alpine-lts
+    only:
+        - master
+    script:
+        - node --version
+        - yarn --pure-lockfile --cache-folder .yarn
+        - echo 'RADIOPHONIX_FEATURES_CONFIG=production' > .env
+        - echo 'RADIOPHONIX_ENV=staging' >> .env
+        - echo "RADIOPHONIX_API_URL=https://staging.radiophonix.org/api/v1/" >> .env
+        - yarn run build
+        - COMPOSER_CACHE_DIR=composer-cache composer install --prefer-dist --no-interaction --no-dev
+        - mkdir -p artefacts
+        - cp deploy/Envoy.staging.blade.php artefacts/Envoy.blade.php
+        - tar -jcf artefacts/radiophonix.tar.bz2 --exclude=./artefacts --exclude=./node_modules --exclude=./.yarn --exclude=./tests --exclude=./.git --exclude=./server.php .
+    artifacts:
+        paths:
+            - ./artefacts/radiophonix.tar.bz2
+            - ./artefacts/Envoy.blade.php
+        expire_in: 1 week
+
+deploy:staging:
+    dependencies:
+        - build:staging
+    stage: deploy
+    image: edbizarro/gitlab-ci-pipeline-php:7.2
+    only:
+        - master
+    environment:
+        name: staging
+        url: https://staging.radiophonix.org
+    variables:
+        GIT_STRATEGY: none
+    before_script:
+        # Ajout de la clef ssh de déploiement
+        - 'which ssh-agent || ( sudo apt-get update -y && sudo apt-get install openssh-client -y )'
+        - eval $(ssh-agent -s)
+        - ssh-add <(echo "$DEV_PRIVATE_KEY")
+        - mkdir -p ~/.ssh
+        - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+        # Installation de Envoy
+        - COMPOSER_CACHE_DIR=composer-cache composer global require laravel/envoy:^1.4 --prefer-source
+    script:
+        - ls -al
+        - cp ./artefacts/Envoy.blade.php Envoy.blade.php
+        - ~/.composer/vendor/bin/envoy run deploy
+
+build:production:
+    dependencies: []
+    stage: build
+    image: edbizarro/gitlab-ci-pipeline-php:7.2-alpine-lts
+    only:
+        - master
+    script:
+        - node --version
+        - yarn --pure-lockfile --cache-folder .yarn
+        - echo 'RADIOPHONIX_FEATURES_CONFIG=production' > .env
+        - echo "RADIOPHONIX_API_URL=https://radiophonix.org/api/v1/" >> .env
+        - yarn run build
+        - COMPOSER_CACHE_DIR=composer-cache composer install --prefer-dist --no-interaction --no-dev
+        - mkdir -p artefacts
+        - cp deploy/Envoy.production.blade.php artefacts/Envoy.blade.php
+        - tar -jcf artefacts/radiophonix.tar.bz2 --exclude=./artefacts --exclude=./node_modules --exclude=./.yarn --exclude=./tests --exclude=./.git --exclude=./server.php .
+    artifacts:
+        paths:
+            - ./artefacts/radiophonix.tar.bz2
+            - ./artefacts/Envoy.blade.php
+        expire_in: 1 week
+
+deploy_production:
+    dependencies:
+        - build:production
+    stage: production
+    image: edbizarro/gitlab-ci-pipeline-php:7.2
+    when: manual
+    only:
+        - master
+    environment:
+        name: production
+        url: https://radiophonix.org
+    variables:
+        GIT_STRATEGY: none
+    before_script:
+        # Ajout de la clef ssh de déploiement
+        - 'which ssh-agent || ( sudo apt-get update -y && sudo apt-get install openssh-client -y )'
+        - eval $(ssh-agent -s)
+        - ssh-add <(echo "$PRODUCTION_PRIVATE_KEY")
+        - mkdir -p ~/.ssh
+        - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+        # Installation de Envoy
+        - COMPOSER_CACHE_DIR=composer-cache composer global require laravel/envoy:^1.4 --prefer-source
+    script:
+        - ls -al
+        - cp ./artefacts/Envoy.blade.php Envoy.blade.php
+        - ~/.composer/vendor/bin/envoy run deploy
+

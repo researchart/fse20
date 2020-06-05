@@ -1,0 +1,42 @@
+
+webgl_build:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  image: angusmf/unity-build:2018.2b7-webgl
+  stage: build
+  script:
+  - cp lic/Unity_lic.ulf /root/.local/share/unity3d/Unity/Unity_lic.ulf
+  - mkdir output
+  - mkdir build_log
+  - xvfb-run -a --server-args="-screen 0 1024x768x24" /opt/Unity/Editor/Unity -batchmode -quit -logFile ./build_log/log.txt -projectPath ./ -executeMethod BuildScripts.Build -buildPath ./output -buildTarget webgl
+  - mkdir public
+  - mv output/Client/HelloBuildClient/* public
+  artifacts:
+    paths:
+     - public
+  only:
+  - webgl_stage
+  - webgl_prod
+  
+webgl_stage:
+  environment: webgl_stage
+  image: governmentpaas/awscli:latest
+  stage: test
+  script:
+  - aws s3 cp ./public s3://$S3_BUCKET_NAME/ --recursive --acl public-read
+  only:
+  - webgl_stage
+
+    
+pages:
+  environment: webgl_prod
+  image: alpine:latest
+  stage: deploy
+  script:
+    - echo "Nothing to do!"
+  artifacts:
+    paths:
+     - public
+  only:
+  - webgl_prod
+

@@ -1,0 +1,29 @@
+image: tmaier/docker-compose:18
+
+services:
+- docker:18.04.0-dind
+
+before_script:
+- docker version
+- docker-compose version
+- docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+after_script:
+- docker images
+- docker logout $CI_REGISTRY
+
+stages:
+- test
+- build
+
+test:container:
+  stage: test
+  script:
+  - docker-compose -f docker-compose.test.yml run api
+
+build:image:
+  stage: build
+  script:
+  - docker-compose -f docker-compose.build.yml build --pull
+  - docker-compose -f docker-compose.build.yml push
+

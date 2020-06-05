@@ -1,0 +1,30 @@
+# This file is a template, and might need editing before it works on your project.
+image: golang:1.8.3
+
+# The problem is that to be able to use go get, one needs to put
+# the repository in the $GOPATH. So for example if your gitlab domain
+# is mydomainperso.com, and that your repository is repos/projectname, and
+# the default GOPATH being /go, then you'd need to have your
+# repository in /go/src/mydomainperso.com/repos/projectname 
+# Thus, making a symbolic link corrects this.
+before_script:
+    - ln -s /builds /go/src/gitlab.com
+    - cd /go/src/gitlab.com/automatedtrading/questrade
+
+stages:
+    - test
+
+Client_Tests:
+    stage: test
+    script:
+        # Add here all the dependencies, or use glide/govendor to get
+        # them automatically.
+        # - curl https://glide.sh/get | sh
+        - go get -u github.com/golang/dep/cmd/dep
+        - dep ensure
+        # - go get github.com/pkg/errors
+        # - go get golang.org/x/oauth2
+        # - go get github.com/gorilla/mux
+        # - go tool vet -composites=false -shadow=true *.go
+        - go test -cover -race $(go list ./... | grep -v /vendor/)
+

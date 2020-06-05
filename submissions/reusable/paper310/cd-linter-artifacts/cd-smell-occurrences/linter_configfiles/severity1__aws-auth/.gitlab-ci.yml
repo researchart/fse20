@@ -1,0 +1,76 @@
+image: golang:1.9
+
+variables:
+  BIN_NAME: aws-auth
+  ARTIFACTS_DIR: artifacts
+  GO_PROJECT: gitlab.com/severity1
+
+stages:
+  - lint
+  - test
+  - build
+
+before_script:
+  - mkdir -p ${GOPATH}/src/${GO_PROJECT}
+  - mkdir -p ${GOPATH}/src/${GO_PROJECT}/${BIN_NAME}
+  - mkdir -p ${CI_PROJECT_DIR}/${ARTIFACTS_DIR}
+  - go get -u github.com/golang/dep/cmd/dep
+  - go get -u golang.org/x/lint/golint
+  - cp -r ${CI_PROJECT_DIR}/* ${GOPATH}/src/${GO_PROJECT}/${BIN_NAME}
+  - cd ${GOPATH}/src/${GO_PROJECT}/${BIN_NAME}
+
+lint:
+  stage: lint
+  script:
+    - golint -set_exit_status $(go list ./... | grep -v /vendor/)
+  only:
+    - master
+
+test:
+  stage: test
+  script:
+    - dep ensure -update
+    - go test -short $(go list ./... | grep -v /vendor/)
+  only:
+    - master
+race:
+  stage: test
+  script:
+    - dep ensure -update
+    - go test -race -short $(go list ./... | grep -v /vendor/)
+  only:
+    - master
+
+darwin:
+  stage: build
+  script:
+    - dep ensure -update
+    - tools/build.sh darwin
+  artifacts:
+    paths:
+      - ${ARTIFACTS_DIR}/darwin_amd64
+  only:
+    - master
+
+linux:
+  stage: build
+  script:
+    - dep ensure -update
+    - tools/build.sh linux
+  artifacts:
+    paths:
+      - ${ARTIFACTS_DIR}/linux_amd64
+  only:
+    - master
+
+windows:
+  stage: build
+  script:
+    - dep ensure -update
+    - tools/build.sh windows
+  artifacts:
+    paths:
+      - ${ARTIFACTS_DIR}/windows_amd64
+  only:
+    - master
+

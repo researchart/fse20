@@ -1,0 +1,64 @@
+image: gradle:jdk8
+
+before_script:
+
+build_master:
+ script:
+ - ./gradlew asciidoctor-extensions:build asciidoctor-extensions:install
+ - ./gradlew asciidoctor-themes:build asciidoctor-themes:install
+ - ./gradlew asciidoctor-quizzes:build asciidoctor-quizzes:install
+ - ./gradlew test-extensions:build
+ stage: build
+ artifacts:
+  paths:
+   - test-extensions/build/asciidoc
+
+pages:
+  stage: deploy
+  dependencies:
+    - build_master
+    - build_plot
+  script:
+    - mkdir public
+    - cp -R test-extensions/build/asciidoc/html5/* public
+  artifacts:
+    paths:
+    - public
+  when: manual
+
+build_plot:
+  image: jagedn/gnugradle:3.4
+  script:
+  - ./gradlew asciidoctor-extensions:build asciidoctor-extensions:install
+  - ./gradlew asciidoctor-themes:build asciidoctor-themes:install asciidoctor-plot:build asciidoctor-plot:install test-extensions:build
+  stage: build
+  artifacts:
+    paths:
+    - test-extensions/build/asciidoc
+  only:
+  - plot
+
+bintrayUploadExtension:
+  dependencies:
+  - build_master
+  - build_plot
+  script:
+  - ./gradlew asciidoctor-extensions:bintrayUpload
+  stage: deploy
+  only:
+  - tags
+  - /^release asciidoctor-extensions v*$/
+  when: manual
+
+bintrayUploadThemes:
+  dependencies:
+  - build_master
+  - build_plot
+  script:
+  - ./gradlew asciidoctor-themes:bintrayUpload
+  stage: deploy
+  only:
+  - tags
+  - /^release asciidoctor-themes v*$/
+  when: manual
+

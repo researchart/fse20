@@ -1,0 +1,16 @@
+image: daewok/lisp-devel
+
+stages:
+  - test
+
+before_script:
+#  - apt-get update -qy
+#  - apt-get install -y git-core
+#  - git clone https://gitlab.com/zombie-raptor/zombie-raptor ~/quicklisp/local-projects/zombie-raptor
+  - ln -s "${CI_PROJECT_DIR}" ~/quicklisp/local-projects/zombie-raptor
+
+test:
+  stage: test
+  script:
+    - sbcl --non-interactive --load ~/quicklisp/local-projects/zombie-raptor/tests/test-script.lisp
+

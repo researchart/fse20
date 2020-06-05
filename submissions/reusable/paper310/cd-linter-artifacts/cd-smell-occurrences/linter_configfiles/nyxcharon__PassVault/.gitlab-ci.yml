@@ -1,0 +1,31 @@
+image: node:8.9.4
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  script:
+   - npm install -g yarn
+   - yarn install
+   - yarn run test
+   - yarn run lint
+
+build:
+  stage: build
+  before_script:
+   - apt-get update -y && apt-get install -y zip
+  script:
+   - npm install -g yarn
+   - yarn install
+   - yarn run package
+  artifacts:
+    paths:
+      - build/passvault.zip
+      - build/passvault.xpi
+

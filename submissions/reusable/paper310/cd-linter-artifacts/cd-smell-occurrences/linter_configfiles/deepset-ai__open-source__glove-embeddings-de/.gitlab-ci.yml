@@ -1,0 +1,21 @@
+image: docker:latest
+services:
+    - docker:dind
+
+stages:
+ - build
+
+variables:
+  IMAGE_NAME: registry.gitlab.com/deepset-ai/open-source/glove-embeddings-de
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+
+build docker:
+  stage: build
+  only:
+  - master
+  script:
+  - docker build -t $IMAGE_NAME .
+  - docker push $IMAGE_NAME
+

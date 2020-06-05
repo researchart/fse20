@@ -1,0 +1,61 @@
+# Official language image. Look for the different tagged releases at:
+# https://hub.docker.com/_/python
+image: python:3
+
+variables:
+  #XDG_CACHE_HOME: "$CI_PROJECT_DIR/.cache"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache"
+
+cache:
+  paths:
+    - .cache
+
+stages:
+  - test
+  - build
+
+smoketest:
+  stage: test
+  script:
+  - pip install pytest-cov requests
+  - py.test -q --cov=sima tests
+  - python setup.py test
+  # build wheel and source
+  - python setup.py bdist_wheel sdist
+  # install
+  - pip install dist/*.whl
+  # smoke test
+  - mpd-sima --help
+  artifacts:
+    expire_in: 1 hour
+    paths:
+    - dist/*.whl
+    - dist/*.tar.gz
+    - dist/*.zip
+
+vinstall:
+  stage: test
+  script:
+  # test virtualenv install
+  - python3 ./vinstall.py
+  # smoke test
+  - ./vmpd-sima --help
+  artifacts:
+    expire_in: 1 hour
+
+tag_release:
+  stage: build
+  dependencies:
+    - smoketest
+  script:
+    - python -V
+  artifacts:
+    paths:
+    - dist/*.whl
+    - dist/*.tar.gz
+    - dist/*.zip
+    name: "$CI_PROJECT_NAME-$CI_COMMIT_TAG"
+  cache: {}
+  only:
+    - tags
+

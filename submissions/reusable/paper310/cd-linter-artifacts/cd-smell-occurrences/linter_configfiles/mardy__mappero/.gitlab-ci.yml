@@ -1,0 +1,43 @@
+image: mardy/qt:trusty-qt512
+
+cache:
+  key: apt-cache
+  paths:
+  - apt-cache/
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+ 
+before_script:
+  - export APT_CACHE_DIR=`pwd`/apt-cache && mkdir -pv $APT_CACHE_DIR
+  - apt-get update -yq
+  - export DEBIAN_FRONTEND=noninteractive
+  - |
+      apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y \
+          lcov gcovr xvfb \
+          libexiv2-dev
+  - qbs setup-qt /usr/local/Qt/*/gcc_64/bin/qmake qt5
+  - qbs setup-toolchains --detect
+
+build_desktop:
+  stage: build
+  script:
+    - |
+        qbs \
+            modules.cpp.treatWarningsAsErrors:true \
+            projects.mappero.buildTests:true \
+            projects.mappero.enableCoverage:true
+  artifacts:
+    paths:
+      - default/
+
+test_desktop:
+  stage: test
+  script:
+    - qbs -p coverage
+  dependencies:
+    - build_desktop
+  artifacts:
+    paths:
+      - coverage-html/
+

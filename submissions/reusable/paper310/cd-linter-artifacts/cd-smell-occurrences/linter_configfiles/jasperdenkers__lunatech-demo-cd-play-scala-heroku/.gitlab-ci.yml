@@ -1,0 +1,35 @@
+image: java:8
+
+before_script:
+  # Enable the usage of sources over https
+  - apt-get update -yqq
+  - apt-get install apt-transport-https -yqq
+  # Add keyserver for SBT
+  - echo "deb http://dl.bintray.com/sbt/debian /" | tee -a /etc/apt/sources.list.d/sbt.list
+  - apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 642AC823
+  # Install SBT
+  - apt-get update -yqq
+  - apt-get install sbt -yqq
+  # Log the sbt version
+  - sbt sbt-version
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  script:
+    # Test the project
+    - sbt clean test
+
+deploy:
+  stage: deploy
+  script:
+    # Install dpl
+    - apt-get update -yq
+    - apt-get install rubygems ruby-dev -y
+    - gem install dpl
+    # Deploy to Heroku
+    - dpl --provider=heroku --app=lunatech-demo-cd-play-scala --api-key=$HEROKU_API_KEY
+

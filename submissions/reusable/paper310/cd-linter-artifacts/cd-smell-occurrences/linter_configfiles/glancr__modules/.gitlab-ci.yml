@@ -1,0 +1,63 @@
+# Select image from https://hub.docker.com/r/_/php/
+# TODO: Use preconfigured image with PHP, git and zip/unzip to speed up build time
+image: php:7.0-cli
+
+variables:
+  # CI_DEBUG_TRACE: "true"
+  GIT_SUBMODULE_STRATEGY: normal
+
+before_script:
+  # Check if ssh-agent is installed, then add deploy key and known host identification.
+  # See https://docs.gitlab.com/ee/ci/ssh_keys/README.html
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - eval $(ssh-agent -s)
+  - echo "$DEPLOY_KEY" | tr -d '\r' | ssh-add - > /dev/null
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+
+  # Install git (the php image doesn't have it) which is required by composer and the build script
+  - apt-get update -yqq
+  - apt-get install git -yqq
+  # Install zip/unzip for module builds (GL CI cannot build multiple artifacts in one job yet)
+  - apt-get install zip unzip -yqq
+  # Install php extensions
+  - apt-get install libxml2-dev -yqq
+  - docker-php-ext-install soap
+  - docker-php-ext-install sockets
+  # Install composer
+  - curl --silent --show-error https://getcomposer.org/installer | php
+
+stages:
+  - build
+  - deploy # TODO: Deploy current module ZIPs to our update server
+
+build-latest-tags:
+  stage: build
+  script:
+    # `git submodule foreach` operates in the submodule directory, so git commands refer to the current submodule.
+    - git submodule foreach '../package-module.sh $name'
+
+  artifacts:
+    name: "mirrOS-modules-$CI_COMMIT_SHA"
+    paths:
+        - "build/*.zip"
+        - "failed-modules"
+
+deploy-zip-files:
+  stage: deploy
+  script:
+    - rsync -t build/*.zip $USER@api.glancr.de:$ROOT/moduleZips/
+  environment:
+    name: update-server
+    url: https://api.glancr.de
+  only:
+    - master
+  except:
+    - /^\[meta\]$/
+
+# TODO: Do not run pipeline on meta-commits (e.g. changes to build script or this file)
+#  except:
+#    - /[^([0-9]{1}\.[0-9]{1}\.[0-9]{1})
+

@@ -1,0 +1,15 @@
+# attempt at ci
+
+image: maven:3-jdk-8
+
+
+build:
+    stage: build
+    script: "mvn clean -B"
+    script: "mvn compile -B"
+
+    
+test:
+    stage: test
+    script: "mvn verify"
+

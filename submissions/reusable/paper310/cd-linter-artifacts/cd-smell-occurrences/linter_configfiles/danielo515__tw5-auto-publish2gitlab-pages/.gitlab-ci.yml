@@ -1,0 +1,14 @@
+image: node:latest
+
+pages:
+  stage: deploy
+  script:
+  - npm install -g tiddlywiki
+  - tiddlywiki wiki --build
+  - mv wiki/output public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

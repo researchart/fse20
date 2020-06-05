@@ -1,0 +1,47 @@
+stages:
+  - pre-build
+  - build
+
+# per-branch cache, since we're using make
+cache:
+  key: "$CI_COMMIT_REF_NAME"
+  untracked: true
+
+variables:
+  TZ: Europe/Berlin  # for build time inclusion
+
+# ================ Jobs ================
+
+.compile_svgs:
+  stage: pre-build
+  image: finwood/inkscape
+  script:
+    - make svgs
+  artifacts:
+    paths:
+      - img-*.pdf*
+      - svg/*.svg
+    expire_in: 1 day
+
+# disabled for now...
+.render_templates:
+  stage: pre-build
+  image: registry.gitlab.com/finwood/rt2
+  script:
+    - make templates
+  artifacts:
+    untracked: true
+    expire_in: 1 day
+
+compile:
+  stage: build
+  image: finwood/latex
+  script:
+    - make pdf
+  artifacts:
+    paths:
+      - latex.out/
+    expire_in: 4 weeks
+
+# vim: set tabstop=2 softtabstop=2 expandtab shiftwidth=2:
+

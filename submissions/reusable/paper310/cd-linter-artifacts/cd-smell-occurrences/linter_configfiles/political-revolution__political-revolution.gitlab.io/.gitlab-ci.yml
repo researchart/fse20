@@ -1,0 +1,58 @@
+stages:
+  - nodebuild
+  - jekyllbuild
+  - deploy
+
+variables:
+  GIT_STRATEGY: fetch
+
+bundlejs:
+  image: node:7.0.0
+  stage: nodebuild
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - npm install --silent
+    - npm run-script build
+  artifacts:
+    paths:
+      - assets/js
+
+jekyll:
+  image: ruby:2.3
+  stage: jekyllbuild
+  script:
+  - gem install jekyll jekyll-sitemap jekyll-seo-tag jekyll-feed
+  - jekyll build -d public
+  dependencies:
+    - bundlejs
+  artifacts:
+    paths:
+    - public
+
+
+# test:
+#   image: ruby:2.3
+#   stage: test
+#   script:
+#   - gem install jekyll jekyll-sitemap jekyll-seo-tag jekyll-feed
+#   - jekyll build -d test
+#   dependencies:
+#     - bundlejs
+#   artifacts:
+#     paths:
+#     - test
+#   except:
+#   - master
+
+pages:
+  stage: deploy
+  dependencies:
+    - jekyll
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

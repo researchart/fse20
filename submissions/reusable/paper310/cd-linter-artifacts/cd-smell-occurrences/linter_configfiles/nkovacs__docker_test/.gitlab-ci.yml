@@ -1,0 +1,16 @@
+build:
+    image: registry.gitlab.com/nkovacs/docker-builder:latest
+    script:
+        - mkdir -p .cache/docker
+        - mkdir -p /var/lib/docker
+        - "cp -r .cache/docker/* /var/lib/docker || :"
+        - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+        - docker build -t registry.gitlab.com/nkovacs/docker_test .
+        - docker push registry.gitlab.com/nkovacs/docker_test:latest
+        - "cp -r /var/lib/docker/* .cache/docker/ || :"
+    cache:
+         paths:
+             - .cache
+    only:
+        - master
+

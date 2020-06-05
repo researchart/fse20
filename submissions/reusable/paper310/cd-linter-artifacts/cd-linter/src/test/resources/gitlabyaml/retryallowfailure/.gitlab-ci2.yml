@@ -1,0 +1,34 @@
+#
+# * test: CODE_QUALITY_DISABLED
+#
+
+image: maven:latest
+
+stages:
+  - build
+  - test
+
+clean-compile:
+  stage: build
+  before_script:
+    - mvn clean
+  script:
+    - git checkout master
+    - mvn compile
+  retry: 1
+
+"test":
+  script: mvn test
+  allow_failure: true
+
+verify:
+  stage: test
+  script: mvn verify
+  retry:
+    max: 2
+    when: stuck_or_timeout_failure
+    
+include:
+    - local: /templates/.gitlab-ci-template.yml
+    - hello
+    - 'halo'

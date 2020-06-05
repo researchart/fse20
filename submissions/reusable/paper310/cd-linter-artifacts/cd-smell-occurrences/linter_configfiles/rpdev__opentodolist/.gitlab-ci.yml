@@ -1,0 +1,344 @@
+variables:
+    WIN32_IMAGE: registry.gitlab.com/rpdev/opentodolist:win32
+    WIN64_IMAGE: registry.gitlab.com/rpdev/opentodolist:win64
+    UBUNTU_IMAGE: registry.gitlab.com/rpdev/opentodolist:ubuntu
+    ANDROID_BASE_IMAGE: registry.gitlab.com/rpdev/opentodolist:android-base
+    ANDROID_ARM_IMAGE: registry.gitlab.com/rpdev/opentodolist:android-arm
+    ANDROID_ARM64_IMAGE: registry.gitlab.com/rpdev/opentodolist:android-arm64
+    ANDROID_X86_IMAGE: registry.gitlab.com/rpdev/opentodolist:android-x86
+    ANDROID_X64_IMAGE: registry.gitlab.com/rpdev/opentodolist:android-x64
+    FLATPAK_IMAGE: registry.gitlab.com/rpdev/opentodolist:flatpak
+    NEXTCLOUD_IMAGE: nextcloud
+    OWNCLOUD_IMAGE: owncloud
+    CTEST_OUTPUT_ON_FAILURE: 1
+    GIT_SUBMODULE_STRATEGY: recursive
+
+
+stages:
+  - images
+  - build
+  - test
+  - installer
+  - deploy
+
+
+################################################################################
+# Images Stage
+################################################################################
+
+# Build the Linux (Ubuntu) Image
+image::appimage:
+  stage: images
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+    - cd ci/docker/ubuntu
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build --pull -t $UBUNTU_IMAGE .
+    - docker push $UBUNTU_IMAGE
+  when: manual
+
+
+# Build the Win32 Image
+image::win32:
+  stage: images
+  image: fedora
+  script:
+    - dnf install -y --nogpgcheck podman buildah
+    - cd ci/docker/win32
+    - podman login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - buildah bud -t $WIN32_IMAGE .
+    - buildah push $WIN32_IMAGE docker://$WIN32_IMAGE
+  when: manual
+
+
+# Build the Win64 Image
+image::win64:
+  stage: images
+  image: fedora
+  script:
+    - dnf install -y --nogpgcheck podman buildah
+    - cd ci/docker/win64
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - buildah bud -t $WIN64_IMAGE .
+    - buildah push $WIN64_IMAGE docker://$WIN64_IMAGE
+  when: manual
+
+
+# Build the Android Base Image
+image::android_base:
+  stage: images
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+    - cd ci/docker/android-base
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build --pull -t $ANDROID_BASE_IMAGE .
+    - docker push $ANDROID_BASE_IMAGE
+  when: manual
+
+
+# Build the Android ARM Image
+image::android_arm:
+  stage: images
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+    - cd ci/docker/android-arm
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build --pull -t $ANDROID_ARM_IMAGE .
+    - docker push $ANDROID_ARM_IMAGE
+  when: manual
+
+
+# Build the Android ARM64 Image
+image::android_arm64:
+  stage: images
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+    - cd ci/docker/android-arm64
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build --pull -t $ANDROID_ARM64_IMAGE .
+    - docker push $ANDROID_ARM64_IMAGE
+  when: manual
+
+
+# Build the Android x86 Image
+image::android_x86:
+  stage: images
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+    - cd ci/docker/android-x86
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build --pull -t $ANDROID_X86_IMAGE .
+    - docker push $ANDROID_X86_IMAGE
+  when: manual
+
+
+# Build the Flatpak Image
+image::flatpak:
+  stage: images
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+    - cd ci/docker/flatpak
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build --pull -t $FLATPAK_IMAGE .
+    - docker push $FLATPAK_IMAGE
+  when: manual
+
+
+################################################################################
+# Build Stage
+################################################################################
+
+
+# Ubuntu build including AppImage
+appimage:
+  stage: build
+  image: $UBUNTU_IMAGE
+  services:
+    - name: $NEXTCLOUD_IMAGE
+      alias: nextcloud
+    - name: $OWNCLOUD_IMAGE
+      alias: owncloud
+  script:
+    - ci/ubuntu-build.sh
+  artifacts:
+    paths:
+      - build-ubuntu/OpenTodoList-x86_64.AppImage
+    expire_in: 1 week
+
+
+# Windows 32bit build
+win32:
+  stage: build
+  image: $WIN32_IMAGE
+  script:
+    - ./ci/win32-build.sh
+  artifacts:
+    paths:
+      - deploy-win32/OpenTodoList-Windows-32bit.exe
+    expire_in: 1 week
+
+
+# Windows 64bit build
+win64:
+  stage: build
+  image: $WIN64_IMAGE
+  script:
+    - ./ci/win64-build.sh
+  artifacts:
+    paths:
+      - deploy-win64/OpenTodoList-Windows-64bit.exe
+    expire_in: 1 week
+
+
+# macOS build:
+macos:
+  stage: build
+  tags:
+    - macos
+  script:
+    - ci/macos-build.sh
+  artifacts:
+    paths:
+      - build-macos/app/OpenTodoList.dmg
+    expire_in: 1 week
+
+
+# iOS build:
+ios:
+  stage: build
+  tags:
+    - macos
+  script:
+    - ci/ios-build.sh
+  artifacts:
+    paths:
+      - build-ios/app/build/OpenTodoList.ipa
+    expire_in: 1 week
+
+
+# Android build ARMv7
+android_armv7:
+  stage: build
+  image: $ANDROID_ARM_IMAGE
+  script:
+    - ci/android-build.sh
+  artifacts:
+    paths:
+      - build-android-armv7/OpenTodoList-Android-armv7.apk
+    expire_in: 1 week
+
+
+# Android build ARM64
+android_arm64_v8a:
+  stage: build
+  image: $ANDROID_ARM64_IMAGE
+  script:
+    - ci/android-build.sh
+  artifacts:
+    paths:
+      - build-android-arm64_v8a/OpenTodoList-Android-arm64_v8a.apk
+    expire_in: 1 week
+
+
+# Android build x86
+android_x86:
+  stage: build
+  image: $ANDROID_X86_IMAGE
+  script:
+    - ci/android-build.sh
+  artifacts:
+    paths:
+      - build-android-x86/OpenTodoList-Android-x86.apk
+    expire_in: 1 week
+
+
+# Android build x86_64
+android_x64:
+  stage: build
+  image: $ANDROID_X64_IMAGE
+  script:
+    - ci/android-build.sh
+  artifacts:
+    paths:
+      - build-android-x86_64/OpenTodoList-Android-x86_64.apk
+    expire_in: 1 week
+
+# Build the app as Flatpak
+flatpak:
+    stage: build
+    image: $FLATPAK_IMAGE
+    script:
+        - ci/flatpak-build.sh
+    artifacts:
+      paths:
+        - fp-repo
+      expire_in: 1 week
+
+
+################################################################################
+# Installer Stage
+################################################################################
+
+sign_apks:
+    stage: installer
+    tags:
+        - OpenTodoListPrivate
+    image: $ANDROID_BASE_IMAGE
+    script:
+        - ci/sign-apks.sh
+    artifacts:
+      paths:
+        - build-android-*/*-aligned.apk
+      expire_in: 1 week
+    dependencies:
+        - android_x86
+        - android_x64
+        - android_armv7
+        - android_arm64_v8a
+
+################################################################################
+# Deploy Stage
+################################################################################
+
+
+github:
+    stage: deploy
+    image: fedora
+    script:
+        - yum install -y --nogpgcheck python3 python3-requests
+        - mkdir uploads
+        - cp build-ubuntu/OpenTodoList-x86_64.AppImage uploads
+        - cp deploy-win32/OpenTodoList-Windows-32bit.exe uploads
+        - cp deploy-win64/OpenTodoList-Windows-64bit.exe uploads
+        - cp build-android-*/*-aligned.apk uploads
+        - cp build-macos/app/OpenTodoList.dmg uploads
+        - ./ci/github-upload.py mhoeher opentodolist $CI_COMMIT_REF_NAME $GITHUB_ACCESS_TOKEN ./uploads/*
+    when: manual
+    only:
+        - tags
+
+
+pages:
+    stage: deploy
+    image: fedora
+    script:
+        - mkdir public
+        - cp build-ubuntu/OpenTodoList-x86_64.AppImage public
+        - cp deploy-win32/OpenTodoList-Windows-32bit.exe public
+        - cp deploy-win64/OpenTodoList-Windows-64bit.exe public
+        - cp build-android-*/*-aligned.apk public
+        - cp build-macos/app/OpenTodoList.dmg public || echo "OpenTodoList.dmg was not built"
+        - dnf install -y --nogpgcheck git
+        - git describe --tags > public/version.txt
+        - cd public
+        - sha256sum * > sha256sums.txt
+        - cd ..
+        - cp -r fp-repo public
+    artifacts:
+        paths:
+        - public
+    only:
+        - master
+
+appstore:
+    stage: deploy
+    tags:
+        - macos
+    when: manual
+    script:
+        - xcrun altool --upload-app --type ios --file build-ios/app/build/OpenTodoList.ipa -u "$APPSTORE_USER" -p "$APPSTORE_PASSWORD"
+    dependencies:
+      - ios
+

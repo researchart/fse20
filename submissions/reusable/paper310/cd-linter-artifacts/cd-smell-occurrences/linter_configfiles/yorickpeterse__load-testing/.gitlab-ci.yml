@@ -1,0 +1,24 @@
+image: ubuntu:latest
+
+.siege: &siege
+  variables:
+    DEBIAN_FRONTEND: noninteractive
+  before_script:
+    - apt-get update -qq
+    - apt-get -qq --no-install-recommends -y install siege
+    - siege --version
+    - which siege
+    - echo 'show-logfile false' > ~/.siegerc
+    - cat urls.txt
+  script:
+    - siege -c4 -b -d 1 -t 30m -f urls.txt
+
+host 1: *siege
+host 2: *siege
+host 3: *siege
+host 4: *siege
+host 5: *siege
+host 6: *siege
+host 7: *siege
+host 8: *siege
+

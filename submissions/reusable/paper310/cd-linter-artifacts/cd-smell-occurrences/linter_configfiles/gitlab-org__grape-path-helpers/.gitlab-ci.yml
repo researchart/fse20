@@ -1,0 +1,19 @@
+image: "ruby:2.4-alpine"
+
+cache:
+  paths:
+    - vendor/ruby
+
+before_script:
+  - apk add --update git
+  - gem install bundler
+  - bundle install --path vendor/ruby
+
+rubocop:
+  script:
+    - bundle exec rubocop
+
+rspec:
+  script:
+    - bundle exec rspec spec
+

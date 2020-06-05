@@ -1,0 +1,93 @@
+image: python:3.6.0-alpine
+
+stages:
+  - test
+  - build
+  - deploy
+
+test_crawler:
+  stage: test
+  script:
+     - echo "Running crawler tests"
+     - cd crawler
+     - pip install -r requirements.txt -r requirements-test.txt
+     - python -m unittest discover -s tests/
+     - coverage run -m unittest discover -s tests/
+     - coverage report --include crawler/crawler.py
+
+test_ui:
+  stage: test
+  script:
+     - echo "Running ui tests"
+     - cd ui
+     - pip install -r requirements.txt -r requirements-test.txt
+     - python -m unittest discover -s tests/
+     - coverage run -m unittest discover -s tests/
+     - coverage report --include ui/ui.py
+
+build_dockerhub:
+  image: gitlab/dind
+  variables:
+     DOCKER_DRIVER: overlay2
+  stage: build
+  script:
+     - echo "Building the app"
+     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+     - docker build --pull -t gis23/crawler crawler
+     - docker build --pull -t gis23/search_ui ui
+     - docker build --pull -t gis23/prometheus prometheus
+     - docker build --pull -t gis23/alertmanager alertmanager
+     - docker push 'index.docker.io/gis23/crawler'
+     - docker push 'index.docker.io/gis23/search_ui'
+     - docker push 'index.docker.io/gis23/prometheus'
+     - docker push 'index.docker.io/gis23/alertmanager'
+
+build_GCR:
+  stage: build
+  when: manual
+  only: [master]
+  image: google/cloud-sdk
+  services:
+     - docker:dind
+
+  script:
+     - echo "$GOOGLE_KEY_SECRET" > key.json # Google Cloud service accounts
+     - gcloud auth activate-service-account --key-file key.json
+     - gcloud config set project ninth-arena-182211
+     - gcloud container builds submit -t gcr.io/ninth-arena-182211/crawler crawler
+     - gcloud container builds submit -t gcr.io/ninth-arena-182211/search_ui ui
+     - gcloud container builds submit -t gcr.io/ninth-arena-182211/prometheus prometheus
+     - gcloud container builds submit -t gcr.io/ninth-arena-182211/alertmanager alertmanager
+
+deploy_staging:
+  image: google/cloud-sdk
+  stage: deploy
+  #when: manual
+  #before_script:
+  #  - apt-get install python-pip sudo -y
+  #  - pip install docker-compose
+  #  - curl -L https://github.com/docker/machine/releases/download/v0.13.0/docker-machine-`uname -s`-`uname -m` >/tmp/docker-machine
+  #  - chmod +x /tmp/docker-machine
+  #  - sudo cp /tmp/docker-machine /usr/local/bin/docker-machine
+  script:
+    - echo "$GOOGLE_KEY_SECRET" > key.json # Google Cloud service accounts
+    - gcloud auth activate-service-account --key-file key.json
+    - gcloud config set project ninth-arena-182211
+    #- gcloud config set compute/zone europe-west1-b
+    #- gcloud config set container/use_client_certificate True
+    - gcloud docker --docker-host=$DOCKER_HOST --authorize-only
+    - gcloud docker -- pull gcr.io/ninth-arena-182211/crawler
+    #- eval "$(docker-machine env vm1)"
+    #- docker-compose down
+    #- docker-compose up -d --force-recreate
+  only:
+    - master
+  variables:
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_HOST: "tcp://35.205.126.2:2376"
+  environment:
+    name: staging
+    url: http://35.205.126.2
+  only:
+  - master
+

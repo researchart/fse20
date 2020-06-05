@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <properties>
+        <fudaa-framework.version>2.6-SNAPSHOT</fudaa-framework.version>
+        <javaCompiler>1.8</javaCompiler>
+        <targetJdk>1.8</targetJdk>
+    </properties>
+
+    <parent>
+        <groupId>org.fudaa.pom</groupId>
+        <artifactId>super-pom</artifactId>
+        <version>3.13</version>
+    </parent>
+    <groupId>org.fudaa.soft.fudaa-prepro</groupId>
+    <artifactId>fudaa-prepro</artifactId>
+    <version>1.5.0-SNAPSHOT</version>
+    <name>Fudaa-Prepro</name>
+    <packaging>pom</packaging>
+    <description>Fudaa-Prepro project</description>
+    <url>https://fudaa-project.atlassian.net/wiki/spaces/PREPRO</url>
+    <scm>
+        <url>https://gitlab.com/fudaa/fudaa-prepro</url>
+    </scm>
+    <ciManagement>
+        <system>gitlab</system>
+        <url>https://gitlab.com/fudaa/fudaa-prepro/pipelines</url>
+    </ciManagement>
+    <modules>
+        <module>grid</module>
+        <module>ui</module>
+    </modules>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.fudaa.framework</groupId>
+                <artifactId>fudaa-framework</artifactId>
+                <version>${fudaa-framework.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.fudaa.soft.fudaa-mesh</groupId>
+                <artifactId>fudaa-mesh</artifactId>
+                <version>${fudaa-framework.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.fudaa.soft.fudaa-prepro</groupId>
+                <artifactId>prepro-ui</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.fudaa.soft.fudaa-prepro</groupId>
+                <artifactId>grid</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    <repositories>
+        <repository>
+            <id>oss-sonatype</id>
+            <name>OSS Sonatype Repository</name>
+            <url>https://oss.sonatype.org/content/groups/public/</url>
+        </repository>
+    </repositories>
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <artifactId>maven-site-plugin</artifactId>
+                    <configuration>
+                        <skip>false</skip>
+                        <generateReports>false</generateReports>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-report-plugin</artifactId>
+                    <version>2.22.1</version>
+                    <configuration>
+                        <aggregate>true</aggregate>
+                        <alwaysGenerateSurefireReport>false</alwaysGenerateSurefireReport>
+                        <showSuccess>false</showSuccess>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>
+

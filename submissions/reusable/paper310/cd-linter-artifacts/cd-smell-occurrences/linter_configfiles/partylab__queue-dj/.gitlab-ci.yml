@@ -1,0 +1,26 @@
+image: node:latest
+
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+  - npm install
+
+stages:
+  - test
+  - deploy
+  - clean_up
+
+lint:
+  stage: test
+  script:
+   - npm run lint
+
+clean_up_job:
+  stage: clean_up
+  script:
+    - rm -rf node_modules
+    - rm -rf ~/.node-gyp
+  when: on_failure
+

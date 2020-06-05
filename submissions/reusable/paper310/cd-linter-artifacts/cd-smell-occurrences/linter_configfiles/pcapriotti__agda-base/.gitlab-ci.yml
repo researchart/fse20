@@ -1,0 +1,11 @@
+image: pcapriotti/agda
+
+pages:
+  script:
+    - ./gitlab-build-website.sh
+  artifacts:
+    paths:
+      - public
+  except:
+    - pages
+

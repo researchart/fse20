@@ -1,0 +1,45 @@
+---
+###
+# pyramid-rlp GitLab CI/CD config
+###
+
+image: python:3.6-alpine
+
+stages:
+  - test
+
+# Change pip's cache directory to be inside the project directory since we can
+# only cache local items.
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache"
+
+# Pip's cache doesn't store the python packages
+# https://pip.pypa.io/en/stable/reference/pip_install/#caching
+# To cache them, install in a virtualenv and cache it, too
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+before_script:
+  - apk update && apk upgrade
+  - apk add build-base
+  - python -m pip install --quiet --upgrade pip
+  - python --version
+  - pip --version
+  - pip install --quiet virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+  - pip install --quiet -r requirements.txt
+  - pip install --quiet -r requirements-dev.txt
+
+pylint_test_job:
+  stage: test
+  script:
+    - pylint pyramid_rlp
+
+pytest_test_job:
+  stage: test
+  script:
+    - pytest --cov
+

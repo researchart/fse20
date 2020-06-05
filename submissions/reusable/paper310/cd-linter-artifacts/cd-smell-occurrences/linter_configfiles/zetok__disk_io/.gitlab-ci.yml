@@ -1,0 +1,35 @@
+cache:
+  paths:
+    - $HOME/.cargo
+    - target/
+
+
+# Unofficial language images. Look for the different tagged releases at:
+# https://hub.docker.com/r/scorpil/rust/tags/
+
+# test against stable Rust
+rust_stable:
+  image: "scorpil/rust:stable"
+
+  script:
+    - rustc --version && cargo --version  # Print version info for debugging
+    - cargo build && cargo test --verbose
+
+
+rust_beta:
+  image: "scorpil/rust:beta"
+  allow_failure: true
+
+  script:
+    - rustc --version && cargo --version  # Print version info for debugging
+    - cargo build && cargo test --verbose
+
+
+rust_nightly:
+  image: "scorpil/rust:nightly"
+  allow_failure: true
+
+  script:
+    - rustc --version && cargo --version  # Print version info for debugging
+    - cargo build && cargo test --verbose
+

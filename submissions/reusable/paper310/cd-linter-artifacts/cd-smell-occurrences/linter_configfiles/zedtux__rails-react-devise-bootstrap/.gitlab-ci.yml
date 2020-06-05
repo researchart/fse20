@@ -1,0 +1,122 @@
+image: alpine:latest
+
+variables:
+  # When using dind service we need to instruct docker, to talk with the
+  # daemon started inside of the service. The daemon is available with
+  # a network connection instead of the default /var/run/docker.sock socket.
+  #
+  # The 'docker' hostname is the alias of the service container as described at
+  # https://docs.gitlab.com/ee/ci/docker/using_docker_images.html#accessing-the-services
+  #
+  # Note that if you're using Kubernetes executor, the variable should be set to
+  # tcp://localhost:2375 because of how Kubernetes executor connects services
+  # to the job container
+  DOCKER_HOST: tcp://docker:2375/
+  # When using dind, it's wise to use the overlayfs driver for
+  # improved performance.
+  DOCKER_DRIVER: overlay2
+  CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  image: docker:stable-git
+  script:
+    - docker_login
+    - build
+  stage: build
+
+test:
+  image: docker:stable-git
+  script:
+    - env | sort
+    - docker_login
+    - show_docker_env
+    - create_rrdb_network
+    - boot_selenium
+    - fetch_docker_image
+    - wait_selnium_to_be_ready
+    - bundle_exec_rake
+  stage: test
+
+deploy:
+  image: docker:stable-git
+  script:
+    - docker_login
+    - fetch_docker_image
+    - tag_as_latest_and_push
+  stage: deploy
+
+.auto_devops: &auto_devops |
+  function docker_login() {
+    if [[ -n "$CI_REGISTRY_USER" ]]; then
+      echo "Logging to GitLab Container Registry with CI credentials... (CI_REGISTRY_USER=$CI_REGISTRY_USER, CI_REGISTRY=$CI_REGISTRY)"
+      docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+      echo ""
+    fi
+  }
+
+  function build() {
+    echo "docker pull $CONTAINER_IMAGE:latest || true ... (Trying to fetch latest Docker image)"
+    docker pull $CONTAINER_IMAGE:latest || true
+
+    echo "docker build --cache-from $CONTAINER_IMAGE:latest --tag $CONTAINER_IMAGE:$CI_BUILD_REF . ... (Building Dockerfile-based application)"
+    docker build --cache-from $CONTAINER_IMAGE:latest --tag $CONTAINER_IMAGE:$CI_BUILD_REF .
+
+    echo "docker push $CONTAINER_IMAGE:$CI_BUILD_REF ... (Pushing to GitLab Container Registry)"
+    docker push "$CONTAINER_IMAGE:$CI_BUILD_REF"
+
+    echo ""
+  }
+
+  function boot_selenium() {
+    echo "docker run --rm --network rrdb --name selenium --detach selenium/standalone-chrome:3.11.0-antimony ... (Booting Selenium)"
+    docker run --rm --network rrdb --name selenium --detach selenium/standalone-chrome:3.11.0-antimony
+  }
+
+  function wait_selnium_to_be_ready() {
+    echo "Waiting Selenium Server to load ..."
+    until $(docker run --rm --network rrdb --env SELENIUM_PORT=4444 "$CONTAINER_IMAGE:$CI_BUILD_REF" curl --output /dev/null --silent --head --fail http://selenium:4444/wd/hub); do
+      printf '.'
+      sleep 1
+    done
+    echo "Selenium server up and running!"
+  }
+
+  function fetch_docker_image() {
+    echo "docker pull $CONTAINER_IMAGE:$CI_BUILD_REF ... (Fetching Docker image $CONTAINER_IMAGE:$CI_BUILD_REF from $CI_REGISTRY)"
+    docker pull "$CONTAINER_IMAGE:$CI_BUILD_REF"
+  }
+
+  function show_docker_env() {
+    echo "docker run --rm "$CONTAINER_IMAGE:$CI_BUILD_REF" env | sort ... (Show Docker environment)"
+    docker run --rm "$CONTAINER_IMAGE:$CI_BUILD_REF" env | sort
+  }
+
+  function create_rrdb_network() {
+    echo "docker network create rrdb ... (Creating rrdb network)"
+    docker network create rrdb
+  }
+
+  function bundle_exec_rake() {
+    echo "docker run --rm --network rrdb --name app --env SELENIUM_PORT=4444 "$CONTAINER_IMAGE:$CI_BUILD_REF" bundle exec rake ... (Running automated tests)"
+    docker run --rm --network rrdb --name app --env SELENIUM_PORT=4444 "$CONTAINER_IMAGE:$CI_BUILD_REF" bundle exec rake
+  }
+
+  function tag_as_latest_and_push() {
+    echo "docker tag $CONTAINER_IMAGE:$CI_BUILD_REF $CONTAINER_IMAGE:latest ... (Tagging Docker image $CI_BUILD_REF as latest) ..."
+    docker tag "$CONTAINER_IMAGE:$CI_BUILD_REF" "$CONTAINER_IMAGE:latest"
+
+    echo "docker push $CONTAINER_IMAGE:latest ... (Pushing new verison of the latest Docker image)"
+    docker push "$CONTAINER_IMAGE:latest"
+  }
+
+before_script:
+  - *auto_devops
+

@@ -1,0 +1,21 @@
+image: registry.gitlab.com/sporedb/sporedb:ci
+
+stages:
+  - test
+  - lint
+
+before_script:
+  - source ci/prepare
+
+unit tests:
+  stage: test
+  retry: 1
+  script:
+    - make test
+
+code lint:
+  stage: lint
+  script:
+    - go get github.com/stretchr/testify/require
+    - make lint
+

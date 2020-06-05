@@ -1,0 +1,13 @@
+stage_deploy:
+    only:
+        - dev
+    script:
+        - ssh -p22 -t $DEV_SRV_USER@$DEV_SRV_URL "cd /home/$DEV_SRV_USER/ && ./ruined-world-front-preprod.sh"
+
+stage_all_branches:
+    except:
+        - dev
+        - master
+    script:
+        - ssh -p22 -t $DEV_SRV_USER@$DEV_SRV_URL "cd /home/$DEV_SRV_USER/ && ./ruined-world-front-dev.sh $CI_COMMIT_SHA"
+

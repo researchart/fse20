@@ -1,0 +1,9 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: normal
+before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq curl libxml2-utils sqlite3
+test:
+  script:
+    - make tests
+

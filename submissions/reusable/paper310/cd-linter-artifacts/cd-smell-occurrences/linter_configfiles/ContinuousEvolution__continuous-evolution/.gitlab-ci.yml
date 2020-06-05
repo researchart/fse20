@@ -1,0 +1,165 @@
+image: registry.gitlab.com/continuousevolution/continuous-evolution/build
+
+before_script:
+    - cp -R $CI_PROJECT_DIR /go/src/
+    - cd /go/src/continuous-evolution
+
+stages:
+    - vendor
+    - lint
+    - test
+    - build
+    - tag
+    - doc
+
+vendor:
+    stage: vendor
+    script:
+        - make vendor
+        - cp -R vendor $CI_PROJECT_DIR
+    artifacts:
+        paths:
+            - vendor
+        expire_in: 1 week
+
+lint:fmt:
+    stage: lint
+    script:
+        - make lint
+    dependencies:
+        - vendor
+
+lint:mocks:
+    stage: lint
+    script:
+        - make mocks
+        - echo "if this step fail, you should regenerate mocks (make mocks) before commit again"
+        - git diff --exit-code
+    dependencies:
+        - vendor
+
+test:unit:
+    stage: test
+    services:
+        - docker:dind
+    variables:
+        DOCKER_HOST: "tcp://docker:2375"
+    script:
+        - git config --global user.email "test@botevol.com"
+        - git config --global user.name "BotEvol"
+        - go get -u github.com/jstemmer/go-junit-report
+        - make test-verbose 2>&1 | go-junit-report > report.xml
+        - cp report.xml $CI_PROJECT_DIR
+    dependencies:
+        - vendor
+    artifacts:
+        reports:
+            junit: report.xml
+
+test:coverage:
+    stage: test
+    services:
+        - docker:dind
+    variables:
+        DOCKER_HOST: "tcp://docker:2375"
+    coverage: /total[^\d]+(\d+.\d+\%)/
+    script:
+        - git config --global user.email "test@botevol.com"
+        - git config --global user.name "BotEvol"
+        - make cover
+    dependencies:
+        - vendor
+
+build:binary:
+    stage: build
+    script:
+        - make
+        - ./build/cli -version
+    dependencies:
+        - vendor
+
+build:docker:
+    stage: build
+    services:
+        - docker:dind
+    script:
+        - make
+        - docker build -t $CI_JOB_ID -f Dockerfile .
+        - docker run $CI_JOB_ID -version
+    variables:
+        DOCKER_HOST: "tcp://docker:2375"
+    dependencies:
+        - vendor
+
+build:binary-tag:
+    stage: build
+    script:
+        - make
+        - cp -R build $CI_PROJECT_DIR
+    artifacts:
+        paths:
+            - build
+        expire_in: 1 week
+    only:
+        - master@ContinuousEvolution/continuous-evolution
+    dependencies:
+        - vendor
+
+build:docker-tag:
+    stage: build
+    services:
+        - docker:dind
+    script:
+        - make
+        - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+        - docker build -t $CI_REGISTRY_IMAGE -f Dockerfile .
+        - docker run $CI_REGISTRY_IMAGE -version
+        - docker push $CI_REGISTRY_IMAGE
+    variables:
+        DOCKER_HOST: "tcp://docker:2375"
+    only:
+        - master@ContinuousEvolution/continuous-evolution
+    dependencies:
+        - vendor
+
+tag:binary:
+    stage: build
+    script:
+        - make
+        - cp -R build $CI_PROJECT_DIR
+    artifacts:
+        paths:
+            - build
+    only:
+        - tags
+    dependencies:
+        - vendor
+
+tag:docker:
+    stage: build
+    services:
+        - docker:dind
+    script:
+        - make
+        - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+        - docker build -t $CI_REGISTRY_IMAGE:${CI_COMMIT_REF_NAME} -f Dockerfile .
+        - docker push $CI_REGISTRY_IMAGE:${CI_COMMIT_REF_NAME}
+    variables:
+        DOCKER_HOST: "tcp://docker:2375"
+    only:
+        - tags
+    dependencies:
+        - vendor
+
+pages:
+    stage: doc
+    script:
+        - make doc
+        - cp -R public $CI_PROJECT_DIR
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+
+

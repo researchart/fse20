@@ -1,0 +1,38 @@
+image: python:3.5
+
+stages:
+  - build
+  - test
+  - deploy-test
+  - deploy
+
+lint:
+  stage: build
+  script:
+  - python setup.py flake8
+
+test:
+  stage: test
+  script:
+  - python setup.py test
+
+staging:
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y --no-install-recommends ruby-dev rubygems
+  - gem install dpl
+  - dpl --provider=heroku --app=$HEROKU_STAGING_APP --api-key=$HEROKU_API_KEY
+  only:
+  -  master@PythonDevCommunity/pythondev-site
+
+production:
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y --no-install-recommends ruby-dev rubygems
+  - gem install dpl
+  - dpl --provider=heroku --app=$HEROKU_PROD_APP --api-key=$HEROKU_API_KEY
+  only:
+  - tags@PythonDevCommunity/pythondev-site
+

@@ -1,0 +1,228 @@
+include:
+  template: Dependency-Scanning.gitlab-ci.yml
+
+dependency_scanning:
+  only:
+  - master
+
+.defaults: &defaults
+  tags:
+  - shared
+  - linux
+  image: registry.gitlab.com/foodsharing-dev/images/ci:3
+
+
+.ssh: &ssh
+  before_script:
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo "$DEPLOY_SSH_KEY")
+  - mkdir -p ~/.ssh
+  # For Docker builds disable host key checking. Be aware that by adding that
+  # you are suspectible to man-in-the-middle attacks.
+  # WARNING: Use this only with the Docker executor, if you use it with shell
+  # you will overwrite your user's SSH config.
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+.deploy: &deploy
+  <<: *defaults
+  # run it on our foodsharing ci server
+  tags:
+  - non-shared
+  <<: *ssh
+  stage: deploy
+  dependencies:
+  - build:frontend
+  - build:backend
+  - build:backend-chat
+  script:
+  - (cd deployer && composer install)
+  - deployer/vendor/bin/dep deploy $CI_ENVIRONMENT_NAME --revision $CI_COMMIT_SHA
+  - ./scripts/deploy.notifyslack.sh
+
+stages:
+- triage
+- outdated
+- build
+- test
+- deploy
+
+triage:
+  image: ruby:2.6-alpine
+  stage: triage
+  script:
+  - gem install gitlab-triage
+  - gitlab-triage --token $API_TOKEN --project-id $CI_PROJECT_PATH
+  only:
+    refs:
+    - schedules
+    variables:
+    - $SCHEDULED_JOB == "triage"
+  tags:
+  - shared
+  - linux
+  - ruby
+
+outdated:
+  <<: *defaults
+  stage: outdated
+  script:
+  # unfortunately "composer outdated -D" only works if you have installed the dependencies :/
+  - composer install --verbose --prefer-dist --no-progress --no-interaction --classmap-authoritative --no-suggest --no-scripts --ignore-platform-reqs
+  - ./scripts/outdated-notify
+  cache:
+    key: outdated:v1
+    paths:
+    - vendor
+  only:
+    refs:
+    - schedules
+    variables:
+    - $SCHEDULED_JOB == "outdated"
+  tags:
+  # run on our server where we likely have the image already
+  - non-shared
+
+build:backend-chat:
+  <<: *defaults
+  image: node:13.6.0-alpine
+  stage: build
+  script:
+  - (cd chat && yarn && yarn lint)
+  cache:
+    key: chat:build:v2
+    paths:
+    - chat/node_modules
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - chat/node_modules
+  except:
+  - schedules
+
+build:frontend:
+  <<: *defaults
+  image: node:13.6.0-alpine
+  stage: build
+  script:
+  - (cd client && yarn && yarn lint && yarn test && yarn build)
+  cache:
+    key: client:build:v2
+    paths:
+    - client/node_modules
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - assets
+  except:
+  - schedules
+
+build:backend:
+  <<: *defaults
+  image: registry.gitlab.com/foodsharing-dev/images/php:2.18
+  stage: build
+  script:
+    - composer install --verbose --prefer-dist --no-progress --no-interaction --no-suggest --no-scripts --ignore-platform-reqs
+    - vendor/bin/php-cs-fixer fix --dry-run --diff --diff-format udiff --verbose --ansi
+    - vendor/bin/parallel-lint --no-progress --exclude vendor .
+    - vendor/bin/phpstan analyse --memory-limit=768M --no-progress
+    - composer install --verbose --prefer-dist --no-progress --no-interaction --no-dev --classmap-authoritative --no-suggest --no-scripts --ignore-platform-reqs
+    - composer dump-autoload --classmap-authoritative
+  cache:
+    key: backend:build:v1
+    paths:
+    - vendor
+    - .php_cs.cache
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - vendor
+  except:
+  - schedules
+
+build:docs:
+  <<: *defaults
+  image: node:13.6.0-alpine
+  stage: build
+  script:
+  - yarn global add gitbook-cli
+  - gitbook install docs
+  - gitbook build docs docs/dist
+  cache:
+    key: build-docs
+    paths:
+    - docs/node_modules
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - docs/dist
+  only:
+  - master
+  except:
+  - schedules
+
+test:
+  <<: *defaults
+  # run it on our foodsharing ci server
+  tags:
+  - non-shared
+  script:
+  - composer validate --no-check-all --strict
+  - ./scripts/ci.test
+  after_script:
+  # collect artifacts
+  - docker cp foodsharing_ci_selenium:/home/seluser/Downloads tests/_output/ || true
+  - docker cp foodsharing_ci_codeception:/app/tests/_output/ tests/_output || true
+  - docker logs foodsharing_ci_app --since 15m --timestamps &> tests/_output/logs-app.txt || true
+  - docker logs foodsharing_ci_mailqueuerunner --since 15m --timestamps &> tests/_output/logs-mailqueuerunner.txt || true
+  # stop/kill all the containers
+  - FS_ENV=ci ./scripts/rm
+  # collect any test output
+  artifacts:
+    expire_in: 1 month
+    when: always
+    paths:
+    - tests/_output
+  except:
+  - schedules
+
+deploy:beta:
+  <<: *deploy
+  environment:
+    name: beta
+    url: https://beta.foodsharing.de
+  only:
+  - master
+  except:
+  - schedules
+
+deploy:production:
+  <<: *deploy
+  environment:
+    name: production
+    url: https://foodsharing.de
+  only:
+  - production
+  except:
+  - schedules
+
+deploy:docs:
+  <<: *defaults
+  <<: *ssh
+  stage: deploy
+  dependencies:
+  - build:docs
+  script:
+  - rsync -avz --delete docs/dist/ "deploy@devdocs.foodsharing.network:/var/www/devdocs/htdocs/"
+  environment:
+    name: docs
+    url: https://devdocs.foodsharing.network
+  only:
+  - master
+  except:
+  - schedules
+
+variables:
+  # https://docs.docker.com/engine/userguide/storagedriver/selectadriver/
+  # https://gitlab.com/gitlab-org/gitlab-ce/issues/19971
+  DOCKER_DRIVER: overlay
+

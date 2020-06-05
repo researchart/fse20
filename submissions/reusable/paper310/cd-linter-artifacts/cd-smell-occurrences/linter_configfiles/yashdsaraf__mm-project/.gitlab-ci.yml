@@ -1,0 +1,23 @@
+before_script:
+    - curl -sL https://deb.nodesource.com/setup_7.x | bash -
+    - dpkg --add-architecture i386
+    - echo "deb http://ppa.launchpad.net/webupd8team/java/ubuntu trusty main" >> /etc/apt/sources.list.d/java-8-debian.list
+    - echo "deb-src http://ppa.launchpad.net/webupd8team/java/ubuntu trusty main" >> /etc/apt/sources.list.d/java-8-debian.list
+    - apt-key adv --keyserver keyserver.ubuntu.com --recv-keys EEA14886
+    - echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
+    - apt-get update -qq && apt-get install -qq -y nodejs wine oracle-java8-installer oracle-java8-set-default
+    - update-alternatives --install /usr/bin/node node /usr/bin/nodejs 10
+    - npm install npm --global
+stages:
+    - build
+job:
+    stage: build
+    script:
+        - npm install
+        - npm run build-win
+        - java -jar BoxIO-1.0.1.jar credentials.properties upload dist/*/*exe
+    only:
+        - master
+    tags:
+        - docker
+

@@ -1,0 +1,27 @@
+image: docker:stable
+
+services:
+- docker:dind
+
+before_script:
+- docker login -u $CI_JOB_USER -p $CI_JOB_TOKEN
+
+stages:
+- build
+
+build_latest:
+  stage: build
+  only:
+  - master
+  script:
+  - docker build --pull -t kilik/mysql-filter-dump:latest .
+  - docker push kilik/mysql-filter-dump:latest
+
+build_tagged:
+  stage: build
+  only:
+  - tags
+  script:
+  - docker build --pull -t kilik/mysql-filter-dump:$CI_COMMIT_REF_NAME .
+  - docker push kilik/mysql-filter-dump:$CI_COMMIT_REF_NAME
+

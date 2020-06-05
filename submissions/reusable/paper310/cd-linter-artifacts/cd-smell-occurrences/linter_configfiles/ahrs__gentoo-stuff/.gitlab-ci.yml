@@ -1,0 +1,84 @@
+# vim: filetype=yaml
+image: gentoo/stage3-amd64
+
+stages:
+  - test
+
+# Attempt to cache packages in between jobs
+cache:
+  key: one-key-to-rule-them-all
+  paths:
+  - .packages/
+
+before_script:
+  - cp $PWD/.ci/bashrc /etc/portage
+  - echo 'FEATURES="${FEATURES} ccache"' | tee -a /etc/portage/make.conf
+  - echo "EMERGE_DEFAULT_OPTS=\"\${EMERGE_DEFAULT_OPTS} --usepkg-exclude 'virtual/*'\"" | tee -a /etc/portage/make.conf
+  - mkdir -p .logs
+  - mkdir -p .packages/.ccache
+  - mkdir -p .packages/.distfiles
+  - mkdir -p /usr/portage
+  - "[ -d /usr/portage/packages ] && rm -rfv /usr/portage/packages"
+  - ln -fs $PWD/.distfiles /usr/portage/distfiles
+  - ln -fs $PWD/.packages /usr/portage/packages
+  - rm -rf /var/tmp/ccache
+  - chown -R portage:portage $PWD/.packages/.ccache
+  - chown -R portage:portage $PWD/.packages/.distfiles
+  - ln -fs $PWD/.packages/.ccache /var/tmp/ccache
+  - wget -qO - "https://github.com/gentoo-mirror/gentoo/archive/master.tar.gz" | tar xz -C /usr/portage --strip-components=1
+  - mkdir -p /var/lib/overlays/go-overlay
+  - wget -qO - "https://github.com/Dr-Terrible/go-overlay/archive/master.tar.gz" | tar xz -C /var/lib/overlays/go-overlay --strip-components=1
+  - mkdir -p /var/lib/overlays/rust
+  - wget -qO - "https://github.com/gentoo/gentoo-rust/archive/master.tar.gz" | tar xz -C /var/lib/overlays/rust --strip-components=1
+  - mkdir -p /etc/portage/repos.conf
+  - mkdir -p /etc/portage/env
+  - echo 'FEATURES="${FEATURES} test"' > /etc/portage/env/test.conf
+  - echo 'FEATURES="${FEATURES} test-fail-continue"' > /etc/portage/env/test-fail-continue.conf
+  - mkdir -p /etc/portage/package.env
+  - sed -i 's|gentoo|gentoo fakeverlay|g' metadata/layout.conf
+  - printf "[fakeverlay]\nlocation = $PWD/.ci/fakeverlay\n" > /etc/portage/repos.conf/fakeverlay.conf
+  - printf "[rust]\nlocation = /var/lib/overlays/rust\n" > /etc/portage/repos.conf/rust.conf
+  - printf "[go-overlay]\nlocation = /var/lib/overlays/go-overlay\n" > /etc/portage/repos.conf/go-overlay.conf
+  - printf "[ahrs]\nlocation = $PWD\n" > /etc/portage/repos.conf/ahrs.conf
+  - printf "dev-vcs/git -* blksha1 curl threads\n" > /etc/portage/package.use/git
+  - mkdir -p "/etc/portage/package.use"
+  - "echo 'sys-apps/portage -ipc' > /etc/portage/package.use/portage"
+  - env ACCEPT_KEYWORDS="~*" MAKEOPTS="-j$(($(nproc)+1))" emerge -q1 --usepkg y --buildpkg y sys-apps/portage
+  - env ACCEPT_KEYWORDS="~*" MAKEOPTS="-j$(($(nproc)+1))" emerge -qu --usepkg y --buildpkg y app-portage/repoman app-portage/portage-utils sys-apps/portage sys-kernel/gentoo-sources dev-vcs/git dev-util/ccache
+  - qpkg --clean --verbose || true
+
+repoman:
+  stage: test
+  artifacts:
+    paths:
+      - .logs
+  script:
+    - env
+    - repoman --version
+    - repoman full --vcs none -dvx
+  after_script:
+    - if [ -f "/var/log/emerge.log" ] ; then mv /var/log/emerge.log .logs; fi
+    - if [ -f "/var/log/emerge-fetch.log" ] ; then mv /var/log/emerge-fetch.log .logs; fi
+    - if [ -d "/var/log/emerge" ] ; then mv /var/log/emerge .logs; fi
+include:
+  - '/app-admin/qtpass/.gitlab-ci.yml'
+  - '/app-editors/vscode/.gitlab-ci.yml'
+  - '/app-misc/dvtm/.gitlab-ci.yml'
+  - '/app-misc/ranger/.gitlab-ci.yml'
+  - '/app-shells/ion/.gitlab-ci.yml'
+  - '/app-text/mdbook/.gitlab-ci.yml'
+  - '/media-libs/mutagen/.gitlab-ci.yml'
+  - '/media-sound/picard/.gitlab-ci.yml'
+  - '/media-sound/tizonia/.gitlab-ci.yml'
+  - '/net-analyzer/SpeedTest++/.gitlab-ci.yml'
+  - '/net-misc/youtube-dl/.gitlab-ci.yml'
+  - '/net-p2p/jackett-bin/.gitlab-ci.yml'
+  - '/sys-apps/topgrade/.gitlab-ci.yml'
+  - '/sys-devel/just/.gitlab-ci.yml'
+  - '/x11-misc/brightnessctl/.gitlab-ci.yml'
+  - '/x11-misc/lemonbar/.gitlab-ci.yml'
+  - '/x11-terms/alacritty/.gitlab-ci.yml'
+  - '/x11-terms/galacritty/.gitlab-ci.yml'
+  - '/x11-terms/kitty/.gitlab-ci.yml'
+  - '/x11-wm/custard/.gitlab-ci.yml'
+

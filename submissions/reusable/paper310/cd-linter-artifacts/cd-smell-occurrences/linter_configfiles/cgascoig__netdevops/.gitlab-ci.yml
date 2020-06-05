@@ -1,0 +1,104 @@
+stages:
+ - test:shutdown-simulation
+ - test
+ - deploy:shutdown-simulation
+ - deploy
+
+
+###############################################
+# Deployment phase
+###############################################
+
+# If we're running from a schedule or on-demand, delete the production simulation in VIRL first
+deploy:shutdown-simulation:
+  stage: deploy:shutdown-simulation
+  only:
+    - schedules
+    - web
+  except:
+    - /^(?!master$)/
+  script:
+    - source /home/cicd/CICD/bin/activate
+    - SIMULATION_NAME="prod_simulation" ./tests/setup_simulation.py shutdown
+    - sleep 60
+    
+# Deploy the configuration to production environment
+deploy:
+  stage: deploy
+  only:
+   - master
+  script:
+    - netstat -rn
+    - source /home/cicd/CICD/bin/activate
+    - SIMULATION_NAME="prod_simulation" ./tests/setup_simulation.py
+    - export ANSIBLE_HOST_KEY_CHECKING=False
+    - ansible-playbook -i gen/inventory_prod_simulation ansible/site.yml 
+    # below looks complicated but it just runs the ansible test playbook up to 8 times waiting 5 secs in between
+    - for i in $(seq 1 8); do ansible-playbook -i gen/inventory_prod_simulation ansible/test.yml && ex=0 && break || ex=$? && sleep 5; done; (exit $ex)
+
+# Execute the ToDD-based tests in the production environment
+#deploy-todd:
+#  stage: deploy
+#  only: 
+#    - master
+#  script:
+#    - source /var/lib/venvs/ansible2.5/bin/activate
+#    - SIMULATION_NAME="prod_simulation" ./tests/setup_simulation.py
+#    - ansible-playbook -i gen/inventory_prod_simulation ansible/todd.yml
+
+# Deploy the configuration to the production ACI environment 
+#deploy-aci:
+#  stage: deploy
+#  only: 
+#    - master
+#  script: 
+#    - ./tests/test_aci.sh -l prod
+
+
+###############################################
+# Testing phase
+###############################################
+
+# If we're running from a schedule or on-demand, delete the test simulation in VIRL first
+test:shutdown-simulation:
+  stage: test:shutdown-simulation
+  only:
+    - schedules
+    - web
+  except:
+    - master
+  script:
+    - source /home/cicd/CICD/bin/activate
+    - ./tests/setup_simulation.py shutdown
+    - sleep 60
+
+# Deploy the configuration to test environment
+test:
+  stage: test
+  except:
+    - master
+  script: 
+    - source /home/cicd/CICD/bin/activate
+    - ./tests/setup_simulation.py
+    - export ANSIBLE_HOST_KEY_CHECKING=False
+    - ansible-playbook -i gen/inventory_test_simulation ansible/site.yml
+    # below looks complicated but it just runs the ansible test playbook up to 8 times waiting 5 secs in between
+    - for i in $(seq 1 8); do ansible-playbook -i gen/inventory_test_simulation ansible/test.yml && ex=0 && break || ex=$? && sleep 5; done; (exit $ex)
+
+# Execute the ToDD-based tests in the test environment
+#test-todd:
+#  stage: test
+#  except: 
+#    - master
+#  script:
+#    - source /var/lib/venvs/ansible2.5/bin/activate
+#    - ./tests/setup_simulation.py
+#    - ansible-playbook -i gen/inventory_test_simulation ansible/todd.yml
+
+# Deploy the configuration to the test ACI environment 
+#test-aci:
+#  stage: test
+#  except: 
+#    - master
+#  script: ./tests/test_aci.sh -l test
+

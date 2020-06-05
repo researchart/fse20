@@ -1,0 +1,38 @@
+image: golang:1.10
+
+services:
+  - redis:latest
+
+variables:
+  REDIS_ADDRESS: "redis:6379"
+
+stages:
+  - test
+
+before_script:
+  # create symlink to ${CI_PROJECT_DIR} in ${GOPATH} and cd there
+  - mkdir -p ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}
+  - cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}
+  - ln -s ${CI_PROJECT_DIR}
+  - cd ${CI_PROJECT_NAME}
+  # install dependencies
+  - apt-get update
+  - apt-get install libcairo2-dev -y
+  # install go dependencies
+  # discordgo develop branch
+  - go get github.com/bwmarrin/discordgo
+  - cd ${GOPATH}/src/github.com/bwmarrin/discordgo
+  - git checkout develop
+  - cd ${GOPATH}/src/gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}
+  # all other dependencies
+  - go get -v ./...
+  # install goimports
+  - go get -v golang.org/x/tools/cmd/goimports
+
+testing:
+  stage: test
+  script:
+    - bash format_go.sh
+    - go test -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./... | grep -v /vendor/)
+    - bash <(curl -s https://codecov.io/bash)
+

@@ -1,0 +1,13 @@
+stages:
+- build
+
+build:
+  stage: build
+  image: aergus/latex
+  script:
+  - find . -maxdepth 1 -type d -not -path '*/\.*' | grep "./" | while read line ; do echo $line ; cd "$line" ; xelatex slide.tex; xelatex slide.tex ; cd .. ; done;
+  - ls -R
+  artifacts:
+    paths:
+    - ./*/slide.pdf
+

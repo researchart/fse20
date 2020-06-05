@@ -1,0 +1,15 @@
+image: node:latest
+
+before_script:
+  - yarn global add codecov
+  - yarn
+
+cache:
+  paths:
+    - node_modules/
+
+test:
+  stage: test
+  script:
+    - yarn unit && codecov -t $CODECOV_TOKEN
+

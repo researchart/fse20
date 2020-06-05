@@ -1,0 +1,122 @@
+stages:
+  - test
+  - build
+
+variables:
+  POSTGRES_DB: database_name
+
+audit:
+  stage: test
+  image: ruby:2.5.1-alpine
+  script:
+    - gem install bundle-audit
+    - bundle audit check --update
+
+sast:
+  stage: test
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SAST_CONFIDENCE_LEVEL="${SAST_CONFIDENCE_LEVEL:-3}"
+        --volume "$PWD:/code"
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/sast:$SP_VERSION" /app/bin/run /code
+  artifacts:
+    paths: [gl-sast-report.json]
+
+code_quality:
+  stage: test
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    reports:
+      codequality: gl-code-quality-report.json
+
+test:
+  image: "registry.gitlab.com/prismosuite/base-images:test"
+  stage: test
+  services:
+    - redis:latest
+    - postgres:latest
+  variables:
+    DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/$POSTGRES_DB"
+    REDIS_URL: redis://redis
+  script:
+    - export RAILS_ENV=test
+    - export SECRET_KEY_BASE=test
+
+    # Dependencies
+    - yarn install
+    - bundle install -j $(nproc) --path vendor
+
+    # Setup database
+    - bundle exec rails db:create || true
+    - bundle exec rake db:structure:load
+
+    # Run specs
+    - bundle exec rspec --exclude-pattern "spec/features/**/*"
+    - bundle exec rspec --pattern "spec/features/**/*.rb"
+    - cat log/bullet.log 2>/dev/null
+  cache:
+    paths:
+      - vendor/ruby
+      - node_modules
+  artifacts:
+    paths:
+    - tmp/capybara
+
+build-latest-stable:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:latest-stable" .
+    - docker push "$CI_REGISTRY_IMAGE:latest-stable"
+  only:
+    - master
+
+build-latest:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:latest" .
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+  only:
+    - dev
+
+build-release:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
+  only:
+    - /^v.*$/
+  except:
+    - branches
+

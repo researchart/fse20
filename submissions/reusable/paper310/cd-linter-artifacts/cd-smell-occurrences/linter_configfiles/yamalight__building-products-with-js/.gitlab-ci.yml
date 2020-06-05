@@ -1,0 +1,83 @@
+image: docker:latest
+services:
+- docker:dind
+
+stages:
+- build
+- test
+- release
+- deploy
+
+variables:
+  SERVER_TEST_IMAGE: yamalight/bpwjs-server:$CI_BUILD_REF_NAME
+  CLIENT_TEST_IMAGE: yamalight/bpwjs-client:$CI_BUILD_REF_NAME
+  SERVER_RELEASE_IMAGE: yamalight/bpwjs-server:latest
+  CLIENT_RELEASE_IMAGE: yamalight/bpwjs-client:latest
+
+before_script:
+  - docker login -u yamalight -p $CI_DOCKERHUB_PASSWORD
+
+build-server:
+  stage: build
+  script:
+    - docker build --pull -t $SERVER_TEST_IMAGE ./server
+    - docker push $SERVER_TEST_IMAGE
+
+build-client:
+  stage: build
+  script:
+    - docker build --pull -t $CLIENT_TEST_IMAGE ./client
+    - docker push $CLIENT_TEST_IMAGE
+
+test-server:
+  stage: test
+  script:
+    - docker run -d --name expertsdb rethinkdb
+    - docker pull $SERVER_TEST_IMAGE
+    - docker run --link expertsdb:expertsdb -e EXPERTS_DB_URL=expertsdb $SERVER_TEST_IMAGE npm test
+
+test-client:
+  stage: test
+  script:
+    - docker pull $CLIENT_TEST_IMAGE
+    - docker run -e TZ=Europe/Berlin $CLIENT_TEST_IMAGE npm test
+
+release-server:
+  stage: release
+  script:
+    - docker pull $SERVER_TEST_IMAGE
+    - docker tag $SERVER_TEST_IMAGE $SERVER_RELEASE_IMAGE
+    - docker push $SERVER_RELEASE_IMAGE
+  only:
+    - master
+
+release-client:
+  stage: release
+  script:
+    - docker pull $CLIENT_TEST_IMAGE
+    - docker tag $CLIENT_TEST_IMAGE $CLIENT_RELEASE_IMAGE
+    - docker push $CLIENT_RELEASE_IMAGE
+  only:
+    - master
+
+deploy:
+  stage: deploy
+  only:
+    - master
+  when: manual
+  before_script:
+    # Install ssh-agent, ldap if not already installed
+    - apk add --update openssh
+    # Run ssh-agent (inside the build environment)
+    - eval $(ssh-agent -s)
+    # Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+    - echo "$SSH_PRIVATE_KEY" > ~/id_rsa && chmod 600 ~/id_rsa && ssh-add ~/id_rsa
+    # For Docker builds disable host key checking. Be aware that by adding that
+    # you are suspectible to man-in-the-middle attacks.
+    # WARNING: Use this only with the Docker executor, if you use it with shell
+    # you will overwrite your user's SSH config.
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    - ssh root@codezen.net "cd /root/bpwjs.deploy; make deploy"
+

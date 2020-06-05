@@ -1,0 +1,14 @@
+stages:
+  - deploy
+  
+deploy_aws_s3:
+  image: napp/docker-aws-cli
+  stage: deploy
+  script:
+    - aws s3 cp ./tableau-style s3://$AWS_BUCKET/$AWS_FOLDER/tableau-style --recursive --acl public-read
+    - aws s3 cp . s3://$AWS_BUCKET/$AWS_FOLDER --recursive --exclude "*" --include "*.css" --include "*.js" --include "*.html" --acl public-read
+    - aws configure set preview.cloudfront true
+    - aws cloudfront create-invalidation --distribution-id $CDN_DISTRIBUTION_ID --paths "/brushfilter/*"
+  only:
+    - master
+

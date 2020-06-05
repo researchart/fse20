@@ -1,0 +1,31 @@
+image: node:12-alpine
+
+shellcheck:
+  stage: build
+  image: koalaman/shellcheck-alpine
+  script:
+    - shellcheck ./analysis.sh
+
+generate_stats:
+  stage: build
+  script:
+    - apk --update --no-cache add git jq bash gzip curl tree coreutils grep
+    - bash ./analysis.sh
+    - mv dist public
+  artifacts:
+    when: always
+    paths:
+      - public
+      - results
+      - tmp
+
+pages:
+  stage: deploy
+  script:
+    - ls public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

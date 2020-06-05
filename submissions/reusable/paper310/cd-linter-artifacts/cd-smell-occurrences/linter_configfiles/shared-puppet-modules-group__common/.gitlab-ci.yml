@@ -1,0 +1,49 @@
+image: leapcode/ruby
+before_script:
+  - "[ -d /var/cache/gitlab-runner ] || sudo mkdir /var/cache/gitlab-runner"
+  - sudo chown cirunner:cirunner -R /var/cache/gitlab-runner
+  - bundle install --jobs $(nproc) --without system_tests --path=/var/cache/gitlab-runner/ "${FLAGS[@]}"
+
+.job_template: &job_definition
+  script:
+    # don't fail on lint warnings
+    - bundle exec rake lint || /bin/true
+    - bundle exec rake syntax
+    - bundle exec rake validate
+    - bundle exec rake spec
+
+# Default debian jessie versions
+test:puppet37:
+  variables:
+    PUPPET_VERSION: "~> 3.7.2"
+    FACTER_VERSION: '~> 2.2.0'
+  <<: *job_definition
+
+test:puppet38_future_parser:
+  variables:
+    PUPPET_VERSION: '~> 3.8'
+    FACTER_VERSION: '~> 2.2.0'
+    FUTURE_PARSER:  'yes'
+  <<: *job_definition
+
+test:puppet40:
+  variables:
+    PUPPET_VERSION: "~> 4.0.0"
+    FACTER_VERSION: '~> 2.4.0'
+  <<: *job_definition
+
+# Default debia stretch versions
+test:puppet45:
+  variables:
+    PUPPET_VERSION: "~> 4.5.2"
+    FACTER_VERSION: '~> 2.4.6'
+  <<: *job_definition
+
+# Latest greatest
+test:puppet4x:
+  variables:
+    PUPPET_VERSION: "> 4"
+    FACTER_VERSION: '> 2'
+  <<: *job_definition
+
+

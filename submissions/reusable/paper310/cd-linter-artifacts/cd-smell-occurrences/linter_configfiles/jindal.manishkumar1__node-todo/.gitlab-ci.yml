@@ -1,0 +1,39 @@
+image: alpine:latest
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+  - docker info
+
+variables:
+  IMAGE_TAG1: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  IMAGE_TAG2: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+build:
+  stage: build
+  script:
+    - docker build -t $IMAGE_TAG1 .
+    - docker tag $IMAGE_TAG1 $IMAGE_TAG2
+    - docker push $IMAGE_TAG1
+    - docker push $IMAGE_TAG2
+  tags:
+    - docker
+
+test1:
+  stage: test
+  script: echo "test1"
+  tags:
+   - docker
+   
+test2:
+  stage: test
+  script: echo "test2"
+  tags:
+   - docker
+   
+

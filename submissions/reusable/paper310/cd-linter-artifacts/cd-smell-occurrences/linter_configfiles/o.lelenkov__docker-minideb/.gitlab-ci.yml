@@ -1,0 +1,15 @@
+image: docker:latest
+
+before_script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+services:
+    - docker:dind
+
+build:
+    stage: build
+    script:
+        - docker build --tag=$CI_REGISTRY_IMAGE:latest .
+        - docker build --tag=$CI_REGISTRY_IMAGE:$(cat VERSION) .
+        - docker push $CI_REGISTRY_IMAGE
+

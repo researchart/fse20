@@ -1,0 +1,14 @@
+testing:
+  image: fokus/java-testing
+  stage: test
+  script:
+    - git clone https://gitlab.com/european-data-portal/dataset-similarities.git && mvn -f dataset-similarities/pom.xml install && mvn -s dockerbuild/settings.xml test
+  artifacts:
+    paths:
+      - target/surefire-reports
+
+trigger:
+  stage: deploy
+  script:
+    - "curl -X POST -F token=0972c72ae5bc6a033ba8d7a316803c -F ref=master https://gitlab.com/api/v3/projects/1503410/trigger/builds"
+

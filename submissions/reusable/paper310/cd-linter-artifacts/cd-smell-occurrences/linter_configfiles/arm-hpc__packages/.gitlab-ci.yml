@@ -1,0 +1,17 @@
+before_script:
+  - python --version
+  - git --version
+  - apt-get update -qq && apt-get install -y -qq python-xlsxwriter
+
+build_package_categories:
+  script:
+    - ls -l
+    - git clone https://gitlab-ci-token:${ARM_WIKI_KEY}@gitlab.com/arm-hpc/packages.wiki.git
+    - cd packages.wiki
+    - python ../package_categories.py
+    - git status
+    - git config user.email "geraint.north@arm.com"
+    - git config user.name "arm-hpc packages pipeline"
+    - git config push.default simple
+    - if git diff --exit-code; then echo "No changes to commit"; else git commit -am 'Pipeline updating summary pages'; git push; fi
+

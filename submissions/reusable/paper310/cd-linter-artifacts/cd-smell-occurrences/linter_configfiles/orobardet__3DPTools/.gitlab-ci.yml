@@ -1,0 +1,165 @@
+image: node:12
+
+stages:
+  - tests
+  - build
+  - release
+  - mirror
+  - dockerhub
+
+#cache:
+#  key: 3dptools-ci_${CI_COMMIT_REF_NAME}
+#  paths:
+#  - src/node_modules
+#  - src/public/vendor
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+
+include:
+  template: Dependency-Scanning.gitlab-ci.yml
+
+dependency_scanning:
+  stage: tests
+
+Unit tests:
+  variables:
+    MONGO_URL: "mongodb://mongo/3dptoolstests"
+  stage: tests
+  services:
+    - mongo
+  script:
+    - cd src
+    - yarn install && yarn run bower --allow-root install
+    - yarn run coverage-colorless
+  coverage: /^Lines\s*:\s*(\d+.\d+)\%/
+  artifacts:
+    name: "${CI_PROJECT_NAME}_TU-code-coverage"
+    paths:
+      - src/coverage
+    expire_in: 1 week
+  only:
+    - branches
+  except:
+    - tags
+
+Snyk:
+  stage: tests
+  script:
+    - cd src
+    - yarn install
+    - node_modules/.bin/snyk test
+    - node_modules/.bin/snyk monitor
+  only:
+    - branches
+  except:
+    - tags
+
+Test Docker build: &_test_docker_build
+  image: docker:git
+  stage: build
+  variables:
+    UPLOAD_DEV_IMAGE: 0
+  services:
+    - docker:dind
+  before_script:
+    - docker info
+  script:
+    - echo -n "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
+    - docker pull ${CI_REGISTRY_IMAGE}/dev:$CI_BUILD_REF_NAME || true
+    - docker pull ${CI_REGISTRY_IMAGE}/dev || true
+    - docker build -t ${CI_REGISTRY_IMAGE}/dev:$CI_BUILD_REF_NAME --cache-from ${CI_REGISTRY_IMAGE}/dev --cache-from ${CI_REGISTRY_IMAGE}/dev:$CI_BUILD_REF_NAME .
+    - "[[ $UPLOAD_DEV_IMAGE -ne 0 ]] && docker push ${CI_REGISTRY_IMAGE}/dev:$CI_BUILD_REF_NAME"
+  when: manual
+  only:
+    - branches
+  except:
+    - tags
+    - master
+
+Dev Docker build:
+  <<: *_test_docker_build
+  variables:
+    UPLOAD_DEV_IMAGE: 1
+
+#codequality:
+#  <<: *_codequality
+#  only:
+#    - master
+#  except:
+#    - tags
+#
+#sast:
+#  <<: *_sast
+#  only:
+#    - master
+#  except:
+#    - tags
+
+Docker build:
+  image: docker:git
+  stage: build
+  services:
+    - docker:dind
+  before_script:
+    - docker info
+  script:
+    - echo -n "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
+    - docker pull $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME || true
+    - docker pull $CI_REGISTRY_IMAGE || true
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME --cache-from $CI_REGISTRY_IMAGE --cache-from $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME .
+    - docker push $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+  environment: staging
+  only:
+    - master
+  except:
+    - tags
+
+Docker release:
+  image: docker:git
+  stage: release
+  services:
+    - docker:dind
+  before_script:
+    - docker info  
+  script:
+    - echo -n "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
+    - export IMG_TAG=$CI_BUILD_TAG
+    - docker pull $CI_REGISTRY_IMAGE:$IMG_TAG || true
+    - docker pull $CI_REGISTRY_IMAGE || true
+    - docker build -t $CI_REGISTRY_IMAGE:$IMG_TAG --cache-from $CI_REGISTRY_IMAGE --cache-from $CI_REGISTRY_IMAGE:$IMG_TAG .
+    - docker push $CI_REGISTRY_IMAGE:$IMG_TAG
+    - docker tag $CI_REGISTRY_IMAGE:$IMG_TAG $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+  environment: production
+  only:
+    - tags
+
+Github mirror:
+  image: docker:git
+  stage: mirror
+  cache:
+  script:
+    - mkdir -p ~/.ssh
+    - echo "$GITHUB_SSH_KEY" > ~/.ssh/id_rsa
+    - ssh-keyscan -H github.com > ~/.ssh/known_hosts
+    - chmod -R 0600 ~/.ssh/
+    - git remote | grep github > /dev/null && git remote set-url github git@github.com:orobardet/3dptools.git || git remote add github git@github.com:orobardet/3dptools.git
+    - git fetch github
+    - git push --mirror -f github
+  environment: github
+  only:
+    - tags
+
+Docker Hub:
+  image: tutum/curl
+  stage: dockerhub
+  cache:
+  script:
+    - "curl -H \"Content-Type: application/json\" --data '{\"source_type\": \"Tag\", \"source_name\": \"$CI_BUILD_TAG\"}' -X POST https://registry.hub.docker.com/u/orobardet/3dptools/trigger/5342d440-a38f-4510-b0a2-15aa1e59f339/"
+  environment: github
+  only:
+    - tags
+
+
+

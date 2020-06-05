@@ -1,0 +1,62 @@
+variables:
+  CONTAINER_TEST_IMAGE: ${CI_REGISTRY_IMAGE}/review:$CI_BUILD_REF_NAME
+  CONTAINER_RELEASE_IMAGE: ${CI_REGISTRY_IMAGE}:latest
+
+stages:
+- build
+- test
+- release
+
+.docker: &docker
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login --username "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+
+.release: &release
+  <<: *docker
+  stage: release
+  script:
+    - export VERSION=$( echo $CI_JOB_NAME | sed "s/release\s//" )
+    - export MAJOR=$( echo $VERSION | sed "s/\..*//" )
+    - export MINOR=$( echo $VERSION | sed "s/\w\.//" | sed "s/\..*//" )
+    - export BUILD=$( echo $VERSION | sed "s/.*\.//" )
+    - >
+      docker build \
+        -t ${CI_REGISTRY_IMAGE}:${MAJOR}.${MINOR}.${BUILD} \
+        --build-arg qt_major=${MAJOR} \
+        --build-arg qt_minor=${MINOR} \
+        --build-arg qt_build=${BUILD} .
+    - docker push ${CI_REGISTRY_IMAGE}:${MAJOR}.${MINOR}.${BUILD}
+  only:
+    - master
+
+build:
+  <<: *docker
+  stage: build
+  script:
+    - docker build -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+test:
+  <<: *docker
+  stage: test
+  script:
+    - docker run -v $PWD:/code -w /code $CONTAINER_TEST_IMAGE bash test.sh
+
+release latest:
+  <<: *docker
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - master
+
+release 5.9.2: *release
+release 5.9.3: *release
+release 5.10.0: *release
+release 5.10.1: *release
+

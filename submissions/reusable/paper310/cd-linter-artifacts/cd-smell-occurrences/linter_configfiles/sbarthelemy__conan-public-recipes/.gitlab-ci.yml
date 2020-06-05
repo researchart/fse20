@@ -1,0 +1,281 @@
+stages:
+  - setup
+  - clean
+  - build
+  - deploy-recipes
+  - deploy-binaries
+
+variables:
+  GIT_SUBMODULE_STRATEGY: normal
+  # Don't store files in C:\.conan as we run on Windows machines with long
+  # paths support enabled system-wide. If not, just comment the line below.
+  CONAN_USER_HOME_SHORT: None
+  SBRE_CONAN_USER: sbre
+  SBRE_CONAN_CHANNEL: testing
+
+# Use YAML anchors to reuse global configuration
+# Workarounds https://gitlab.com/gitlab-org/gitlab-runner/issues/2838
+.cache: &global-cache
+  paths:
+    - venv
+
+# 'master' is the branch we'll merge things after they have been built
+# elsewhere, so no need for a rebuild. For a full rebuild we will just merge it
+# to the 'nightly' branch.
+.dont-build-master: &excluded-branches
+  refs:
+    - master
+
+
+setup-env:win2016:
+  tags:
+    - win2016
+    - vs2017
+    - python2
+    - virtualenv
+  stage: setup
+  script:
+    - virtualenv venv
+    - call venv/Scripts/activate.bat
+    - call ci/setup-env.bat
+    # Tell if it's provided by the system or virtualenv
+    - where qibuild >> ci\env-tools.txt
+    - qibuild --version >> ci\env-tools.txt
+    # Tell if it's provided by the system or virtualenv
+    - where cmake >> ci\env-tools.txt
+    - cmake --version >> ci\env-tools.txt
+    - 'call "C:/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Auxiliary/Build/vcvarsall.bat" amd64'
+    - set
+  artifacts:
+    name: "%CI_JOB_NAME%-%CI_COMMIT_REF_NAME%"
+    paths:
+      - ci\requirements.txt
+      - ci\env-tools.txt
+    when: always
+  cache:
+    <<: *global-cache
+    policy: push
+  except:
+    <<: *excluded-branches
+
+
+setup-env:ubuntu-16.04:
+  tags:
+    - ubuntu-16.04
+    - cmake
+    - g++
+    - gcc
+    - python2
+    - virtualenv
+  stage: setup
+  script:
+    - virtualenv venv
+    - source venv/bin/activate
+    - ./ci/setup-env.sh
+    # Tell if it's provided by the system or virtualenv
+    - which qibuild | tee -a ./ci/env-tools.txt
+    - qibuild --version | tee -a ./ci/env-tools.txt
+    # Tell if it's provided by the system or virtualenv
+    - which cmake | tee -a ./ci/env-tools.txt
+    - cmake --version | tee -a ./ci/env-tools.txt
+    - set
+  artifacts:
+    name: "${CI_JOB_NAME}-${CI_COMMIT_REF_NAME}"
+    paths:
+      - ci/requirements.txt
+      - ci/env-tools.txt
+    when: always
+  cache:
+    <<: *global-cache
+    policy: push
+  except:
+    <<: *excluded-branches
+
+
+clean-package-cache:win2016:
+  tags:
+    - win2016
+    - python2
+  stage: clean
+  before_script:
+    - call venv/Scripts/activate.bat
+  script:
+    - 'conan remove --force "*"'
+  dependencies:
+    - setup-env:win2016
+  cache:
+    <<: *global-cache
+    policy: pull
+  except:
+    <<: *excluded-branches
+
+
+clean-package-cache:ubuntu-16.04:
+  tags:
+    - ubuntu-16.04
+    - python2
+  stage: clean
+  before_script:
+    - source venv/bin/activate
+  script:
+    - 'conan remove --force "*"'
+  dependencies:
+    - setup-env:ubuntu-16.04
+  cache:
+    <<: *global-cache
+    policy: pull
+  except:
+    <<: *excluded-branches
+
+
+package:win2016:
+  tags:
+    - win2016
+    - cmake
+    - vs2017
+    - python2
+  stage: build
+  before_script:
+    - call venv/Scripts/activate.bat
+    - 'call "C:/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Auxiliary/Build/vcvarsall.bat" amd64'
+    # qibuild needs some help to find a cmake installed through virtualenv
+    # See https://gitlab.aldebaran.lan/qi/qibuild/issues/31
+    - set CMAKE_PREFIX_PATH=%VIRTUAL_ENV%
+  script:
+    # Help conan detect changes in the recipes
+    # Binaries may be outdated because their recipe changed and need to be rebuilt
+    - python ci/export-all.py . %SBRE_CONAN_USER%/%SBRE_CONAN_CHANNEL%
+    # When a job times out, it leaves locks blocking the next run
+    - conan remove --locks
+    # Build gtest as static because of https://github.com/bincrafters/community/issues/335
+    - 'conan create ./libalmath %SBRE_CONAN_USER%/%SBRE_CONAN_CHANNEL% --profile ci/conan/profiles/win64-vs2017 -o gtest:shared=False -o *:shared=True -o *:fPIC=True --build=missing'
+  dependencies:
+    - clean-package-cache:win2016
+  cache:
+    <<: *global-cache
+    policy: pull
+  except:
+    <<: *excluded-branches
+
+
+package:ubuntu-16.04:
+  tags:
+    - ubuntu-16.04
+    - cmake
+    - g++
+    - gcc
+    - python2
+    - virtualenv
+  stage: build
+  before_script:
+    - source venv/bin/activate
+  script:
+    # Help conan detect changes in the recipes
+    # Binaries may be outdated because their recipe changed and need to be rebuilt
+    - python ci/export-all.py . ${SBRE_CONAN_USER}/${SBRE_CONAN_CHANNEL}
+    # Build gtest as static because of https://github.com/bincrafters/community/issues/335
+    - 'conan create ./libalmath ${SBRE_CONAN_USER}/${SBRE_CONAN_CHANNEL} --profile ci/conan/profiles/linux64-gcc5 -o gtest:shared=True -o *:shared=True -o *:fPIC=True --build=missing'
+  dependencies:
+    - clean-package-cache:ubuntu-16.04
+  cache:
+    <<: *global-cache
+    policy: pull
+  except:
+    <<: *excluded-branches
+
+
+package-toolchain:ubuntu-16.04:
+  tags:
+    - ubuntu-16.04
+    - cmake
+    - g++
+    - gcc
+    - python2
+    - virtualenv
+  stage: build
+  before_script:
+    - source venv/bin/activate
+  script:
+    - conan create ./sbretoolchain ${SBRE_CONAN_USER}/${SBRE_CONAN_CHANNEL} -o "*:shared=True" -e *:CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" -e boost:CXXFLAGS="-DBOOST_FILESYSTEM_VERSION=3 -DBOOST_ASIO_DISABLE_STD_CHRONO -DWITH_BOOST_LOCALE -D_GLIBCXX_USE_CXX11_ABI=0" --build=missing
+    - conan create ./sbretoolchain ${SBRE_CONAN_USER}/${SBRE_CONAN_CHANNEL} -o "*:shared=False" -e *:CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" -e boost:CXXFLAGS="-DBOOST_FILESYSTEM_VERSION=3 -DBOOST_ASIO_DISABLE_STD_CHRONO -DWITH_BOOST_LOCALE -D_GLIBCXX_USE_CXX11_ABI=0" --build=missing
+  cache:
+    <<: *global-cache
+    policy: pull
+  when: manual
+  except:
+    <<: *excluded-branches
+
+
+deploy-recipes:
+  tags:
+    - ubuntu-16.04
+    - cmake
+    - g++
+    - gcc
+    - python2
+    - virtualenv
+  stage: deploy-recipes
+  before_script:
+    - source venv/bin/activate
+  script:
+    # Upload recipes once for all operating systems
+    - 'conan upload --remote sbre-public "*@${SBRE_CONAN_USER}/${SBRE_CONAN_CHANNEL}" --confirm --force'
+  cache:
+    <<: *global-cache
+    policy: pull
+  environment:
+    name: production
+  dependencies:
+    - package:ubuntu-16.04
+    - package:win2016
+  except:
+    <<: *excluded-branches
+
+
+deploy-binaries:ubuntu-16.04:
+  tags:
+    - ubuntu-16.04
+    - cmake
+    - g++
+    - gcc
+    - python2
+    - virtualenv
+  stage: deploy-binaries
+  before_script:
+    - source venv/bin/activate
+  script:
+    # Upload binary packages
+    - 'conan upload --remote sbre-public "*@$SBRE_CONAN_USER/$SBRE_CONAN_CHANNEL" --all --no-overwrite recipe --confirm'
+  cache:
+    <<: *global-cache
+    policy: pull
+  environment:
+    name: production
+  dependencies:
+    - deploy-recipes
+  except:
+    <<: *excluded-branches
+
+
+deploy-binaries:win2016:
+  tags:
+    - win2016
+    - cmake
+    - vs2017
+    - python2
+  stage: deploy-binaries
+  before_script:
+    - call venv/Scripts/activate.bat
+  script:
+    # Upload binary packages
+    - 'conan upload --remote sbre-public "*@%SBRE_CONAN_USER%/%SBRE_CONAN_CHANNEL%" --all --no-overwrite recipe --confirm'
+  cache:
+    <<: *global-cache
+    policy: pull
+  environment:
+    name: production
+  dependencies:
+    - deploy-recipes
+  except:
+    <<: *excluded-branches
+

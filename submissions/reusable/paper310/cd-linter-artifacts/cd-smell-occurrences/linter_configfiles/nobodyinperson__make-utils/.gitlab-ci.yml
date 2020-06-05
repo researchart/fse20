@@ -1,0 +1,42 @@
+variables:
+    DOCS_BUILD_DIR: DOCS_BUILD
+    PAGES_DIR: public
+    TESTS_DIR: tests
+
+stages:
+    - test
+    - build
+    - deploy
+
+test:
+    stage: test
+    script:
+        - 'cd $TESTS_DIR && make'
+
+docs:
+    before_script:
+        - apt-get -qq update
+        - apt-get -qq -y install pandoc
+    stage: build
+    script:
+        - make docs DOCS_BUILD_DIR=$DOCS_BUILD_DIR
+    artifacts:
+        paths:
+            - $DOCS_BUILD_DIR/*.html
+        expire_in: 1 week
+
+pages:
+    stage: deploy
+    dependencies:
+        - docs
+    script:
+        - rm -rf $PAGES_DIR
+        - mkdir -p $PAGES_DIR
+        - mv $DOCS_BUILD_DIR/* $PAGES_DIR
+    artifacts:
+        paths:
+            - $PAGES_DIR/
+    only:
+        - master
+
+

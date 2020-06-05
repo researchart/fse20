@@ -1,0 +1,75 @@
+stages:
+  - test
+  - build
+  - deploy
+  - verify
+  - release
+
+lint:
+  image: ubuntu:18.10
+  stage: test
+  before_script:
+    - apt update
+    - apt install -y python3-pip libcairo2-dev pkg-config gobject-introspection
+    - pip3 install -e .
+    - pip3 install flake8 flake8-pep3101 mypy
+  script:
+    - python3 setup.py check -mrs
+    - flake8
+    - mypy offlinemsmtp
+
+build:
+  image: python:3.6
+  stage: build
+  before_script:
+    - pip install docutils
+  script:
+    - python setup.py check -mrs
+    - python setup.py sdist
+  artifacts:
+      paths:
+        - dist/*
+
+deploy_pypi:
+  image: python:3.6
+  stage: deploy
+  only:
+    variables:
+      # Only verify the deploy if it's a version tag.
+      - $CI_COMMIT_TAG =~ /^v.*/
+  before_script:
+    - pip install twine
+    - './create-pypirc.sh'
+  script:
+    # Upload to the test PyPi instance, then upload to the real one.
+    - twine upload -r pypi_test dist/*
+    - twine upload dist/*
+  after_script:
+    - echo "" > ~/.pypirc && rm -f ~/.pypirc
+
+verify_deploy:
+  image: ubuntu:18.10
+  stage: verify
+  only:
+    variables:
+      # Only verify the deploy if it's a version tag.
+      - $CI_COMMIT_TAG =~ /^v.*/
+  before_script:
+    - apt update
+    - apt install -y python3-pip libcairo2-dev pkg-config gobject-introspection
+  script:
+    - pip3 install offlinemsmtp
+
+publish_release:
+  image: python:3.8-alpine
+  stage: release
+  only:
+    variables:
+      # Only verify the deploy if it's a version tag.
+      - $CI_COMMIT_TAG =~ /^v.*/
+  before_script:
+    - apk add curl
+    - pip install rst2html5
+  script:
+    - ./cicd/publish-gitlab-release.sh
+

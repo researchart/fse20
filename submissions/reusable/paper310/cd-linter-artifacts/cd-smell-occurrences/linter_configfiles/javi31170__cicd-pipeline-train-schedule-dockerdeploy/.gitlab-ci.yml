@@ -1,0 +1,144 @@
+#image: node:latest
+#image: docker:git
+stages:
+  - pre-build
+  - build
+  - staging
+  - deploy 
+
+variables:
+  DOCKER_DRIVER: overlay
+  CONTAINER_DEV_IMAGE: registry.gitlab.com/javi31170/cicd-pipeline-train-schedule-dockerdeploy:$CI_COMMIT_CHA
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  DEPLOY_HOST: "ec2-35-170-57-123.compute-1.amazonaws.com"
+
+build_test:
+  #image: openjdk:8-jdk
+  image: adoptopenjdk/openjdk8
+  services:
+    - docker:dind
+  stage: pre-build
+  before_script:
+    - apt-get update -y
+    - apt-get install apt-transport-https ca-certificates -y
+    - apt-get update -y
+    - apt-get install docker.io -y
+    - sleep 2
+    - service docker start
+    - sleep 5
+    - service docker status
+    - apt-get install wget unzip openssh-client -y
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - grep StrictHostKeyChecking ~/.ssh/config
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa
+  script:
+    - wget -nv -O ~/gradle-4.7-bin.zip https://services.gradle.org/distributions/gradle-4.7-bin.zip
+    - mkdir -p /opt/gradle
+    - unzip -q -d /opt/gradle/ ~/gradle-4.7-bin.zip
+    - /opt/gradle/gradle-4.7/bin/gradle --version
+    - /opt/gradle/gradle-4.7/bin/gradle wrapper
+    - export PATH=$PATH:/opt/gradle/gradle-4.7/bin
+    - echo "export PATH=$PATH:/opt/gradle/gradle-4.7/bin" > /etc/profile.d/gradle.sh
+    - chmod 755 /etc/profile.d/gradle.sh
+    - pwd
+    - ./gradlew build --no-daemon
+    - ls dist
+  artifacts:
+    paths:
+     - dist/trainSchedule.zip
+
+build_docker:
+  image: docker:git
+  services:
+    - docker:dind
+  stage: build
+  before_script:
+    #- apt-get install openssh-client -y
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - grep StrictHostKeyChecking ~/.ssh/config
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa
+  script:
+    - docker build -t train-schedule-image .
+    - docker image ls
+    - ssh -i ~/.ssh/id_rsa -p 22 ubuntu@$DEPLOY_HOST 'sudo docker stop train-schedule || true && sudo docker rm train-schedule || true'
+    - ssh -i ~/.ssh/id_rsa -p 22 ubuntu@$DEPLOY_HOST 'sudo docker rmi train-schedule-image || true'
+    - ssh -i ~/.ssh/id_rsa -p 22 ubuntu@$DEPLOY_HOST 'sudo docker volume prune -f'
+    - docker save train-schedule-image:latest | ssh -i ~/.ssh/id_rsa -p 22 -C ubuntu@$DEPLOY_HOST 'sudo docker load'
+    - ssh -i ~/.ssh/id_rsa -p 22 ubuntu@$DEPLOY_HOST 'sudo docker images|grep train-schedule-image'
+    - docker login -u gitlab-ci-token -p "$CI_BUILD_TOKEN" "$CI_REGISTRY"
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+
+deploy_docker:
+  image: docker:git
+  services:
+    - docker:dind
+  stage: deploy
+  before_script:
+    - 'which ssh-agent || (apt-get update -y && apt-get install openssh-client -y)'
+    - mkdir -p ~/.ssh ~/.docker
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - grep StrictHostKeyChecking ~/.ssh/config
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa
+    - echo "$DOCKER_AUTH_CONFIG" > ~/.docker/config.json
+  script:
+    - ssh -i ~/.ssh/id_rsa -p 22 ubuntu@$DEPLOY_HOST 'hostname'
+    - ssh -i ~/.ssh/id_rsa -p 22 ubuntu@$DEPLOY_HOST 'sudo docker run --restart always --name train-schedule -p 8080:8080 -d train-schedule-image'
+    - sleep 5
+    - ssh -i ~/.ssh/id_rsa -p 22 ubuntu@$DEPLOY_HOST 'sudo docker ps -a|grep train-schedule'
+  environment:
+    name: integration
+  only:
+    - master
+
+deploy_stg_K8s:
+  image: docker:git
+  services:
+    - docker:dind
+  stage: deploy
+  script:
+    - apk add --no-cache curl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+    - kubectl config set-cluster do1 --server="$KUBE_URL" --insecure-skip-tls-verify=true
+    - kubectl config set-credentials admin --username="$KUBE_USER" --password="$KUBE_PASSWD"
+    - kubectl config set-context default --cluster=do1 --user="$KUBE_USER"
+    - kubectl config use-context default
+    - kubectl get pods --all-namespaces
+    #- kubectl create namespace staging
+    - 'printf "apiVersion: v1\nkind: Secret\n$(kubectl create secret docker-registry gitlab-registry --docker-server=registry.local.tld --docker-username=user --docker-password=passwd --docker-email=user@example.com -o yaml --dry-run)" | kubectl apply -f -'
+    - sed 's/_APP_NAME_/'"$CI_PROJECT_NAME"'/g; s/_VERSION_/'"$CI_COMMIT_SHA"'/g' kubernetes.tpl.yml > kubernetes.yml;
+    - kubectl apply -f kubernetes.yml --namespace=staging
+  environment:
+    name: staging
+  only:
+    - master
+
+deploy_prd_K8s:
+  image: docker:git
+  services:
+    - docker:dind
+  stage: deploy
+  script:
+    - apk add --no-cache curl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+    - kubectl config set-cluster do2 --server="$KUBE_URL" --insecure-skip-tls-verify=true
+    - kubectl config set-credentials admin --username="$KUBE_USER" --password="$KUBE_PASSWD"
+    - kubectl config set-context default --cluster=do2 --user="$KUBE_USER"
+    - kubectl config use-context default
+    - kubectl get pods --all-namespaces
+    #- kubectl create namespace production
+    - 'printf "apiVersion: v1\nkind: Secret\n$(kubectl create secret docker-registry gitlab-registry --docker-server=registry.local.tld --docker-username=user --docker-password=passwd --docker-email=user@example.com -o yaml --dry-run)" | kubectl apply -f -'
+    - sed 's/_APP_NAME_/'"$CI_PROJECT_NAME"'/g; s/_VERSION_/'"$CI_COMMIT_SHA"'/g' kubernetes.tpl.yml > kubernetes.yml;
+    - kubectl apply -f kubernetes.yml --namespace=production
+  environment:
+    name: production
+  when: manual
+  only:
+    - master
+

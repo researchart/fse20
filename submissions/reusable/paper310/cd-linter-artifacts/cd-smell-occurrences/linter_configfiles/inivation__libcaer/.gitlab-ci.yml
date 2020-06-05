@@ -1,0 +1,258 @@
+build_macosx:
+  stage: build
+  tags:
+    - macosx
+    - build
+  before_script:
+    - brew update
+    - brew upgrade
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 -DEXAMPLES_INSTALL=1 ..
+    - make -j1
+    - if [[ "${CI_COMMIT_REF_NAME}" == "master" ]] ; then sudo make install; fi
+
+build_windows:
+  stage: build
+  tags:
+    - windows
+    - build
+  variables:
+    MSYSTEM: MINGW64
+  before_script:
+    - pacman -Syuu --noconfirm
+  script:
+    - source /usr/bin/init-paths
+    - mkdir build
+    - cd build
+    - cmake -G "MSYS Makefiles" -DCMAKE_INSTALL_PREFIX=/mingw64 -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 -DEXAMPLES_INSTALL=1 ..
+    - make -j1
+    - if [[ "${CI_COMMIT_REF_NAME}" == "master" ]] ; then make install; fi
+
+build_raspbian:
+  stage: build
+  tags:
+    - raspbian
+    - build
+  before_script:
+    - sudo apt-get -y update
+    - sudo apt-get -y upgrade
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 -DEXAMPLES_INSTALL=1 ..
+    - make -j2
+    - if [[ "$CI_COMMIT_REF_NAME" != "master" ]] && [[ -z "$CI_COMMIT_TAG" ]] ; then exit 0; fi
+    - cpack -G DEB
+    - mv "libcaer.armv7l.deb" "libcaer-raspbian-buster-$CI_COMMIT_REF_NAME.deb"
+    - aws s3 cp "libcaer-raspbian-buster-$CI_COMMIT_REF_NAME.deb" "s3://release.inivation.com/libcaer/raspbian/libcaer-raspbian-buster-$CI_COMMIT_REF_NAME.deb"
+    - if [[ "${CI_COMMIT_REF_NAME}" == "master" ]] ; then sudo make install; fi
+
+build_ubuntu_1604:
+  stage: build
+  tags:
+    - docker
+  image: inivation/ubuntu:16.04
+  before_script:
+    - apt-get -y update
+    - apt-get -y upgrade
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_C_COMPILER=gcc-7 -DCMAKE_CXX_COMPILER=g++-7 -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=0 -DEXAMPLES_INSTALL=1 ..
+    - make -j1
+
+build_ubuntu_1804:
+  stage: build
+  tags:
+    - docker
+  image: inivation/ubuntu:18.04
+  before_script:
+    - apt-get -y update
+    - apt-get -y upgrade
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 -DEXAMPLES_INSTALL=1 ..
+    - make -j1
+
+build_ubuntu_curr_gcc7:
+  stage: build
+  tags:
+    - docker
+  image: inivation/ubuntu:rolling
+  before_script:
+    - apt-get -y update
+    - apt-get -y upgrade
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_C_COMPILER=gcc-7 -DCMAKE_CXX_COMPILER=g++-7 -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 -DEXAMPLES_INSTALL=1 ..
+    - make -j1
+
+build_ubuntu_curr_gcc8:
+  stage: build
+  tags:
+    - docker
+  image: inivation/ubuntu:rolling
+  before_script:
+    - apt-get -y update
+    - apt-get -y upgrade
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_C_COMPILER=gcc-8 -DCMAKE_CXX_COMPILER=g++-8 -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 -DEXAMPLES_INSTALL=1 ..
+    - make -j1
+
+build_ubuntu_curr_gcc9:
+  stage: build
+  tags:
+    - docker
+  image: inivation/ubuntu:rolling
+  before_script:
+    - apt-get -y update
+    - apt-get -y upgrade
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_C_COMPILER=gcc-9 -DCMAKE_CXX_COMPILER=g++-9 -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 -DEXAMPLES_INSTALL=1 ..
+    - make -j1
+
+build_ubuntu_curr_clang6:
+  stage: build
+  tags:
+    - docker
+  image: inivation/ubuntu:rolling
+  before_script:
+    - apt-get -y update
+    - apt-get -y upgrade
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_C_COMPILER=clang-6.0 -DCMAKE_CXX_COMPILER=clang++-6.0 -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 -DEXAMPLES_INSTALL=1 ..
+    - make -j1
+
+build_ubuntu_curr_clang7:
+  stage: build
+  tags:
+    - docker
+  image: inivation/ubuntu:rolling
+  before_script:
+    - apt-get -y update
+    - apt-get -y upgrade
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_C_COMPILER=clang-7 -DCMAKE_CXX_COMPILER=clang++-7 -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 -DEXAMPLES_INSTALL=1 ..
+    - make -j1
+
+build_ubuntu_curr_clang8:
+  stage: build
+  tags:
+    - docker
+  image: inivation/ubuntu:rolling
+  before_script:
+    - apt-get -y update
+    - apt-get -y upgrade
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_C_COMPILER=clang-8 -DCMAKE_CXX_COMPILER=clang++-8 -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 -DEXAMPLES_INSTALL=1 ..
+    - make -j1
+
+build_ubuntu_curr_clang9:
+  stage: build
+  tags:
+    - docker
+  image: inivation/ubuntu:rolling
+  before_script:
+    - apt-get -y update
+    - apt-get -y upgrade
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_C_COMPILER=clang-9 -DCMAKE_CXX_COMPILER=clang++-9 -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_STATIC=1 -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 -DEXAMPLES_INSTALL=1 ..
+    - make -j1
+
+pages:
+  tags:
+    - docker
+  image: inivation/ubuntu:rolling
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_OPENCV=1 -DENABLE_SERIALDEV=1 ..
+    - make doc
+    - cd ..
+    - mv build/docs/html public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+release_ubuntu:
+  stage: deploy
+  tags:
+    - docker
+  image: inivation/ubuntu:rolling
+  before_script:
+    - gpg --pinentry-mode loopback --passphrase "${PPA_GPG_KEY_PASS}" --import "${PPA_GPG_KEY}"
+    - echo -e "5\ny\n" | gpg --no-tty --command-fd 0 --edit-key "${PPA_GPG_KEY_ID}" trust quit
+  script:
+    - if [[ -z "${CI_COMMIT_TAG}" ]] ; then exit 0; fi
+    - cd packaging/debian-source-package/
+    - ./packageUbuntu.sh --pkg-name libcaer --pkg-version "${CI_COMMIT_TAG}" --distro xenial --gpg-key-id "${PPA_GPG_KEY_ID}" --gpg-key-pass "${PPA_GPG_KEY_PASS}" --upload
+    - sleep 60 # rate-limit connections to PPA upload server
+    - ./packageUbuntu.sh --pkg-name libcaer --pkg-version "${CI_COMMIT_TAG}" --distro bionic --gpg-key-id "${PPA_GPG_KEY_ID}" --gpg-key-pass "${PPA_GPG_KEY_PASS}" --upload
+    - sleep 60 # rate-limit connections to PPA upload server
+    - ./packageUbuntu.sh --pkg-name libcaer --pkg-version "${CI_COMMIT_TAG}" --distro disco --gpg-key-id "${PPA_GPG_KEY_ID}" --gpg-key-pass "${PPA_GPG_KEY_PASS}" --upload
+    - sleep 60 # rate-limit connections to PPA upload server
+    - ./packageUbuntu.sh --pkg-name libcaer --pkg-version "${CI_COMMIT_TAG}" --distro eoan --gpg-key-id "${PPA_GPG_KEY_ID}" --gpg-key-pass "${PPA_GPG_KEY_PASS}" --upload
+  only:
+    - tags
+    - web
+
+release_fedora:
+  stage: deploy
+  tags:
+    - docker
+  image: inivation/fedora:latest
+  before_script:
+    - mkdir -p ~/.config/
+    - cp "${COPR_API_KEY}" ~/.config/copr
+  script:
+    - if [[ -z "${CI_COMMIT_TAG}" ]] ; then exit 0; fi
+    - cd packaging/fedora-source-package/
+    - ./packageFedora.sh --pkg-name libcaer --pkg-version "${CI_COMMIT_TAG}"
+    - copr-cli build --nowait inivation/inivation "libcaer-${CI_COMMIT_TAG}-0.fc31.src.rpm"
+  only:
+    - tags
+    - web
+
+release_gentoo_arch_brew:
+  stage: deploy
+  tags:
+    - docker
+  image: inivation/gentoo:latest
+  before_script:
+    - mkdir -p ~/.ssh/
+    - cp "${GITCI_SSH_KEY}" ~/.ssh/id_ed25519
+    - chmod 0600 ~/.ssh/id_ed25519
+    - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+    - ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+    - cp "${GITCI_SSH_CONF}" ~/.gitconfig
+  script:
+    - if [[ -z "${CI_COMMIT_TAG}" ]] ; then exit 0; fi
+    - cd packaging/linux/
+    # Gentoo release
+    - ./gentoo-release.sh --pkg-name libcaer --pkg-version "${CI_COMMIT_TAG}" --pkg-category dev-libs
+    # Arch release
+    - ./arch-release.sh --pkg-name libcaer --pkg-version "${CI_COMMIT_TAG}"
+    # Brew release
+    - ./brew-release.sh --pkg-name libcaer --pkg-version "${CI_COMMIT_TAG}"
+  only:
+    - tags
+    - web
+

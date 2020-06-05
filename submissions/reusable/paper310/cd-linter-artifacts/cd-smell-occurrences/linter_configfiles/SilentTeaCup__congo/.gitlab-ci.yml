@@ -1,0 +1,70 @@
+image: silentstorm/golang-coverage
+
+variables:
+  GIT_STRATEGY: none
+  PROJECT_PATH: gitlab.com/silentteacup/congo
+
+before_script:
+  - go version
+  - export GO_PROJECT_DIR="$GOPATH/src/$PROJECT_PATH"
+  - git clone $CI_REPOSITORY_URL $GO_PROJECT_DIR
+  - cd $GO_PROJECT_DIR
+  - git checkout $CI_COMMIT_REF_NAME
+  - deps="$(./_scripts/list_deps.sh)"
+  - echo "${deps}"
+  - go get -d ${deps}
+
+stages:
+  - build
+  - test
+
+# -----  Build  ------
+build-project:
+  stage: build
+  script:
+    - go build ./...
+
+# -----  Test  ------
+lint-source:
+  stage: test
+  dependencies: [] # Prevent download of artifacts
+  script:
+    - "gometalinter --config='gometalinter.conf' $GO_PROJECT_DIR/... | sort -t: -k '1,1' -k '2,2g' -k '3,3g' > $CI_PROJECT_DIR/linter.log"
+  after_script:
+    - cat $CI_PROJECT_DIR/linter.log | GREP_COLOR='01;31' egrep --color=always ':error:|$' | GREP_COLOR='01;33' egrep --color=always ':warning:|$'
+  allow_failure: true
+  artifacts:
+    when: on_failure
+    expire_in: 2 weeks
+    paths:
+      - linter.log
+
+lint-dupl:
+  stage: test
+  dependencies: [] # Prevent download of artifacts
+  script:
+    - "gometalinter --config='gometalinter_dupl.conf' $GO_PROJECT_DIR/... | sort -t: -k '1,1' -k '2,2g' -k '3,3g' > $CI_PROJECT_DIR/linter.log"
+  after_script:
+    - cat $CI_PROJECT_DIR/linter.log | GREP_COLOR='01;31' egrep --color=always ':error:|$' | GREP_COLOR='01;33' egrep --color=always ':warning:|$'
+  allow_failure: true
+  artifacts:
+    when: on_failure
+    expire_in: 2 weeks
+    paths:
+      - linter.log
+
+test-project:
+  stage: test
+  dependencies: [] # Prevent download of artifacts
+  script:
+    - goverage -coverprofile=coverage.out ./...
+    - go tool cover -html coverage.out -o coverage.html
+    - go tool cover -func=coverage.out
+    - cp coverage.out coverage.html $CI_PROJECT_DIR
+  coverage: '/total:\s+\(statements\)\s+\d+\.\d+%/'
+  artifacts:
+    paths:
+      - coverage.out
+      - coverage.html
+    when: always
+

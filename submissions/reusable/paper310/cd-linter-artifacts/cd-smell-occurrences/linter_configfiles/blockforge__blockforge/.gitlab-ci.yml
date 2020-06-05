@@ -1,0 +1,67 @@
+image: golang:stretch
+
+variables:
+  REPO_NAME: gitlab.com/blockforge/blockforge
+  CGO_CFLAGS: -w -Ofast
+  GOARCH: amd64
+  GOHOSTOS: linux
+
+before_script:
+  - apt update && apt install -y libhwloc-dev libgl1-mesa-dev ocl-icd-opencl-dev libwebkit2gtk-4.0-dev cmake
+# - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+# - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - ln -s /builds $GOPATH/src/gitlab.com
+  - cd $GOPATH/src/gitlab.com/$CI_PROJECT_PATH
+
+stages:
+  - prepare
+  - build
+  - deploy
+
+libhash:
+  stage: prepare
+  script:
+    - cmake -Hhash -Bhash/build
+    - cmake --build hash/build
+  artifacts:
+    untracked: true
+    expire_in: 1 week
+
+dep:
+  stage: prepare
+  script:
+    - go get -u github.com/golang/dep/cmd/dep
+    - dep ensure -vendor-only
+  artifacts:
+    untracked: true
+    expire_in: 1 week
+
+test:
+  stage: build
+  script:
+    - go fmt $(go list ./... | grep -v /vendor/)
+    - go vet $(go list ./... | grep -v /vendor/)
+    - go test -race $(go list ./... | grep -v /vendor/)
+
+compile:
+  stage: build
+  script:
+    - go get -u github.com/gobuffalo/packr/...
+    - go generate
+    - TAG="devel-${CI_COMMIT_SHA:0:7}"
+    - CI_COMMIT_TAG="${CI_COMMIT_TAG#v}"
+    - VERSION="${CI_COMMIT_TAG:-$TAG}"
+    - go build -ldflags "-s -w -X main.VERSION=$VERSION"
+    - tar cjf blockforge-$VERSION-$GOHOSTOS-$GOARCH.tar.bz2 blockforge
+    - sha256sum blockforge-$VERSION-$GOHOSTOS-$GOARCH.tar.bz2
+  artifacts:
+    paths:
+      - blockforge-$VERSION-$GOHOSTOS-$GOARCH.tar.bz2
+
+upload:
+  stage: deploy
+  script:
+    - curl -T blockforge-$VERSION-$GOHOSTOS-$GOARCH.tar.bz2 -ujgillich:$BINTRAY_APIKEY https://api.bintray.com/content/jgillich/blockforge/blockforge/$VERSION/blockforge-$VERSION-$GOHOSTOS-$GOARCH.tar.bz2?publish=1
+  only:
+    - tags
+

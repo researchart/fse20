@@ -1,0 +1,35 @@
+image: "node:12.7.0-alpine"
+
+before_script:
+  - apk update
+  - apk add make
+  - make ci-web-prelude
+
+build-web:
+  stage: build
+  script:
+    - make web-build
+
+build-names-db:
+  image: rust:1-stretch
+  before_script:
+    - make names-db-prelude
+  stage: build
+  script:
+    - make names-db-build-unoptimized
+
+web-lint:
+  stage: test
+  script:
+    - make web-lint
+
+core-js-lint:
+  stage: test
+  script:
+    - make core-javascript-lint
+
+core-js-test:
+  stage: test
+  script:
+    - make core-javascript-test
+

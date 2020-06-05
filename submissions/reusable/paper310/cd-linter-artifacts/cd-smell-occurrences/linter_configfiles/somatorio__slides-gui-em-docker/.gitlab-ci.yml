@@ -1,0 +1,22 @@
+image: docker:git
+services:
+- docker:dind
+
+before_script:
+- 'which ssh-agent || ( apk add --no-cache openssh-client )'
+- 'which rsync || ( apk add --no-cache rsync )'
+- eval $(ssh-agent -s)
+- mkdir -p ~/.ssh
+- chmod 700 ~/.ssh
+- echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+- chmod 600 ~/.ssh/id_rsa
+- ssh-keyscan -t rsa somatorio.org >> ~/.ssh/known_hosts
+
+stages:
+  - deploy
+
+deploy slides:
+    stage: deploy
+    script:
+    - rsync -az * $SSH_USERHOST:$RSYNC_DESTINO
+

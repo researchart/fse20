@@ -1,0 +1,34 @@
+image: digitallyseamless/nodejs-bower-grunt
+
+stages:
+  - test
+  #- deploy
+
+before_script:
+  - apt-get update 
+  - apt-get install -y default-jdk
+  - rm -rf /var/lib/apt/lists/*
+  - npm prune
+  - npm install
+
+cache:
+  paths:
+    - node_modules/
+    - bower_components/
+  key: "$CI_BUILD_REPO"
+
+pio_test:
+  stage: test
+  script:
+    - grunt
+
+#pio_deploy:
+#  stage: deploy
+#  only:
+#    - master
+#  script:
+#    - grunt publish
+#  artifacts:
+#    paths:
+#      - dist/
+

@@ -1,0 +1,15 @@
+image: node:12.12.0
+
+pages:
+  script:
+    - yarn
+    - yarn build
+  artifacts:
+    paths:
+      - public
+  cache:
+    paths:
+      - node_modules
+  only:
+    - master
+

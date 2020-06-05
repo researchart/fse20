@@ -1,0 +1,47 @@
+stages:
+  - Deploy
+
+before_script:
+  - cd /home/gitlab-runner/deploy
+  - git fetch origin && git checkout origin/$CI_COMMIT_REF_NAME&& git pull origin $CI_COMMIT_REF_NAME
+
+Digital Ocean:
+    stage: Deploy
+    when: manual
+    tags: 
+      - deploy
+    only:
+      - branches
+    script:
+        - /usr/local/bin/dep/deployer.phar deploy digital-ocean --branch="$CI_COMMIT_REF_NAME"
+
+Google Cloud:
+    stage: Deploy
+    when: manual
+    tags: 
+      - deploy
+    only:
+      - branches
+    script:
+        - /usr/local/bin/dep/deployer.phar deploy google-cloud-platform --branch="$CI_COMMIT_REF_NAME"
+
+# All:
+#     stage: Deploy
+#     when: manual
+#     tags: 
+#       - deploy
+#     only:
+#       - branches
+#     script:
+#         - /usr/local/bin/dep/deployer.phar deploy all --branch="$CI_COMMIT_REF_NAME"
+
+Tag All:
+    stage: Deploy
+    when: manual
+    tags: 
+      - deploy
+    only:
+      - tags
+    script:
+        - /usr/local/bin/dep/deployer.phar deploy all --tag="$CI_COMMIT_TAG"
+

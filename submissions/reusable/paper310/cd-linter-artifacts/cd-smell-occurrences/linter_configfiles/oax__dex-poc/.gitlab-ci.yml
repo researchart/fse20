@@ -1,0 +1,46 @@
+# image: lnl7/nix
+image: nixos/nix
+
+stages:
+  - test
+  - deploy
+
+variables:
+  # Can only cache subdirectories of working directory.
+  NPM_STORE_PREFIX: "${CI_PROJECT_DIR}/.npm-store"
+
+test:
+  stage: test
+  before_script:
+    - nix-shell --run "direnv allow"
+    - nix-shell --run "ci/build.sh"
+  script:
+    - nix-shell --run "ci/test.sh"
+    # Somehow nix-shell is not in PATH in after_script section.
+    # Hence running codecov here until we figure out why.
+    - nix-shell --run "pnpx codecov"
+  cache:
+    key: cache-all
+    paths:
+      - ".npm-store/"
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /skip-test/
+
+pages:
+  stage: deploy
+  before_script:
+    - nix-shell --run "direnv allow"
+  script:
+    - nix-shell --run "ci/pages.sh"
+  artifacts:
+    paths:
+      - public
+  only:
+    - release
+    - master
+  cache:
+    key: cache-prod
+    paths:
+      - ".npm-store/"
+

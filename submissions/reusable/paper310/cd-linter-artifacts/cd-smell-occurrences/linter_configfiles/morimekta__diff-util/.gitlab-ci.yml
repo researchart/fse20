@@ -1,0 +1,83 @@
+variables:
+  MAVEN_OPTS: "-Dhttps.protocols=TLSv1.2 -Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "-B -fae --settings .m2/settings.xml"
+  MAVEN_NO_TESTS: "-DskipTests=true"
+
+stages:
+- testing
+- release
+- post-release
+
+cache:
+  key: "$CI_PROJECT_NAME"
+  paths:
+  - .m2/repository
+
+.verify: &verify
+  stage: testing
+  except:
+    variables:
+    - $CI_COMMIT_MESSAGE =~ /\[silent-ignore\]/
+    - $CI_COMMIT_MESSAGE =~ /\[maven-release-plugin\]/
+  before_script:
+  - mkdir -p .m2/repository
+  - |
+    cat <<EOF > .m2/settings.xml
+    <settings>
+    </settings>
+    EOF
+  script:
+  - mvn ${MAVEN_CLI_OPTS} verify
+  - awk -F"," '{ instructions += $4 + $5; covered += $5 } END { OFMT = "%.2f"; print covered, "/", instructions, " instructions covered"; print 100*covered/instructions, "% covered" }' target/site/jacoco-ut/jacoco.csv
+  coverage: /([0-9]{1,3}[.][0-9][0-9]) % covered/
+  after_script:
+  # Never cache the snapshot build.
+  - rm -rf .m2/repository/net/morimekta/utils/diff-util/*-SNAPSHOT/ || /bin/true
+  artifacts:
+    reports:
+      junit:
+      - target/surefire-reports/TEST-*.xml
+
+verify:jdk8:
+  <<: *verify
+  image: maven:3.6-jdk-8-alpine
+
+verify:jdk11:
+  <<: *verify
+  image: maven:3.6-jdk-11-slim
+  artifacts:
+    expire_in: 5 minutes
+    paths:
+    - target/site/**/*
+
+verify:jdk14:
+  <<: *verify
+  image: maven:3.6-jdk-14
+
+pages:
+  image: ruby:2.5
+  cache:
+    key: "vendor-$CI_PROJECT_NAME"
+    paths:
+    - docs/vendor/
+  stage: post-release
+  before_script:
+  - cd docs
+  - bundle install --path vendor
+  only:
+  - master
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /\[silent-ignore\]/
+      - $CI_COMMIT_MESSAGE =~ /\[maven-release-plugin\]/
+  script:
+  - bundle exec jekyll build -d public
+  - mv public ..
+  - mv ../target/site/jacoco-ut ../public/
+  - curl --request POST --form "token=$CI_JOB_TOKEN" --form ref=master https://gitlab.com/api/v4/projects/8291815/trigger/pipeline
+  artifacts:
+    paths:
+      - public
+  dependencies:
+  - verify:jdk11
+

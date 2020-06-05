@@ -1,0 +1,149 @@
+stages:
+    - build
+    - test
+    - finalization
+
+include:
+    # GitLab claims this supports PHP Composer, but no Composer or PHP plugin is activate in the logs. See also
+    # https://gitlab.com/help/user/application_security/dependency_scanning/index.md#supported-languages-and-package-managers
+    # and https://gitlab.com/Serenata/Serenata/-/jobs/295371057 .
+    # - template: Dependency-Scanning.gitlab-ci.yml
+    - template: Code-Quality.gitlab-ci.yml
+
+# ----- Build stage
+.build-setup-composer: &build-setup-composer
+    script:
+        - curl -sS https://getcomposer.org/installer | php
+        - php composer.phar install --prefer-dist --optimize-autoloader --no-interaction --no-progress
+
+.build-job-shared: &build-job-shared
+    stage: build
+    <<: *build-setup-composer
+    cache:
+        key: "$CI_JOB_NAME"
+        paths:
+            - vendor/
+    artifacts:
+        expire_in: 1 hrs
+        paths:
+            - vendor/
+
+build:php-7.1:
+    image: php:7.1-cli-alpine
+    <<: *build-job-shared
+
+build:php-7.2:
+    image: php:7.2-cli-alpine
+    <<: *build-job-shared
+
+build:php-7.3:
+    image: php:7.3-cli-alpine
+    <<: *build-job-shared
+
+build:php-7.4:
+    image: php:7.4-cli-alpine
+    <<: *build-job-shared
+
+# ----- Test stage
+test:run-phpcs:
+    image: php:7.4-cli-alpine
+    stage: test
+    script:
+        - php vendor/bin/phpcs src -n --report-junit=./phpcs-test-report.xml
+    artifacts:
+        expire_in: 1 hrs
+        paths:
+            - phpcs-test-report.xml
+        reports:
+            junit: phpcs-test-report.xml
+    dependencies:
+        - build:php-7.4
+
+test:run-phpstan:
+    image: php:7.4-cli-alpine
+    stage: test
+    script:
+        - php -d memory_limit=2048M vendor/bin/phpstan analyse --level=max --no-interaction --no-progress --error-format junit src > ./phpstan-report.xml
+    artifacts:
+        when: always
+        expire_in: 1 hrs
+        paths:
+            - phpstan-report.xml
+        reports:
+            junit: phpstan-report.xml
+    dependencies:
+        - build:php-7.4
+
+.test-run-phpunit: &test-run-phpunit
+    script:
+        - php -d memory_limit=512M vendor/bin/phpunit
+
+.test-job-shared: &test-job-shared
+    stage: test
+    <<: *test-run-phpunit
+
+test:php-7.1:
+    image: php:7.1-cli-alpine
+    <<: *test-job-shared
+    dependencies:
+        - build:php-7.1
+
+test:php-7.2:
+    image: php:7.2-cli-alpine
+    <<: *test-job-shared
+    dependencies:
+        - build:php-7.2
+
+test:php-7.3:
+    image: php:7.3-cli-alpine
+    <<: *test-job-shared
+    dependencies:
+        - build:php-7.3
+
+test:php-7.4:
+    image: php:7.4-cli-alpine
+    <<: *test-job-shared
+    dependencies:
+        - build:php-7.4
+
+# ----- Finalization stage, which contains finishing steps such as metrics and packaging.
+.finalization-package-job-shared: &finalization-package-job-shared
+    stage: finalization
+    script:
+        # Do a clean install so we can avoid including dev dependencies.
+        - curl -sS https://getcomposer.org/installer | php
+        - php composer.phar install --prefer-dist --optimize-autoloader --no-interaction --no-progress --no-dev
+        - php -d phar.readonly=0 bin/create-phar
+    artifacts:
+        paths:
+            - bin/distribution.phar
+
+finalization:package-php-7.1:
+    image: php:7.1-cli-alpine
+    <<: *finalization-package-job-shared
+
+finalization:package-php-7.2:
+    image: php:7.2-cli-alpine
+    <<: *finalization-package-job-shared
+
+finalization:package-php-7.3:
+    image: php:7.3-cli-alpine
+    <<: *finalization-package-job-shared
+
+finalization:package-php-7.4:
+    image: php:7.4-cli-alpine
+    <<: *finalization-package-job-shared
+
+finalization:code-coverage:
+    image: php:7.4-cli-alpine
+    stage: finalization
+    coverage: '/^\s*Lines:\s*\d+.\d+\%/'
+    script:
+        - phpdbg -d memory_limit=2048M -qrr vendor/bin/phpunit --coverage-text --colors=never --coverage-html=coverage
+    artifacts:
+        expire_in: 1 weeks
+        paths:
+            - coverage/
+    dependencies:
+        - build:php-7.4
+

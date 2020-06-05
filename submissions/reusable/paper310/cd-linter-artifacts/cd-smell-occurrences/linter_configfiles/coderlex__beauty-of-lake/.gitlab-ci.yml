@@ -1,0 +1,22 @@
+image: node:8.1.4
+
+pages:
+  stage: deploy
+  cache:
+    paths:
+    - node_modules/
+  script:
+  - npm install -g bower
+  - npm install -g gulp-cli
+  - npm install -g webpack
+  - npm install
+  - bower install --allow-root
+  - gulp build
+  - mkdir public
+  - mv dist/* public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

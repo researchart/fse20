@@ -1,0 +1,17 @@
+image: jojoboulix/amc-build
+
+job:
+  stage: build
+  script:
+  - make version_files
+  - make
+  - make install && texhash
+  - make -C tests blind-test
+  - make -C doc check
+  - make sources
+  - export TARBALL=auto-multiple-choice_$(git describe --tags)_dist.tar.gz
+  - "mv tarballs/auto-multiple-choice_*_precomp.tar.gz $TARBALL"
+  artifacts:
+    paths:
+    - '*_dist.tar.gz'
+

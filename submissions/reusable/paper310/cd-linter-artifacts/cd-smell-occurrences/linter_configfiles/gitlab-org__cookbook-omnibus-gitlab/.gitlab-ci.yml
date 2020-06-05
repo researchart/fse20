@@ -1,0 +1,20 @@
+image: ruby:2.3
+
+stages:
+  - check
+  - test
+
+before_script:
+  - bundle install -j $(nproc)
+
+rubocop:
+  stage: check
+  image: ruby:2.3.3
+  script:
+    - bundle exec rake style
+
+rspec:
+  stage: test
+  script:
+    - bundle exec rspec
+

@@ -1,0 +1,87 @@
+stages:
+  - test
+  - build
+  - deploy
+  - verify
+  - release
+
+lint:
+  image: python:3.8-alpine
+  stage: test
+  before_script:
+    - apk add gcc musl-dev
+    - pip install pipenv
+    - pipenv install --dev
+  script:
+    - pipenv run python setup.py check -mrs
+    - pipenv run flake8
+    - pipenv run mypy tracktime
+
+test:
+  image: python:3.8-alpine
+  stage: test
+  before_script:
+    - apk add gcc musl-dev
+    - pip install pipenv
+    - pipenv install --dev
+  script:
+    - pipenv run pytest
+  artifacts:
+    paths:
+      - htmlcov
+
+build:
+  image: python:3.8-alpine
+  stage: build
+  before_script:
+    - apk add gcc musl-dev
+    - pip install pipenv
+    - pipenv install --dev
+  script:
+    - python setup.py sdist
+  artifacts:
+    paths:
+      - dist/*
+
+deploy_pypi:
+  image: python:3.8-alpine
+  stage: deploy
+  only:
+    variables:
+      # Only verify the deploy if it's a version tag.
+      - $CI_COMMIT_TAG =~ /^v.*/
+  before_script:
+    - apk add gcc musl-dev libffi-dev openssl-dev
+    - 'pip install twine'
+    - './create-pypirc.sh'
+  script:
+    # Upload to the test PyPi instance, then upload to the real one.
+    - twine upload -r pypi_test dist/*
+    - twine upload dist/*
+  after_script:
+    - echo "" > ~/.pypirc && rm -f ~/.pypirc
+
+verify_deploy:
+  image: python:3.8-alpine
+  stage: verify
+  only:
+    variables:
+      # Only verify the deploy if it's a version tag.
+      - $CI_COMMIT_TAG =~ /^v.*/
+  script:
+    - pip install tracktime
+
+publish_release:
+  image: python:3.8-alpine
+  stage: release
+  only:
+    variables:
+      # Only verify the deploy if it's a version tag.
+      - $CI_COMMIT_TAG =~ /^v.*/
+  before_script:
+    - apk add gcc musl-dev curl
+    - pip install pipenv
+    - pipenv install --dev
+  script:
+    - ./cicd/publish-gitlab-release.sh
+

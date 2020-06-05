@@ -1,0 +1,87 @@
+image: ruby:2.4.0
+
+before_script:
+  - ruby -v
+  - which ruby
+  - gem environment
+  - gem install rubygems-update
+  - gem install rubygems-update --version 2.6.3
+  - gem update --system 2.6.10
+  - gem install bundler --no-ri --no-rdoc
+  - gem environment
+  - bundle install --jobs $(nproc)  "${FLAGS[@]}"
+
+test-2.4.0:
+  image: ruby:2.4.0
+  script:
+    - bundle exec rake test
+
+test-2.3.3:
+  image: ruby:2.3.3
+  script:
+    - bundle exec rake test
+
+test-2.3.2:
+  image: ruby:2.3.2
+  script:
+    - bundle exec rake test
+
+test-2.3.1:
+  image: ruby:2.3.1
+  script:
+    - bundle exec rake test
+
+test-2.3.0:
+  image: ruby:2.3.0
+  script:
+    - bundle exec rake test
+
+test-2.2.6:
+  image: ruby:2.2.6
+  script:
+    - bundle exec rake test
+
+test-2.2.5:
+  image: ruby:2.2.5
+  script:
+    - bundle exec rake test
+
+test-2.2.4:
+  image: ruby:2.2.4
+  script:
+    - bundle exec rake test
+
+test-2.2.3:
+  image: ruby:2.2.3
+  script:
+    - bundle exec rake test
+
+test-2.2.2:
+  image: ruby:2.2.2
+  script:
+    - bundle exec rake test
+
+rubocop:
+  script:
+    - rubocop
+
+pages:
+  only:
+    - master
+    - gitlab-pages-yard-coverage
+  script:
+    - gem install yard
+    - bundle exec yard
+    - bundle exec rake test
+    - mkdir public
+    - mv /builds/izwick-schachter/atd/coverage public/coverage
+    - mv /builds/izwick-schachter/atd/doc public/YARD
+    - mkdir public/YARD/coverage
+    - touch public/YARD/coverage/index.html
+    - yard stats --list-undoc >> public/YARD/coverage/index.html
+    - ruby -ne 'puts "<span>#{$_}</span><br>#{"<br>" if $_.delete("\n")[-1, 1] == ":"}"' -i public/YARD/coverage/index.html
+    - ls -R -a --ignore .git
+  artifacts:
+    paths:
+      - public
+

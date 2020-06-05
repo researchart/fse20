@@ -1,0 +1,37 @@
+image: openjdk:12-jdk
+
+stages:
+  - test
+  - integrationTest
+  - build
+
+before_script:
+  - mkdir -p /cache/.gradle
+  - ln -s /cache/.gradle .cache
+  - export GRADLE_USER_HOME=.cache/
+
+test:
+  stage: test
+  script: ./gradlew clean check --info
+  cache:
+    paths:
+      - .cache
+
+integrationTest:
+  stage: integrationTest
+  dependencies:
+    - test
+  script: ./gradlew integrationTest
+
+build:
+  stage: build
+  script: ./gradlew shadowJar
+  dependencies:
+    - integrationTest
+  artifacts:
+    paths:
+      - build/libs/
+  only:
+    refs:
+      - master
+

@@ -1,0 +1,112 @@
+# Using the node alpine image to build the React app
+image: node:alpine
+
+# Cache node modules - speeds up future builds
+cache:
+  paths:
+  - node_modules
+  - src/locales
+  - .pip
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  AWS_DEFAULT_REGION: eu-west-1 # The region of our S3 bucket
+
+#stages:
+#  - deploy
+#  - docs
+
+default:
+  before_script:
+    - mkdir -p .pip # prepare to cache pip packages
+    - export PATH=$PATH:.pip
+    - apk add --update py-pip && pip install -U pip # install python & pip
+    - pip --cache-dir=.pip install awscli 
+    - if [ ! -z "$TX_TOKEN" ]; then pip --cache-dir=.pip install transifex-client ; else echo "Skipping..."; fi # install transifex cli
+    #- rm -rf node_modules
+    - yarn # Install all JS dependencies
+    - yarn add-locale en_GB # make sure we have default language
+    - yarn extract # extract latest strings from source into English PO file for localisation
+    - if [ ! -z "$TX_TOKEN" ]; then tx pull --force --no-interactive ; else echo "Skipping..."; fi #  pull all the latest localised PO files from transifex to be used by frontend
+    - yarn compile # compile localisation PO files into .js files 
+
+docs: # build and deploy documentation
+#   stage: docs
+   only:
+     - develop # Only run on staging branch
+   script:
+     - mkdir docs 
+     #- yarn docs # generate TypeDocs
+     - yarn build-storybook # generate styleguide
+     - mv storybook-static docs/ui # include styleguide in build
+     - if [ ! -z "$DOCS_STAGING_BUCKET" ]; then aws s3 sync docs/ s3://${DOCS_STAGING_BUCKET}/docs/client/ --delete --exclude .git --acl public-read ; else echo "Skipping..."; fi # also copy docs to (a different) S3-served website
+     - if [ ! -z "$DOCS_STAGING_DISTRIBUTION_ID" ]; then aws cloudfront create-invalidation --distribution-id ${DOCS_STAGING_DISTRIBUTION_ID} --paths '/docs/client/*' ; else echo "Skipping..."; fi # invalidate the docs CloudFront's cache to serve the new version
+   artifacts:
+     paths:
+       - docs # The built files for Gitlab to serve
+
+deploy-staging-next: # build and deploy develop branch to app.next.moodle.net
+#  stage: deploy
+  only:
+    - develop # Only run on specific branch
+  script:
+    - if [ ! -z "$TX_TOKEN" ]; then tx push --source --no-interactive ; else echo "Skipping..."; fi # then push latest English PO file to transifex for translators (only need to run this once per new commit)
+    - REACT_APP_GRAPHQL_ENDPOINT=https://home.next.moodle.net/api/graphql CI=false yarn build --prod # Build for prod, need to specify URL of backend API, and CI=false to avoid failing on warnings
+    - rm -rf public # CRA and gitlab pages both use the public folder. Only do this in a build pipeline.
+    - mv build public # Move build files to public dir for Gitlab Pages
+    - cp public/index.html public/404.html # Not necessary, but helps with https://medium.com/@pshrmn/demystifying-single-page-applications-3068d0555d46
+    - mkdir -p docs && mv docs public/ # include docs in the final artifacts
+    - if [ ! -z "$STAGING_BUCKET" ]; then aws s3 sync public/ s3://${STAGING_BUCKET} --delete --exclude .git --exclude README.md --acl public-read ; else echo "Skipping..."; fi # deploy frontend to staging's S3 bucket
+    - if [ ! -z "$STAGING_DISTRIBUTION_ID" ]; then aws cloudfront create-invalidation --distribution-id ${STAGING_DISTRIBUTION_ID} --paths '/*' ; else echo "Skipping..."; fi # invalidate CloudFront's cache to serve the new version
+  artifacts:
+    paths:
+    - public # The built files for Gitlab Pages to serve
+
+
+deploy-team-instance: # build and deploy to app.team.moodle.net
+#  stage: deploy
+  only:
+    - develop # Only run on specific branch
+  script:
+    - REACT_APP_GRAPHQL_ENDPOINT=https://team.moodle.net/api/graphql CI=false yarn build --prod # Build for prod, need to specify URL of backend API, and CI=false to avoid failing on warnings
+    - rm -rf public # CRA and gitlab pages both use the public folder. Only do this in a build pipeline.
+    - mv build public # Move build files to public dir for Gitlab Pages
+    - cp public/index.html public/404.html # Not necessary, but helps with https://medium.com/@pshrmn/demystifying-single-page-applications-3068d0555d46
+    - if [ ! -z "$TEAM_BUCKET" ]; then aws s3 sync public/ s3://${TEAM_BUCKET} --delete --exclude .git --exclude README.md --acl public-read ; else echo "Skipping..."; fi # deploy frontend to prod
+    - if [ ! -z "$TEAM_DISTRIBUTION_ID" ]; then aws cloudfront create-invalidation --distribution-id ${TEAM_DISTRIBUTION_ID} --paths '/*' ; else echo "Skipping..."; fi # invalidate CloudFront's cache to serve the new version
+  artifacts:
+    paths:
+    - public # The built files for Gitlab Pages to serve
+  
+deploy-mothership-instance: # build and deploy to app.mothership.moodle.net
+#  stage: deploy
+  only:
+    - develop # Only run on specific branch
+  script:
+    - REACT_APP_GRAPHQL_ENDPOINT=https://mothership.moodle.net/api/graphql CI=false yarn build --prod # Build for prod, need to specify URL of backend API, and CI=false to avoid failing on warnings
+    - rm -rf public # CRA and gitlab pages both use the public folder. Only do this in a build pipeline.
+    - mv build public # Move build files to public dir for Gitlab Pages
+    - cp public/index.html public/404.html # Not necessary, but helps with https://medium.com/@pshrmn/demystifying-single-page-applications-3068d0555d46
+    - if [ ! -z "$MOTHERSHIP_BUCKET" ]; then aws s3 sync public/ s3://${MOTHERSHIP_BUCKET} --delete --exclude .git --exclude README.md --acl public-read ; else echo "Skipping..."; fi # deploy frontend to prod
+    - if [ ! -z "$MOTHERSHIP_DISTRIBUTION_ID" ]; then aws cloudfront create-invalidation --distribution-id ${MOTHERSHIP_DISTRIBUTION_ID} --paths '/*' ; else echo "Skipping..."; fi # invalidate CloudFront's cache to serve the new version
+  artifacts:
+    paths:
+    - public # The built files for Gitlab Pages to serve
+  
+deploy-prod: # build and deploy master branch to app.moodle.net
+#  stage: deploy
+  only:
+    - master # Only run on production branch
+  script:
+    - REACT_APP_GRAPHQL_ENDPOINT=https://home.moodle.net/api/graphql CI=false yarn build --prod # Build for prod, need to specify URL of backend API, and CI=false to avoid failing on warnings
+    - rm -rf public # CRA and gitlab pages both use the public folder. Only do this in a build pipeline.
+    - mv build public # Move build files to public dir for Gitlab Pages
+    - cp public/index.html public/404.html # Not necessary, but helps with https://medium.com/@pshrmn/demystifying-single-page-applications-3068d0555d46
+    - if [ ! -z "$PRODUCTION_BUCKET" ]; then aws s3 sync public/ s3://${PRODUCTION_BUCKET} --delete --exclude .git --exclude README.md --acl public-read ; else echo "Skipping..."; fi # deploy frontend to prod
+    - if [ ! -z "$PRODUCTION_DISTRIBUTION_ID" ]; then aws cloudfront create-invalidation --distribution-id ${PRODUCTION_DISTRIBUTION_ID} --paths '/*' ; else echo "Skipping..."; fi # invalidate CloudFront's cache to serve the new version
+  artifacts:
+    paths:
+    - public # The built files for Gitlab Pages to serve
+  
+  
+

@@ -1,0 +1,13 @@
+include:
+  - https://gitlab.com/jitesoft/gitlab-ci-lib/raw/master/dependency_scanning.yml
+  - https://gitlab.com/jitesoft/gitlab-ci-lib/raw/master/js_common.yml
+stages:
+  - test
+  - deploy
+test:
+  extends: .npm:test
+scan:
+  extends: .scan:npm
+deploy:
+  extends: .npm:build:deploy
+

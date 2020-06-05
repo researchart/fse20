@@ -1,0 +1,65 @@
+variables:
+    token_user: '$personal_token_user'
+    token_password: '$personal_token_password'
+    kubernetes_api_url: '$kubernetes_api_url'
+    kubernetes_certificate: '$kubernetes_certificate'
+    kubernetes_token: '$kubernetes_token'
+    kubernetes_namespace: '$kubernetes_namespace'
+
+stages:
+  - build
+  - push
+  - deploy
+
+before_script:
+  - for /F %%v in ('git describe --tag --abbrev^=0') do set version=%%v
+  - for /F %%v in ('git rev-list %version%..HEAD --count') do set all_commits=%%v
+  - for /F %%v in ('git rev-list --no-merges %version%..HEAD --count') do set no_merge_commits=%%v
+  - for /F %%v in ('set/a "all_commits-no_merge_commits"') do set merges_count=%%v
+  - set version=%version%.%merges_count%
+  - echo Vesrion %version%
+
+build:
+  stage: build
+  only:
+    - master
+  tags:
+   - multitask
+  script:
+    - cd MultiTaskTest.Visualization
+    - powershell -Command "(gc .\appsettings.json) -replace '__VERSION__', '%version%' | Out-File appsettings.json"
+    - cd..
+    - docker build -t multitaskapp .
+  
+push-to-docker-hub:
+  stage: push
+  only:
+    - master
+  tags:
+    - multitask
+  script:
+    - docker login -u %token_user% -p %token_password%
+    - docker tag multitaskapp hotfury/multitaskapp:%version%
+    - docker push hotfury/multitaskapp:%version%
+    - docker tag multitaskapp hotfury/multitaskapp:latest
+    - docker push hotfury/multitaskapp:latest
+
+deploy-to-kubernetes:
+  stage: deploy
+  only:
+    - master
+  tags:
+    - multitask
+  script:
+    - echo %kubernetes_certificate% > kube_ca.pem
+    - kubectl config set-cluster default-cluster --server=%kubernetes_api_url% --certificate-authority="kube_ca.pem"
+    - kubectl config set-credentials default-admin --token=%kubernetes_token%
+    - kubectl config set-context default-system --cluster=default-cluster --user=default-admin --namespace %kubernetes_namespace%
+    - kubectl config use-context default-system
+    - kubectl cluster-info --insecure-skip-tls-verify=true
+    - powershell -Command "(gc .\deployment.yml) -replace '__VERSION__', '%version%' | Out-File deployment.yml"
+    - powershell -Command "(gc .\ingress.yml) -replace '__VERSION__', '%version%' | Out-File ingress.yml"
+    - powershell -Command "(gc .\service.yml) -replace '__VERSION__', '%version%' | Out-File service.yml"
+    - kubectl create -f deployment.yml --insecure-skip-tls-verify=true || (kubectl delete -f deployment.yml --insecure-skip-tls-verify=true && kubectl apply -f deployment.yml --insecure-skip-tls-verify=true)
+    - kubectl apply -f service.yml --insecure-skip-tls-verify=true
+

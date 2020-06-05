@@ -1,0 +1,15 @@
+image: alpine:latest
+
+pages:
+  stage: deploy
+  script:
+  - echo 'Nothing to do...'
+  - pwd
+  - echo 'I am trying to deploy...'
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+

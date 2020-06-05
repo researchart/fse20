@@ -1,0 +1,12 @@
+stages:
+  - build
+
+build_project:
+  stage: build
+  script:
+    - xcodebuild clean -workspace Neuralyzer.xcworkspace -scheme Neuralyzer | xcpretty
+    - xcodebuild test -workspace Neuralyzer.xcworkspace -scheme Neuralyzer -destination 'platform=iOS Simulator,name=iPhone 7' | tee xcodebuild.log | xcpretty -s
+  artifacts:
+    paths:
+      - xcodebuild.log
+

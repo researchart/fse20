@@ -1,0 +1,117 @@
+# Test at a specific version in order to prevent accidentally requiring a new
+# Rust version. Image tags are at: https://hub.docker.com/r/library/rust/tags/
+image: "rust:latest"
+
+# If we run the test before the docs, we can cache the build and not waste time
+# building it again.
+stages:
+  - analysis
+  - test
+  - docs
+
+# Move a few of the "home" directories here so they are easier to cache.
+variables:
+  GIT_SUBMODULE_STRATEGY: normal
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+  APT_CACHE_DIR: $CI_PROJECT_DIR/apt
+
+# Since we default to compiling nng, we need to install some C tooling.
+before_script:
+  - apt-get update -yqq
+  - apt-get install -o dir::cache::archives="$APT_CACHE_DIR" -yqq --no-install-recommends build-essential cmake
+
+# Make sure that the style is correct. Since we use unstable formatting
+# features, we use the nightly toolchain for this.
+format:
+  image: "rustlang/rust:nightly-slim"
+  stage: analysis
+  script:
+    - rustup component add rustfmt
+    - cargo fmt --version
+    - cargo fmt --package nng -- --check
+  only:
+    - tags
+    - master
+    - merge_requests
+
+# We can't use the nightly image for Clippy since nightly sometimes doesn't have it.
+clippy:
+  stage: analysis
+  script:
+    - rustup component add clippy
+    - cargo clippy --version
+    - cargo clippy --all-targets --all-features
+  only:
+    - tags
+    - master
+    - merge_requests
+
+# Test the project against the minimum Rust version to make sure we don't raise it
+minimum-rust-version:
+  image: "rust:1.36-slim"
+  stage: test
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo test --all --all-features --verbose
+  only:
+    - tags
+    - master
+    - merge_requests
+
+# Check against the current stable for regressions
+stable:
+  stage: test
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo test --all --all-features --verbose
+  only:
+    - tags
+    - master
+    - merge_requests
+
+# Also check against nightly for regressions
+nightly:
+  image: "rustlang/rust:nightly-slim"
+  stage: test
+  script:
+    - rustc --version
+    - cargo --version
+    - cargo test --all --all-features --verbose
+  allow_failure: true
+  only:
+    - tags
+    - master
+    - merge_requests
+
+# Make sure that the examples also build
+examples:
+  stage: docs
+  script:
+    - cargo build --examples
+  only:
+    - tags
+    - master
+    - merge_requests
+
+# Publish to the pages whenever master is updated
+pages:
+  stage: docs
+  script:
+    - cargo doc --no-deps
+    - mv target/doc public
+    - echo '<meta http-equiv="refresh" content="0; url=nng">' > public/index.html
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+# Store these before jobs to speed up the build
+cache:
+  paths:
+    - apt/
+    - cargo/
+    - target/
+

@@ -1,0 +1,224 @@
+# This file is part of Adblock Plus <https://adblockplus.org/>,
+# Copyright (C) 2006-present eyeo GmbH
+#
+# Adblock Plus is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# Adblock Plus is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Adblock Plus.  If not, see <http://www.gnu.org/licenses/>.
+#
+# This file specifies how GitLab should run the tests, linting and other checks
+# automatically when merge requests are opened. By default, this will all run
+# on GitLab provided "shared runners", without further work. However, the tests
+# will run more quickly on a "specific runner" if you'd like to set that up.
+#
+# If you'd like to provision your own specific runners for your fork of the
+# repository, you can use these Ansible roles:
+#
+# https://gitlab.com/eyeo/devops/ansible-role-adblockplus-builder
+# https://gitlab.com/eyeo/devops/ansible-role-gitlab-runner
+
+image: "registry.gitlab.com/eyeo/docker/adblockplus-ci:node10"
+
+stages:
+  - prepare
+  - build
+  - download
+  - publish
+  - test
+  - scp
+
+variables:
+  npm_config_unsafe_perm: "true"
+  npm_config_prefer_offline: "true"
+  npm_config_audit: "false"
+
+.dependencies:
+  script: &dependencies
+    - mkdir -p .git/info
+    - "python ensure_dependencies.py"
+    - "npm install"
+
+.cache:
+  cache: &cache
+    key: global-cache
+    untracked: true
+    paths:
+      - adblockpluscore/
+      - adblockplusui/
+      - buildtools/
+      # npm audit fails if the node_modules folder is cached
+      # but the changes in package-lock.json are not.
+      # That is a bug (https://github.com/npm/npm/issues/20604)
+      # which in our case is triggerred by using stubs in package.json.
+      - package-lock.json
+
+.default_template:
+  stage: test
+  dependencies: []
+  before_script: *dependencies
+  retry:
+    max: 2
+    when: stuck_or_timeout_failure
+  except:
+    - schedules
+  cache:
+    <<: *cache
+    policy: pull
+
+.test_template:
+  extends: .default_template
+  stage: test
+  artifacts:
+    paths:
+      - test/screenshots/
+    when: on_failure
+    expire_in: 1 mo
+
+.build:
+  before_script: *dependencies
+  stage: build
+  except:
+    - schedules
+  script:
+    - python build.py build -t $PLATFORM
+  artifacts:
+    paths:
+      - adblockplusfirefox-*.xpi
+      - adblockpluschrome-*.zip
+      - adblockplusedge-*.appx
+  cache:
+    <<: *cache
+    policy: pull
+
+lint:
+  extends: .default_template
+  stage: test
+  script:
+    - npm run lint
+
+audit:
+  extends: .default_template
+  stage: test
+  script:
+    - npm audit
+  allow_failure: true
+
+build:chrome:
+  extends: .build
+  variables:
+    PLATFORM: chrome
+
+build:gecko:
+  extends: .build
+  variables:
+    PLATFORM: gecko
+
+build:edge:
+  extends: .build
+  variables:
+    PLATFORM: edge
+
+prepare-dependencies:
+  stage: prepare
+  script:
+    - "mv -t /tmp adblockpluscore/*-snapshots 2>/dev/null || true"
+    - "git clean -x -d -ff"
+    - *dependencies
+    - "mv -t adblockpluscore /tmp/*-snapshots 2>/dev/null || true"
+    - "npm run download-test-browsers"
+  cache: *cache
+  except:
+    - schedules
+
+docs:
+  extends: .default_template
+  stage: build
+  script:
+    - npm run docs
+  artifacts:
+    paths:
+      - docs/
+    expire_in: 1 week
+
+test:firefox:oldest:
+  extends: .test_template
+  script:
+    - npm run test-only -- -g 'Firefox \(oldest\)'
+
+test:firefox:latest:
+  extends: .test_template
+  script:
+    - npm run test-only -- -g 'Firefox \(latest\)'
+
+test:chromium:oldest:
+  extends: .test_template
+  script:
+    - xvfb-run -a npm run test-only -- -g 'Chromium \(oldest\)'
+
+test:chromium:latest:
+  extends: .test_template
+  script:
+    - xvfb-run -a npm run test-only -- -g 'Chromium \(latest\)'
+
+.download:
+  stage: download
+  script:
+    - npm install
+    - npm run archive -- $EXTENSION_ID
+  artifacts:
+    paths:
+      - adblockpluschrome-*.crx
+  only:
+    - schedules
+
+download:release:
+  extends: .download
+  variables:
+    EXTENSION_ID: "cfhdojbkjhnklbpkdaibdccddilifddb"
+
+download:devbuild:
+  extends: .download
+  variables:
+    EXTENSION_ID: "ldcecbkkoecffmfljeihcmifjjdoepkn"
+
+.scp:
+  stage: scp
+  only:
+    - schedules
+  tags:
+    - protected
+  script:
+    - "scp *.crx $DESTINATION"
+
+scp:release:
+  extends: .scp
+  dependencies:
+    - download:release
+  variables:
+    DESTINATION: "builds_user@eyeofiles.com:/var/adblockplus/fileserver/builds/releases/"
+
+scp:devbuild:
+  extends: .scp
+  dependencies:
+    - download:devbuild
+  variables:
+    DESTINATION: "builds_user@eyeofiles.com:/var/adblockplus/fileserver/builds/devbuilds/adblockpluschrome/"
+
+.pages:
+  stage: publish
+  dependencies:
+    - docs
+  except:
+    - schedules
+
+include:
+  project: "eyeo/adblockplus/adblockpluscore"
+  file: ".gitlab-pages.yml"
+

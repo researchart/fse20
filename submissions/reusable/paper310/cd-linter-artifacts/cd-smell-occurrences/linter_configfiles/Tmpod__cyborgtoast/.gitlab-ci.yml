@@ -1,0 +1,44 @@
+image: python:3.7
+
+variables:
+  # DOCKER_DRIVER: overlay2
+
+stages:
+  - pages
+
+before_script:
+  # - apt-get update
+  # - apt-get upgrade -qy
+  # - apt-get install libopus0 libopus-dev git graphviz make git -qy
+  # - pip install -U pip
+  # - pip install -r requirements.txt Jinja2 markdown  # sphinx sphinx_rtd_theme graphviz sphinxcontrib-asyncio
+
+pages:
+  stage: pages
+  before_script:
+    - pip install -r requirements.txt Jinja2 markdown
+
+  script:
+
+  # Build command help reference
+  - python get-commands.py toaster | python build-command-reference.py command-ref
+  - mv command-ref public/docs/
+  - cp -r command-ref-templates/favicons public/favicons/
+
+  # # Generate documentation for CyborgToast
+  # - cd docs
+  # - make html
+  # - cd ..
+  # - mkdir public/docs/toaster -pv
+  # - mv docs/_build/html public/docs/toaster
+
+  only:
+    - master
+    - beta
+
+  artifacts:
+    paths:
+    - public
+  allow_failure: false
+
+

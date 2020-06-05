@@ -1,0 +1,36 @@
+image: docker:latest
+services:
+- docker:dind
+
+stages:
+  - build
+  - release
+
+variables:
+  CONTAINER_TEST_IMAGE: registry.gitlab.com/perlstalker/octopress-deploy:$CI_BUILD_REF_NAME
+  CONTAINER_RELEASE_IMAGE: registry.gitlab.com/perlstalker/octopress-deploy:latest
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+  
+build:
+  stage: build
+  tags:
+    - docker
+  script:
+    - docker build --pull -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+release-image:
+  stage: release
+  tags:
+    - docker
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - master
+
+

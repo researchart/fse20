@@ -1,0 +1,15 @@
+pages:
+  stage: deploy
+  script:
+  - cat "top.html" > "index.html"
+  - cat "status.html" >> "index.html"
+  - cat "bot.html" >> "index.html"
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

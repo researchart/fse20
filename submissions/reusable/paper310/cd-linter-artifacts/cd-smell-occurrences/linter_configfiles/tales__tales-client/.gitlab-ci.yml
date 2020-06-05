@@ -1,0 +1,34 @@
+stages:
+  - build
+  - deploy
+
+apk:
+  stage: build
+  image: registry.gitlab.com/tales/tales-client-ci:qt-5.13.0-sdk-4333796-ndk-r19c-ssl-1.1.1c
+  script:
+  - export VERSION_NUMBER=$(git log --pretty=oneline | wc -l)
+  - sed -i "s/android:versionCode=\"[0-9]\+\"/android:versionCode=\"$VERSION_NUMBER\"/" example/android/AndroidManifest.xml
+  - if [ -n "$ANDROID_KEYSTORE_FILE" ]; then echo "$ANDROID_KEYSTORE_FILE" | base64 -d > android_release.keystore; export KEYSTORE="$PWD/android_release.keystore"; fi
+  - mkdir -p example/android/libs/
+  - cp -r /libs/* example/android/libs/
+  - build-android-gradle-project manamobile.pro || true # create deployment.json (qtci only considers it in the root)
+  - cp example/*.json ./
+  - MAKEFLAGS=-j$(nproc) build-android-gradle-project manamobile.pro
+
+  artifacts:
+    paths:
+    - android-build/build/outputs/apk/*/*.apk
+
+gplay:
+  stage: deploy
+  image: python:2
+  script:
+  - echo "$SERVICE_JSON" | base64 -d > /service.json
+  # https://github.com/nassendelft/google-play-cli/pull/1
+  # https://github.com/nassendelft/google-play-cli/pull/2
+  - pip install git+https://github.com/Ablu/google-play-cli.git@combined-fix
+  - pip install oauth2client
+  - find -name "*.apk" | xargs gplay upload --service-json=/service.json --track=alpha  org.sourceoftales.client
+  only:
+  - master
+

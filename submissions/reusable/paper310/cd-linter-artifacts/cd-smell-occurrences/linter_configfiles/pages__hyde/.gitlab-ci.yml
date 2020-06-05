@@ -1,0 +1,45 @@
+image: python:2.7
+
+cache:
+  paths:
+  - vendor/
+
+test:
+  stage: test
+  script:
+    - pip install hyde
+    - hyde gen
+  except:
+    - master
+
+pages:
+  stage: deploy
+  script:
+    - pip install hyde
+    - hyde gen -d public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+
+#######
+# Minimal Settings:
+#######
+
+#image: python:2.7
+
+#pages:
+#  cache:
+#    paths:
+#    - vendor/
+#  stage: deploy
+#  script:
+#    - pip install hyde
+#    - hyde gen -d public
+#  artifacts:
+#    paths:
+#    - public
+#  only:
+#    - master
+

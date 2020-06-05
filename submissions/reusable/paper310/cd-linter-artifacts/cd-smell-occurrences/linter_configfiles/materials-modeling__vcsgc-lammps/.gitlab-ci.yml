@@ -1,0 +1,27 @@
+image: registry.gitlab.com/materials-modeling/vcsgc-lammps:latest
+
+pages:
+  stage: deploy
+  script:
+    # prepare homepage
+    - mkdir public
+    - mkdir USER-VCSGC
+    - mv src/fix_semigrandcanonical_mc.* USER-VCSGC/
+    - mv examples USER-VCSGC/
+    - tar cfz public/vcsgc-lammps.tgz USER-VCSGC
+    # letsencrypt setup
+    - fname=`awk '{split($0, s, "."); print s[1]}' doc/letsencrypt-setup.html`
+    - mkdir -p public/.well-known/acme-challenge/
+    - cp doc/letsencrypt-setup.html public/.well-known/acme-challenge/$fname
+    - ls -l public/.well-known/acme-challenge/
+    # build user guide
+    - sphinx-build doc/ public/
+    # clean up
+    - chmod go-rwX -R public/
+    - ls -l public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

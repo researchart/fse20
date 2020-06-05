@@ -1,0 +1,13 @@
+pages:
+  stage: deploy
+  script:
+  - mkdir -p .public/terraform/aws
+  - cp terraform/aws/README.html .public/terraform/aws/
+  - cp -Rf www/* .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

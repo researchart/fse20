@@ -1,0 +1,47 @@
+stages:
+  - test
+  - lint
+
+
+test_3.4:
+  stage: test
+  image: python:3.4
+  script:
+    - pip3 install -e .[dev]
+    - python3 setup.py test
+
+
+test_3.5:
+  stage: test
+  image: python:3.5
+  script:
+    - pip3 install -e .[dev]
+    - python3 setup.py test
+
+
+test_3.6:
+  stage: test
+  image: python:3.6
+  script:
+    - pip3 install -e .[dev]
+    - python3 setup.py test
+
+
+test_current:
+  stage: test
+  image: python:3
+  script:
+    - python3 --version
+    - pip3 install -e .[dev]
+    - python3 setup.py test
+
+
+lint:
+  stage: lint
+  image: python:3
+  allow_failure: true
+  script:
+    - pip install -e .[dev]
+    - flake8 --config=.flake8
+    - mypy categories/ tests/test_*
+

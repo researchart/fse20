@@ -1,0 +1,16 @@
+pages:
+  stage: deploy
+  image: blang/latex
+  script:
+    - mkdir .public
+    - (cd uebungen; latexmk -pdf main.tex)
+    - (cd notes; latexmk -pdf main.tex)
+    - mv uebungen/main.pdf .public/uebungen.pdf
+    - mv notes/main.pdf .public/notes.pdf
+    - mv .public public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

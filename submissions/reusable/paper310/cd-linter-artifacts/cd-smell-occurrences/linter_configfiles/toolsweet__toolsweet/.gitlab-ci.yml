@@ -1,0 +1,14 @@
+image: node:latest
+
+
+before_script:
+  - yarn --version
+  - yarn install
+
+test:
+  script:
+    - yarn test:coverage
+  cache:
+    paths:
+    - node_modules/
+

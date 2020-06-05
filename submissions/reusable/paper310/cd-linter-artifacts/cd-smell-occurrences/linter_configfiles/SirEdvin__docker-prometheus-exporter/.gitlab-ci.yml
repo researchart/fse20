@@ -1,0 +1,28 @@
+image: "python:3.6"
+
+before_script:
+  - pip install -r requirements.txt
+  - pip install -r requirements-dev.txt
+
+stages:
+  - test
+  - docker
+
+check-code:
+  stage: test
+  script: make check
+
+build-test-image:
+  stage: docker
+  image: docker:latest
+  services:
+   - docker:dind
+  before_script:
+    - echo "Hehehe"
+  variables:
+    DOCKER_DRIVER: overlay2
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/siredvin/docker-prometheus-exporter:${CI_COMMIT_REF_NAME} .
+    - docker push registry.gitlab.com/siredvin/docker-prometheus-exporter:${CI_COMMIT_REF_NAME}
+

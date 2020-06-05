@@ -1,0 +1,10 @@
+image: openjdk:8
+test:
+  script:
+    - ./gradlew test
+    - ./gradlew integrationTest
+  artifacts:
+    when: always
+    paths:
+      - "*/build/reports/**/*"
+

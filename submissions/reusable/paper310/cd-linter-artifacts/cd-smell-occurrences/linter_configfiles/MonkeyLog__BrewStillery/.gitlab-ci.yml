@@ -1,0 +1,15 @@
+image: "rust:latest"
+
+before_script:
+- apt-get update -yqq
+- apt-get install -yqq --no-install-recommends build-essential libgtk-3-dev
+
+stages:
+- cargo-test
+
+brewstillery:
+  stage: cargo-test
+  script:
+  - rustc --version && cargo --version
+  - cargo test --all --verbose
+

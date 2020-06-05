@@ -1,0 +1,17 @@
+image: "ruby:2.3"
+
+services:
+  - elasticsearch:5.1
+
+variables:
+  ELASTICSEARCH_HOST: "elasticsearch"
+
+before_script:
+  - apt-get update -yqqq; apt-get -o dir::cache::archives="vendor/apt" install -y -qq --force-yes libicu-dev cmake
+  - gem install bundler         # Bundler is not installed with the image
+  - bundle install -j $(nproc)  # Install dependencies
+
+rspec:
+  script:
+  - rspec
+

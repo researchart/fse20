@@ -1,0 +1,17 @@
+cache:
+  key: $CI_JOB_NAME
+  paths:
+    - node_modules
+before_script:
+  - apt-get update
+  - apt-get install libnss3-tools --assume-yes
+  - node -v
+  - npm version
+  - NPM_CONFIG_LOGLEVEL=warn
+  - npm i
+  - npm run certs
+
+test:current:
+  image: node:latest
+  script: npm t
+

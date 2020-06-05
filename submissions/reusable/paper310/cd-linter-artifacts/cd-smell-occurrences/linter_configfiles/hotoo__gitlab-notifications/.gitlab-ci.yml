@@ -1,0 +1,11 @@
+before_script:
+  - '[ ! -d $HOME/.nvm ] && curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.31.7/install.sh | bash'
+  - export NVM_DIR="$HOME/.nvm"
+  - '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"'
+  - nvm i 5 && nvm alias default 5
+
+node-5:
+  script:
+    - npm install
+    - npm test
+

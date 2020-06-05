@@ -1,0 +1,31 @@
+image: node:6
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  script:
+    # nothing to install, otherwise
+    # there would be "npm install" command here
+    # add "npm run build" and any other steps
+    - npm test
+
+publish:
+  stage: deploy
+  # no need to cache anything, we are just
+  # installing new tool
+  before_script:
+    - npm install --quiet https://gitlab.com/bahmutov/semantic-release-gitlab.git#8f519e9
+  # only publish from the master branch
+  # and when we see a tag that starts with "release-" string
+  # git tag release-<whatever>
+  # I prefer putting date "release-YYYY-MM-DD"
+  only:
+    - /^release-/
+  except:
+    - branches
+  script:
+    - NODE_DEBUG=request DEBUG=semantic-release-*,conventional-* $(npm bin)/semantic-release-gitlab
+

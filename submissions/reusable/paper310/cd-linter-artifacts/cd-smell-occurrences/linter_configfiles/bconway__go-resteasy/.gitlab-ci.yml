@@ -1,0 +1,20 @@
+image: golang:1.12-alpine
+
+services:
+  - postgres:11-alpine
+
+variables:
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: re_test
+
+build:
+  variables:
+    TEST_PGURI: postgres://postgres:postgres@postgres/re_test
+  script:
+    # Add packages needed to support PIE builds and tests.
+    - apk update && apk upgrade
+    - apk add --no-cache gcc musl-dev make git
+    - go version
+    - go env
+    - make test
+

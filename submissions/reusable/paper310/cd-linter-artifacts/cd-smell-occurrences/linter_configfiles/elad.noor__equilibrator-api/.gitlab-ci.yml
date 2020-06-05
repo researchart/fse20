@@ -1,0 +1,52 @@
+image: python
+
+stages:
+  - test
+  - deploy
+
+before_script:
+  - pip install --upgrade pip setuptools tox
+
+test35:
+  stage: test
+  image: python:3.5
+  script:
+    - tox -e isort
+#    - tox -e flake8
+    - tox -e safety
+    - tox -e py35 -- --cov-report xml --cov-report term
+#    - bash <(curl -s https://codecov.io/bash)
+
+test36:
+  stage: test
+  image: python:3.6
+  script:
+    - tox -e py36 -- --cov-report xml --cov-report term
+#    - bash <(curl -s https://codecov.io/bash)
+
+#test37:
+#  image: python:3.7
+#  stage: test
+#  script:
+#    - tox -e py37 -- --cov-report xml --cov-report term
+#    - bash <(curl -s https://codecov.io/bash)
+
+pypi:
+  stage: deploy
+  image: python:3.5
+  variables:
+    GIT_LFS_SKIP_SMUDGE: "1"
+  script:
+    - pip install --upgrade wheel twine
+    - curl -L https://github.com/github/git-lfs/releases/download/v1.4.1/git-lfs-linux-amd64-1.4.1.tar.gz | tar xz
+    - pushd git-lfs-1.4.1
+    - ./install.sh
+    - popd
+    - rm -rf git-lfs-1.4.1
+    - git lfs pull
+    - git lfs status
+    - python setup.py sdist bdist_wheel
+    - twine upload --username=$PYPI_USERNAME --password=$PYPI_PASSWORD --skip-existing dist/*
+  only:
+  - tags
+

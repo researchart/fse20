@@ -1,0 +1,29 @@
+image: registry.gitlab.com/rili/docker-ci:ci-latest
+
+stages:
+  - deploy
+
+deploy:
+  stage: deploy
+  tags:
+  - deploy
+  - rilis.io
+  only:
+  - master
+  environment:
+    name: rilis.io
+    url: https://rilis.io
+  script:
+    - mkdir build
+    - cd build
+    - cmake ../ -DCMAKE_INSTALL_PREFIX=~/rilis.io/ -G "Ninja"
+    - ninja
+    - rm -rf ~/rilis.io/
+    - ninja install
+    - chmod -R o=rx ~/rilis.io/
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - public
+
+

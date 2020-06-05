@@ -1,0 +1,55 @@
+image:
+  name: docker/compose:1.22.0
+  entrypoint: [""]
+
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: 'overlay2'
+  DOCKER_HOST: 'tcp://docker:2375'
+
+before_script:
+  - apk add -U make bash git
+  - echo "export CUSTOM_HOSTNAME=$(hostname -i docker)" > .env
+  - echo "export DOCKER_HOST=$DOCKER_HOST" >> .env
+  - adduser -h /home/git -D -u 1000 git
+  - chown -R git:git .
+
+stages:
+  - test
+  - build
+
+dev FOSS:
+  script:
+    - su git -c 'make deps'
+    - su git -c 'git -C gitlab-rails checkout master-foss'
+    - su git -c 'make create-dev'
+
+dev CE:
+  script:
+    - su git -c 'make create-dev IS_GITLAB_EE=0'
+
+dev EE:
+  script:
+    - su git -c 'make create-dev'
+  # enabled, because of https://gitlab.com/gitlab-org/gitlab/merge_requests/15556
+  allow_failure: true
+
+test FOSS:
+  script:
+    - su git -c 'make deps'
+    - su git -c 'git -C gitlab-rails checkout master-foss'
+    - su git -c 'make create-test'
+    - su git -c 'make command COMMAND="bin/rspec spec/models/chat_name_spec.rb"'
+
+test CE:
+  script:
+    - su git -c 'make create-test IS_GITLAB_EE=0'
+    - su git -c 'make command COMMAND="bin/rspec spec/models/chat_name_spec.rb" IS_GITLAB_EE=0'
+
+test EE:
+  script:
+    - su git -c 'make create-test'
+    - su git -c 'make command COMMAND="bin/rspec ee/spec/models/milestone_spec.rb"'
+

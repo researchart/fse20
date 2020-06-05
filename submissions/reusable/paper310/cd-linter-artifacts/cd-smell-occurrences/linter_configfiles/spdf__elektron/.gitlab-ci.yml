@@ -1,0 +1,28 @@
+image: golang:1.12
+
+cache:
+  paths:
+    - /go/pkg/mod/github.com
+    - /go/pkg/mod/golang.org
+    - /go/pkg/mod/google.golang.org
+
+before_script:
+  - export GOPATH="/go"
+  - mkdir -p $GOPATH/pkg/mod github.com $GOPATH/pkg/mod/golang.org $GOPATH/pkg/mod/google.golang.org
+  - cp -r $CI_PROJECT_DIR /elektron
+  - cd /elektron
+  - go mod download
+
+unit_tests:
+  script:
+    - go test ./...
+
+code_coverage:
+  script:
+    - go test --cover ./...
+
+build:
+  script:
+    - go build -mod vendor -o elektron-from-vendor ## Testing build from vendored dependencies.
+    - go build -v -o elektron
+

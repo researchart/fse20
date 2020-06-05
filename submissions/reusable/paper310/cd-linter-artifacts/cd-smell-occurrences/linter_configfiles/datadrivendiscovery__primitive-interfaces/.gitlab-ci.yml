@@ -1,0 +1,55 @@
+style_check:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-xenial-python36
+
+  script:
+    - pycodestyle primitive_interfaces
+
+type_check:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-xenial-python36
+
+  variables:
+    DEPENDENCY_REF: v2018.1.26
+
+  script:
+    - git clone https://gitlab.com/datadrivendiscovery/metadata.git
+    - cd metadata
+    - git checkout ${DEPENDENCY_REF}
+    - cd ..
+    - MYPYPATH=metadata mypy primitive_interfaces
+
+tests:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-xenial-python36
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    DOCKER_HOST: tcp://docker:2375
+
+  script:
+    - python3 setup.py sdist
+    - pip3 install --process-dependency-links dist/*
+    - rm -rf primitive_interfaces
+    - python3 ./run_tests.py
+
+trigger_images_rebuild:
+  stage: deploy
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-xenial-python36
+
+  script:
+    - if [ -n "$TRIGGER_TOKEN" ]; then curl -X POST -F token=$TRIGGER_TOKEN -F ref=master -F variables[REBUILD_IMAGE]=core:ubuntu-xenial-python36-devel https://gitlab.com/api/v4/projects/5024100/trigger/pipeline; fi
+
+  only:
+    - devel
+

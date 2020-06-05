@@ -1,0 +1,29 @@
+image: docker:stable
+
+variables:
+  CONTAINER_TEST_IMAGE: circleeh/pocketmine:$CI_COMMIT_REF_NAME
+  DOCKER_DRIVER: overlay2
+
+services:
+- docker:dind
+
+before_script:
+- docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
+- apk add --update make curl jq git
+- docker info
+
+stages:
+- build
+
+build_alpha:
+  stage: build
+  script:
+  - make docker_build_alpha
+  - make docker_push_alpha
+
+build_stable:
+  stage: build
+  script:
+  - make docker_build_stable
+  - make docker_push_stable
+

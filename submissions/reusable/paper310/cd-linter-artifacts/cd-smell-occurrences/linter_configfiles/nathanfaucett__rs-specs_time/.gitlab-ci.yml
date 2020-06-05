@@ -1,0 +1,7 @@
+image: "rustlang/rust:nightly"
+
+test:cargo:
+  script:
+  - rustc --version && cargo --version
+  - cargo test --verbose --release
+

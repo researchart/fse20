@@ -1,0 +1,76 @@
+# -----------------------------------------------------------------------------
+# File: .gitlab-ci.yml
+# Author: Sasha Petrenko
+# Date: 9/19/2018
+# Description: This script runs the multi-branch pipeline for the MEDICOM project
+# Requirements:
+#   conda
+#   tensorflow
+#   numpy
+#   scipy
+# -----------------------------------------------------------------------------
+
+
+# All stages are defined here in advance
+stages:
+    - build_image
+    - test_image
+    - pages
+
+
+# Generate documentation
+external_pages:
+    stage: pages
+    script:
+        - cd docs/
+        - make html
+        - mv _build/html/* ../public/
+    artifacts:
+        paths:
+            - public
+    only:
+        - external
+
+
+# Generate documentation
+pages:
+    image: $CI_REGISTRY_IMAGE
+    stage: pages
+    script:
+        - cd docs/
+        - make html
+        - mv _build/html/* ../public/
+    artifacts:
+        paths:
+            - public
+    except:
+        - external
+
+
+# Login to docker
+.docker_login: &docker_login |
+    docker info
+    docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+
+
+# Build the image
+build_image:
+    image: gitlab/dind
+    stage: build_image
+    script:
+        - *docker_login
+        - docker build -t "$CI_REGISTRY_IMAGE" dockerfiles/
+        - docker push "$CI_REGISTRY_IMAGE"
+    only:
+        - feature/docker
+
+
+# Test the image
+test-image:
+    image: $CI_REGISTRY_IMAGE
+    stage: test_image
+    script:
+        - echo Hello World
+    only:
+        - feature/docker
+

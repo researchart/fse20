@@ -1,0 +1,22 @@
+image: python:latest
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+before_script:
+  - python -V               # Print out python version for debugging
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+  - pip install scrapy
+
+test:
+  script:
+  - python Ejemplos/QuotesSpider.py test
+
+run:
+  script:
+  - python Ejemplos/QuotesSpider.py
+

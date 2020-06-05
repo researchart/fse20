@@ -1,0 +1,17 @@
+
+build:
+  stage: build
+  variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+  services:
+    - alias: docker
+      name: registry.gitlab.com/ercom/docker:18.03.1-ce-dind
+  image: registry.gitlab.com/ercom/docker:18.03.1-ce-git
+  only:
+    - tags
+  tags:
+    - docker
+  script:
+    - ci-scripts/run-job-script.sh
+

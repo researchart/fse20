@@ -1,0 +1,17 @@
+image: docker:latest
+
+services:
+- docker:dind
+
+variables:
+  PACKAGE_NAME: gitlab.com/monetha/reputation-go-sdk
+
+build and test:
+  script:
+  - apk --no-cache add bash
+  - bash -x ./scripts/build.sh
+  artifacts:
+    paths:
+    - .cover/
+    expire_in: 1 month
+

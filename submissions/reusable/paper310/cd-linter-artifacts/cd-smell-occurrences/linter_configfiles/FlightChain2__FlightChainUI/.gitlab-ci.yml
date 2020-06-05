@@ -1,0 +1,77 @@
+### 
+#
+# Build a docker image of the nodejs API application.
+#
+#
+
+image: docker:latest
+services:
+- docker:dind
+
+# Cache modules in between jobs
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+  - node_modules/
+
+variables:
+
+  DOCKER_DRIVER: overlay
+  SPRING_PROFILES_ACTIVE: gitlab-ci
+  APP_NAME: flightchainui
+  NAMESPACE: adapters
+  IMG_NAME: flightchain2/flightchainui
+  ## value from https://gitlab.com/sita.aero/jetstream/blob/FlightChain/kube-platform/awskube/setenv
+  CLUSTER_NAME: dev.blockchainsandbox.aero
+
+  VERSION: kosversionlabel
+
+  LISTENING_PORT: "4200" #Port of service internal to cluster. Quote integers or gitlab barfs inconveniently
+  SERVICE_NAME: flightchainui #dns service name (15 char limit).  Domain name will be <serviceName>.<namespace>
+
+
+before_script:
+  - export SHORT_SHA=${CI_COMMIT_SHA:0:8}
+  - echo "\$CI_COMMIT_SHA $CI_COMMIT_SHA"
+  - echo "\$CI_COMMIT_REF_SLUG $CI_COMMIT_REF_SLUG"
+
+
+stages:
+  - build
+  - package
+
+
+ng-build:
+  image: trion/ng-cli-karma
+  stage: build
+  script:
+  - ls -al
+  - npm install
+  - ./node_modules/@angular/cli/bin/ng build --prod  --configuration=production
+  - ls -al
+  - ls -al dist
+  tags:
+  - shared
+  artifacts:
+    paths:
+    - dist/
+
+  # when: manual
+
+docker-build:
+  stage: package
+  script:
+  - ls -al
+  - ls -al dist
+  - docker login -u ${CI_REGISTRY_USER} -p ${CI_BUILD_TOKEN} ${CI_REGISTRY}
+  #Build spring boot container...
+  - docker build -f Dockerfile.flightchainui -t ${CI_REGISTRY_IMAGE} --build-arg PROJECT=${CI_PROJECT_NAME} --build-arg VERSION=${VERSION} .
+  #Tagging docker image with version and commit hash for traceability back to source code.
+  - docker tag ${CI_REGISTRY_IMAGE}:latest ${CI_REGISTRY_IMAGE}:${VERSION}.${SHORT_SHA}
+  - docker push ${CI_REGISTRY_IMAGE}
+  dependencies:
+  - ng-build
+  tags:
+  - shared
+  # when: manual
+

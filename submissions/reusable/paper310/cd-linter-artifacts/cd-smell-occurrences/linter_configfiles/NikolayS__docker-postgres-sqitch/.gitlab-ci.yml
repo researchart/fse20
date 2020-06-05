@@ -1,0 +1,9 @@
+before_script:
+  - sudo apt-get update -qq  && sudo apt-get install -y -qq docker
+
+build_for_pg96:
+  script: "docker build --build-arg PG_SERVER_VERSION=9.6 -t postgresmen/postgres-with-stuff:pg9.6 ."
+
+build_for_pg10:
+  script: "docker build --build-arg PG_SERVER_VERSION=10 -t postgresmen/postgres-with-stuff:p10 ."
+

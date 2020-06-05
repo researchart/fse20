@@ -1,0 +1,8 @@
+master:
+  image: python:3.6
+  script:
+    - pip install jedi flake8 pygments mypy
+    - python3 -m spelltinkle.run -S
+    - mypy -p spelltinkle --ignore-missing-imports
+    - flake8 spelltinkle
+

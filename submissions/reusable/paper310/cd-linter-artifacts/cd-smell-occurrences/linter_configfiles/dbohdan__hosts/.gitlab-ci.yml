@@ -1,0 +1,17 @@
+image: alpine:3.8
+
+before_script:
+  - wget -O tclkit-8.6.8   http://kitcreator.rkeene.org/kits/f3ec73e3d6be0901ec0a56721bf5f9c72a86d936/tclkit
+  - wget -O tclkit-8.5.19  http://kitcreator.rkeene.org/kits/a15d03063df20d1bec3236e7d0de5786c45a6196/tclkit
+  - echo 'db1675517822fff12675098c9309b6c934341af6ba9ebe8727e0648c257cfae7  tclkit-8.6.8' > checksum
+  - echo '2afb2d9c20a8d43e9a8557b6901945f373202007653ca0efb74001abf187c913  tclkit-8.5.19' >> checksum
+  - sha256sum -c checksum && rm checksum
+  - chmod +x tclkit*
+
+test:
+  script:
+    - ./tclkit-8.6.8   tests.tcl
+    - ./tclkit-8.5.19  tests.tcl
+    - ./tclkit-8.6.8   hosts.tcl version
+    - ./tclkit-8.5.19  hosts.tcl version
+

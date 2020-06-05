@@ -1,0 +1,44 @@
+image: node:latest
+
+stages:
+  - build
+  - test
+  - deploy
+
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  # Check for ssh-agent + rsync and install if not present
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y  )'
+  - eval $(ssh-agent -s)
+  # Inject the remote's private key
+  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  # Append keyscan output into known hosts
+  - ssh-keyscan $SERVER_IP >> ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+
+install_dependencies:
+  stage: build
+  script:
+    - yarn
+  artifacts:
+    paths:
+      - node_modules/
+
+testing:
+  stage: test
+  script: yarn test
+
+deploy:
+  stage: deploy
+  script:
+    # Non interactive ssh gracefully reloads server
+    - ssh $SERVER_USER@$SERVER_IP "cd ${FOLDER_PATH} && yarn ${UPDATE_CMD}"
+  only:
+    # Trigger deployments only from master branch
+    - master
+

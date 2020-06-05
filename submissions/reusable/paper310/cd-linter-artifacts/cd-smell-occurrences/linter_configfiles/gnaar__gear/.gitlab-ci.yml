@@ -1,0 +1,12 @@
+image: gnar/gear-ci-base:1.0
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - pip3 install --upgrade pip setuptools tox codecov
+    - tox
+    - codecov --token=e8bcce36-b0de-494e-b7a1-9cd4926299f9
+

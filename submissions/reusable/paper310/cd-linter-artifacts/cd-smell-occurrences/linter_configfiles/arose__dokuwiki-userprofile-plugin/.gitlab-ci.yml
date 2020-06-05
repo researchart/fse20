@@ -1,0 +1,22 @@
+# Select docker image from https://hub.docker.com/_/php/
+image: php:5.6
+
+variables:
+  DOKUWIKI: "stable"
+
+before_script:
+# Install git, the php image doesn't have installed
+  - apt-get update -yqq
+  - apt-get install git -yqq
+# Install other missing utilities
+  - apt-get install wget -yqq
+  - apt-get install phpunit -yqq
+
+# Setup a raw dokuwiki install
+  - wget https://raw.github.com/splitbrain/dokuwiki-travis/master/travis.sh
+  - sh travis.sh
+
+runtest:
+  script: 
+    - cd _test && phpunit --stderr --group plugin_userprofile
+

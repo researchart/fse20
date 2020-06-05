@@ -1,0 +1,39 @@
+image: docker:git
+services:
+  - docker:dind
+
+variables:
+  CONTAINER_TEST_IMAGE: registry.gitlab.com/2ndkauboy/gitlab-ci-git-deploy:$CI_COMMIT_REF_NAME
+  CONTAINER_RELEASE_IMAGE: registry.gitlab.com/2ndkauboy/gitlab-ci-git-deploy:latest
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+
+stages:
+  - build
+  - test
+  - release
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+test:
+  stage: test
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run $CONTAINER_TEST_IMAGE ssh -V
+    - docker run $CONTAINER_TEST_IMAGE git --version
+    - docker run $CONTAINER_TEST_IMAGE git ftp --version
+
+release-image:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - master
+

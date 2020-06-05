@@ -1,0 +1,24 @@
+image: weboaks/node-karma-protractor-chrome
+
+cache:
+  paths:
+  - node_modules/
+
+pages:
+  stage: deploy
+  script:
+  - npm install --no-optional
+  - npm run lint
+  - npm run test -- --no-watch --no-progress --browsers=ChromeHeadlessCI
+  - npm run build -- --base-href $CI_PROJECT_NAME
+  - npm run compress
+  - mv dist public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+  environment:
+    name: production
+    url: https://winni.gitlab.io/$CI_PROJECT_NAME
+

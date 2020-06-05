@@ -1,0 +1,38 @@
+image: rust:latest
+
+variables:
+  QUICKCHECK_GENERATOR_SIZE: 4096
+  QUICKCHECK_MAX_TESTS: 100000
+  QUICKCHECK_TESTS: 5000
+  QUICKCHECK_MIN_TESTS_PASSED: 3
+
+stable: &default
+  before_script:
+  - &pybase32 |
+    apt-get -y update \
+      && apt-get -y install python3-dev \
+      && git clone https://github.com/tobyn/zbase32.git pyzbase32 \
+      && cd pyzbase32 \
+      && python3 ./setup.py install --user
+  script:
+  - cargo rustc --lib --verbose -- -D warnings
+  - rustup component add clippy
+  - cargo clippy -- -D clippy::all -D clippy::pedantic -D warnings
+  - cargo test --verbose --features python_tests
+
+beta:
+  <<: *default
+  before_script:
+  - *pybase32
+  - rustup toolchain install beta
+  - rustup default beta
+
+nightly:
+  before_script:
+  - *pybase32
+  - rustup toolchain install nightly
+  - rustup default nightly
+  script:
+  - cargo test --verbose --features unstable,python_tests
+  allow_failure: true
+

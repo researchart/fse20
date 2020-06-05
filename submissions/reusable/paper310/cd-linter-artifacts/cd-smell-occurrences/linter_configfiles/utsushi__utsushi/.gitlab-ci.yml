@@ -1,0 +1,135 @@
+#  .gitlab-ci.yml -- define project CI pipelines
+#  Copyright © 2019  Olaf Meeuwissen
+#
+#  License: GPL-3.0+
+#  Author : Olaf Meeuwissen
+#
+#  This file is part of the 'Utsushi' package.
+#  This package is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License or, at
+#  your option, any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#  You ought to have received a copy of the GNU General Public License
+#  along with this package.  If not, see <http://www.gnu.org/licenses/>.
+
+variables:
+  SDK_REGISTRY_IMAGE: "$CI_REGISTRY_IMAGE/sdk"
+
+image: "$SDK_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+
+stages:
+  - image
+  - build
+  - check
+  - archive
+  - image-latest
+
+#  Always pass build results between stages so they can not only be
+#  used by the next stage but also for debugging of failed builds.
+#  There is little point in keeping them around for a long while but
+#  give developers a decent amount time to fetch results if needed.
+
+.artifacts: &artifacts
+  artifacts:
+    untracked: true
+    when: always
+    expire_in: 1 week
+
+#  Make untracked files newer than any repository files (see #72).
+
+.touch: &touch
+  before_script:
+    - git ls-files -z --other | xargs -0 touch
+
+#  Bootstrap, configure and build everything
+
+build:
+  stage: build
+  script:
+    - ./bootstrap
+    - ./configure
+    - make
+  <<: *artifacts
+
+#  Run the project's test suite
+
+check:
+  stage: check
+  <<: *touch
+  script:
+    - make check
+  <<: *artifacts
+
+#  Create a source tarball
+
+archive:
+  stage: archive
+  <<: *touch
+  script:
+    - make dist
+  artifacts:
+    paths:
+      - "$CI_PROJECT_NAME-*.tar.gz"
+  only:
+    - master
+
+#  The "stuff" below deals with building of the Docker image(s) used
+#  by the jobs defined above.  Our CI uses an image that's tagged to
+#  match the branch it is building for but we also provide a "latest"
+#  convenience image that corresponds to the master branch.
+#
+#  A conscious effort is made to keep the image builds efficient by
+#  liberally using Docker's caching features and the definitions DRY
+#  through the use of YAML templates.
+
+.image-build: &image-build
+  image: docker
+  services:
+    - docker:dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD"
+           | docker login --username "$CI_REGISTRY_USER"
+                          --password-stdin "$CI_REGISTRY"
+  script:
+    - docker pull "$SDK_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+             || docker pull "$SDK_REGISTRY_IMAGE"
+             || true
+    - docker build --pull
+                   --cache-from "$SDK_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+                   --cache-from "$SDK_REGISTRY_IMAGE"
+                   --tag "$TAG_NAME" .
+    - docker push "$TAG_NAME"
+
+.image-build-deps: &image-build-deps
+  changes:
+    - .gitlab-ci.yml
+    - .dockerignore
+    - Dockerfile
+    - install-deps
+
+image-branch:
+  stage: image
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    TAG_NAME: "$CI_REGISTRY_IMAGE/sdk:$CI_COMMIT_REF_SLUG"
+  <<: *image-build
+  only:
+    <<: *image-build-deps
+
+image-latest:
+  stage: image-latest
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    TAG_NAME: "$CI_REGISTRY_IMAGE/sdk"
+  <<: *image-build
+  only:
+    refs:
+      - master
+    <<: *image-build-deps
+

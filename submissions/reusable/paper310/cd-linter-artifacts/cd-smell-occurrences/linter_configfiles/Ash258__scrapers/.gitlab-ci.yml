@@ -1,0 +1,34 @@
+image: node:8.12-alpine
+
+stages:
+  - test
+  - build
+  - publish
+
+before_script:
+  - yarn
+
+test:
+  stage: test
+  script:
+    - yarn test
+
+build:
+  stage: build
+  script:
+    - yarn babel
+    - yarn artifacts
+  artifacts:
+    paths:
+      - binary/*
+
+publish:
+  image: inetprocess/gitlab-release
+  stage: publish
+  # Rewrite global before_script
+  before_script:
+    - ''
+  script: gitlab-release --message "$CI_BUILD_TAG" binary/Scraper.exe binary/Scraper.exe.sha256
+  only:
+    - tags
+

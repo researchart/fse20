@@ -1,0 +1,125 @@
+stages:
+  - build
+  - deploy
+
+image: docker:stable
+
+services:
+  - docker:dind
+
+variables:
+  CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+  DOCKER_DRIVER: overlay2
+  GIT_SUBMODULE_STRATEGY: recursive
+
+build-branch:
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker run --rm --privileged multiarch/qemu-user-static:register || true
+  script:
+    - docker pull $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG || true
+    - docker build -f Dockerfile --cache-from $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG --tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF --tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG .
+    - test -n "$CI_BUILD_TAG" && docker tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF $CONTAINER_IMAGE:$CI_BUILD_TAG || true
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG
+    - test -n "$CI_BUILD_TAG" && docker push $CONTAINER_IMAGE:$CI_BUILD_TAG || true
+  except:
+  - develop
+  - master
+  - tags
+
+build-release-branch:
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker run --rm --privileged multiarch/qemu-user-static:register || true
+  script:
+    - docker pull $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG || true
+    - docker build -f Dockerfile --build-arg NS=www-prod --cache-from $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG --tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF --tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG .
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG
+  only:
+  - /^[0-9]*-release$/
+
+build-local:
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker run --rm --privileged multiarch/qemu-user-static:register || true
+  script:
+    - docker pull $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG || true
+    - docker build -f Dockerfile --build-arg=NS=local --cache-from $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG --tag $CONTAINER_IMAGE:local .
+    - docker push $CONTAINER_IMAGE:local
+  only:
+  - devel
+
+build-standalone:
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker run --rm --privileged multiarch/qemu-user-static:register || true
+  script:
+    - docker pull $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG || true
+    - docker build -f Dockerfile --build-arg=NS=standalone --cache-from $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG --tag $CONTAINER_IMAGE:standalone .
+    - docker push $CONTAINER_IMAGE:standalone
+  only:
+  - devel
+
+build-devel:
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker run --rm --privileged multiarch/qemu-user-static:register || true
+  script:
+    - docker pull $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG || true
+    - docker build -f Dockerfile --cache-from $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG --tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF --tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG .
+    - test -n "$CI_BUILD_TAG" && docker tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF $CONTAINER_IMAGE:$CI_BUILD_TAG || true
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG
+    - test -n "$CI_BUILD_TAG" && docker push $CONTAINER_IMAGE:$CI_BUILD_TAG || true
+  only:
+  - devel
+
+build-master:
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker run --rm --privileged multiarch/qemu-user-static:register || true
+  script:
+    - docker pull $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG || true
+    - docker build -f Dockerfile --build-arg NS=www-prod --cache-from $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG --tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF --tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG .
+    - test -n "$CI_BUILD_TAG" && docker tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF $CONTAINER_IMAGE:$CI_BUILD_TAG || true
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG
+    - test -n "$CI_BUILD_TAG" && docker push $CONTAINER_IMAGE:$CI_BUILD_TAG || true
+  only:
+  - master
+
+deploy-devel:
+  stage: deploy
+  image: alpine:3.7
+  script:
+    - apk update  && apk add --no-cache curl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl && mv ./kubectl /usr/local/bin/kubectl
+    - mkdir -p $HOME/.kube
+    - echo -n $KUBE_CONFIG_DEV | base64 -d > $HOME/.kube/config
+    - kubectl -n www set image deploy/pantahub-www pantahub-www=$CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF
+  only:
+    - devel
+
+deploy-prod:
+  stage: deploy
+  image: alpine:3.7
+  script:
+    - apk update  && apk add --no-cache curl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl && mv ./kubectl /usr/local/bin/kubectl
+    - mkdir -p $HOME/.kube
+    - echo -n $KUBE_CONFIG_PROD | base64 -d > $HOME/.kube/config
+    - kubectl -n www-prod set image deploy/pantahub-www pantahub-www=$CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF
+  only:
+    - master
+
+

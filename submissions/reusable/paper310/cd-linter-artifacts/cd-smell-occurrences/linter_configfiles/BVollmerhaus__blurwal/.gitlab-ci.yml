@@ -1,0 +1,71 @@
+image: python:3.7-alpine
+
+stages:
+  - test
+  - build
+  - release
+
+# Change pip's cache directory to be inside the runner's
+# project directory since only local items can be cached.
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+
+before_script:
+  - python -V
+  - pip install tox
+
+
+python36:
+  stage: test
+  image: python:3.6-alpine
+  script:
+    - tox -e py36
+
+python37:
+  stage: test
+  image: python:3.7-alpine
+  script:
+    - tox -e py37
+
+linting:
+  stage: test
+  script:
+    - tox -e flake8
+
+
+package:
+  stage: build
+  script:
+    - python setup.py sdist bdist_wheel
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 month
+
+
+pypi:
+  stage: release
+  variables:
+    TWINE_USERNAME: $PYPI_USERNAME
+    TWINE_PASSWORD: $PYPI_PASSWORD
+  script:
+    - pip install twine
+    - twine upload --skip-existing dist/*
+  only:
+    - tags
+
+aur:
+  stage: release
+  image: archlinux/base:latest
+  before_script: []
+  script:
+    - cd deploy/
+    - chmod +x pkgbuild-to-aur
+    - ./pkgbuild-to-aur
+  only:
+    - tags
+

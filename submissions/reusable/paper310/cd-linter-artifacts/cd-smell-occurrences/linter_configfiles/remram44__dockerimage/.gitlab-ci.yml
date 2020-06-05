@@ -1,0 +1,20 @@
+services:
+  - docker:dind
+
+before_script:
+  - curl -Lo /tmp/docker.tgz https://get.docker.com/builds/Linux/x86_64/docker-17.05.0-ce.tgz && tar -xf /tmp/docker.tgz -C /usr/local && rm /tmp/docker.tgz && export PATH=/usr/local/docker:$PATH && export DOCKER_HOST=tcp://docker:2375
+
+py27:
+  image: python:2.7
+  stage: test
+  script:
+    - pip install .
+    - python tests.py
+
+py34:
+  image: python:3.4
+  stage: test
+  script:
+    - pip install .
+    - python tests.py
+

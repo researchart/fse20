@@ -1,0 +1,11 @@
+image: ubuntu
+make:
+  script:
+    - apt-get update
+    - apt-get install -y texlive-full make imagemagick inkscape dia
+    - make clean
+    - make
+  artifacts:
+    paths:
+      - build/*
+

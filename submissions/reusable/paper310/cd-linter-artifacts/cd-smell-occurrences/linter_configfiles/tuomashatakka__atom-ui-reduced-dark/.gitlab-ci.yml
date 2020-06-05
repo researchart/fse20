@@ -1,0 +1,24 @@
+image: node:6.6.0
+
+stages:
+  - deploy
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - mkdir .public/assets
+  - cp -r assets/* .public/assets
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+# before_script:
+#  - apt-get update
+#  - apt-get install -y nodejs npm
+#  - npm install
+#  - export NODE_ENV=production
+

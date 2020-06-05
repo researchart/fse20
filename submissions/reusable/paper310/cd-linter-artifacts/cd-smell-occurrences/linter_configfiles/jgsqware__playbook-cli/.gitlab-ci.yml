@@ -1,0 +1,43 @@
+image: billyteves/alpine-golang-glide:1.2.0
+
+before_script:
+    - export GO_PROJECT_PATH="$GOPATH/src/gitlab.com/$CI_PROJECT_NAMESPACE"
+    - echo $GO_PROJECT_PATH
+    - mkdir -p $GO_PROJECT_PATH
+    - ln -s $(pwd) $GO_PROJECT_PATH
+    - export GO_PROJECT_PATH="$GO_PROJECT_PATH/$CI_PROJECT_NAME"
+    - echo $GO_PROJECT_PATH
+    - cd $GO_PROJECT_PATH
+    - glide install -v
+
+stages:
+  - build
+  - verify
+  - publish
+  
+go_build:
+  tags:
+    - docker
+  stage: build
+  script:
+    - go build
+
+go_test:
+  tags:
+    - docker
+  stage: verify
+  script:
+    - go test -cover $(go list ./... | grep -v "vendor")
+
+go_publish:
+  tags:
+    - docker
+  stage: publish
+  script:
+    - go build
+  artifacts:
+    paths:
+    - $CI_PROJECT_NAME
+  only:
+    - tags
+

@@ -1,0 +1,34 @@
+image: ruby:2.5
+
+before_script:
+  - ruby -v
+  - which ruby
+  - gem install bundler
+  - bundle install --jobs $(nproc)  "${FLAGS[@]}" --path vendor
+
+cache:
+  paths:
+    - vendor
+
+rspec:
+  script:
+    - bundle exec rspec -f d
+  stage: test
+
+stages:
+  - test
+  - publish
+
+push-cookbook:
+  stage: publish
+  only:
+    refs:
+      - master
+    variables:
+      - "$OPS_CLONE_USERNAME"
+      - "$OPS_CLONE_PASSWORD"
+  script:
+    - git clone https://$OPS_CLONE_USERNAME:$OPS_CLONE_PASSWORD@ops.gitlab.net/gitlab-cookbooks/cookbook-publisher.git /tmp/cookbook-publisher
+    - cp /tmp/cookbook-publisher/publisher.rb .
+    - ruby publisher.rb
+

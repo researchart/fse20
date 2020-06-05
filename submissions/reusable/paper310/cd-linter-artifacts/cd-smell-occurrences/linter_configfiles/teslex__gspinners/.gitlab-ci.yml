@@ -1,0 +1,26 @@
+image: gradle:latest
+
+stages:
+  - build
+  - publish
+
+build:
+  stage: build
+  script: gradle clean build
+  artifacts:
+   paths:
+    - build/libs/gspinners*.jar
+
+publish:
+  stage: publish
+  script:
+    - gradle publish
+    - git config --global user.name 'David Kohut'
+    - git config --global user.email 'devid.kohut@gmail.com'
+    - git clone https://gitlab.com/TesLex/repo
+    - cp -r build/repo/* repo
+    - cd repo
+    - git add .
+    - git commit -m 'Update gspinners'
+    - git push https://david.kohut:${GITLAB_PRIVATE_KEY}@gitlab.com/TesLex/repo -f
+

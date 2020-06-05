@@ -1,0 +1,37 @@
+stages:
+    - test
+    - package
+
+test:
+    stage: test
+    image: randomknowledge/docker-pyenv-tox
+    script:
+        - tox
+
+style:
+    stage: test
+    image: python:3.5
+    script:
+        - pip install -e .[stripe,docs] pre-commit prospector
+        - pre-commit run --all-files
+
+wheel:
+    stage: package
+    image: python:3.5
+    script:
+        - pip install poetry
+        - poetry build -f wheel
+        - mv dist/*.whl .
+    artifacts:
+        paths:
+            - "*.whl"
+
+npm:
+    stage: package
+    image: node
+    script:
+        - npm pack
+    artifacts:
+        paths:
+            - "*.tgz"
+

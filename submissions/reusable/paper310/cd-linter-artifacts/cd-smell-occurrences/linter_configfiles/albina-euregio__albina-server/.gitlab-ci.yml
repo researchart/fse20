@@ -1,0 +1,41 @@
+image: maven:3-jdk-8
+
+variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+    MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
+
+cache:
+    paths:
+        - .m2/repository
+
+production build:
+    stage: build
+    script: mvn $MAVEN_CLI_OPTS --activate-profiles env-prod install
+    artifacts:
+        paths:
+            - target/albina.war
+
+deploy to development:
+    stage: deploy
+    script:
+        - export TOMCAT_PATH=/albina_dev
+        - export GIT_VERSION=$(git describe --always)
+        - mvn $MAVEN_CLI_OPTS --activate-profiles env-dev tomcat7:redeploy
+    environment:
+        name: development
+    only:
+        - master
+        - ci
+
+deploy to production:
+    stage: deploy
+    script:
+        - export TOMCAT_PATH=/albina
+        - export GIT_VERSION=$(git describe --always)
+        - mvn $MAVEN_CLI_OPTS --activate-profiles env-prod tomcat7:redeploy
+    environment:
+        name: production
+    only:
+        - tags
+    when: manual
+

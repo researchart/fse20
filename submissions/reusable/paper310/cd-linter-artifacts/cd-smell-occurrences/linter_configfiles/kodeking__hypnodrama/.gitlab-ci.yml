@@ -1,0 +1,27 @@
+image: ubuntu:bionic
+
+before_script:
+  - apt-get update -yq && apt-get -y install build-essential qt5-qmake qtbase5-dev qtdeclarative5-dev
+  - apt-get -y install lcov gcovr
+
+build_desktop:
+  stage: build
+  script:
+    - export QT_SELECT=qt5
+    - mkdir build
+    - cd build
+    - qmake CONFIG+=debug CONFIG+=coverage ..
+    - make -j2
+  artifacts:
+    paths:
+      - build/
+
+test_desktop:
+  stage: test
+  script:
+    - find build | xargs touch # Avoid rebuilding
+    - cd build
+    - make coverage-html
+  dependencies:
+    - build_desktop
+

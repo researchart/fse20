@@ -1,0 +1,459 @@
+#
+#   Copyright 2018, Cordite Foundation.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+stages:
+  - build
+  - test
+  - release
+  - deploy
+  - int-test
+  - release-docker
+
+variables:
+  DOCKER_DRIVER: overlay2
+  GCLOUD_ENV: edge
+
+build:jar:
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - mkdir -p cordapps/build
+    # compile and package
+    - (cd cordapps && ./gradlew clean checkLicense build -x test --parallel --info -PpipelineId=${CI_PIPELINE_ID}) 
+    # tests
+    # - (cd cordapps && ./gradlew build -x :checkLicense --info) ?? isn't this the same as above?!
+    # build Node layout
+    - (cd cordapps && ./gradlew -x :checkLicense deployNodes buildNode coveralls -PpipelineId=${CI_PIPELINE_ID} -PCI_COMMIT_REF_NAME=${CI_COMMIT_REF_NAME} -PCI_COMMIT_SHA=${CI_COMMIT_SHA} -PCI_PIPELINE_ID=${CI_PIPELINE_ID})
+    - (cd node && docker build -t ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} .)
+    - docker push ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID}
+    - bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN
+  tags:
+    - build-tools
+  artifacts:
+    name: "cordite-build-$CI_PIPELINE_ID"
+    paths:
+    - node/*
+    - cordapps/build/gradle.log
+  except:
+   - 658-refactor-cordite-docker-implementation-to-use-official-corda-image
+
+# code_quality:
+#   stage: build
+#   image: docker:stable
+#   variables:
+#     DOCKER_DRIVER: overlay2
+#   allow_failure: true
+#   services:
+#     - docker:stable-dind
+#   script:
+#     - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+#     - docker run
+#         --env SOURCE_CODE="$PWD"
+#         --env CI_PIPELINE_ID="$CI_PIPELINE_ID"
+#         --volume "$PWD":/code
+#         --volume /var/run/docker.sock:/var/run/docker.sock
+#         "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+#   artifacts:
+#     paths: [gl-code-quality-report.json]
+#   tags:
+#     - docker
+
+build:pages:
+   image: cordite/rtd:latest
+   stage: build
+   script:
+     - cd docs
+     - make clean
+     - make html
+   tags:
+    - docker
+   except:
+     - master
+     - 678-upgrade-to-corda-4-x
+     - /v[0-9]+\.[0-9]+\.[0-9]+/
+   allow_failure: true
+
+build:node-client:
+  image: node:latest
+  stage: build
+  script:
+    - date
+    - npm set $NPM_CREDENTIALS
+    - cd clients/cli
+    - npm install
+    - date
+  except:
+    - master
+    - 678-upgrade-to-corda-4-x
+    - /v[0-9]+\.[0-9]+\.[0-9]+/
+  tags:
+    - docker
+  allow_failure: true
+
+test:nms:
+  stage: test
+  retry: 2
+  script:
+    - date
+    - docker pull cordite/network-map:latest
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - date
+    - cd test && ./test-nms.sh ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} docker-test
+    - date
+  tags:
+    - build-tools
+  dependencies: []
+  except:
+    - 291-integration-with-other-ledgers-and-payment-rails
+
+# container_scanning:
+#   image: docker:stable
+#   stage: test
+#   variables:
+#     CI_APPLICATION_REPOSITORY: ${CI_REGISTRY_IMAGE}
+#     CI_APPLICATION_TAG: ${CI_PIPELINE_ID}
+#   allow_failure: true
+#   services:
+#     - docker:stable-dind
+#   script:
+#     - docker run -d --name db arminc/clair-db:latest
+#     - docker run -p 6060:6060 --link db:postgres -d --name clair --restart on-failure arminc/clair-local-scan:v2.0.1
+#     - apk add -U wget ca-certificates
+#     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+#     - docker pull ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}
+#     - wget https://github.com/arminc/clair-scanner/releases/download/v8/clair-scanner_linux_amd64
+#     - mv clair-scanner_linux_amd64 clair-scanner
+#     - chmod +x clair-scanner
+#     - touch clair-whitelist.yml
+#     - while( ! wget -q -O /dev/null http://docker:6060/v1/namespaces ) ; do sleep 1 ; done
+#     - retries=0
+#     - echo "Waiting for clair daemon to start"
+#     - while( ! wget -T 10 -q -O /dev/null http://docker:6060/v1/namespaces ) ; do sleep 1 ; echo -n "." ; if [ $retries -eq 10 ] ; then echo " Timeout, aborting." ; exit 1 ; fi ; retries=$(($retries+1)) ; done
+#     - ./clair-scanner -c http://docker:6060 --ip $(hostname -i) -r gl-container-scanning-report.json -l clair.log -w clair-whitelist.yml ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG} || true
+#   artifacts:
+#     paths: [gl-container-scanning-report.json]
+#   except:
+#     - /v[0-9]+\.[0-9]+\.[0-9]+/
+#     - 599-bosh-over-to-push-deployments-to-eke
+#     - 678-upgrade-to-corda-4-xx
+#   tags: 
+#     - docker
+#   dependencies: []
+#    tags:
+#     - build-tools
+#    dependencies: []
+
+# sast:
+#   stage: test
+#   image: docker:stable
+#   variables:
+#     DOCKER_DRIVER: overlay2
+#   allow_failure: true
+#   services:
+#     - docker:stable-dind
+#   script:
+#     - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+#     - echo SP_VERSION $SP_VERSION
+#     - docker run
+#         --env SAST_CONFIDENCE_LEVEL="${SAST_CONFIDENCE_LEVEL:-3}"
+#         --volume "$PWD:/code"
+#         --volume /var/run/docker.sock:/var/run/docker.sock
+#         "registry.gitlab.com/gitlab-org/security-products/sast:11-7-stable" /app/bin/run /code
+#   artifacts:
+#     paths: [gl-sast-report.json]
+#   except:
+#     - /v[0-9]+\.[0-9]+\.[0-9]+/
+#   tags: 
+#   - docker
+#   dependencies: []
+
+dependency_scanning:
+  image: gradle:4.10.2-jre8-slim
+  stage: test
+  script:
+    - (cd cordapps && ./gradlew dependencyCheckAggregate)
+    - mv cordapps/build/reports/dependency-check-report.json gl-dependency-check-report.json
+  allow_failure: true
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-check-report.json
+  tags: 
+    - docker
+  only:
+    - master
+    - 678-upgrade-to-corda-4-x
+
+release:maven:
+  image: dazraf/build-tools:latest
+  stage: release
+  script:
+    # - gpg2 --version
+    # - gpg2 --import --allow-secret-key-import --passphrase "${GPG_PASSPHRASE}" <<< "${GPG_KEY}"
+    # - gpg2 --import-ownertrust <<< "${GPG_OWNER_TRUST}"
+    - rm -rf ~/.gnupg
+    - gpg --version
+    - gpg --import --batch --passphrase "$GPG_PASSPHRASE" <<< "$GPG_KEY"
+    - gpg --import-ownertrust <<< "$GPG_OWNER_TRUST"
+    - (cd cordapps && ./gradlew --version && ./gradlew --parallel --build-cache publish)
+  tags:
+    - docker
+  only:
+    - master
+    - /v[0-9]+\.[0-9]+\.[0-9]+/
+  dependencies: []
+  allow_failure: true
+
+release:node-client:
+  image: node:latest
+  stage: release
+  script:
+    - date
+    - npm set $NPM_CREDENTIALS
+    - cd clients/cli
+    - npm install
+    - date
+    - npm publish
+  only:
+    - /v[0-9]+\.[0-9]+\.[0-9]+/
+  dependencies: []
+  tags: 
+    - docker
+  allow_failure: true
+
+release:pages:
+   image: cordite/rtd:latest
+   stage: release
+   script:
+     - date
+     - cd docs
+     - make clean
+     - make html
+     - mv _build/html/ ../public/
+     - echo "documentation built here on master build https://cordite.gitlab.io/cordite/"
+     - echo "RTD will build automatically here on tagged CIs http://cordite.readthedocs.io/en/latest/"
+     - date
+   tags:
+    - docker
+   artifacts:
+     paths:
+     - public
+   only:
+     - master
+     - /v[0-9]+\.[0-9]+\.[0-9]+/
+   allow_failure: true
+   dependencies: []
+
+release:gitlab-docker:
+  image: docker:latest
+  services:
+    - docker:dind
+  stage: release
+  script:
+    - date
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+    - docker pull ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID}
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ; docker push ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID}
+    - date
+  tags:
+    - docker
+  only:
+    - master
+    - 678-upgrade-to-corda-4-x
+    - /v[0-9]+\.[0-9]+\.[0-9]+/
+  dependencies: []
+
+deploy:edge:
+  image: 
+    name: nimmaj/cordite-gcloud-alpine:latest
+  stage: deploy
+  script:
+    - echo "${GKE_SERVICE_ACCOUNT_KEY}" > key.json
+    - gcloud auth activate-service-account --key-file=key.json
+    - gcloud config set project cicd-chorum
+    - gcloud config set container/cluster cicd
+    - gcloud config set compute/zone europe-west1-b
+    - gcloud container clusters get-credentials cicd
+    - ./etc/deploy/upgradeGkeEnv.sh ${CI_PIPELINE_ID} ${GCLOUD_ENV}
+  tags:
+    - docker
+  only: 
+    - master
+    - 678-upgrade-to-corda-4-x
+  dependencies:
+    - build:jar
+
+int-test:edge:
+  stage: int-test
+  image:
+    name: nimmaj/java-maven-git-docker
+  script:
+    - date
+    - cd cordapps
+    - ./gradlew cordite-env-test:run --args="emea-edge.cordite.foundation:443 apac-edge.cordite.foundation:443 'O=Cordite Bootstrap Notary, OU=Cordite Foundation, L=London,C=GB' amer-edge.cordite.foundation 443"
+    - date
+  tags:
+    - docker
+  only:
+    - master
+    - 678-upgrade-to-corda-4-x
+  dependencies:
+    - build:jar
+
+dast:
+  stage: int-test
+  image: registry.gitlab.com/gitlab-org/security-products/zaproxy
+  variables:
+    website: "https://amer-edge.cordite.foundation/api"
+  allow_failure: true
+  script:
+    - mkdir /zap/wrk/
+    - /zap/zap-baseline.py -J gl-dast-report.json -t $website || true
+    - cp /zap/wrk/gl-dast-report.json .
+  artifacts:
+    reports:
+      dast: gl-dast-report.json
+  only:
+    - master
+    - 678-upgrade-to-corda-4-x
+  tags: 
+    - docker
+  dependencies: []
+
+edge-release-docker:
+  image: docker:latest
+  services:
+    - docker:dind
+  stage: release-docker
+  script:
+    - date
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+    - docker pull ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID}
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${CI_REGISTRY_IMAGE}:edge ; docker push ${CI_REGISTRY_IMAGE}:edge
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG:-edge} ; docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG:-edge}
+    - docker login -u "${DOCKER_HUB_USER}" -p "${DOCKER_HUB_PASSWORD}"
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} cordite/cordite:edge ; docker push cordite/cordite:edge
+    - SLACK_MESSAGE="New cordite docker image with tag edge released on hub.docker.com/r/cordite/cordite/ by gitlab.com/cordite/cordite/pipelines/${CI_PIPELINE_ID} from gitlab.com/cordite/cordite/commit/${CI_COMMIT_SHA} ; Tested on https://network-map-edge.cordite.foundation"    
+    - SLACK_PAYLOAD={\"text\":\"${SLACK_MESSAGE}\"}
+    - wget -O- --post-data="${SLACK_PAYLOAD}" --header=Content-Type:application/json "https://hooks.slack.com/services/${SLACK_TOKEN}"
+    - date
+  tags:
+    - docker
+  only:
+    - master
+  dependencies: []
+
+deploy:test:
+  image: 
+    name: nimmaj/cordite-gcloud-alpine:latest
+  stage: deploy
+  script:
+    - echo "${GKE_SERVICE_ACCOUNT_KEY}" > key.json
+    - gcloud auth activate-service-account --key-file=key.json
+    - gcloud config set project cicd-chorum
+    - gcloud config set container/cluster cicd
+    - gcloud config set compute/zone europe-west1-b
+    - gcloud container clusters get-credentials cicd
+    - ./etc/deploy/upgradeGkeEnv.sh ${CI_PIPELINE_ID} test
+  tags:
+    - docker
+  only: 
+    - /v[0-9]+\.[0-9]+\.[0-9]+/
+  dependencies: 
+    - build:jar
+
+int-test:test:
+  stage: int-test
+  image:
+    name: nimmaj/java-maven-git-docker
+  script:
+    - date
+    - cd cordapps
+    - ./gradlew cordite-env-test:run --args="emea-test.cordite.foundation:443 apac-test.cordite.foundation:443 'O=Cordite Bootstrap Notary, OU=Cordite Foundation, L=London,C=GB' amer-test.cordite.foundation 443"
+    - date
+  tags:
+    - docker
+  only:
+    - /v[0-9]+\.[0-9]+\.[0-9]+/
+  dependencies: 
+    - build:jar
+
+test-release-docker:
+  image: docker:latest
+  services:
+    - docker:dind
+  stage: release-docker
+  script:
+    - date
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+    - docker pull ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID}
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${CI_REGISTRY_IMAGE}:test ; docker push ${CI_REGISTRY_IMAGE}:test
+    - docker login -u "${DOCKER_HUB_USER}" -p "${DOCKER_HUB_PASSWORD}"
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} cordite/cordite:test ; docker push cordite/cordite:test
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} cordite/cordite:latest ; docker push cordite/cordite:latest
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} cordite/cordite:${CI_COMMIT_TAG:-test} ; docker push cordite/cordite:${CI_COMMIT_TAG:-test}
+    - SLACK_MESSAGE="New cordite docker image with tag ${CI_COMMIT_TAG:-test} released on hub.docker.com/r/cordite/cordite/ by gitlab.com/cordite/cordite/pipelines/${CI_PIPELINE_ID} from gitlab.com/cordite/cordite/commit/${CI_COMMIT_SHA} ; Tested on https://network-map-edge.cordite.foundation ; Release notes published on gitlab.com/cordite/cordite/tags ; We value every community member's positive contribution of time and effort. Community building, communication, documentation, issue management and code contributions are all welcome. There is no contribution too small. If you would like to get involved please chat to us or dive in with the carefully crafted backlog of starter issues - gitlab.com/cordite/cordite/boards/857399"
+    - SLACK_PAYLOAD={\"text\":\"${SLACK_MESSAGE}\"}
+    - wget -O- --post-data="${SLACK_PAYLOAD}" --header=Content-Type:application/json "https://hooks.slack.com/services/${SLACK_TOKEN}"
+    - date
+  tags:
+    - docker
+  only:
+    - /v[0-9]+\.[0-9]+\.[0-9]+/
+    - 599-bosh-over-to-push-deployments-to-eke
+  dependencies: []
+
+# the following should be removed when corda-4 branch has successfully upgraded dao and metering
+# corda-4-release-docker:
+#   image: docker:latest
+#   services:
+#     - docker:dind
+#   stage: release-docker
+#   script:
+#     - date
+#     - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+#     - docker pull ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID}
+#     - docker login -u "${DOCKER_HUB_USER}" -p "${DOCKER_HUB_PASSWORD}"
+#     - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} cordite/cordite:v0.4.1-RC01 ; docker push cordite/cordite:v0.4.1-RC01
+#     - date
+#   tags:
+#     - docker
+#   only:
+#     - 678-upgrade-to-corda-4-x
+#   dependencies: []
+
+# corda-4-straight-to-docker:
+#   image: docker:latest
+#   services:
+#     - docker:dind
+#   stage: release-docker
+#   script:
+#     - mkdir -p cordapps/build
+#     # compile and package
+#     - (cd cordapps && ./gradlew clean checkLicense build -x test --parallel --info)
+#     # build Node layout
+#     - (cd cordapps && ./gradlew -x :checkLicense deployNodes buildNode coveralls -PCI_COMMIT_REF_NAME=${CI_COMMIT_REF_NAME} -PCI_COMMIT_SHA=${CI_COMMIT_SHA} -PCI_PIPELINE_ID=${CI_PIPELINE_ID})
+#     - (cd node && docker build -t ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} .)
+#     - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+#     - docker push ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID}
+#     - docker login -u "${DOCKER_HUB_USER}" -p "${DOCKER_HUB_PASSWORD}"
+#     - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} cordite/cordite:v0.4.1-RC01 ; docker push cordite/cordite:v0.4.1-RC01
+#     - date
+#   tags:
+#     - build-tools
+#   only:
+#     - 678-upgrade-to-corda-4-x
+#   dependencies: []
+

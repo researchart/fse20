@@ -1,0 +1,69 @@
+stages:
+  - install
+  - test
+  - prebuild
+  - build
+  - production_android
+  - production_iOS
+
+image: node:6.10.3
+
+install_dependencies:
+  stage: install
+  script:
+  - npm install
+  artifacts:
+    paths:
+    - node_modules/
+
+unit_test:
+  stage: test
+  dependencies:
+  - install_dependencies
+  script:
+  - npm test
+  when: on_success
+
+key_build:
+  stage: prebuild
+  script:
+  - npm install -g envsub
+  - bash createKeys-CI.sh
+  artifacts:
+    paths:
+    - android/
+    - src/
+  when: always
+
+build_apk:
+  stage: build
+  image: docker.io/aossie/react-native-ci:version1.3
+  dependencies:
+  - key_build
+  - install_dependencies
+  script:
+  - mkdir -p android/app/src/main/assets
+  - react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
+  - cd android && ./gradlew assembleDebug
+  - cd ..
+  - mv android/app/build/outputs/apk/debug/app-debug.apk app-debug.apk
+  artifacts:
+    paths:
+    - app-debug.apk
+  when: always
+
+deploy_android:
+  stage: production_android
+  image: docker.io/aossie/react-native-ci:version1.3
+  dependencies:
+  - key_build
+  - install_dependencies
+  script:
+  - cd android && ./gradlew assembleRelease -PMYAPP_RELEASE_STORE_PASSWORD = "$RELEASE_STORE_PASSWORD" -PMYAPP_RELEASE_KEY_PASSWORD = "$RELEASE_KEY_PASSWORD"
+  - cd ..
+  - mv android/app/build/outputs/apk/release/app-release.apk app-release.apk
+  artifacts:
+    paths:
+    - app-release.apk
+  when: always
+

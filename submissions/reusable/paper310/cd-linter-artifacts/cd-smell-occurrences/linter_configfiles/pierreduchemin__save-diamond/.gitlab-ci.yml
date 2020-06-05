@@ -1,0 +1,54 @@
+stages:
+  - build
+  - test
+  - release
+
+# This is the Gradle build system for JVM applications
+# https://gradle.org/
+# https://github.com/gradle/gradle
+image: registry.gitlab.com/pierreduchemin/save-diamond/gradle-openjfx-7zip
+
+# Disable the Gradle daemon for Continuous Integration servers as correctness
+# is usually a priority over speed in CI environments. Using a fresh
+# runtime for each build is more reliable since the runtime is completely
+# isolated from any previous builds.
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+before_script:
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+
+build:
+  stage: build
+  script: gradle --build-cache assemble
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: push
+    paths:
+      - build
+      - .gradle
+
+
+test:
+  stage: test
+  script: gradle check
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    paths:
+      - build
+      - .gradle
+
+
+release:
+  stage: release
+  script:
+    - gradle jfxJar
+    - jarsigner -keystore src/main/deploy/keystore.jks -storepass "$SAVE_DIAMOND_STOREPASS" build/jfx/app/save-diamond.jar save-diamond -tsa http://timestamp.comodoca.com
+  artifacts:
+    paths:
+      - build/jfx/app
+  only:
+    - tags
+    
+

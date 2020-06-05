@@ -1,0 +1,34 @@
+stages:
+  - test
+  - dry-run
+  - schedules-sync
+  - single-run
+  - pre-hygiene
+  - hygiene
+  - package
+  - close-reports
+
+image: ruby:2.6
+
+variables:
+  BUNDLE_PATH__SYSTEM: 'false'
+
+cache:
+  paths:
+    - vendor/ruby
+
+include:
+  - local: .gitlab/ci/close-reports.yml
+  - local: .gitlab/ci/dry-run.yml
+  - local: .gitlab/ci/default-labels.yml
+  - local: .gitlab/ci/hygiene-entity-specific.yml
+  - local: .gitlab/ci/hygiene.yml
+  - local: .gitlab/ci/missed-resources.yml
+  - local: .gitlab/ci/remove-far-deliverable.yml
+  - local: .gitlab/ci/package-entity-specific.yml
+  - local: .gitlab/ci/package.yml
+  - local: .gitlab/ci/pre-hygiene.yml
+  - local: .gitlab/ci/run.yml
+  - local: .gitlab/ci/schedules-sync.yml
+  - local: .gitlab/ci/test.yml
+

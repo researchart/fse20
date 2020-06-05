@@ -1,0 +1,19 @@
+image: clojure:lein
+
+variables:
+  LEIN_SNAPSHOTS_IN_RELEASE: "true"
+
+stages:
+  - test
+
+clj-soap-tests:
+  stage: test
+  services:
+    - name: registry.gitlab.com/xapix/mock-api-service:v0.0.1
+      alias: mock-api-service
+  artifacts:
+    paths:
+      - target/coverage/
+  script:
+    - lein cloverage --fail-threshold 81
+

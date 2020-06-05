@@ -1,0 +1,26 @@
+image: archlinux/base
+
+before_script:
+  - pacman -Syyu --noconfirm
+  - pacman -S help2man base-devel shellcheck git --noconfirm --needed
+
+build:
+  stage: build
+  script:
+    - make VERSION=$(git describe --always)
+    - sed -i "s|/etc/pacman-src.conf|bin/etc/pacman-src.conf|g" bin/pacman-src
+  artifacts:
+    paths:
+      - bin/
+
+shellcheck:
+  stage: test
+  script:
+    - make check
+
+test:
+  stage: test
+  script:
+    - useradd tester -m
+    - sudo --user=tester make test
+

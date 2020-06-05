@@ -1,0 +1,142 @@
+#################################################################
+#								#
+# Copyright (c) 2018-2019 YottaDB LLC and/or its subsidiaries.	#
+# All rights reserved.						#
+#								#
+#	This source code contains the intellectual property	#
+#	of its copyright holder(s), and is made available	#
+#	under a license.  If you do not know the terms of	#
+#	the license, please stop and do not read further.	#
+#								#
+#################################################################
+image: yottadb/yottadb-base:latest-master
+
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  GOLANG_VERSION: 1.11.2
+
+before_script:
+  - apt-get update && apt-get install -y --no-install-recommends wget ca-certificates git g++ gcc libc6-dev make pkg-config && rm -rf /var/lib/apt/lists/*
+  - export GOPATH=/go
+  - mkdir -p ${GOPATH}/src ${GOPATH}/bin && chmod -R 777 ${GOPATH}
+  - mkdir -p ${GOPATH}/src/lang.yottadb.com/go/yottadb/.git ${GOPATH}/src/_/builds
+  - cp -r $CI_PROJECT_DIR/* ${GOPATH}/src/lang.yottadb.com/go/yottadb
+  - cp -r $CI_PROJECT_DIR/.git/* ${GOPATH}/src/lang.yottadb.com/go/yottadb/.git
+  - ln -s ${GOPATH}/src/lang.yottadb.com/go/yottadb ${GOPATH}/src/_/builds/yottadb
+  - export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH
+  - wget -O go.tgz -q https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz
+  - tar -C /usr/local -xzf go.tgz
+  - rm go.tgz
+  - go version
+  - cd ${GOPATH}/src/lang.yottadb.com/go/yottadb
+  - export ydb_dist=/opt/yottadb/current
+  - export ydb_gbldir=mumps.gld
+  - export ydb_routines=/opt/yottadb/current/libyottadbutil.so
+  - echo exit | /opt/yottadb/current/mumps -run ^GDE
+  - /opt/yottadb/current/mupip create
+  - mkdir -p $CI_PROJECT_DIR/artifacts
+
+.unit_tests:
+  stage: test
+  script:
+    - export ydb_routines=". m_routines/ $ydb_routines"
+    - export YDB_GO_SKIP_TIMED_TESTS="yes"
+    - go get -t
+    - go test -short $(go list ./... | grep -v /vendor/)
+    - cp -r . $CI_PROJECT_DIR/artifacts
+  artifacts:
+    paths:
+      - artifacts
+    expire_in: 7 days
+#
+# In general, test first and last minor version of each major version
+#
+unit_tests1.10:
+  extends: .unit_tests
+  variables:
+    GOLANG_VERSION: "1.10"
+
+unit_tests1.10.8:
+  extends: .unit_tests
+  variables:
+    GOLANG_VERSION: "1.10.8"
+
+unit_tests1.11:
+  extends: .unit_tests
+  variables:
+    GOLANG_VERSION: "1.11"
+
+unit_tests1.11.12:
+  extends: .unit_tests
+  variables:
+    GOLANG_VERSION: "1.11.12"
+
+unit_tests1.12:
+  extends: .unit_tests
+  variables:
+    GOLANG_VERSION: "1.12"
+
+unit_tests1.12.7:
+  extends: .unit_tests
+  variables:
+    GOLANG_VERSION: "1.12.7"
+
+race_detector:
+  stage: test
+  script:
+    - go get -t
+    - go test -race -short $(go list ./... | grep -v /vendor/)
+
+coverage:
+  stage: test
+  script:
+    - PKG_LIST=$(go list ./... | grep -v /vendor/)
+    - mkdir -p $CI_PROJECT_DIR/cover
+    - for package in ${PKG_LIST}; do
+    -  go get -t
+    -  go test -covermode=count -coverprofile "$CI_PROJECT_DIR/cover/${package##*/}.cov" "$package" ;
+    - done
+    - echo mode":" count > $CI_PROJECT_DIR/cover/coverage.cov
+    - tail -q -n +2 $CI_PROJECT_DIR/cover/*.cov >> $CI_PROJECT_DIR/cover/coverage.cov
+    - go tool cover -func=$CI_PROJECT_DIR/cover/coverage.cov
+    - go tool cover -html=$CI_PROJECT_DIR/cover/coverage.cov -o $CI_PROJECT_DIR/cover/coverage.html
+  artifacts:
+    paths:
+      - cover/coverage.cov
+      - cover/coverage.html
+
+lint_code:
+  stage: test
+  script:
+    - go get -u github.com/golang/lint/golint
+    - golint -set_exit_status $(go list ./... | grep -v /vendor/ | grep -v /internal/)
+
+error_codes:
+  stage: test
+  script:
+    - go generate
+    - git diff --exit-code error_codes.go || (echo "There is a difference between the latest YottaDB master and the currently committed error_codes.go, please run 'go generate' and commit error_codes.go" && exit 1)
+
+build:
+  stage: build
+  script:
+    - go build -i -v lang.yottadb.com/go/yottadb
+
+pages:
+  stage: deploy
+  dependencies:
+    - coverage
+  script:
+    - mkdir $CI_PROJECT_DIR/public
+    - mv cover/coverage.html $CI_PROJECT_DIR/public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+

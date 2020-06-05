@@ -1,0 +1,46 @@
+variables:
+  PROTOTOOL_VERSION: v1.2.0
+  BASE_IMAGE_TAG: $CI_REGISTRY_IMAGE:$PROTOTOOL_VERSION
+  GO_IMAGE_TAG: $CI_REGISTRY_IMAGE/go:$PROTOTOOL_VERSION
+
+stages:
+  - base
+  - language
+  - trigger
+
+build_base:
+  image: docker:stable
+  services:
+    - docker:dind
+  stage: base
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build --build-arg  PROTOTOOL_VERSION=$PROTOTOOL_VERSION
+                   --tag        $BASE_IMAGE_TAG .
+    - docker push $BASE_IMAGE_TAG
+
+build_go:
+  image: docker:stable
+  services:
+    - docker:dind
+  stage: language
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build  --file      go.Dockerfile
+                    --build-arg BASE_IMAGE=$BASE_IMAGE_TAG
+                    --build-arg PROTOTOOL_VERSION=$PROTOTOOL_VERSION
+                    --tag       $GO_IMAGE_TAG .
+    - docker push $GO_IMAGE_TAG
+
+trigger_prrepo:
+  stage: trigger
+  variables:
+    GIT_STRATEGY: none  # We can avoid downloading the code for just the trigger
+  script:
+    - curl -X POST
+           -F token=6cb5281522c5b60e528e806335e6ad
+           -F ref=master
+           -F variables[PROTOTOOL_VERSION]=$PROTOTOOL_VERSION
+           -F variables[BUILDER_BASE_IMAGE]=$CI_REGISTRY_IMAGE
+           https://gitlab.com/api/v4/projects/8195813/trigger/pipeline
+

@@ -1,0 +1,28 @@
+image: python:3.7
+
+stages:
+  - publish_to_pypi
+  - publish_to_pypi
+
+
+publish_to_pypi_test:
+  stage: publish_to_pypi
+  when: manual
+  script:
+    - python3 -m pip install --user --upgrade setuptools wheel
+    - python3 setup.py sdist bdist_wheel
+    - python3 -m pip install --user --upgrade twine
+    - PATH=/root/.local/bin:$PATH
+    - twine upload -u $PYPI_TEST_USER -p $PYPI_TEST_PASSWORD --repository-url https://test.pypi.org/legacy/ dist/*
+
+
+publish_to_pypi_prod:
+  stage: publish_to_pypi
+  when: manual
+  script:
+    - python3 -m pip install --user --upgrade setuptools wheel
+    - python3 setup.py sdist bdist_wheel
+    - python3 -m pip install --user --upgrade twine
+    - PATH=/root/.local/bin:$PATH
+    - twine upload -u $PYPI_USER -p $PYPI_PASSWORD dist/*
+

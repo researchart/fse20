@@ -1,0 +1,31 @@
+services:
+- docker:dind
+
+variables:
+    DOCKER_HOST: tcp://localhost:2375
+    DOCKER_DRIVER: overlay2
+
+before_script:
+    - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
+
+build:
+  script:
+    - docker pull $CI_REGISTRY_IMAGE:build || true
+    - docker build  --cache-from $CI_REGISTRY_IMAGE:build --build-arg CI_COMMIT_SHA=$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE:build .
+    - docker push $CI_REGISTRY_IMAGE:build
+  stage: build
+
+
+deploy:
+  environment: production
+  only:
+    - master
+  script:
+    - export TODAY=$(date +"%Y.%m.%d")
+    - docker pull $CI_REGISTRY_IMAGE:build
+    - docker tag $CI_REGISTRY_IMAGE:build $CI_REGISTRY_IMAGE:latest
+    - docker tag $CI_REGISTRY_IMAGE:build $CI_REGISTRY_IMAGE:$TODAY
+    - docker push $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:$TODAY
+  stage: deploy
+

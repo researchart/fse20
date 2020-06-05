@@ -1,0 +1,48 @@
+before_script:
+  - gcloud version || true
+  - if [ ! -d "$HOME/google-cloud-sdk/bin" ]; then rm -rf $HOME/google-cloud-sdk; export CLOUDSDK_CORE_DISABLE_PROMPTS=1; curl https://sdk.cloud.google.com | bash; fi
+  - source $HOME/google-cloud-sdk/path.bash.inc
+  - gcloud version
+  - npm i -g json2yaml
+
+after_script:
+  - rm -rf /tmp/gcp_credentials_production.json /tmp/app.yml /tmp/gcp_app_config.json
+
+stages:
+  - build
+  - test
+  - deploy
+  - test_prod
+
+build app:
+  image: node:9
+  stage: build
+  script:
+    - npm install --progress=false
+    - npm run build
+
+test app:
+  image: node:9
+  stage: test
+  script:
+    - npm install --progress=false
+    - npm run test
+
+deploy:
+  stage: deploy
+  only:
+    - release
+  script:
+    - echo $GCP_APP_PRODUCTION_CONFIG > /tmp/gcp_app_config.json
+    - json2yaml /tmp/gcp_app_config.json /tmp/app.yaml
+    - echo $GCP_CREDENTIALS_PRODUCTION > /tmp/gcp_credentials_production.json
+    - gcloud auth activate-service-account --key-file /tmp/gcp_credentials_production.json
+    - gcloud --quiet --project $GCP_PROJECT_ID_PRODUCTION app deploy /tmp/app.yaml
+
+e2e:
+  stage: test_prod
+  only:
+    - release
+  script:
+    - echo "Run e2e tests after deployment"
+

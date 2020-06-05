@@ -1,0 +1,21 @@
+before_script:
+  - sh .gitlab-ci.sh
+
+variables:
+  MYSQL_DATABASE: almond
+  MYSQL_ROOT_PASSWORD: secret
+
+phpunit:php5.6:mysql5.6:
+  image: php:5.6
+  services:
+    - mysql:5.6
+  script:
+    - php vendor/bin/phpunit --colors
+
+phpunit:php7.0:mysql5.6:
+  image: php:7.0
+  services:
+    - mysql:5.6
+  script:
+    - php vendor/bin/phpunit --colors
+

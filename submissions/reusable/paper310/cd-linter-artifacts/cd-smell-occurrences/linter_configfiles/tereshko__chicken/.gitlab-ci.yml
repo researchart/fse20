@@ -1,0 +1,20 @@
+image: gcc
+
+before_script:
+    - mkdir build
+    - cd build
+    - mkdir client
+    - cd client
+
+build:
+    artifacts:
+        untracked: true
+build:
+    script:
+        - cmake ../../client
+        - make
+    
+    artifacts:
+        untracked: true
+        name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+

@@ -1,0 +1,34 @@
+pages:
+    image: asciidoctor/docker-asciidoctor
+    script:
+        - apk add --no-cache nodejs nodejs-npm openssh-client rsync ruby ruby-rdoc ruby-irb ruby-dev build-base gcc libffi-dev git
+        - npm install -g clean-css-cli
+        - gem install bundler
+        - ./build-docs.sh
+        - cd blog
+        - gem install bundler
+        - bundle
+        - bundle exec jekyll build
+        - mv _site ../output/blog
+        - bundle exec jekyll build --drafts
+        - mv _site ../output/blog_drafts
+        - cd ..
+        - mv output public
+        - cp logo.svg public
+        - cp slides/* public
+        - cp icons/* public
+    only:
+        - master
+    artifacts:
+        paths:
+            - public
+verify_signatures:
+    image: ubuntu:18.04
+    script:
+        - apt update
+        - apt install --assume-yes python-pexpect gnupg2 git
+        - gpg2 --list-keys # to force it to create GNUPGHOME instead of racing in the pipe below
+        - (gpg2 --export --no-default-keyring --keyring ./.gnupg/pubring.kbx --verbose || true) | gpg2 --import --verbose
+        - gpg2 --list-keys --fingerprint --fingerprint --verbose
+        - ./verify-signatures.py HEAD ./.mailmap
+

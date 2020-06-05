@@ -1,0 +1,11 @@
+image: node:10.18.0
+
+test:
+  before_script:
+    - npm i
+    - cd src/util
+    - node findandedit.js
+    - cd ../
+  script:
+    - npm test --debugToken=$DEBUG_TOKEN --googleAPIKey=$GOOGLE_API_KEY
+

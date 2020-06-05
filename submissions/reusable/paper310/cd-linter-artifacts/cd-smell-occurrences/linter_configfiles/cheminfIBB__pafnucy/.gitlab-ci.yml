@@ -1,0 +1,34 @@
+image: debian:8
+
+training:
+  script:
+    - apt-get update --fix-missing && apt-get install -y wget bzip2 ca-certificates libglib2.0-0 libxext6 libsm6 libxrender1 git
+    - wget -q https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh; bash miniconda.sh -b -f -p $HOME/miniconda;
+    - export PATH="$HOME/miniconda/bin:$PATH"
+    - conda env create -q -f environment_cpu.yml
+    - source activate pafnucy_env
+    - python training.py -i tests/data/dataset/ -o "test" --grid_spacing 0.75 --max_dist 4 --conv_channels 2 2 --dense_sizes 2 2 --num_epochs 2 --rotations 0 1
+
+prediction:
+  script:
+    - apt-get update --fix-missing && apt-get install -y wget bzip2 ca-certificates libglib2.0-0 libxext6 libsm6 libxrender1 git
+    - wget -q https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh; bash miniconda.sh -b -f -p $HOME/miniconda;
+    - export PATH="$HOME/miniconda/bin:$PATH"
+    - conda env create -q -f environment_cpu.yml
+    - source activate pafnucy_env
+    - python prepare.py -l tests/data/complexes/*/*_ligand.mol2 -p tests/data/complexes/*/*_pocket.mol2 -o test_input.hdf
+    - python predict.py -i test_input.hdf -o test_predictions.csv
+    - python predict.py -i test_input.hdf -g 0.75 -d 4.0 -n tests/data/network/net_g075_d4 -o test_predictions.csv
+
+custom_dataset:
+  script:
+    - apt-get update --fix-missing && apt-get install -y wget bzip2 ca-certificates libglib2.0-0 libxext6 libsm6 libxrender1 git
+    - wget -q https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh; bash miniconda.sh -b -f -p $HOME/miniconda;
+    - export PATH="$HOME/miniconda/bin:$PATH"
+    - conda env create -q -f environment_cpu.yml
+    - source activate pafnucy_env
+    - python prepare.py -l tests/data/complexes/4*/*_ligand.mol2 -p tests/data/complexes/4*/*_pocket.mol2 -a tests/data/complexes/affinities.csv -o training_set.hdf
+    - python prepare.py -l tests/data/complexes/5*/*_ligand.mol2 -p tests/data/complexes/5*/*_pocket.mol2 -a tests/data/complexes/affinities.csv -o validation_set.hdf
+    - python prepare.py -l tests/data/complexes/[1-3]*/*_ligand.mol2 -p tests/data/complexes/[1-3]*/*_pocket.mol2 -a tests/data/complexes/affinities.csv -o test_set.hdf
+    - python training.py -i ./ -o "test_dataset" --batch_size 100 --num_epochs 3 --rotations 7 13 19
+

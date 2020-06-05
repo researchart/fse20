@@ -1,0 +1,7 @@
+image: python:3.5
+
+test:
+    script:
+        - pip install -r requirements-test.txt
+        - pytest
+

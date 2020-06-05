@@ -1,0 +1,12 @@
+run_tests:
+  image: python:3.5
+  script:
+  - pip3 install -r requirements.txt
+  - pip3 install -r test-requirements.txt
+  - py.test
+check_code:
+  image: coala/base
+  script:
+  - pip3 install -r requirements.txt
+  - coala-ci
+

@@ -1,0 +1,35 @@
+image: docker
+
+variables:
+  VERSION_SDK_TOOLS  : 25.2.4
+  VERSION_BUILD_TOOLS: 25.0.2
+  VERSION_TARGET_SDK : "25"
+
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+
+  # Adapt to your runners. `overlay2` is generally a sane choice unless you use btrfs.
+  # See https://docs.docker.com/engine/userguide/storagedriver/selectadriver/
+  # As of writing dind requires one to set the driver manually, see https://hub.docker.com/_/docker/
+  DOCKER_DRIVER: overlay2
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+
+build:
+  stage: build
+  script:
+    - docker build
+      --pull
+      --build-arg=VERSION_SDK_TOOLS=${VERSION_SDK_TOOLS}
+      --build-arg=VERSION_BUILD_TOOLS=${VERSION_BUILD_TOOLS}
+      --build-arg=VERSION_TARGET_SDK=${VERSION_TARGET_SDK}
+      -t $IMAGE_TAG
+      .
+    - docker push $IMAGE_TAG
+

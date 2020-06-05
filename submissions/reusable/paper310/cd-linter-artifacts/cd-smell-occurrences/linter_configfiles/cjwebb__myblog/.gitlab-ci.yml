@@ -1,0 +1,21 @@
+image: haskell:latest
+
+before_script:
+  - apt-get update && apt-get install xz-utils make
+
+pages:
+  cache:
+    paths:
+      - _cache
+      - .stack-work
+  script:
+  - stack setup
+  - stack build
+  - stack exec site build
+  - mv _site public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

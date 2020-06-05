@@ -1,0 +1,19 @@
+image: python:alpine
+
+before_script:
+    - pip install mkdocs
+
+pages:
+    script:
+        - mv doc docs
+        - rm docs/README.md
+        - mv README.md docs/index.md
+        - mv hunger_bar_hiding.gif docs/
+        - mkdocs build
+        - mv site public
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+

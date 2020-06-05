@@ -1,0 +1,80 @@
+variables:
+  BUILD_DIR: /opt/scenic
+  DOCKERFILE_PATH: dockerfiles/h2o.Dockerfile
+
+stages:
+  - configure
+  - test
+  - deploy
+
+Lint code:
+  image: node:lts
+  stage: configure
+  script:
+    - npm install
+    - npm run lint
+
+Check semantic version:
+  image: node:lts
+  stage: configure
+  variables:
+    GITLAB_MERGE_REQUEST_API: "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests?source_branch=${CI_COMMIT_REF_NAME}"
+  script:
+    - ./scripts/check_semantic_versioning.sh
+  only: ['master', 'release\/.*']
+
+Test webapp build:
+  image: node:lts
+  stage: test
+  script:
+    - make build
+
+Run unit tests:
+  image: node:lts
+  stage: test
+  script:
+    - npm ci
+    - npm test
+  artifacts:
+    name: "scenic-coverage-${CI_BUILD_REF_NAME}"
+    paths: ['coverage']
+
+Bundle and upload GUI:
+  image: ubuntu:18.04
+  stage: deploy
+  variables:
+    NODE_VERSION: 10
+  script:
+    - ./scripts/install_dependencies.sh
+    - ./scripts/make_bundle.sh
+  only: ['master']
+
+Build and deploy clean image:
+  image: docker:18
+  stage: deploy
+  services:
+    - docker:dind
+  variables:
+    CONTAINER_TAG: "${CI_REGISTRY}/sat-mtl/telepresence/scenic:${CI_COMMIT_REF_NAME}"
+    DOCKERFILE_PATH: dockerfiles/h2o.Dockerfile
+  script:
+    - docker build -t $CONTAINER_TAG -f $DOCKERFILE_PATH .
+    - echo $CI_DEPLOY_PASSWORD | docker login -u $CI_DEPLOY_USER --password-stdin $CI_REGISTRY
+    - docker push $CONTAINER_TAG
+  only: ['develop', 'master']
+
+
+pages: # Build and Publish documentation as pages
+  image: python:alpine
+  stage: deploy
+  before_script:
+    - pip install mkdocs
+    - pip install markdown-include
+    - pip install mkdocs-bootswatch
+  script:
+    - mkdocs build -f config/mkdocs.yml
+    - mv static public
+  artifacts:
+    paths: ['public']
+  only: ['master']
+

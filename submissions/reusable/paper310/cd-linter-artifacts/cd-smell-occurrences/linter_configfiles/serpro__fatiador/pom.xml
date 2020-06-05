@@ -1,0 +1,153 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>br.gov.serpro.fatiador</groupId>
+  <artifactId>fatiador</artifactId>
+  <version>1.14.3</version>
+
+  <name>Fatiador</name>
+  <description>Convert flat strings to Java objects and vice-versa.</description>
+  <url>https://gitlab.com/serpro/fatiador</url>
+
+  <licenses>
+    <license>
+      <name>BSD 2-clause "Simplified" License</name>
+      <url>https://choosealicense.com/licenses/bsd-2-clause</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <scm>
+    <url>https://gitlab.com/serpro/fatiador</url>
+  </scm>
+
+  <developers>
+    <developer>
+      <id>leonardo.ferreira-leite</id>
+      <name>Leonardo Alexandre Ferreira Leite</name>
+      <email>leonardo.ferreira-leite@serpro.gov.br</email>
+      <organization>SERPRO</organization>
+      <organizationUrl>http://serpro.gov.br/</organizationUrl>
+    </developer>
+    <developer>
+      <id>jorge.rosseto</id>
+      <name>Jorge Eduardo Rossetto</name>
+      <email>jorge.rosseto@serpro.gov.br</email>
+      <organization>SERPRO</organization>
+      <organizationUrl>http://serpro.gov.br/</organizationUrl>
+    </developer>
+    <developer>
+      <id>altair.lima</id>
+      <name>Altair Pedro de Lima</name>
+      <email>altair.lima@serpro.gov.br</email>
+      <organization>SERPRO</organization>
+      <organizationUrl>http://serpro.gov.br/</organizationUrl>
+    </developer>
+    <developer>
+      <id>carlos.janu</id>
+      <name>Carlos Eduardo Coronel Janu</name>
+      <email>carlos.janu@serpro.gov.br</email>
+      <organization>SERPRO</organization>
+      <organizationUrl>http://serpro.gov.br/</organizationUrl>
+    </developer>
+  </developers>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>21.0</version>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.12</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.7</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.javassist/javassist -->
+    <dependency>
+      <groupId>org.javassist</groupId>
+      <artifactId>javassist</artifactId>
+      <version>3.24.1-GA</version>
+    </dependency>
+  </dependencies>
+
+  <distributionManagement>
+    <snapshotRepository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
+    <repository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.1</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>2.9.1</version>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>1.6.8</version>
+        <extensions>true</extensions>
+        <configuration>
+          <serverId>ossrh</serverId>
+          <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+          <autoReleaseAfterClose>true</autoReleaseAfterClose>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.kohsuke</groupId>
+        <artifactId>pgp-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+    </plugins>
+  </build>
+
+</project>
+

@@ -1,0 +1,24 @@
+#image: php:5.6
+#image: phpunit:5.4.6
+image: epcallan/phpunit-php7
+
+before_script:
+  - composer install
+
+stages:
+  - test
+
+tests:
+  script:
+    - phpunit -c tests --coverage-text --colors=never
+  only:
+    - master
+  except:
+    - tags
+  tags:
+    - linux
+  stage: test
+  cache:
+    paths:
+      - vendor/
+

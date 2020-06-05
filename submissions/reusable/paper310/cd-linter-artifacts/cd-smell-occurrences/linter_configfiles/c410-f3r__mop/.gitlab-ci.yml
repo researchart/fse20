@@ -1,0 +1,25 @@
+image: rustlang/rust:nightly-slim
+
+before_script:
+  # Bindings or Scripting
+  - apt-get update && apt-get upgrade -y
+  - apt-get install -y lua5.3
+
+    # Cache
+  - mkdir -p .cargo_cache
+  - export CARGO_HOME="${PWD}/.cargo_cache"
+
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - .cargo_cache/
+    - target/
+
+stages:
+  - test
+
+test:
+  script:
+    - ./scripts/tests.sh
+  stage: test
+

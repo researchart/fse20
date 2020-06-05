@@ -1,0 +1,40 @@
+image: registry.gitlab.com/n11t/tombola/pipeline/build:1.0
+
+before_script:
+  - bash ci/composer_install.sh > /dev/null
+
+cache:
+  paths:
+    - vendor/
+    - composer.phar
+
+stages:
+  - static-analysis
+  - tests
+  - build
+
+phpcs:
+  stage: static-analysis
+  script:
+    - vendor/bin/phpcs --standard=PSR2 src
+
+lint:
+  stage: static-analysis
+  script:
+    - bash ci/phplint.sh
+
+phpunit:
+  stage: tests
+  script:
+    - ./vendor/bin/phpunit --coverage-text --colors=never
+
+build:
+  stage: build
+  script:
+    - tar czvf tombola.tgz app src vendor web LICENSE README.md
+  artifacts:
+    paths:
+      - tombola.tgz
+  only:
+    - master
+

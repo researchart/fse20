@@ -1,0 +1,16 @@
+image: openjdk:8-jdk
+
+before_script:
+  - chmod +x ./gradlew
+
+stages:
+  - build
+
+deploy:
+  stage: build
+  script:
+    ./gradlew jar --stacktrace
+  allow_failure: false
+  only:
+    - master
+

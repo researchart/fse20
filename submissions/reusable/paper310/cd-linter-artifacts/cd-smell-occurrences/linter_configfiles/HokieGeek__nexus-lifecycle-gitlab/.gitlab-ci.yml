@@ -1,0 +1,18 @@
+build-docker:
+  stage: build
+  image: docker:git
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - export IQ_VERSION=${CI_BUILD_TAG%%-*}
+    - export IMAGE_TAG=$CI_REGISTRY_IMAGE:$IQ_VERSION
+    - export IMAGE_LATEST_TAG=$CI_REGISTRY_IMAGE:latest
+    - docker build --tag $IMAGE_TAG --build-arg IQ_VERSION=${IQ_VERSION} .
+    - docker tag $IMAGE_TAG $IMAGE_LATEST_TAG
+    - docker push $IMAGE_TAG
+    - docker push $IMAGE_LATEST_TAG
+  only:
+    - tags
+

@@ -1,0 +1,25 @@
+before_script:
+  - apt-get update -qq && apt-get install -y -qq opam
+  - opam init -y -q
+  - opam switch -q -y 4.06.1
+  - eval `opam config env`
+  - opam update
+  - opam install -y -q jbuilder
+  - opam install -y -q js_of_ocaml
+
+pages:
+  stage: deploy
+  script:
+  - cd lang && jbuilder build src/jsoo/compiler.bc.js && cd ../
+  - mkdir -p public/lang/_build/4.06.1/src/jsoo
+  - mv lang/_build/4.06.1/src/jsoo/compiler.bc.js public/lang/_build/4.06.1/src/jsoo
+  - mv bexp public
+  - mv editor public
+  - mv index.html public
+  - mv styles.css public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

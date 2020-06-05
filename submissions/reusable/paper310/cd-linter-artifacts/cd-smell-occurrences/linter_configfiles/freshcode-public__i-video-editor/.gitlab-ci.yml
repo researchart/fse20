@@ -1,0 +1,89 @@
+image: docker:latest
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - release
+  - deploy
+
+variables:
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  STAGING_IMAGE: $CI_REGISTRY_IMAGE:staging
+  PRODUCTION_IMAGE: $CI_REGISTRY_IMAGE:latest
+
+before_script:
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+
+
+##### Build
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+###### END build
+
+# NOTE:
+# Doing an explicit docker pull before each docker run makes sure to fetch the latest image that was just built.
+# if you re-build a given commit after a dependency has changed
+
+
+###### Test
+
+test-lint:
+  stage: test
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run $CONTAINER_TEST_IMAGE npm run lint
+
+test:
+  stage: test
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run $CONTAINER_TEST_IMAGE npm run test
+
+###### END test
+
+
+###### Release
+
+stage-image:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $STAGING_IMAGE
+    - docker push $STAGING_IMAGE
+  only:
+    - development
+
+release-image:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $PRODUCTION_IMAGE
+    - docker push $PRODUCTION_IMAGE
+  only:
+    - master
+
+###### END release
+
+
+###### Deploy
+
+rancher-upgrade:
+  stage: deploy
+  allow_failure: true
+  script:
+    - chmod +x ./tools/rancher-upgrade.sh
+    - apk --no-cache add curl
+    - ./tools/rancher-upgrade.sh $WEBHOOK_MASTER_URL
+  only:
+    - master
+
+###### END deploy
+

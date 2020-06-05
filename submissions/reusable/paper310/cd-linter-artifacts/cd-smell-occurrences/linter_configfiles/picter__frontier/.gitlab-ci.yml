@@ -1,0 +1,44 @@
+image: picter/ci-node
+
+cache:
+  key: 'frontier'
+  paths:
+    - node_modules/
+    - /.yarn
+
+before_script:
+  - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > .npmrc
+  - yarn config set cache-folder /.yarn
+  - yarn install --frozen-lockfile --pure-lockfile
+
+stages:
+  - test
+  - deploy
+
+test:lint:
+  stage: test
+  script:
+    - npm run lint
+
+test:unit:
+  stage: test
+  script:
+    - npm test
+
+deploy:
+  stage: deploy
+  script:
+    - npm publish --access=public
+  only:
+    - tags
+
+pages:
+  stage: deploy
+  script:
+    - yarn run pages:build
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

@@ -1,0 +1,58 @@
+image: python:latest
+
+before_script:
+  - python -V      # Print out python version for debugging
+
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  script:
+  - pip install pytest-cov docutils
+  - py.test -q --cov=musicpd test.py
+  - python setup.py check -r -s
+  coverage: '/musicpd.py\s+\d+\s+\d+\s+(\d+)%/'
+  only:
+    - pushes
+
+build:
+  stage: build
+  script:
+  # packaging test
+  - python setup.py bdist_wheel sdist
+  - pip install dist/*
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - dist/*.whl
+    - dist/*.tar.gz
+    - dist/*.zip
+  only:
+    - pushes
+
+tag_release:
+  stage: build
+  script:
+  - python setup.py bdist_wheel sdist
+  artifacts:
+    paths:
+    - dist/*.whl
+    - dist/*.tar.gz
+    - dist/*.zip
+    name: "$CI_PROJECT_NAME-$CI_COMMIT_TAG"
+  only:
+    - tags
+
+pages:
+  stage: build
+  script:
+  - pip install sphinx sphinx_rtd_theme
+  - sphinx-build -d ./build/doctrees doc/source -b html ./public -D html_theme=sphinx_rtd_theme
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

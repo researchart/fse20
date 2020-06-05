@@ -1,0 +1,16 @@
+image: docker:stable
+
+variables:
+  DOCKER_HOST: tcp://localhost:2375
+  DOCKER_DRIVER: overlay2
+
+services:
+  - name: docker:dind
+    command: ["--experimental"]
+
+build_image:
+  stage: build
+  script:
+  - apk add --update make
+  - make push
+

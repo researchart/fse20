@@ -1,0 +1,41 @@
+image: microsoft/aspnetcore-build:2.0
+
+stages:
+  - build
+  - test
+  - deploy
+
+build_job:
+  stage: build
+  # only:
+  #  - tags # the build process will only be started by git tag commits
+  script:
+    - ./build.sh
+  artifacts:
+    expire_in: 1 week # save gitlab server space, we copy the files we need to deploy folder later on
+    paths:
+      - saycle.server/bin/Release/netcoreapp2.0/ubuntu.16.04-x64
+      - saycle.server/bin/Release/netcoreapp2.0/ubuntu.16.10-x64
+
+test_job:
+  stage: test
+  # only:
+  #  - tags
+  script:
+    - ./test.sh
+  artifacts:
+    expire_in: 1 week # save gitlab server space, we copy the files we need to deploy folder later on
+
+
+deploy_job:
+  stage: deploy
+  image: ruby:2.2
+  only:
+  - master
+  script:
+  - gem install dpl
+  - dpl --provider=heroku --app=saycle-server-live --api-key=$HEROKU_PRODUCTION_API_KEY
+  dependencies:
+    - build_job
+    - test_job
+

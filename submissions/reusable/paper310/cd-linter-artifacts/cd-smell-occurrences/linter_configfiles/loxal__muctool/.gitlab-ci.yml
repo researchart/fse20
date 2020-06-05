@@ -1,0 +1,35 @@
+stages:
+- build-service
+- assemble
+
+before_script:
+- df -h
+
+after_script:
+- ls -la
+
+build-service:
+  image: openjdk:11-jre
+  stage: build-service
+  script:
+  - ./gradlew clean build singleJar --info
+  artifacts:
+    paths:
+    - service/build/libs/*.jar
+    expire_in: 1 month
+
+assemble:
+  variables:
+    PASSWORD: value
+  environment:
+    name: main
+    url: https://muctool.de
+  services:
+  - docker:dind
+  image: docker:stable
+  stage: assemble
+  script:
+  - echo PASSWORD $PASSWORD
+  - cd service
+  - docker build --pull --tag loxal/muctool:latest .
+

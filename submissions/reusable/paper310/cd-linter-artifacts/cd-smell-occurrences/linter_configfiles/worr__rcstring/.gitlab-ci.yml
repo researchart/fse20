@@ -1,0 +1,10 @@
+before_script:
+  - curl -Of https://static.rust-lang.org/rustup.sh
+  - chmod +x rustup.sh
+  - ./rustup.sh --disable-sudo -y --channel=nightly
+
+build:
+  script:
+    - cargo build
+    - cargo test
+

@@ -1,0 +1,31 @@
+comments-labels,,reaction,,bugs,
+label,description,label,description,label,description
+nightly-build,long tasks that cannot be performed at every build,positive,they agree with the smell,pip-install,the dependency is installed via yml file
+temporary-smell,"the smell was introduced as temporal patch (e.g., tech debt to fix later) because of other tasks or tool limitations",negative,they disagree,deploy-phase,the job is executed during the deploy stage
+use-in-paper,the issue contains interesting comments for the paper,not-now,the agree with the problem but think this is not applicable in that context,wrong-detection,the tool seems to not have the correct behaviour
+job-removed,the job with the smell was completely removed,invalid,only one comment,skipped-job,the smelly job is skipped
+remove-all,all smells were removed,,,wrong-jobname,the smelly job is mispelled
+wrong-fix,"the smell was removed, however the fix has not been properly performed.",,,,
+depedency-scanning,the job scan for the presence of outdated packages.,,,,
+tool-upgrade,"the latest version is used, because the library is a tool",,,,
+flaky-tool,the tool used for this task might unpredictably fail,,,,
+self-admitted,they added a comment in the code (or in the commit) highlighting the presence of the smell,,,,
+optional-job,"The job performs a task that is not crucial for the build success (e.g., check whether the compiler works)",,,,
+agreement,they agree with the validity of the smell,,,,
+flaky-env,the environment where the job is not stable and might introduce flakiness during the build execution.,,,,
+new-linters-suggestion,they respondents were suggesting new linting rules,,,,
+no-time,fixing the smell is not among their priorities,,,,
+gitlab-template,"the template they are using contains this smell (e.g., sast template)",,,,
+no-trust,the respondents do not trust a bot,,,,
+undirect-fix,The problem was removed although no direct connection to our reporting,,,,
+no-enough-hardware,there are no enough resources to run this job at every build,,,,
+code-quality,the job performs some code-quality checks,,,,
+let-it-run,if something goes wrong there will be a failure and we will react to it,,,,
+fixed-independently,the developers fixed the smell independenly of the report,,,,
+dead-branch,the branch is not used,,,,
+third-party issue,"became ""flaky-tool"" after our the discussion",,,,
+ok-to-fail,"became ""let-it-run"" after our the discussion",,,,
+prefer-last-version,"prefer always the last version of libraries, e.g. for security purposes",,,,
+problem-acknowledged,"became ""agreement"" after our the discussion",,,,
+incomplete-implementation,,,,,
+false-positive,removed after discussion,,,,

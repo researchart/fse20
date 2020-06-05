@@ -1,0 +1,101 @@
+image: docker:latest
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay2 # is faster
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_BUILD_REF
+  IMAGE_BRANCH: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+
+stages:
+  - test
+  - build
+  - deploy
+
+### Run the tests
+react-test:
+  image: node:8
+  stage: test
+  script:
+    - cd react-app
+    - yarn install
+    - yarn test
+  tags:
+    - docker
+
+### Build the docker image for staging
+build-staging:
+  stage: build
+  variables:
+      REACT_APP_API_URL: https://api-staging.otrack.info
+      REACT_APP_IDENTITY_URL: https://identity-staging.otrack.info
+      REACT_APP_HYPERTRACK_KEY: pk_test_12730a0f97d7a2d3f5767a7721a5137f7bf2533f
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $IMAGE_BRANCH || true
+    - docker build
+                  --build-arg REACT_APP_API_URL=$REACT_APP_API_URL
+                  --build-arg REACT_APP_IDENTITY_URL=$REACT_APP_IDENTITY_URL
+                  --cache-from $IMAGE_BRANCH -t $IMAGE_TAG -t $IMAGE_BRANCH .
+    - docker push $IMAGE_TAG
+    - docker push $IMAGE_BRANCH
+  only:
+    - develop
+  tags:
+    - docker
+
+### Build the docker image for production
+build-production:
+  stage: build
+  variables:
+    REACT_APP_API_URL: https://api.otrack.info
+    REACT_APP_IDENTITY_URL: https://identity.otrack.info
+    REACT_APP_HYPERTRACK_KEY: pk_test_12730a0f97d7a2d3f5767a7721a5137f7bf2533f
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $IMAGE_BRANCH || true
+    - docker build
+                  --build-arg REACT_APP_API_URL=$REACT_APP_API_URL
+                  --build-arg REACT_APP_IDENTITY_URL=$REACT_APP_IDENTITY_URL
+                  --cache-from $IMAGE_BRANCH -t $IMAGE_TAG -t $IMAGE_BRANCH .
+    - docker push $IMAGE_TAG
+    - docker push $IMAGE_BRANCH
+  only:
+    - master
+  tags:
+    - docker
+
+### Deploy the new image to Staging Cluster
+deploy-staging:
+  image: google/cloud-sdk
+  stage: deploy
+  script:
+    - echo "$STAGING_GOOGLE_KEY" > key.json
+    - gcloud auth activate-service-account --key-file=key.json
+    - gcloud container clusters get-credentials $STAGING_CLUSTER
+    - kubectl set image deployments/restaurants-s otrack-restaurants=$IMAGE_TAG
+  environment:
+    name: staging
+    url: https://staging.otrack.info
+  only:
+    - develop
+  tags:
+    - docker
+
+### Deploy the new image to Production Cluster
+deploy-production:
+  image: google/cloud-sdk
+  stage: deploy
+  script:
+    - echo "$PRODUCTION_GOOGLE_KEY" > key.json
+    - gcloud auth activate-service-account --key-file=key.json
+    - gcloud container clusters get-credentials $PRODUCTION_CLUSTER
+    - kubectl set image deployments/restaurants otrack-restaurants=$IMAGE_TAG
+  environment:
+    name: production
+    url: https://otrack.info
+  only:
+    - master
+  tags:
+    - docker
+

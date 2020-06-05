@@ -1,0 +1,43 @@
+image: mono
+
+stages:
+    - build
+    - test
+
+before_script:
+    - nuget restore -NonInteractive
+
+publish:
+    stage: build
+    only:
+        - /^release-.*$/
+    artifacts:
+        paths:
+            - GitLab.NET/bin/Release/GitLab.NET.*
+            - GitLab.NET.*.nupkg
+    script:
+        - xbuild "GitLab.NET.sln" /p:Configuration=Release
+        - mono packages/xunit.runner.console.2.1.0/tools/xunit.console.exe GitLab.NET.Tests/bin/Release/GitLab.NET.Tests.dll -noshadow
+        - nuget pack GitLab.NET.nuspec
+        - nuget setApiKey $NUGET_API_KEY -verbosity quiet
+        - nuget push GitLab.NET.*.nupkg
+
+test_release:
+    stage: test
+    only:
+        - production
+    script:
+        - xbuild "GitLab.NET.sln" /p:Configuration=Release
+        - mono packages/xunit.runner.console.2.1.0/tools/xunit.console.exe GitLab.NET.Tests/bin/Release/GitLab.NET.Tests.dll -noshadow
+        - nuget pack GitLab.NET.nuspec
+
+test_debug:
+    stage: test
+    except:
+        - production
+        - /^release-.*$/
+    script:
+        - xbuild "GitLab.NET.sln" /p:Configuration=Debug
+        - mono packages/xunit.runner.console.2.1.0/tools/xunit.console.exe GitLab.NET.Tests/bin/Debug/GitLab.NET.Tests.dll -noshadow
+        - nuget pack GitLab.NET.nuspec
+

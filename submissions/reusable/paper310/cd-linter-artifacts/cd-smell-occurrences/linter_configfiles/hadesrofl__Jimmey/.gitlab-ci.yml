@@ -1,0 +1,28 @@
+ stages:
+   - test
+   - build
+
+ Maven-Test:
+  image: kaiwinter/docker-java8-maven
+  stage: test
+  script:
+  - mvn clean test
+  except:
+  - master
+
+ Jimmey-Bot-latest:
+  image: kaiwinter/docker-java8-maven
+  stage: build
+  script:
+  - mvn clean package
+  artifacts:
+   when: on_success
+   name: "${CI_PROJECT_NAME}_${CI_BUILD_REF_NAME}"
+   paths:
+     - target/Jimmey*.jar
+     - resources/avatars/*.png
+     - resources/*.json
+     - resources/*.db
+  only:
+    - master
+

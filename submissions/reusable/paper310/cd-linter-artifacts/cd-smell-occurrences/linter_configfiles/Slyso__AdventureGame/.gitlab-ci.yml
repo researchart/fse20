@@ -1,0 +1,9 @@
+image: maven:3-jdk-10
+
+build:
+  script: "mvn install -B"
+  artifacts:
+    paths:
+      - /builds/Slyso/AdventureGame/target/*.jar
+      - /builds/Slyso/AdventureGame/target/resources
+

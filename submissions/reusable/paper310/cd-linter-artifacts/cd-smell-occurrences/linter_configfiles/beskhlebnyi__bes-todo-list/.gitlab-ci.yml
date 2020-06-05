@@ -1,0 +1,35 @@
+image: "ruby:2.5.0"
+
+services:
+  - postgres:alpine
+
+variables:
+  POSTGRES_USER: test
+  POSTGRES_PASSSWORD: test-password
+  POSTGRES_DB: test
+  DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSSWORD}@postgres/${POSTGRES_DB}
+  RAILS_ENV: test
+
+.cache_bundler: &cache_bundler
+  cache:
+    untracked: true
+    key: "$CI_BUILD_REF_NAME"
+    paths:
+      - cache/bundler/
+
+before_script:
+  - set -xe
+  - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+  - echo "deb http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list
+  - apt-get update -qq && apt-get install -yqq nodejs libpq-dev qt5-default libqt5webkit5-dev gstreamer1.0-plugins-base gstreamer1.0-tools gstreamer1.0-x xvfb libnss3 libgconf-2-4 google-chrome-stable
+  - gem install bundler  --no-ri --no-rdoc
+  - bundle install -j $(nproc) --path=cache/bundler --without production --jobs $(nproc) "${FLAGS[@]}"
+
+rspec:
+  <<: *cache_bundler
+  script:
+  - RAILS_ENV=test bundle exec rails db:create db:schema:load
+  - rspec --version
+  - chromedriver -v
+  - xvfb-run -a bundle exec rspec
+

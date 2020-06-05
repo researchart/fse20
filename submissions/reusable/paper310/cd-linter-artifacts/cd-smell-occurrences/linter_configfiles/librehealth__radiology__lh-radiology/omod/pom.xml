@@ -1,0 +1,448 @@
+<!--
+
+    This Source Code Form is subject to the terms of the Mozilla Public License,
+    v. 2.0. If a copy of the MPL was not distributed with this file, You can
+    obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+    the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
+
+    Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+    graphic logo is a trademark of OpenMRS Inc.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.openmrs.module</groupId>
+		<artifactId>radiology</artifactId>
+		<version>0.1.0-dev-SNAPSHOT</version>
+	</parent>
+	<artifactId>radiology-omod</artifactId>
+	<packaging>jar</packaging>
+	<name>Radiology OMOD</name>
+	<description>LibreHealth Toolkit module project for Radiology</description>
+
+	<properties>
+		<MODULE_ID>${project.parent.artifactId}</MODULE_ID>
+		<MODULE_NAME>${project.parent.name}</MODULE_NAME>
+		<MODULE_VERSION>${project.parent.version}</MODULE_VERSION>
+		<MODULE_PACKAGE>${project.parent.groupId}.${project.parent.artifactId}</MODULE_PACKAGE>
+		<mysql.image.name>achabill/lh-mysql:latest</mysql.image.name>
+		<mysql.image.alias>db</mysql.image.alias>
+		<mysql.root.password>librehealth</mysql.root.password>
+		<mysql.user>librehealth</mysql.user>
+		<mysql.password>librehealth</mysql.password>
+		<mysql.database>librehealth</mysql.database>
+		<radiology.image.alias>radiology</radiology.image.alias>
+		<tomcat.port>8080</tomcat.port>
+		<tomcat.env.java_opts>-Dfile.encoding=UTF-8 -server -Xms256m -Xmx768m</tomcat.env.java_opts>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>radiology-api</artifactId>
+			<version>${project.parent.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>legacyui-omod</artifactId>
+			<version>${openmrs-legacyui-version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openmrs.api</groupId>
+			<artifactId>openmrs-api</artifactId>
+			<type>jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openmrs.api</groupId>
+			<artifactId>openmrs-api</artifactId>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openmrs.web</groupId>
+			<artifactId>openmrs-web</artifactId>
+			<type>jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openmrs.web</groupId>
+			<artifactId>openmrs-web</artifactId>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openmrs.test</groupId>
+			<artifactId>openmrs-test</artifactId>
+			<type>pom</type>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>webservices.rest-omod-common</artifactId>
+			<version>${openmrs-webservicesrest-version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>webservices.rest-omod-common</artifactId>
+			<version>${openmrs-webservicesrest-version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>webservices.rest-omod-2.0</artifactId>
+			<version>${openmrs-webservicesrest-version}</version>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<finalName>${project.parent.artifactId}-${project.parent.version}</finalName>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+			</resource>
+			<resource>
+				<directory>src/main/webapp</directory>
+				<filtering>false</filtering>
+				<targetPath>web/module</targetPath>
+			</resource>
+		</resources>
+		<testResources>
+			<testResource>
+				<directory>src/test/resources</directory>
+				<filtering>true</filtering>
+				<includes>
+					<include>**/*.xml</include>
+					<include>**/*.txt</include>
+				</includes>
+			</testResource>
+			<testResource>
+				<directory>src/test/resources</directory>
+				<filtering>false</filtering>
+				<excludes>
+					<exclude>**/*.xml</exclude>
+					<exclude>**/*.txt</exclude>
+				</excludes>
+			</testResource>
+		</testResources>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<artifactId>maven-resources-plugin</artifactId>
+					<configuration>
+						<includeEmptyDirs>true</includeEmptyDirs>
+						<nonFilteredFileExtensions>
+							<nonFilteredFileExtension>ttf</nonFilteredFileExtension>
+							<nonFilteredFileExtension>woff</nonFilteredFileExtension>
+							<nonFilteredFileExtension>woff2</nonFilteredFileExtension>
+							<nonFilteredFileExtension>svg</nonFilteredFileExtension>
+							<nonFilteredFileExtension>eot</nonFilteredFileExtension>
+							<nonFilteredFileExtension>otf</nonFilteredFileExtension>
+						</nonFilteredFileExtensions>
+					</configuration>
+				</plugin>
+				<!--This plugin's configuration is used to store Eclipse m2e settings
+					only. It has no influence on the Maven build itself. -->
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>com.marvinformatics.formatter</groupId>
+										<artifactId>formatter-maven-plugin</artifactId>
+										<versionRange>[0.0,)</versionRange>
+										<goals>
+											<goal>format</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.openmrs.maven.plugins</groupId>
+										<artifactId>maven-openmrs-plugin</artifactId>
+										<versionRange>[1.0.1,)</versionRange>
+										<goals>
+											<goal>initialize-module</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.apache.maven.plugins</groupId>
+										<artifactId>maven-dependency-plugin</artifactId>
+										<versionRange>[2.4,)</versionRange>
+										<goals>
+											<goal>unpack-dependencies</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+		<plugins>
+			<plugin>
+				<groupId>com.marvinformatics.formatter</groupId>
+				<artifactId>formatter-maven-plugin</artifactId>
+				<configuration>
+					<directories>
+						<directory>src/main</directory>
+						<directory>src/test</directory>
+					</directories>
+					<includes>
+						<include>**/*.java</include>
+						<include>**/*.js</include>
+					</includes>
+					<excludes>
+						<exclude>**/datatables/*.*</exclude>
+						<exclude>**/tinymce/*.*</exclude>
+						<exclude>**/tinymce/**/*.*</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.openmrs.maven.plugins</groupId>
+				<artifactId>maven-openmrs-plugin</artifactId>
+				<extensions>true</extensions>
+				<executions>
+					<execution>
+						<id>init</id>
+						<phase>initialize</phase>
+						<goals>
+							<goal>initialize-module</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>pack</id>
+						<phase>package</phase>
+						<goals>
+							<goal>package-module</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>Expand moduleApplicationContext and messages</id>
+						<goals>
+							<goal>unpack-dependencies</goal>
+						</goals>
+						<phase>generate-resources</phase>
+						<configuration>
+							<includeGroupIds>${project.parent.groupId}</includeGroupIds>
+							<includeArtifactIds>${project.parent.artifactId}-api</includeArtifactIds>
+							<excludeTransitive>true</excludeTransitive>
+							<includes>**/*</includes>
+							<outputDirectory>${project.build.directory}/classes</outputDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<configuration>
+					<includes>
+						<include>org/openmrs/module/radiology/web/**</include>
+						<include>org/openmrs/module/radiology/**/web/**</include>
+					</includes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>com.github.searls</groupId>
+				<artifactId>jasmine-maven-plugin</artifactId>
+				<version>2.1</version>
+				<configuration>
+					<phantomjs>
+						<version>2.1.1</version>
+						<checkSystemPath>true</checkSystemPath>
+						<enforceVersion>true</enforceVersion>
+						<source>REPOSITORY</source>
+						<baseUrl />
+						<outputDirectory>target/phantomjs</outputDirectory>
+					</phantomjs>
+					<jsSrcDir>${project.basedir}/src/main/webapp/resources/scripts</jsSrcDir>
+					<preloadSources>
+						<source>helpers/jquery-1.8.1.js</source>
+						<source>helpers/jasmine-jquery.js</source>
+						<source>helpers/definitions.js</source>
+					</preloadSources>
+					<sourceIncludes>
+						<include>radiology.js</include>
+					</sourceIncludes>
+					<sourceExcludes>
+						<exclude>**/jquery/*.*</exclude>
+						<exclude>**/tinymce/*.*</exclude>
+						<exclude>**/moment/*.*</exclude>
+					</sourceExcludes>
+					<jsTestSrcDir>${project.basedir}/src/test/javascript</jsTestSrcDir>
+					<specIncludes>
+						<include>**/*Spec.js</include>
+					</specIncludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>io.fabric8</groupId>
+				<artifactId>docker-maven-plugin</artifactId>
+				<configuration>
+					<logDate>default</logDate>
+					<autoPull>true</autoPull>
+					<verbose>true</verbose>
+					<images>
+						<!-- DB Image is used 'as-is' and is linked into the openmrs image -->
+						<image>
+							<alias>${mysql.image.alias}</alias>
+							<name>${mysql.image.name}</name>
+							<run>
+								<log>
+									<prefix>DB</prefix>
+									<color>yellow</color>
+								</log>
+								<ports>
+									<port>3308:3306</port>
+								</ports>
+								<env>
+									<MYSQL_ROOT_PASSWORD>${mysql.root.password}</MYSQL_ROOT_PASSWORD>
+									<MYSQL_USER>${mysql.user}</MYSQL_USER>
+									<MYSQL_PASSWORD>${mysql.password}</MYSQL_PASSWORD>
+									<MYSQL_DATABASE>${mysql.database}</MYSQL_DATABASE>
+								</env>
+								<wait>
+									<log>MySQL init process done. Ready for start up.</log>
+									<time>300000</time>
+								</wait>
+							</run>
+						</image>
+						<!-- Image holding the artifact of this build -->
+						<image>
+							<alias>${radiology.image.alias}</alias>
+							<name>achabill/lh-toolkit</name>
+							<build>
+								<dockerFile>Dockerfile</dockerFile>
+								<assembly>
+									<basedir>/</basedir>
+									<descriptor>${basedir}/src/main/assembly.xml</descriptor>
+								</assembly>
+								<ports>
+									<port>8080</port>
+								</ports>
+							</build>
+							<run>
+								<ports>
+									<port>${tomcat.port}:8080</port>
+								</ports>
+								<links>
+									<link>${mysql.image.alias}</link>
+								</links>
+								<env>
+									<MYSQL_USER>${mysql.user}</MYSQL_USER>
+									<MYSQL_PASSWORD>${mysql.password}</MYSQL_PASSWORD>
+									<MYSQL_DATABASE>${mysql.database}</MYSQL_DATABASE>
+									<MYSQL_HOST>${mysql.image.alias}</MYSQL_HOST>
+									<MYSQL_PORT>3306</MYSQL_PORT>
+									<JAVA_OPTS>${tomcat.env.java_opts}</JAVA_OPTS>
+								</env>
+								<wait>
+									<log>Server startup in</log>
+									<time>1000000</time>
+								</wait>
+								<log>
+									<prefix>TC</prefix>
+									<color>cyan</color>
+								</log>
+							</run>
+						</image>
+					</images>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>com.github.eirslett</groupId>
+				<artifactId>frontend-maven-plugin</artifactId>
+				<version>1.0</version>
+				<executions>
+					<execution>
+						<id>install node and npm</id>
+						<goals>
+							<goal>install-node-and-npm</goal>
+						</goals>
+						<phase>generate-resources</phase>
+						<configuration>
+							<nodeVersion>v4.6.0</nodeVersion>
+							<npmVersion>3.10.8</npmVersion>
+						</configuration>
+					</execution>
+					<execution>
+						<id>npm install</id>
+						<goals>
+							<goal>npm</goal>
+						</goals>
+						<phase>generate-resources</phase>
+					</execution>
+					<execution>
+						<id>bower install</id>
+						<goals>
+							<goal>bower</goal>
+						</goals>
+						<configuration>
+							<arguments>install --allow-root</arguments>
+						</configuration>
+					</execution>
+					<execution>
+						<id>gulp build</id>
+						<goals>
+							<goal>gulp</goal>
+						</goals>
+						<configuration>
+							<arguments>${gulp.task}</arguments>
+						</configuration>
+						<phase>generate-resources</phase>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+	<profiles>
+		<profile>
+			<id>development</id>
+			<activation>
+				<property>
+					<name>dev</name>
+				</property>
+			</activation>
+			<properties>
+				<gulp.task>dev</gulp.task>
+			</properties>
+		</profile>
+	</profiles>
+</project>
+

@@ -1,0 +1,81 @@
+image: ${CI_REGISTRY}/molcas/dockerfiles/doc:latest
+
+stages:
+  - build
+  - join
+  - deploy
+
+sphinx:
+  stage: build
+  variables:
+    SOURCE_URL: "gitlab.com/Molcas/OpenMolcas.git"
+    SOURCE_COMMIT: "master"
+  script:
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${SOURCE_URL} OpenMolcas
+    - cd OpenMolcas
+    - export RELEASE=$(git describe --always --match 'v*')
+    - export VERSION=$(echo ${RELEASE#v} | awk -F'[.-]' '{print $1"."$2}')
+    - cd ..
+    - sed -i -e "s/version =.*/version = '${VERSION}'/" source/conf.py
+    - sed -i -e "s/release =.*/release = '${RELEASE}'/" source/conf.py
+    - make html latexpdf
+  artifacts:
+    paths:
+      - build/html
+      - build/latex/Manual.pdf
+  only:
+    - master
+
+latexdoc:
+  stage: build
+  script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends ghostscript latexmk texlive-fonts-recommended lmodern texlive-latex-extra
+    - cd latexdoc
+    - ./makepdf
+  artifacts:
+    paths:
+      - latexdoc/manual/manual.pdf
+  only:
+    - master
+
+doxygen:
+  stage: build
+  variables:
+    SOURCE_URL: "gitlab.com/Molcas/OpenMolcas.git"
+    SOURCE_COMMIT: "master"
+  script:
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${SOURCE_URL} OpenMolcas
+    - cd OpenMolcas
+    - git checkout ${SOURCE_COMMIT}
+    - cd doc/doxygen
+    - >
+      echo "PROJECT_NUMBER = $(git describe --always --match 'v*')" >> Doxyfile
+    # Generating call/caller graphs unfortunately results in too large artifacts for the pages:deploy stage
+    #- echo 'CALL_GRAPH = YES' >> Doxyfile
+    #- echo 'CALLER_GRAPH = YES' >> Doxyfile
+    - doxygen
+    # Fix https://github.com/doxygen/doxygen/issues/6308
+    - find html -type f -name "*html" -exec sed -i 's/ async / async="async" /' {} \;
+  after_script:
+    - cat OpenMolcas/doc/doxygen/doxygen.log
+  artifacts:
+    paths:
+      - OpenMolcas/doc/doxygen/html
+  only:
+    - master
+
+pages:
+  stage: join
+  script:
+    - mkdir -p public
+    - mv build/html public/sphinx
+    - mv OpenMolcas/doc/doxygen/html public/doxygen
+    - du -sh public/*
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 day
+  only:
+    - master
+

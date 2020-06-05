@@ -1,0 +1,16 @@
+image: python:3.7-alpine3.9
+
+before_script:
+  - apk update && apk add git
+  - git --version
+
+'build_app':
+  script:
+  - pip install -r requirements.txt
+  - python manage.py db upgrade
+  - python manage.py install
+  - python manage.py test
+  tags:
+  except:
+  - tags
+

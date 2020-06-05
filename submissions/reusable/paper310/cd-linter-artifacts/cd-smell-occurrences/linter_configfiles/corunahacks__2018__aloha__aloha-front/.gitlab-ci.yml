@@ -1,0 +1,60 @@
+image: node:latest
+
+stages:
+  - install
+  - test
+  - build
+  - deploy
+
+cache:
+  paths:
+    - node_modules/
+
+install:
+  stage: install
+  script:
+    - yarn install
+build:
+  stage: build
+  script:
+    - yarn build
+  artifacts:
+    name: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - build/
+test:
+  stage: test
+  script:
+    - CI=true yarn test
+deploy_staging:
+  type: deploy
+  stage: deploy
+  image: ruby:latest
+  environment:
+    name: staging
+    url: https://aloha-staging.herokuapp.com
+  only:
+    - develop
+  script:
+    - echo "Staging deployment"
+    - apt-get update -yq
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=$HEROKU_STAGING_APP --api-key=$HEROKU_API_STAGING_KEY
+deploy_production:
+  type: deploy
+  stage: deploy
+  image: ruby:latest
+  environment:
+    name: production
+    url: https://alohaapp.herokuapp.com
+  only:
+    - master
+    - tags
+  script:
+    - echo "Production deployment"
+    - apt-get update -yq
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=$HEROKU_PRODUCTION_APP --api-key=$HEROKU_API_PRODUCTION_KEY
+

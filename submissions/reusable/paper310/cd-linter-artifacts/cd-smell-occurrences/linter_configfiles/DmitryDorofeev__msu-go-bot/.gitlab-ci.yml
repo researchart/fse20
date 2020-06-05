@@ -1,0 +1,17 @@
+image: golang:1.8
+
+test:
+  only:
+    - master
+    - tags
+  script:
+    - apt-get update -y
+    - apt-get install ruby -y
+    - gem install dpl
+    - go get github.com/constabulary/gb/...
+    - go get -u github.com/golang/lint/golint
+    - golint ./src/...
+    - gb vendor restore
+    - gb test -v
+    - dpl --provider=heroku --app=msu-go-2017 --api-key=$HEROKU_PRODUCTION_API_KEY --skip_cleanup
+

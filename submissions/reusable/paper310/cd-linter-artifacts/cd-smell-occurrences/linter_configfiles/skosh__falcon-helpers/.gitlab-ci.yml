@@ -1,0 +1,15 @@
+stages:
+  - test
+
+test_tox:
+  image: python:3.6-alpine
+  stage: test
+  script:
+    - apk add --update gcc musl-dev openssl libffi-dev libjpeg-turbo postgresql-dev git
+    - pwd
+    - ls -lah
+    - which git
+    - pip install tox codecov
+    - tox
+    - codecov -e $CODECOV_TOKEN
+

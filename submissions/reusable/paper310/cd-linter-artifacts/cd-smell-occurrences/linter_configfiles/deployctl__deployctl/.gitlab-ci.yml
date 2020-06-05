@@ -1,0 +1,229 @@
+stages:
+  - build
+  - test
+  - rpm
+  - review
+  - staging
+  - production
+
+variables:
+  CI_COMMIT_DESCRIPTION: "test"
+  CI_PROJECT_PATH_SLUG: "deployctl-deployctl"
+  DEPLOY_DOMAIN_APP: "gioxapp.com"
+  #
+  # Prodduction deployment url and https
+  DEPLOY_DOMAIN: "downloads.deployctl.com"
+  DEPLOY_CONFIG_HTTPS: "True"
+  #
+   #Deployment locations
+  DEPLOY_RELEASE_PATH: '["output/","output/rpm/","output/dist/"]'
+  #
+  # Extra links for release page, besides the <*.url> files
+  DEPLOY_hrefs: '[ "repository": "$DEPLOY_REPO_URL", "website": "http://www.deployctl.com"]'
+  #
+  # location directory of rpm/deb dir
+  DEPLOY_REPO_PATH: "output"
+  #
+  # depending on master or production, define the repository url
+  PRODUCTION_REPO_URL: "https://repo.deployctl.com"
+  MASTER_REPO_URL: "https://repo-bleeding.deployctl.com"
+  # define the global cache settings=> all pull
+  GIT_CACHE_STRATEGY: pull
+
+build:
+  image: dockregi.gioxa.com/c-build-tools/cent7build:latest
+  stage: build
+  variables:
+    GIT_CACHE_STRATEGY: push-pull
+  script:
+    - ./autogen.sh
+    - ./configure
+    - make -j$(nproc)
+    - rm -rf output
+    - mkdir output
+    - cp scripts/*.sh output/
+    - cp scripts/*.md output/
+    - 'echo -e "$(git describe --tags --always --abbrev=8)" > .GIT_VERSION'
+  artifacts:
+    paths:
+      - output/
+      - .GIT_VERSION
+
+build_dist:
+  image: dockregi.gioxa.com/c-build-tools/cent7build:latest
+  stage: build
+  script:
+    - ./autogen.sh
+    - ./configure
+    - make dist
+    - rm -rf output
+    - mkdir -pv output/dist
+    - mv deployctl*.tar.gz output/dist
+  artifacts:
+    paths:
+      - output
+
+testing:
+  image: dockregi.gioxa.com/c-build-tools/cent7build:latest
+  stage: test
+  dependencies: []
+  script:
+    - 'echo "skipped for now"'
+    - ./autogen.sh
+    - ./configure
+    - make -j$(nproc) check
+  artifacts:
+    when: always
+    paths:
+      - tests/*.log
+
+coverage:
+  image: dockregi.gioxa.com/c-build-tools/cent7build:latest
+  stage: test
+  dependencies: []
+  script:
+    - 'echo "skipped for now"'
+    - ./docov
+    - rm -rf output
+    - mkdir output
+    - mv  tests/deployctl-coverage output/
+    - cp tests/coverage.url output/coverage.url
+  artifacts:
+    when: always
+    paths:
+      - output
+
+rpm:
+  image: dockregi.gioxa.com/c-build-tools/cent7build:latest
+  stage: rpm
+  variables:
+    GIT_STRATEGY: none
+  dependencies: [build_dist]
+  script:
+      - 'echo "$(pwd)"'
+      - rm -rf rpmbuild
+      - mkdir -pv rpmbuild/{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}
+      - cp -v output/dist/deployctl-*.tar.gz rpmbuild/SOURCES/
+      - 'tar -vxzf output/dist/deployctl-*.tar.gz --strip-components=3 deployctl*/distro/rpm/deployctl.spec'
+      - rm -rf output
+      - mkdir -pv output/rpm
+      - mv deployctl.spec rpmbuild/SPECS
+      - rpmbuild --define "_topdir $(pwd)/rpmbuild" -ba rpmbuild/SPECS/deployctl.spec
+      - cp -v rpmbuild/RPMS/x86_64/* output/rpm/
+      - rm -rf rpmbuild
+  artifacts:
+      paths:
+        - output
+
+reviewb:
+  stage: review
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - deployctl release
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: http://$CI_ENVIRONMENT_SLUG.$CI_PROJECT_PATH_SLUG.$DEPLOY_DOMAIN_APP
+    on_stop: stop_reviewb
+  only:
+    - branches
+  except:
+    - tags
+    - master
+  tags:
+   - deployctl-gioxapp.com
+
+stop_reviewb:
+  stage: review
+  dependencies: []
+  script:
+    - deployctl delete
+  variables:
+    GIT_STRATEGY: none
+  when: manual
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    action: stop
+  only:
+    - branches
+  except:
+    - tags
+    - master
+  tags:
+    - deployctl-gioxapp.com
+
+reviewm:
+  stage: review
+  variables:
+    GIT_STRATEGY: none
+    # define repository url for master
+    DEPLOY_REPO_URL: $MASTER_REPO_URL
+  script:
+    - deployctl release
+    - deployctl repo_add
+  environment:
+    name: master
+    url: http://$CI_ENVIRONMENT_SLUG.$CI_PROJECT_PATH_SLUG.$DEPLOY_DOMAIN_APP
+    on_stop: stop_reviewm
+  only:
+    - master
+  except:
+    - tags
+  tags:
+    - deployctl-gioxapp.com
+
+stop_reviewm:
+  stage: review
+  dependencies: []
+  script:
+    - deployctl delete
+  variables:
+    GIT_STRATEGY: none
+  when: manual
+  environment:
+    name: master
+    action: stop
+  only:
+    - master
+  except:
+    - tags
+  tags:
+    - deployctl-gioxapp.com
+
+Release_Staging:
+  stage: staging
+  environment:
+    name: staging
+    url: http://staging.$CI_PROJECT_PATH_SLUG.$DEPLOY_DOMAIN_APP
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - deployctl release
+  only:
+    - tags
+  except:
+    - branches
+  tags:
+    - deployctl-gioxapp.com
+
+Release_production:
+  stage: production
+  variables:
+    GIT_STRATEGY: none
+    # Define the production repository url
+    DEPLOY_REPO_URL: "${PRODUCTION_REPO_URL}"
+  environment:
+    name: production
+    url: http://$DEPLOY_DOMAIN/$CI_BUILD_REF_SLUG
+  script:
+    - deployctl release
+    - deployctl repo_add
+  only:
+    - tags
+  except:
+    - branches
+  tags:
+    - deployctl-gioxapp.com
+  when: manual
+  allow_failure: false
+

@@ -1,0 +1,33 @@
+image: opensuse/tumbleweed
+
+before_script:
+  - zypper -q install -y git
+
+Linux_x64:
+  stage: build
+  script:
+    - zypper -q install -y libgit2-devel make gcc gcc-c++ libQt5Concurrent-devel libQt5Core-devel libQt5Gui-devel libQt5QuickControls2-devel libqt5-qtbase-devel libqt5-qtdeclarative-devel quazip-qt5-devel
+    - make -f CI.mk linuxdeploy
+    - make -f CI.mk finalize
+  artifacts:
+    paths:
+      - GitAddonsManager
+    name: "GitAddonsManager_Linux_x64-$CI_COMMIT_SHA"
+
+Win32:
+  cache:
+    paths:
+      - Qt/
+      - .wine
+      - libgit2-0.27.2
+      - mingw32
+  stage: build
+  script:
+    - zypper -q install -y wine-staging wine-staging-32bit wget make p7zip tar gzip || true
+    - make -f CI.mk windeploy
+    - make -f CI.mk finalize
+  artifacts:
+    paths:
+      - GitAddonsManager
+    name: "GitAddonsManager_Win32-$CI_COMMIT_SHA"
+

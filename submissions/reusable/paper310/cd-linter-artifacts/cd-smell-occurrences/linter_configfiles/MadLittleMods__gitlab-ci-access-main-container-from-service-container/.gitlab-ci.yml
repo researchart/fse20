@@ -1,0 +1,101 @@
+image: node:boron
+
+cache:
+  paths:
+  - node_modules/
+
+variables:
+  # `docker.for.mac.localhost` hostname via https://stackoverflow.com/a/43541732/796832s
+  # $DOCKER_REGISTRY = registry.gitlab.com or docker.for.mac.localhost:5063
+
+  # $IMAGE_NAMESPACE = madlittlemods/gitlab-ci-access-main-container-from-service-container or root/gitlab-ci-access-main-container-from-service-container
+
+  # We have to separate this instead of constructing from $DOCKER_REGISTRY and $IMAGE_NAMESPACE
+  # because `docker.for.mac.localhost:5063/root/gitlab-selenium-server:latest` does
+  # not work because the host should be `localhost` ¯\_(ツ)_/¯
+  # $IMAGE_FULL_NAME = registry.gitlab.com/madlittlemods/gitlab-ci-access-main-container-from-service-container or localhost:5063/root/gitlab-ci-access-main-container-from-service-container
+
+  DOCKER_TEST_IMAGE: $DOCKER_REGISTRY/$IMAGE_NAMESPACE:$CI_COMMIT_REF_NAME
+
+
+stages:
+  - build
+  - test
+  - release
+
+
+build:
+  stage: build
+  script:
+    - npm install
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - node_modules/
+  tags:
+    - docker
+    - shared
+
+
+build-docker-test-image:
+  stage: build
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay2
+  script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $DOCKER_REGISTRY
+    - docker build -t $DOCKER_TEST_IMAGE --file="Dockerfile" .
+    - docker push $DOCKER_TEST_IMAGE
+  services:
+    - name: docker:dind
+      command:
+        - "--insecure-registry"
+        # Unable to use `$DOCKER_REGISTRY` because it doesn't seem to work :/
+        # See https://gitlab.com/gitlab-org/gitlab-ce/issues/38346
+        - "docker.for.mac.localhost:5063"
+  tags:
+    - docker
+    - shared
+
+
+
+test-docker-image:
+  stage: test
+  script:
+    # The hosts file looks like this,
+    #
+    # 127.0.0.1	localhost
+    # ::1	localhost ip6-localhost ip6-loopback
+    # fe00::0	ip6-localnet
+    # ff00::0	ip6-mcastprefix
+    # ff02::1	ip6-allnodes
+    # ff02::2	ip6-allrouters
+    # 172.17.0.4	redis 761e0a3d01ce runner-72989761-project-13083-concurrent-0-redis-1
+    # 172.17.0.6	runner-72989761-project-13083-concurrent-0
+    - cat /etc/hosts
+    # Add `gitlab-runner.local` pointing to our main runner container
+    # Because the `runner-72989761-project-13083-concurrent-0` name is dynamic,
+    # we copy over the entry and use a static `gitlab-runner.local` name
+    - echo "$(cat /etc/hosts | grep -Eo "^([0-9\.]*)\s+runner-[0-9a-f]+-project-[0-9a-f]+-concurrent-[0-9]+" | grep -Eo "^.*\s")gitlab-runner.local" >> /etc/hosts
+    - cat /etc/hosts
+    # Copy to the shared `/builds` directory, https://docs.gitlab.com/runner/executors/docker.html#build-directory-in-service
+    - cp /etc/hosts $CI_PROJECT_DIR
+    # Signal the service that we can copy the hosts file over
+    - curl http://some-server-from-service:5555/copy-hosts || true
+    #
+    - npm run start-server-main-background
+    - sleep 1
+    - curl http://localhost:5000/ || true
+    - curl http://gitlab-runner.local:5000/ || true
+    #
+    # This endpoint will log out the hosts file in the service and try to contact our main server
+    - curl http://some-server-from-service:5555/ || true
+    #- npm run get-logs-for-server-main
+  services:
+    - name: $IMAGE_FULL_NAME:$CI_COMMIT_REF_NAME
+      alias: some-server-from-service
+  tags:
+    - docker
+    - shared
+

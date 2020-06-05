@@ -1,0 +1,210 @@
+image: registry.gitlab.com/aegir/aegir:base-latest
+
+stages:
+  - test
+  - notify
+#  - analyze
+  - publish
+  - release
+
+variables:
+  LOCAL_DIR: "$CI_PROJECT_DIR/build/local"
+  DEBIAN_FRONTEND: "noninteractive"
+  PYTHONUNBUFFERED: "true"
+  COMPOSER_CACHE_DIR: "$CI_PROJECT_DIR/build/composer/cache"
+  ANSIBLE_CONFIG: "$CI_PROJECT_DIR/build/ansible/ansible.cfg"
+  ANSIBLE_FORCE_COLOR: "true"
+  ANSIBLE_PLAYBOOK: "$CI_PROJECT_DIR/build/ansible/playbook.yml"
+  ANSIBLE_ROLES_PATH: "$CI_PROJECT_DIR/build/ansible/roles/"
+  ANSIBLE_ROLE_FILE: "$CI_PROJECT_DIR/build/ansible/requirements.yml"
+  ANSIBLE_INVENTORY: "$CI_PROJECT_DIR/build/ansible/hosts"
+  ANSIBLE_EXTRA_VARS: "aegir_profile_path=$CI_PROJECT_DIR/profile aegird_service_type=daemon add_hostname_to_hosts_file=false"
+  AEGIR_PLATFORM_PATH: "/var/aegir/platforms/aegir"
+  IRC_CHANNEL: "#aegir-dev"
+  IRC_USER: "hefring-build"
+  IRC_PROJECT: "aegir"
+  IRC_BRANCH: "$CI_BUILD_REF_NAME"
+  IMAGE_REGISTRY_USERNAME: "hefring"
+  IMAGE_REGISTRY_SERVER: "registry.gitlab.com"
+  XDG_RUNTIME_DIR: "/run/user/1000"
+  GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+  # Bootstrap Drumkit.
+  - . d
+
+cache:
+  key: "$CI_BUILD_REF_NAME"  # Cache is per-branch.
+  paths:
+    - "$LOCAL_DIR"    # Drumkit tools; includes Ansible.
+    - "$COMPOSER_CACHE_DIR"
+
+test:behat:
+  image: registry.gitlab.com/aegir/aegir:base-latest
+  stage: test
+  before_script:
+    - . d
+    # Install Ansible roles.
+    - ansible-galaxy install -v -r $ANSIBLE_ROLE_FILE -p $ANSIBLE_ROLES_PATH
+    # Build platform and install an Aegir site.
+    - ansible-playbook $ANSIBLE_PLAYBOOK -i $ANSIBLE_INVENTORY -e "$ANSIBLE_EXTRA_VARS"
+    # Ensure that the front-end URL resolves.
+    - echo "127.0.0.1 aegir.vm" >> /etc/hosts
+  script:
+    - make run-behat SUITE=ci
+
+test:simpletest:
+  image: registry.gitlab.com/aegir/aegir:base-latest
+  stage: test
+  before_script:
+    - . d
+    # Install Ansible roles.
+    - ansible-galaxy install -v -r $ANSIBLE_ROLE_FILE -p $ANSIBLE_ROLES_PATH
+    # Build platform and install an Aegir site.
+    - ansible-playbook $ANSIBLE_PLAYBOOK -i $ANSIBLE_INVENTORY -e "$ANSIBLE_EXTRA_VARS"
+  script:
+    - make run-simpletest
+
+notify:irc:failure:
+  stage: notify
+  script:
+    - make irc-ci-failure
+  when: on_failure
+  only:
+    - branches@aegir/aegir
+  allow_failure: true
+
+notify:irc:success:
+  stage: notify
+  script:
+    - make irc-ci-success
+  when: on_success
+  only:
+    - branches@aegir/aegir
+  allow_failure: true
+
+# @TODO: Re-enable analysis steps once we get queue tests running under CI.
+#analysis:coverage:
+#  stage: analyze
+#  image: registry.gitlab.com/aegir/aegir:base-latest
+#  before_script:
+#    - . d
+#    # Install Ansible roles.
+#    - ansible-galaxy install -v -r $ANSIBLE_ROLE_FILE -p $ANSIBLE_ROLES_PATH
+#    # Build platform and install an Aegir site.
+#    - ansible-playbook $ANSIBLE_PLAYBOOK -i $ANSIBLE_INVENTORY -e "$ANSIBLE_EXTRA_VARS"
+#  script:
+#    - make coverage-init
+#    - make cover-all SUITE="ci"
+#  artifacts:
+#    paths:
+#      # Save generated HTML code-coverage report.
+#      - build/coverage
+#  allow_failure: true
+#
+#analysis:lint:
+#  stage: analyze
+#  image: registry.gitlab.com/aegir/aegir:base-latest
+#  before_script:
+#    - . d
+#    # Install Ansible roles.
+#    - ansible-galaxy install -v -r $ANSIBLE_ROLE_FILE -p $ANSIBLE_ROLES_PATH
+#    # Build platform and install an Aegir site.
+#    - ansible-playbook $ANSIBLE_PLAYBOOK -i $ANSIBLE_INVENTORY -e "$ANSIBLE_EXTRA_VARS"
+#  script:
+#    - make lint
+#  allow_failure: true
+
+pages:
+  stage: publish
+  image: registry.gitlab.com/pages/hugo:latest
+  before_script:
+    # Check the current version of Hugo, so we can keep our local env in sync.
+    - hugo version
+  script:
+    # Build our documentation site.
+    - hugo -s docs
+    # Copy HTML code-coverage report.
+#    - cp -r build/coverage/html/merged/ public/coverage
+  artifacts:
+    paths:
+      - public
+#  when: on_success
+  when: always
+  allow_failure: true
+  only:
+    - master@aegir/aegir
+
+# @TODO
+#publish:api:
+#  stage: publish
+#  script:
+#    - TBD  # Trigger refresh of http://api.aegirproject.org.
+#  when: on_success
+#  only:
+#    - master@aegir/aegir
+
+release:docker:xenial:
+  stage: release
+  image: registry.gitlab.com/aegir/aegir:docker-latest
+  before_script:
+    - . d
+    - make packer
+    - service docker start
+  script:
+    - packer build build/packer/docker/xenial.json
+#  only:
+#    - master@aegir/aegir
+  when: manual
+
+release:docker:docker:
+  stage: release
+  image: registry.gitlab.com/aegir/aegir:docker-latest
+  before_script:
+    - . d
+    - make packer
+    - service docker start
+  script:
+    - packer build build/packer/docker/docker.json
+#  only:
+#    - master@aegir/aegir
+  when: manual
+
+release:docker:base:
+  stage: release
+  image: registry.gitlab.com/aegir/aegir:docker-latest
+  before_script:
+    - . d
+    - make packer
+    - service docker start
+  script:
+    - packer build build/packer/docker/base.json
+#  only:
+#    - master@aegir/aegir
+  when: manual
+
+# @TODO
+#release:vagrant:
+#  stage: release
+#  script:
+#    - packer build build/packer/vagrant/xenial.json
+#  only:
+#    - master@aegir/aegir
+
+# @TODO
+#release:amazon:
+#  stage: release
+#  script:
+#    - packer build build/packer/amazon/xenial.json
+#  only:
+#    - master@aegir/aegir
+
+# @TODO
+#release:debian:
+#  stage: release
+#  script:
+#    - TBD  # Build and upload Debian packages
+#  only:
+#    - master@aegir/aegir
+
+

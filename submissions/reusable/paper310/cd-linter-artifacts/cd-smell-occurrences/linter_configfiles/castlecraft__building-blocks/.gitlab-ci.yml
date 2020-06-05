@@ -1,0 +1,525 @@
+services:
+  - name: bitnami/mongodb:latest
+    alias: mongo
+  - name: docker:dind
+    alias: docker
+
+variables:
+  MONGODB_USERNAME: "admin"
+  MONGODB_PASSWORD: "admin"
+  MONGODB_DATABASE: "test_authorization-server"
+
+stages:
+  - tests
+  - pack
+  - docs
+
+test_authorization_server:
+  image: registry.gitlab.com/castlecraft/docker-craft/node-latest-gettext-base:latest
+  stage: tests
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - apps/authorization-server/node_modules/
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - apps/authorization-server/**/*
+  variables:
+    NODE_ENV: "development"
+    SESSION_SECRET: "secret"
+    EXPIRY_DAYS: "1"
+    COOKIE_MAX_AGE: "43200"
+    TOKEN_VALIDITY: "3600"
+    SESSION_NAME: "E2E_SESSION"
+    DB_HOST: "mongo"
+    DB_USER: "admin"
+    DB_PASSWORD: "admin"
+    DB_NAME: "authorization-server"
+  before_script:
+    - cd apps/authorization-server
+    - npm install
+  script:
+    # Check Code Quality
+    - npm run lint
+    - npm run format:check
+    # Test backend unit tests
+    - npm run test:server
+    # Create .env file
+    - envsubst '${NODE_ENV}
+      ${SESSION_SECRET}
+      ${EXPIRY_DAYS}
+      ${COOKIE_MAX_AGE}
+      ${SESSION_NAME}
+      ${TOKEN_VALIDITY}
+      ${DB_HOST}
+      ${DB_NAME}
+      ${DB_USER}
+      ${DB_PASSWORD}' < docker/env.tmpl > .env
+    # set env variable for test
+    - export NODE_ENV=test
+    # Test backend e2e
+    - npm run test:e2e
+  tags:
+    - docker
+
+test_authorization_client:
+  image: registry.gitlab.com/castlecraft/docker-craft/node-latest-headless-chrome:latest
+  stage: tests
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - frontends/authorization-client/node_modules/
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - frontends/authorization-client/**/*
+  before_script:
+    - cd frontends/authorization-client
+    - npm install
+  script:
+    # Check Code Quality
+    - npm run lint
+    - npm run format:check
+    # set env variable for test
+    - export NODE_ENV=test
+    # Test frontend
+    - export DISPLAY=:99
+    - Xvfb :0 -ac -screen 0 1024x768x24 &
+    - npm run test
+    - npm run e2e
+  tags:
+    - docker
+
+test_communication_server:
+  image: node:latest
+  stage: tests
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - apps/communication-server/node_modules/
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - apps/communication-server/**/*
+  before_script:
+    - cd apps/communication-server
+    - npm install
+  script:
+    # set env variable for test
+    - export NODE_ENV=test
+    # Check Code Quality
+    - npm run lint
+    - npm run format:check
+    # Test backend unit tests
+    - npm run test:server
+    # Test backend e2e
+    - npm run test:e2e
+  tags:
+    - docker
+
+test_identity_provider:
+  image: node:latest
+  stage: tests
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - apps/identity-provider/node_modules/
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - apps/identity-provider/**/*
+  before_script:
+    - cd apps/identity-provider
+    - npm install
+  script:
+    # set env variable for test
+    - export NODE_ENV=test
+    # Check Code Quality
+    - npm run lint
+    - npm run format:check
+    # Test backend unit tests
+    - npm run test:server
+    # Test backend e2e
+    - npm run test:e2e
+  tags:
+    - docker
+
+test_identity_client:
+  image: registry.gitlab.com/castlecraft/docker-craft/node-latest-headless-chrome:latest
+  stage: tests
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - frontends/identity-client/node_modules/
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - frontends/identity-client/**/*
+  before_script:
+    - cd frontends/identity-client
+    - npm install
+  script:
+    # set env variable for test
+    - export NODE_ENV=test
+    # Check Code Quality
+    - npm run lint
+    - npm run format:check
+    # Test frontend
+    - export DISPLAY=:99
+    - Xvfb :0 -ac -screen 0 1024x768x24 &
+    - npm run test
+    - npm run e2e
+  tags:
+    - docker
+
+test_infrastructure_console:
+  image: node:latest
+  stage: tests
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - apps/infrastructure-console/node_modules/
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - apps/infrastructure-console/**/*
+  before_script:
+    - cd apps/infrastructure-console
+    - npm install
+  script:
+    # set env variable for test
+    - export NODE_ENV=test
+    # Check Code Quality
+    - npm run lint
+    - npm run format:check
+    # Test backend unit tests
+    - npm run test:server
+    # Test backend e2e
+    - npm run test:e2e
+  tags:
+    - docker
+
+test_admin_client:
+  image: registry.gitlab.com/castlecraft/docker-craft/node-latest-headless-chrome:latest
+  stage: tests
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - frontends/admin-client/node_modules/
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - frontends/admin-client/**/*
+  before_script:
+    - cd frontends/admin-client
+    - npm install
+  script:
+    # set env variable for test
+    - export NODE_ENV=test
+    # Check Code Quality
+    - npm run lint
+    - npm run format:check
+    # Test frontend
+    - export DISPLAY=:99
+    - Xvfb :0 -ac -screen 0 1024x768x24 &
+    - npm run test
+    - npm run e2e
+  tags:
+    - docker
+
+pack_staging_authorization_server:
+  image: docker
+  stage: pack
+  environment: staging
+  only:
+    refs:
+      - staging
+    changes:
+      - apps/authorization-server/**/*
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # Authorization Server
+    - docker build -t authorization-server apps/authorization-server
+    - docker tag authorization-server $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/authorization-server:edge
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/authorization-server
+
+pack_staging_authorization_client:
+  image: docker
+  stage: pack
+  environment: staging
+  only:
+    refs:
+      - staging
+    changes:
+      - frontends/authorization-client/**/*
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # Authorization Client
+    - docker build -t authorization-client frontends/authorization-client
+    - docker tag authorization-client $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/authorization-client:edge
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/authorization-client
+
+pack_staging_communication_server:
+  image: docker
+  stage: pack
+  environment: staging
+  only:
+    refs:
+      - staging
+    changes:
+      - apps/communication-server/**/*
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # Communication Server
+    - docker build -t communication-server apps/communication-server
+    - docker tag communication-server $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/communication-server:edge
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/communication-server
+
+pack_staging_identity_provider:
+  image: docker
+  stage: pack
+  environment: staging
+  only:
+    refs:
+      - staging
+    changes:
+      - apps/identity-provider/**/*
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # Identity Provider
+    - docker build -t identity-provider apps/identity-provider
+    - docker tag identity-provider $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/identity-provider:edge
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/identity-provider
+
+pack_staging_identity_client:
+  image: docker
+  stage: pack
+  environment: staging
+  only:
+    refs:
+      - staging
+    changes:
+      - frontends/identity-client/**/*
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # Identity Client
+    - docker build -t identity-client frontends/identity-client
+    - docker tag identity-client $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/identity-client:edge
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/identity-client
+
+pack_staging_infrastructure_console:
+  image: docker
+  stage: pack
+  environment: staging
+  only:
+    refs:
+      - staging
+    changes:
+      - apps/infrastructure-console/**/*
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # Infrastructure Console
+    - docker build -t infrastructure-console apps/infrastructure-console
+    - docker tag infrastructure-console $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/infrastructure-console:edge
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/infrastructure-console
+
+pack_staging_admin_client:
+  image: docker
+  stage: pack
+  environment: staging
+  only:
+    refs:
+      - staging
+    changes:
+      - frontends/admin-client/**/*
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # Admin Client
+    - docker build -t admin-client frontends/admin-client
+    - docker tag admin-client $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/admin-client:edge
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/admin-client
+
+pack_production_authorization_server:
+  image: docker
+  stage: pack
+  environment: production
+  only:
+    refs:
+      - master
+    changes:
+      - apps/authorization-server/**/*
+  before_script:
+    - apk add git
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # get latest tag for app in master branch
+    # Authorization Server
+    - export VERSION=$(git tag --list "authorization-server@*" --sort=-version:refname | sed -n 1p | sed -e 's#.*@\(\)#\1#')
+    - docker build -t authorization-server apps/authorization-server
+    - docker tag authorization-server $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/authorization-server:$VERSION
+    - docker tag authorization-server $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/authorization-server:latest
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/authorization-server
+
+pack_production_authorization_client:
+  image: docker
+  stage: pack
+  environment: production
+  only:
+    refs:
+      - master
+    changes:
+      - frontends/authorization-client/**/*
+  before_script:
+    - apk add git
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # get latest tag for app in master branch
+    # Authorization Client
+    - export VERSION=$(git tag --list "authorization-client@*" --sort=-version:refname | sed -n 1p | sed -e 's#.*@\(\)#\1#')
+    - docker build -t authorization-client frontends/authorization-client
+    - docker tag authorization-client $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/authorization-client:$VERSION
+    - docker tag authorization-client $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/authorization-client:latest
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/authorization-client
+
+pack_production_communication_server:
+  image: docker
+  stage: pack
+  environment: production
+  only:
+    refs:
+      - master
+    changes:
+      - apps/communication-server/**/*
+  before_script:
+    - apk add git
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # get latest tag for app in master branch
+    # Communication Server
+    - export VERSION=$(git tag --list "communication-server@*" --sort=-version:refname | sed -n 1p | sed -e 's#.*@\(\)#\1#')
+    - docker build -t communication-server apps/communication-server
+    - docker tag communication-server $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/communication-server:$VERSION
+    - docker tag communication-server $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/communication-server:latest
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/communication-server
+
+pack_production_identity_provider:
+  image: docker
+  stage: pack
+  environment: production
+  only:
+    refs:
+      - master
+    changes:
+      - apps/identity-provider/**/*
+  before_script:
+    - apk add git
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # get latest tag for app in master branch
+    # Idenitiy Provider
+    - export VERSION=$(git tag --list "identity-provider@*" --sort=-version:refname | sed -n 1p | sed -e 's#.*@\(\)#\1#')
+    - docker build -t identity-provider apps/identity-provider
+    - docker tag identity-provider $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/identity-provider:$VERSION
+    - docker tag identity-provider $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/identity-provider:latest
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/identity-provider
+
+pack_production_identity_client:
+  image: docker
+  stage: pack
+  environment: production
+  only:
+    refs:
+      - master
+    changes:
+      - frontends/identity-client/**/*
+  before_script:
+    - apk add git
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # get latest tag for app in master branch
+    # Identity Client
+    - export VERSION=$(git tag --list "identity-client@*" --sort=-version:refname | sed -n 1p | sed -e 's#.*@\(\)#\1#')
+    - docker build -t identity-client frontends/identity-client
+    - docker tag identity-client $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/identity-client:$VERSION
+    - docker tag identity-client $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/identity-client:latest
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/identity-client
+
+pack_production_infrastructure_console:
+  image: docker
+  stage: pack
+  environment: production
+  only:
+    refs:
+      - master
+    changes:
+      - apps/infrastructure-console/**/*
+  before_script:
+    - apk add git
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # get latest tag for app in master branch
+    # Infrastructure Console
+    - export VERSION=$(git tag --list "infrastructure-console@*" --sort=-version:refname | sed -n 1p | sed -e 's#.*@\(\)#\1#')
+    - docker build -t infrastructure-console apps/infrastructure-console
+    - docker tag infrastructure-console $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/infrastructure-console:$VERSION
+    - docker tag infrastructure-console $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/infrastructure-console:latest
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/infrastructure-console
+
+pack_production_admin_client:
+  image: docker
+  stage: pack
+  environment: production
+  only:
+    refs:
+      - master
+    changes:
+      - frontends/admin-client/**/*
+  before_script:
+    - apk add git
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # get latest tag for app in master branch
+    # Admin Client
+    - export VERSION=$(git tag --list "admin-client@*" --sort=-version:refname | sed -n 1p | sed -e 's#.*@\(\)#\1#')
+    - docker build -t admin-client frontends/admin-client
+    - docker tag admin-client $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/admin-client:$VERSION
+    - docker tag admin-client $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/admin-client:latest
+    - docker push $CI_REGISTRY/$CI_PROJECT_NAMESPACE/building-blocks/admin-client
+
+pages:
+  image: node:latest
+  stage: docs
+  only:
+    - staging
+  before_script:
+    - npm install -g lerna
+    - npm install
+    - lerna clean -y
+    - lerna bootstrap
+  script:
+    - npm install gitbook-cli -g
+    - npm install typedoc -g
+    # - gitbook fetch latest # fetch latest stable version
+    # - gitbook install # add any requested plugins in book.json
+    - gitbook build docs public # build to public path
+    - npm run docs
+  artifacts:
+    paths:
+      - public
+    expire_in: 4 weeks
+

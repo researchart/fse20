@@ -1,0 +1,70 @@
+stages:
+- dependency_scanning
+- maven-build
+- sonar
+- maven-deploy
+- publish-doc
+
+cache:
+    paths:
+      - .m2/
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2"
+
+maven-build:
+  image: maven:3-jdk-8
+  stage: maven-build
+  script: "mvn clean verify javadoc:javadoc -B"
+  artifacts:
+    paths:
+      - target/
+ 
+dependency_scanning:
+  image: docker:stable
+  stage: dependency_scanning
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env DEP_SCAN_DISABLE_REMOTE_CHECKS="${DEP_SCAN_DISABLE_REMOTE_CHECKS:-false}"
+        --volume "$PWD:/code"
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/dependency-scanning:$SP_VERSION" /code
+  artifacts:
+    paths: [gl-dependency-scanning-report.json]
+    
+pages:
+  image: maven:3-jdk-8
+  stage: publish-doc
+  script:
+    - mkdir public
+    - cp -r target/site/apidocs/* public/
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+
+ossrh-staging:
+ stage: maven-deploy
+ image: maven:3-jdk-8
+ except:
+  - features/ossrh
+ variables:
+  GPG_TTY: "`tty`"
+ script:
+  - echo "$GPG_PRIVATE_KEY" | gpg --batch --import --passphrase "$GPG_PASSPHRASE" -
+  - mvn deploy -s settings.xml
+ only:
+  - master
+
+sonar:
+  image: maven:3-jdk-8
+  stage: sonar
+  script: "mvn sonar:sonar -s settings.xml"
+

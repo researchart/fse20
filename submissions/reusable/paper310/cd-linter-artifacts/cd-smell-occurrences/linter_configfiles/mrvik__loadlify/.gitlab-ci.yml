@@ -1,0 +1,35 @@
+image: node:latest
+cache:
+    paths:
+    - node_modules
+stages:
+    - install
+    - test
+    - deploy
+Install Modules:
+    stage: install
+    script: npm i
+Run npm test:
+    stage: test
+    script:
+    - npm i
+    - export PATH=node_modules/.bin:$PATH
+    - npm test
+Run ESLint:
+    stage: test
+    script:
+    - npm i
+    - npx eslint loadlify.js
+Deploy to NPM:
+    stage: deploy
+    only:
+    - tags
+    script:
+    - npm i
+    - export PATH=node_modules/.bin:$PATH
+    - npm run build
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+    - npm publish
+    environment:
+        name: NPM
+

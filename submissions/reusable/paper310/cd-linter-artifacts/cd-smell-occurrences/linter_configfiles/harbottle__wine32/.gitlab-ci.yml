@@ -1,0 +1,291 @@
+stages:
+  - download
+  - build:rpm:stage1
+  - build:rpm:stage2
+  - build:rpm:stage3
+  - build:rpm:stage4
+  - build:rpm:stage5
+  - build:rpm:stage6
+  - build:rpm:stage7
+  - build:web
+  - deploy
+
+variables:
+  LC_ALL: en_US.UTF-8
+  REPO_URL_BASE: https://harbottle.gitlab.io/wine32
+  GPG_NAME: Richard Grainger
+  GPG_FILE_NAME: harbottle-wine32
+  GPG_KEY_ID: 540ecf1b
+  base: install bash bzip2 coreutils cpio diffutils system-release findutils gawk gcc gcc-c++ grep gzip info make patch redhat-rpm-config rpm-build sed shadow-utils tar unzip util-linux which xz
+  download1: python2-scons
+  download1_77: epel-rpm-macros perl-generators python3-other-rpm-macros spirv-headers-devel
+  download3: python34-setuptools python36-setuptools
+  download4: python36-sphinx python3-sphinx-common python36-docutils python36-jinja2 python36-pygments
+  stage1_72: dbus-c++-devel libxml++-devel
+  stage1_77_python34: python34-devel
+  stage2_72: libffado-devel
+  stage2_77: gtest-devel jsoncpp-devel libuv-devel re2c rhash-devel
+  stage2_77_python36: python36-devel
+  stage3_77: python36-markupsafe
+  stage4_77: ninja-build jack-audio-connection-kit-devel
+  stage4_77_cmake3: cmake3
+  stage5_77: portaudio-devel
+  stage5_77_spirv: spirv-tools-devel
+  stage6_77: libvkd3d-devel nss-mdns openal-soft-devel SDL2-devel
+  stage7_77: wine
+
+download:
+  stage: download
+  image: centos:7
+  script:
+    - yum install -y epel-release
+#   - sed -i "s/mirrorlist=https/mirrorlist=http/" /etc/yum.repos.d/epel.repo
+    - yumdownloader -q $download1 --destdir=download1
+    - yumdownloader -q --source $download1 --destdir=src_download1
+    - yumdownloader -q $download1_77 --destdir=download1_77
+    - yumdownloader -q --source $download1_77 --destdir=src_download1_77
+    - yumdownloader -q $download3 --destdir=download3
+    - yumdownloader -q --source $download3 --destdir=src_download3
+    - yumdownloader -q $download4 --destdir=download4
+    - yumdownloader -q --source $download4 --destdir=src_download4
+    - yumdownloader -q --source $stage1_72 --destdir=stage1_72
+    - yumdownloader -q --source $stage1_77_python34 --destdir=stage1_77_python34
+    - yumdownloader -q --source $stage2_72 --destdir=stage2_72
+    - yumdownloader -q --source $stage2_77 --destdir=stage2_77
+    - yumdownloader -q --source $stage2_77_python36 --destdir=stage2_77_python36
+    - yumdownloader -q --source $stage3_77 --destdir=stage3_77
+    - yumdownloader -q --source $stage4_77 --destdir=stage4_77
+    - yumdownloader -q --source $stage4_77_cmake3 --destdir=stage4_77_cmake3
+    - yumdownloader -q --source $stage5_77 --destdir=stage5_77
+    - yumdownloader -q --source $stage5_77_spirv --destdir=stage5_77_spirv
+    - yumdownloader -q --source $stage6_77 --destdir=stage6_77
+    - yumdownloader -q --source $stage7_77 --destdir=stage7_77
+  artifacts:
+    paths:
+    - stage*
+    - download*
+    - src_download*
+
+build:rpm:stage1:centos7.2:general:
+  stage: build:rpm:stage1
+  image: harbottle/centos7i386:7.2rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - . ./rebuild_rpm.sh stage1_72
+  artifacts:
+    paths:
+      - stage*
+
+build:rpm:stage1:centos7.7:python34:
+  stage: build:rpm:stage1
+  image: harbottle/centos7i386:7.7rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - yum -y install ./download1_77/*.rpm
+    - . ./patch_srpm.sh stage1_77_python34/python34*.src.rpm python34.spec 'run_selftest_suite 1' 'run_selftest_suite 0'
+    - . ./rebuild_rpm.sh stage1_77_python34
+  artifacts:
+    paths:
+      - stage*
+
+build:rpm:stage2:centos7.2:general:
+  stage: build:rpm:stage2
+  image: harbottle/centos7i386:7.2rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - yum -y install ./stage1_72*/rpmbuild/RPMS/*/*.rpm
+    - . ./rebuild_rpm.sh stage2_72
+  artifacts:
+    paths:
+      - stage*
+
+build:rpm:stage2:centos7.7:general:
+  stage: build:rpm:stage2
+  image: harbottle/centos7i386:7.7rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - yum -y install ./download1_77/*.rpm
+    - yum -y install ./stage1*/rpmbuild/RPMS/*/*.rpm
+    - . ./rebuild_rpm.sh stage2_77
+  artifacts:
+    paths:
+      - stage*
+
+build:rpm:stage2:centos7.7:python36:
+  stage: build:rpm:stage2
+  image: harbottle/centos7i386:7.7rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - yum -y install ./download1_77/*.rpm
+    - yum -y install ./stage1*/rpmbuild/RPMS/*/*.rpm
+    - . ./rebuild_rpm.sh stage2_77_python36 --without tests --without optimizations
+  artifacts:
+    paths:
+      - stage*
+
+build:rpm:stage3:centos7.7:general:
+  stage: build:rpm:stage3
+  image: harbottle/centos7i386:7.7rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - yum -y install ./download1_77/*.rpm
+    - yum -y install ./stage1*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./stage2*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download3/*.rpm
+    - . ./rebuild_rpm.sh stage3_77
+  artifacts:
+    paths:
+      - stage*
+
+build:rpm:stage4:centos7.7:general:
+  stage: build:rpm:stage4
+  image: harbottle/centos7i386:7.7rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - yum -y install ./download1_77/*.rpm
+    - yum -y install ./stage1*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./stage2*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download3/*.rpm
+    - yum -y install ./stage3*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download4/*.rpm
+    - . ./rebuild_rpm.sh stage4_77
+  artifacts:
+    paths:
+      - stage*
+
+build:rpm:stage4:centos7.7:cmake3:
+  stage: build:rpm:stage4
+  image: harbottle/centos7i386:7.7rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - yum -y install ./download1_77/*.rpm
+    - yum -y install ./stage1*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./stage2*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download3/*.rpm
+    - yum -y install ./stage3*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download4/*.rpm
+    - . ./rebuild_rpm.sh stage4_77_cmake3 --without test
+  artifacts:
+    paths:
+      - stage*
+
+build:rpm:stage5:centos7.7:general:
+  stage: build:rpm:stage5
+  image: harbottle/centos7i386:7.7rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - yum -y install ./download1_77/*.rpm
+    - yum -y install ./stage1*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./stage2*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download3/*.rpm
+    - yum -y install ./stage3*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download4/*.rpm
+    - yum -y install ./stage4*/rpmbuild/RPMS/*/*.rpm
+    - . ./rebuild_rpm.sh stage5_77
+  artifacts:
+    paths:
+      - stage*
+
+build:rpm:stage5:centos7.7:spirv:
+  stage: build:rpm:stage5
+  image: harbottle/centos7i386:7.7rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - yum -y install ./download1_77/*.rpm
+    - yum -y install ./stage1*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./stage2*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download3/*.rpm
+    - yum -y install ./stage3*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download4/*.rpm
+    - yum -y install ./stage4*/rpmbuild/RPMS/*/*.rpm
+    - . ./patch_srpm.sh stage5_77_spirv/spirv-tools*.src.rpm spirv-tools.spec 'cmake3 -DCMAKE_BUILD_TYPE=Release' 'cmake3 -DSPIRV_WERROR=OFF -DCMAKE_BUILD_TYPE=Release'
+    - . ./rebuild_rpm.sh stage5_77_spirv
+  artifacts:
+    paths:
+      - stage*
+
+build:rpm:stage6:centos7.7:general:
+  stage: build:rpm:stage6
+  image: harbottle/centos7i386:7.7rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - yum -y install ./download1_77/*.rpm
+    - yum -y install ./stage1*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./stage2*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download3/*.rpm
+    - yum -y install ./stage3*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download4/*.rpm
+    - yum -y install ./stage4*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./stage5*/rpmbuild/RPMS/*/*.rpm
+    - . ./rebuild_rpm.sh stage6_77
+  artifacts:
+    paths:
+      - stage*
+
+build:rpm:stage7:centos7.7:general:
+  stage: build:rpm:stage7
+  image: harbottle/centos7i386:7.7rpmbuild
+  script:
+    - yum -y install ${base}
+    - yum -y install ./download1/*.rpm
+    - yum -y install ./download1_77/*.rpm
+    - yum -y install ./stage1*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./stage2*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download3/*.rpm
+    - yum -y install ./stage3*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./download4/*.rpm
+    - yum -y install ./stage4*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./stage5*/rpmbuild/RPMS/*/*.rpm
+    - yum -y install ./stage6*/rpmbuild/RPMS/*/*.rpm
+    - . ./patch_srpm.sh stage7_77/wine*.src.rpm wine.spec '%if 0%{?fedora} || 0%{?rhel} <= 6' '%if 0%{?fedora} || 0%{?rhel} <= 7'
+    - . ./patch_srpm.sh stage7_77/wine*.src.rpm wine.spec '%if 0%{?fedora} >= 10 || 0%{?rhel} == 6' '%if 0%{?fedora} >= 10 || 0%{?rhel} >= 6'
+    - . ./rebuild_rpm.sh stage7_77
+  artifacts:
+    paths:
+      - stage*
+
+build:web:
+  stage: build:web
+  image: centos:7
+  script:
+    - yum -y install https://harbottle.gitlab.io/harbottle-main/7/x86_64/harbottle-main-release.rpm
+    - yum -y install epel-release ergel-release
+    - yum -y install rubygem-filesize nodejs-bower rpm-build expect createrepo rpmdevtools rpm-sign
+    - . ./build_release_rpm.sh
+    - mkdir -p public/7/{i386,SRPMS}
+    - mv -f stage*/rpmbuild/RPMS/*/*.rpm public/7/i386 || true
+    - mv -f download*/*.rpm public/7/i386 || true
+    - mv -f *release*.rpm public/7/i386 || true
+    - mv -f stage*/*.src.rpm public/7/SRPMS || true
+    - mv -f stage*/rpmbuild/SRPMS/*.src.rpm public/7/SRPMS || true
+    - mv -f src_download*/*.src.rpm public/7/SRPMS || true
+    - mv -f release/SRPMS/*.src.rpm public/7/SRPMS || true
+    - . ./sign_rpm.sh public/7/{i386,SRPMS}/*.rpm
+    - createrepo public/7/i386
+    - createrepo public/7/SRPMS
+    - . ./build_web.sh
+  artifacts:
+    paths:
+      - public
+
+pages:
+  stage: deploy
+  image: ruby:2.3
+  script:
+  - pwd
+  artifacts:
+    paths:
+    - public
+  when: manual
+

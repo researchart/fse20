@@ -1,0 +1,17 @@
+bionic_build:
+  stage: "build"
+  script:
+     - wget https://github.com/simoniz0r/deb2appimage/releases/download/v0.0.3/deb2appimage-0.0.3-x86_64.AppImage 
+     - chmod a+x deb2appimage-0.0.3-x86_64.AppImage
+     - ./deb2appimage-0.0.3-x86_64.AppImage -j $CI_PROJECT_DIR/shadow-beta-bionic.json -o $CI_PROJECT_DIR --debug 
+  tags:
+     - appimage
+     - shadow
+     - bionic
+     - ubuntu
+  artifacts:
+    name: "shadowbeta-linux-x86_64.AppImage-$CI_COMMIT_REF_NAME"
+    paths:
+      - $CI_PROJECT_DIR/shadowbeta-linux-x86_64.AppImage
+    expire_in: 2 days
+

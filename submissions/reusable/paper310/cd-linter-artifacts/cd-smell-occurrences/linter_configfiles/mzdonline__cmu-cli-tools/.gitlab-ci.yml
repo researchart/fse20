@@ -1,0 +1,17 @@
+before_script:
+  - git submodule sync --recursive
+  - git submodule update --init --recursive
+
+build_nodejs:
+  script:
+    - cd nodejs
+    - sed -i 's/HOME/CI_PROJECT_DIR/g' build-nodejs.sh
+    - sh build-nodejs.sh
+    
+build_wget:
+  script:
+    - cd wget
+    - sed -i 's/HOME/CI_PROJECT_DIR/g' build-wget.sh
+    - sh build-wget.sh
+    
+

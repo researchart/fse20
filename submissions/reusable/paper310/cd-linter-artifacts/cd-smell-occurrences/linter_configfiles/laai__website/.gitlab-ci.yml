@@ -1,0 +1,32 @@
+image: ruby:2.3
+
+variables:
+  JEKYLL_ENV: production
+  GIT_SUBMODULE_STRATEGY: normal
+
+stages:
+  - merge
+  - deploy
+
+merge:
+  stage: merge
+  before_script:
+  - gem install jekyll -v 3.8.6
+  script:
+  - jekyll build
+  except:
+  - master
+
+deploy:
+  stage: deploy
+  before_script:
+  - apt-get update
+  - apt-get install lftp
+  - gem install jekyll -v 3.8.6
+  script:
+  - jekyll build
+  after_script:
+  - lftp -e "set ssl:verify-certificate false; mirror -R $LOCALDIR $REMOTEDIR; quit" -u $USER,$PASS $SERVER
+  only:
+  - master
+

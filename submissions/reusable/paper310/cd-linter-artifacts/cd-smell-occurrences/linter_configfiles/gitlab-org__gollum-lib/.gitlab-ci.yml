@@ -1,0 +1,23 @@
+image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.24
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq idn libidn11 libidn11-dev
+  - ruby -v
+  - which ruby
+  - gem install bundler --no-document
+
+.test:
+  before_script:
+    - bundle install --jobs $(nproc)
+  script:
+    - bundle exec rake test
+
+test-rugged:
+  extends: .test
+
+test-grit:
+  extends: .test
+  allow_failure: true
+  variables:
+    GOLLUM_ADAPTER: grit
+

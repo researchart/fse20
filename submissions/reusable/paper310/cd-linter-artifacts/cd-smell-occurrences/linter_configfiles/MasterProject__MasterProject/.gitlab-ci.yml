@@ -1,0 +1,29 @@
+image: docker:latest
+services:
+  - docker:dind
+
+stages:
+  - build
+  - package
+  - deploy
+
+build:
+  image: maven
+  stage: build
+  script: "mvn package -B"
+  artifacts:
+    paths:
+      - target/*.jar
+  environment:
+    name: linux-pi1
+
+package-pi:
+  stage: package
+  script:
+  - echo "Deploying the App"
+  - docker build -t registry.gitlab.com/lorez/masterproject -f Dockerfile .
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  - docker push registry.gitlab.com/lorez/masterproject
+  environment:
+    name: linux-pi1
+

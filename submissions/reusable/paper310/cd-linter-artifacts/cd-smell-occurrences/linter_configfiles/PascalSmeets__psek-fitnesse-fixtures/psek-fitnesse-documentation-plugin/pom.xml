@@ -1,0 +1,114 @@
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <artifactId>psek-fitnesse-fixtures</artifactId>
+        <groupId>nl.psek.fitnesse</groupId>
+        <version>1.2.2-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>psek-fitnesse-documentation-plugin</artifactId>
+    <groupId>nl.psek.fitnesse</groupId>
+    <packaging>maven-plugin</packaging>
+    <version>1.2.2-SNAPSHOT</version>
+    <name>psek-fitnesse-documentation-plugin</name>
+
+    <developers>
+        <developer>
+            <name>Ronald Mathies</name>
+        </developer>
+        <developer>
+            <name>Pascal Smeets</name>
+            <organization>psek.nl</organization>
+        </developer>
+    </developers>
+
+    <properties>
+        <maven-core.version>3.0.5</maven-core.version>
+        <maven-artifact.version>3.2.1</maven-artifact.version>
+        <maven-compat.version>3.0.5</maven-compat.version>
+
+        <freemarker.version>2.3.22</freemarker.version>
+
+        <maven-plugin-plugin.version>3.2</maven-plugin-plugin.version>
+        <maven-plugin-annotations.version>3.1</maven-plugin-annotations.version>
+        <maven-invoker-plugin.version>1.10</maven-invoker-plugin.version>
+        <maven-plugin-testing-harness.version>2.1</maven-plugin-testing-harness.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>nl.psek.fitnesse</groupId>
+            <artifactId>psek-fitnesse-documentation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>${freemarker.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-core</artifactId>
+            <version>${maven-core.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.maven.plugin-tools</groupId>
+            <artifactId>maven-plugin-annotations</artifactId>
+            <version>${maven-plugin-annotations.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.maven.plugin-testing</groupId>
+            <artifactId>maven-plugin-testing-harness</artifactId>
+            <version>${maven-plugin-testing-harness.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-artifact</artifactId>
+            <version>${maven-artifact.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-compat</artifactId>
+            <version>${maven-compat.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-plugin-plugin</artifactId>
+                <version>${maven-plugin-plugin.version}</version>
+                <configuration>
+                    <skipErrorNoDescriptorsFound>true</skipErrorNoDescriptorsFound>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>mojo-descriptor</id>
+                        <goals>
+                            <goal>descriptor</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>help-goal</id>
+                        <goals>
+                            <goal>helpmojo</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+

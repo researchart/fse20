@@ -1,0 +1,24 @@
+stages:
+- execute
+
+image: microsoft/dotnet:2.2-sdk-bionic
+
+before_script:
+- apt-get update -y
+- apt-get install python3 -y
+- apt-get install python -y
+- apt-get install python-pip -y
+- apt-get install python3-pip -y
+- apt-get install unzip -y
+- apt-get install time -y
+- pip install odfpy
+- pip3 install odfpy
+
+execute:
+  stage: execute
+  script:
+  - ./run
+  artifacts:
+    paths:
+    - result.ods
+

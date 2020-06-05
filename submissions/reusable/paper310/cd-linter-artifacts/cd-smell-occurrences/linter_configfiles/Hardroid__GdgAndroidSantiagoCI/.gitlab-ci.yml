@@ -1,0 +1,44 @@
+image: unitedclassifiedsapps/gitlab-ci-android-fastlane
+
+cache:
+  paths:
+    - .m2/
+    - .gradle/
+
+variables:
+  ANDROID_COMPILE_SDK: "26"
+  ANDROID_BUILD_TOOLS: "25.0.2"
+  ANDROID_SDK_TOOLS: "27.0.1"
+
+
+before_script:
+  - export GRADLE_USER_HOME=$(pwd)/.gradle
+  - chmod +x ./gradlew
+
+stages:
+  - build
+  - test
+  - deploy
+  - prod
+
+build:
+  stage: build
+  script:
+    - ./gradlew assembleDebug
+  artifacts:
+    paths:
+    - app/build/outputs/
+unitTests:
+  stage: test
+  script:
+    - ./gradlew test
+fabricBeta:
+  stage: deploy
+  script:
+  - fastlane beta
+playstoreBeta:
+  stage: prod
+  script:
+  - fastlane playstore_beta
+  when: manual
+

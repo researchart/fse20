@@ -1,0 +1,21 @@
+image: tianon/latex
+before_script:
+    - apt-get -y update
+    - apt-get -y install python-pygments fonts-roboto
+
+compile_article_xetex:
+    script:
+        - latexmk -pdf -xelatex tests/test.tex
+
+compile_article_pdflatex:
+    script:
+        - latexmk -pdf tests/test.tex
+
+compile_beamer_xetex:
+    script:
+        - latexmk -shell-escape -pdf -xelatex tests/test_beamer.tex
+
+compile_beamer_pdflatex:
+    script:
+        - latexmk -shell-escape -pdf tests/test_beamer.tex
+

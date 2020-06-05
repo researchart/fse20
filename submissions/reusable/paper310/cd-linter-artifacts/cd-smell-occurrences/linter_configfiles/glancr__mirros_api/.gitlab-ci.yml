@@ -1,0 +1,62 @@
+# Official language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/ruby/tags/
+image: "ruby:2.6.3"
+
+services:
+  - mysql:5.7
+
+variables:
+  # Configure mysql environment variables (https://hub.docker.com/_/mysql/)
+  MYSQL_DATABASE: "mirrOS_api_test"
+  MYSQL_ROOT_PASSWORD: "glancr"
+
+# Cache gems in between builds
+cache:
+  paths:
+    - vendor/cache
+
+stages:
+  - test
+  - bundle
+
+before_script:
+  - ruby -v                         # Print out ruby version for debugging
+  - gem update bundler              # Update bundler to 2.x
+  - bundle package --all-platforms
+
+# Optional - Delete if not using `rubocop`
+# rubocop:
+#   script:
+#     - rubocop
+
+# Disabled until we're actually using rspec
+# rspec:
+#   stage: test
+#   script:
+#    - rspec spec
+
+rails:
+  stage: test
+  script:
+    # Install dependencies into ./vendor/bundle
+    - bundle install -j $(nproc) --path vendor/bundle
+    - export RAILS_ENV=test
+    - export RAILS_DATABASE_HOST=mysql
+    - bin/rails db:setup
+    # - rails test # disabled until we're actually using tests
+  dependencies: []  # do not pass vendor/bundle to next job – it's x86-specific
+
+zipfile:
+  stage: bundle
+  script:
+    - shopt -s extglob      # enable globbing to simplify mv command
+    - git describe --always > build_version
+    - mkdir api             # put everything required in subdirectory
+    - mv !(api|docs|test) api/
+    # only dotfile required by Rails. Do not set dotglob, or mv will attempt to move parent directories
+    - mv .ruby-version api/
+
+  artifacts:
+    paths:
+      - api
+

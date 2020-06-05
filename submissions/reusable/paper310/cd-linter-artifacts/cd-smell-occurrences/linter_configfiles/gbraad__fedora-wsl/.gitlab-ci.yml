@@ -1,0 +1,12 @@
+pages:
+  image: fedora:25
+  script:
+    - mkdir public
+    - ./fedora-wsl-builder.sh
+    - mv ${HOME}/fedora-*-wsl.tar.gz ./public
+  artifacts:
+    paths:
+      - public
+  when: manual
+
+

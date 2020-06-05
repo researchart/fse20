@@ -1,0 +1,18 @@
+image: registry.gitlab.com/ognarb/docugen:latest
+
+buildhtml:
+  stage: build   
+  script: make
+  artifacts:
+    paths:
+      - public/
+
+pages:
+  image: alpine:latest
+  stage: deploy
+  script:
+  - echo 'Nothing to do...'
+  artifacts:
+    paths:
+    - public
+

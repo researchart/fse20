@@ -1,0 +1,57 @@
+image: jasperem/fedora:latest
+
+variables:
+  MAVEN_OPTS: "-Djava.awt.headless=true -Dmaven.repo.local=./.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -Dmaven.wagon.http.ssl.allowall=true -Dmaven.wagon.http.ssl.insecure=true -Djava.awt.headless=true -Dmaven.repo.local=./.m2/repository"
+
+cache:
+  paths:
+    - ./.m2/repository
+  # keep cache across branch
+  key: mavenCache
+
+stages:
+  - build
+  - test
+  - deploy
+
+build-job:
+  stage: build
+  script:
+    - "mvn clean compile $MAVEN_CLI_OPTS"
+  artifacts:
+    paths:
+      - target/
+    expire_in: 4 hours
+
+unittest-job:
+  stage: test
+  dependencies:
+    - build-job
+  script:
+    - "mvn package $MAVEN_CLI_OPTS"
+    - "cat target/site/jacoco/index.html"
+  artifacts:
+    paths:
+      - target/
+    expire_in: 4 hours
+
+deploy-job:
+  stage: deploy
+  script:
+      - "cp target/SWP2_API-*.jar ./"
+  artifacts:
+    paths:
+      - "./SWP2_API-*.jar"
+pages:
+  script:
+  - mkdir .public
+  - "mvn javadoc:javadoc $MAVEN_CLI_OPTS"
+  - cp -r  target/site/apidocs/* .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

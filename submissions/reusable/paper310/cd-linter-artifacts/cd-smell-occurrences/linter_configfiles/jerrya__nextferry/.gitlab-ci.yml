@@ -1,0 +1,137 @@
+# see https://docs.gitlab.com/ee/ci/quick_start/
+# see https://docs.gitlab.com/ee/ci/yaml/README.html
+# see https://docs.gitlab.com/runner/
+# see https://docs.gitlab.com/ee/ci/runners/README.html
+
+image: python:2.7-alpine
+
+# before_script:
+#  - echo "before script!"
+#  - ls -lR
+
+# after_script:
+#  - echo "after script!"
+#  - ls -lR
+
+stages:
+ - scrape_build_deploy
+
+pages:
+  stage: scrape_build_deploy
+  retry: 1
+  script: 
+  - echo "stage scrape_build_deploy, job pages"
+  - ls -la
+  - mkdir -p public/posts
+  - ls -laR public/posts
+  - mkdir -p content/ferries
+  - ls -laR content/ferries
+  - echo `date`
+  - echo `date` > when.txt
+  - echo `date` > `date`.txt
+  - rm -rf public
+  - mkdir -p public
+  - pip install -r requirements.txt
+  - python scrape_wsdot_and_build.py
+  - ls -lR public/posts
+  - ls -lR public/ferries
+  - ls -lR content/ferries
+  cache:
+    paths:
+    - content/ferries/
+  #     - public/
+  artifacts:
+    paths:
+    - public/
+  only:
+  - master
+
+# stages:
+#  - initialize
+#  - scrape_wsdot
+#  - build
+#  - test
+#  - deploy
+
+# init:
+#   stage: initialize
+#   variables:
+#     GIT_STRATEGY: none
+#   script:
+#   - echo "stage initialize, job init"
+#   - ls -l
+#   cache:
+#     paths:
+#       - content/ferries/
+#   only:
+#   - master
+  
+# scrape:
+#   stage: scrape_wsdot
+#   retry: 2
+#   script:
+#    - echo "stage scrape, job scrape"
+#    - ls -l
+#    - pip install -r requirements.txt
+#    - python scrape_wsdot.py 
+#   cache:
+#     paths:
+#       - content/ferries/
+#   # artifacts:
+#   #   paths:
+#   #   - content/ferries/
+#   #   expire_in: 1 week
+
+# doit:
+#   stage: build
+#   script:
+#   - echo "stage build, job doit"
+#   - ls -l
+#   - echo `date` > when.txt
+#   - echo `date` > `date`.txt
+#   - pip install -r requirements.txt
+#   - pelican -s publishconf.py
+#   - ls -l
+#   cache:
+#     paths:
+#       - when.txt
+#       - content/ferries/
+#       - public/
+#   # artifacts:
+#   #   paths:
+#   #   - public/
+#   #   - when.txt
+#   #   expire_in: 1 week
+#   only:
+#   - master
+
+# testit:
+#   stage: test
+#   script:
+#   - echo "stage test, job testit"
+#   - ls -l
+#   cache:
+#     policy: pull
+#     paths:
+#       - when.txt
+#   only:
+#   - master
+
+# pages:
+#   stage: deploy
+#   script:
+#   - ls -l
+#   - ls -l content
+#   - ls -l content/ferries
+#   cache:
+#     policy: pull
+#     paths:
+#       - when.txt
+#       - public/
+#   artifacts:
+#     paths:
+#     - public/
+#   only:
+#   - master
+
+

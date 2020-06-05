@@ -1,0 +1,20 @@
+image: rust:1.29
+
+stages:
+  - build
+  - test
+
+build_stage:
+  stage: build
+  script:
+    - cargo build
+  only:
+    - master
+
+test_stage:
+  stage: test
+  script:
+    - cargo test
+  only:
+    - master
+

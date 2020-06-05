@@ -1,0 +1,90 @@
+image: python
+
+stages:
+- test
+- build
+- release
+
+before_script:
+- pip install pip --upgrade
+- pip install -r dev-requirements.txt
+
+after_script:
+- pip install codecov
+- codecov --token=7d117e6b-aab6-4283-ab19-166dafc38cf5
+
+pypy2:
+  image: pypy:2.7-7.2.0
+  stage: test
+  script: tox -e pypy
+
+pypy3:
+  image: pypy:3.6-7.2.0
+  stage: test
+  script: tox -e pypy3
+
+python2:
+  image: python:2.7
+  stage: test
+  script: tox -e py27
+
+python34:
+  image: python:3.4
+  stage: test
+  script: tox -e py34
+
+python35:
+  image: python:3.5
+  stage: test
+  script: tox -e py35
+
+python36:
+  image: python:3.6
+  stage: test
+  script: tox -e py36
+
+python37:
+  image: python:3.7
+  stage: test
+  script: tox -e py37
+
+python38:
+  image: python:3.8
+  stage: test
+  script: tox -e py38
+
+linters:
+  image: python:3.7
+  stage: test
+  script: tox -e linters
+
+pre-commit:
+  image: python:3.7
+  stage: test
+  script: tox -e pre-commit
+
+docs:
+  stage: test
+  script: tox -e docs
+
+dogfood:
+  stage: test
+  script: tox -e dogfood
+
+build:
+  stage: build
+  script: tox -e build
+  artifacts:
+    paths:
+    - dist/
+    expire_in: 1 month
+
+release:
+  stage: release
+  script: tox -e build
+  artifacts:
+    paths:
+    - dist
+  only:
+  - tags
+

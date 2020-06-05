@@ -1,0 +1,383 @@
+image: registry.gitlab.com/multicloud-openstack-k8s/docker-kubespray-ansible
+
+variables:
+  TF_CLI_ARGS_apply: '-auto-approve'
+  TF_CLI_ARGS_destroy: '-auto-approve'
+  GIT_SUBMODULE_STRATEGY: normal
+  ANSIBLE_TIMEOUT: 300
+
+stages: [up, down, pages, deploy]
+
+pages:
+  stage: pages
+  image: python
+  script:
+    - pip install pyaml jinja2-cli
+    - python map/clouds.py > map/clouds.json
+    - cp -r map public
+    - jinja2 app.gitlab-ci.yml.j2 clouds.yaml > public/app.gitlab-ci.yml
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+# Set templates
+
+.deploy:
+  stage: up
+  before_script:
+    # Apply kubespray patch
+    - cd kubespray && git apply ../kubespray-v2.6.0.patch && cd ..
+    - chmod o-w . * # See https://docs.ansible.com/ansible/devel/reference_appendices/config.html#cfg-in-world-writable-dir
+    # Initialize SSH client
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - echo "$SSH_PUBLIC_KEY" > ~/.ssh/id_rsa.pub
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - pip install -r gitlab/requirements.txt
+    # Set OS_PASSWORD var based on the current job
+    - export OS_PASSWORD=$(eval echo \$OS_PASSWORD_$CI_ENVIRONMENT_NAME)
+    - if [ -z "$OS_PASSWORD" ]; then echo "Error, OS_PASSWORD is undefined or empty" && exit 1; fi
+  script:
+    - ./up.sh $CI_ENVIRONMENT_NAME
+  when: manual
+  only:
+    - master
+
+.stop:
+  stage: down
+  before_script:
+    - mkdir -p ~/.ssh && echo "$ID_RSA_PUB" > ~/.ssh/id_rsa.pub
+    - export OS_PASSWORD=$(eval echo \$OS_PASSWORD_$CI_ENVIRONMENT_NAME)
+    - if [ -z "$OS_PASSWORD" ]; then echo "Error, OS_PASSWORD is undefined or empty" && exit 1; fi
+  script:
+    - ./down.sh $CI_ENVIRONMENT_NAME
+  when: manual
+  only:
+    - master
+
+## DO NOT EDIT AFTER THIS LINE ##
+
+# Deploy in karlskrona
+
+deploy_karlskrona:
+  extends: .deploy
+  environment:
+    name: karlskrona
+    on_stop: stop_karlskrona
+
+stop_karlskrona:
+  extends: .stop
+  environment:
+    name: karlskrona
+    action: stop
+
+# Deploy in london2
+
+deploy_london2:
+  extends: .deploy
+  environment:
+    name: london2
+    on_stop: stop_london2
+
+stop_london2:
+  extends: .stop
+  environment:
+    name: london2
+    action: stop
+
+# Deploy in amsterdam2
+
+deploy_amsterdam2:
+  extends: .deploy
+  environment:
+    name: amsterdam2
+    on_stop: stop_amsterdam2
+
+stop_amsterdam2:
+  extends: .stop
+  environment:
+    name: amsterdam2
+    action: stop
+
+# Deploy in prague
+
+deploy_prague:
+  extends: .deploy
+  environment:
+    name: prague
+    on_stop: stop_prague
+
+stop_prague:
+  extends: .stop
+  environment:
+    name: prague
+    action: stop
+
+# Deploy in stockholm2
+
+deploy_stockholm2:
+  extends: .deploy
+  environment:
+    name: stockholm2
+    on_stop: stop_stockholm2
+
+stop_stockholm2:
+  extends: .stop
+  environment:
+    name: stockholm2
+    action: stop
+
+# Deploy in gravelines
+
+deploy_gravelines:
+  extends: .deploy
+  environment:
+    name: gravelines
+    on_stop: stop_gravelines
+
+stop_gravelines:
+  extends: .stop
+  environment:
+    name: gravelines
+    action: stop
+
+# Deploy in london
+
+deploy_london:
+  extends: .deploy
+  environment:
+    name: london
+    on_stop: stop_london
+
+stop_london:
+  extends: .stop
+  environment:
+    name: london
+    action: stop
+
+# Deploy in strasburg
+
+deploy_strasburg:
+  extends: .deploy
+  environment:
+    name: strasburg
+    on_stop: stop_strasburg
+
+stop_strasburg:
+  extends: .stop
+  environment:
+    name: strasburg
+    action: stop
+
+# Deploy in montreal2
+
+deploy_montreal2:
+  extends: .deploy
+  environment:
+    name: montreal2
+    on_stop: stop_montreal2
+
+stop_montreal2:
+  extends: .stop
+  environment:
+    name: montreal2
+    action: stop
+
+# Deploy in amsterdam
+
+deploy_amsterdam:
+  extends: .deploy
+  environment:
+    name: amsterdam
+    on_stop: stop_amsterdam
+
+stop_amsterdam:
+  extends: .stop
+  environment:
+    name: amsterdam
+    action: stop
+
+# Deploy in warsaw
+
+deploy_warsaw:
+  extends: .deploy
+  environment:
+    name: warsaw
+    on_stop: stop_warsaw
+
+stop_warsaw:
+  extends: .stop
+  environment:
+    name: warsaw
+    action: stop
+
+# Deploy in frankfurt4
+
+deploy_frankfurt4:
+  extends: .deploy
+  environment:
+    name: frankfurt4
+    on_stop: stop_frankfurt4
+
+stop_frankfurt4:
+  extends: .stop
+  environment:
+    name: frankfurt4
+    action: stop
+
+# Deploy in dubai
+
+deploy_dubai:
+  extends: .deploy
+  environment:
+    name: dubai
+    on_stop: stop_dubai
+
+stop_dubai:
+  extends: .stop
+  environment:
+    name: dubai
+    action: stop
+
+# Deploy in frankfurt3
+
+deploy_frankfurt3:
+  extends: .deploy
+  environment:
+    name: frankfurt3
+    on_stop: stop_frankfurt3
+
+stop_frankfurt3:
+  extends: .stop
+  environment:
+    name: frankfurt3
+    action: stop
+
+# Deploy in frankfurt2
+
+deploy_frankfurt2:
+  extends: .deploy
+  environment:
+    name: frankfurt2
+    on_stop: stop_frankfurt2
+
+stop_frankfurt2:
+  extends: .stop
+  environment:
+    name: frankfurt2
+    action: stop
+
+# Deploy in paris
+
+deploy_paris:
+  extends: .deploy
+  environment:
+    name: paris
+    on_stop: stop_paris
+
+stop_paris:
+  extends: .stop
+  environment:
+    name: paris
+    action: stop
+
+# Deploy in oslo
+
+deploy_oslo:
+  extends: .deploy
+  environment:
+    name: oslo
+    on_stop: stop_oslo
+
+stop_oslo:
+  extends: .stop
+  environment:
+    name: oslo
+    action: stop
+
+# Deploy in tokyo
+
+deploy_tokyo:
+  extends: .deploy
+  environment:
+    name: tokyo
+    on_stop: stop_tokyo
+
+stop_tokyo:
+  extends: .stop
+  environment:
+    name: tokyo
+    action: stop
+
+# Deploy in milano
+
+deploy_milano:
+  extends: .deploy
+  environment:
+    name: milano
+    on_stop: stop_milano
+
+stop_milano:
+  extends: .stop
+  environment:
+    name: milano
+    action: stop
+
+# Deploy in berlin
+
+deploy_berlin:
+  extends: .deploy
+  environment:
+    name: berlin
+    on_stop: stop_berlin
+
+stop_berlin:
+  extends: .stop
+  environment:
+    name: berlin
+    action: stop
+
+# Deploy in stockholm
+
+deploy_stockholm:
+  extends: .deploy
+  environment:
+    name: stockholm
+    on_stop: stop_stockholm
+
+stop_stockholm:
+  extends: .stop
+  environment:
+    name: stockholm
+    action: stop
+
+# Deploy in buffalo
+
+deploy_buffalo:
+  extends: .deploy
+  environment:
+    name: buffalo
+    on_stop: stop_buffalo
+
+stop_buffalo:
+  extends: .stop
+  environment:
+    name: buffalo
+    action: stop
+
+# Deploy in montreal
+
+deploy_montreal:
+  extends: .deploy
+  environment:
+    name: montreal
+    on_stop: stop_montreal
+
+stop_montreal:
+  extends: .stop
+  environment:
+    name: montreal
+    action: stop
+

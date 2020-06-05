@@ -1,0 +1,30 @@
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  image: skyrkt/nginx-node
+  script:
+    - yarn
+    - yarn build
+  tags:
+    - docker
+  only:
+    - master
+  artifacts:
+    paths:
+    - dist
+
+firebase-deploy:
+  stage: deploy
+  image: longkey1/firebase
+  environment: production
+  script:
+    - firebase deploy --token "$FIREBASE_TOKEN"
+  tags:
+    - docker
+  only:
+    - master
+

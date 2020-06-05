@@ -1,0 +1,15 @@
+image: node:latest
+
+before_script:
+  - npm config set user 0
+  - npm config set unsafe-perm true
+  - make install
+
+build:
+  script:
+    - make build
+
+test:
+  script:
+    - make test
+

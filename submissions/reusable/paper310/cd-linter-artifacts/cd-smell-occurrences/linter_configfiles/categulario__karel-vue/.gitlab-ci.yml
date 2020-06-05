@@ -1,0 +1,31 @@
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: node:8
+  script:
+  - npm install
+  - npm run jison
+  - npm run lint
+  - npm run build
+  only:
+  - master
+  artifacts:
+    paths:
+      - dist/
+
+deploy:
+  stage: deploy
+  image: kroniak/ssh-client
+  script:
+  - mkdir -p ~/.ssh
+  - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo "$PRIVATE_KEY")
+  - scp -r dist/. $SERVER_USER@$SERVER_HOST:$APP_PATH
+  only:
+  - master
+  environment: production
+

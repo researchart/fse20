@@ -1,0 +1,481 @@
+# Note that the rspec job below uses a different image that also
+# includes chromedriver. If we update the Ruby version for this image,
+# we should also update it for the rspec job.
+image: registry.gitlab.com/gitlab-org/gitlab-build-images:www-gitlab-com-2.6
+
+variables:
+  GIT_DEPTH: "10"
+  # Speed up middleman
+  NO_CONTRACTS: "true"
+
+.install: &install
+  bundle check || bundle install --jobs 4 --path vendor
+
+before_script:
+  - date -u
+  - *install
+  - date -u
+
+cache:
+  key: "web_ruby-2.6-stretch"
+  paths:
+    - tmp/cache
+    - vendor
+
+stages:
+  - build
+  - deploy
+
+root_files_checker:
+  image: debian:stable-slim
+  cache: {}
+  variables:
+    GIT_LFS_SKIP_SMUDGE: "1"
+  before_script: []
+  stage: build
+  tags:
+    - gitlab-org
+  only:
+    refs:
+      - merge_requests
+  script:
+    - (diff -u FILES <(find . -maxdepth 1 -mindepth 1 | sort) && /bin/echo "No files/directories are added or removed")
+      || ( /bin/echo "It looks like you've added files to the root directory. If this was intentional, please update FILES to allow this file. If this was not intentional, please remove the file from Git and try again."; exit 1 )
+
+lint 0 2:
+  stage: build
+  script:
+    - bundle exec rake lint
+  tags:
+    - gitlab-org
+  only:
+    - merge_requests
+
+lint 1 2:
+  cache: {}
+  before_script: []
+  stage: build
+  script:
+    - yarn install
+    - yarn run eslint
+    - yarn run yamllint
+  tags:
+    - gitlab-org
+  only:
+    - merge_requests
+
+lint role_levels:
+  stage: build
+  script:
+    - ruby data/linters/check_role_levels.rb
+  tags:
+    - gitlab-org
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - "data/role_levels.yml"
+      - "data/job_families.yml"
+
+lint job_families:
+  cache: {}
+  variables:
+    GIT_LFS_SKIP_SMUDGE: "1"
+  image: registry.gitlab.com/gitlab-data/data-image/data-image:latest
+  before_script: []
+  stage: build
+  script:
+    - cd source/job-families/
+    - python check_job_families.py
+  tags:
+    - gitlab-org
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - "source/job-families/**/*"
+
+lint release_post_items:
+  cache: {}
+  before_script: []
+  stage: build
+  script:
+    - bin/validate-release-post-item
+  tags:
+    - gitlab-org
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - "data/release_posts/unreleased/*"
+      - "data/categories.yml"
+      - "data/stages.yml"
+
+# pngbot_commit:
+#   image: registry.gitlab.com/jramsay/pngbot:v0.1.0
+#   before_script: []
+#   cache: {}
+#   only:
+#     - merge_requests@gitlab-com/www-gitlab-com
+#   stage: prepare
+#   script:
+#     - pngbot
+#   tags:
+#     - gitlab-org
+
+rubocop:
+  stage: build
+  script:
+    - bundle exec rubocop
+  tags:
+    - gitlab-org
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - "*.rb"
+      - "**/*.rb"
+      - ".rubocop.yml"
+
+spec 0 2:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6.5-git-2.22-chrome-74.0-node-12.x-yarn-1.21-docker-19.03.1
+  stage: build
+  script:
+    - bundle install
+    - bundle exec rspec
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - tmp/capybara
+    when: on_failure
+  tags:
+    - gitlab-org
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - "source/frontend/**/*"
+      - "spec/**/*"
+      - "**/*.{js,json,rb,yml}"
+      - ".rspec"
+
+spec 1 2:
+  cache: {}
+  before_script: []
+  stage: build
+  script:
+    - yarn install
+    - yarn run test
+  tags:
+    - gitlab-org
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - "source/frontend/**/*"
+      - "spec/**/*"
+      - "**/*.{js,json,rb,yml}"
+
+check_links:
+  before_script: []
+  image: coala/base
+  stage: build
+  script:
+    - git fetch --unshallow && git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*" && git fetch origin master
+    - git diff --numstat origin/master..$CI_COMMIT_REF_NAME -- | awk '/(.+\.md)|(.+\.haml)/ { print $3 }' > new_files
+    - coala --no-config --ci --bears InvalidLinkBear --settings follow_redirects=True --files="$(paste -s -d, new_files)"
+  when: manual
+  allow_failure: true
+  only:
+    - merge_requests
+  tags:
+    - gitlab-org
+
+generate-handbook-changelog:
+  timeout: 3h
+  stage: build
+  script:
+    - bundle exec bin/generate_handbook_changelog
+    - sleep 600 # wait for rate limit activity to expire
+    - bundle exec bin/generate_handbook_changelog_rss
+  only:
+    - schedules
+  tags:
+    - gitlab-org
+
+.build_base: &build_base
+  parallel: 9
+  script:
+    # We only want the images to be cropped in the eighth job, as this is the image job
+    - date -u
+    - if [[ ! "$CI_MERGE_REQUEST_TITLE" =~ "Blog post:" ]] && [[ "$CI_NODE_INDEX" == "8" ]]; then bin/crop-team-pictures; fi
+    - date -u
+    - find source/images/team -type f ! -name '*-crop.jpg' -delete
+    - date -u 
+    - if [[ "$CI_COMMIT_REF_NAME" != "master" ]] && [[ "$CI_MERGE_REQUEST_TITLE" =~ "Blog post:" ]]; then bundle exec rake build_blog; else bundle exec rake build; fi
+    - date -u
+    - bundle exec rake extract_sitemap_urls > public/sitemap-fragment-$CI_NODE_INDEX.xml
+    - date -u
+    - rm public/sitemap.xml
+    - date -u
+    - if [[ ! "$CI_MERGE_REQUEST_TITLE" =~ "Blog post:" ]] && [[ "$CI_NODE_INDEX" == "$CI_NODE_TOTAL" ]]; then bundle exec rake pdfs; fi
+  stage: build
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - public/
+      - bin/combine-sitemaps
+  tags:
+    - gitlab-org
+
+build_branch:
+  <<: *build_base
+  only:
+    - merge_requests
+    - tags
+  except:
+    - master
+
+# Generators should be cached every 24 hours. We need to make sure the
+# cache doesn't get blown away by build_branch jobs.
+# We skip building proxy resources for blog review apps
+.build_proxy_resource_base: &build_proxy_resource_base
+  script:
+    - |
+      if [[ ! "$CI_MERGE_REQUEST_TITLE" =~ "Blog post:" ]];  then
+        export INCLUDE_GENERATORS="true"
+        export CI_BUILD_PROXY_RESOURCE="true"
+        date -u
+        echo 'Running: "bundle exec rake -t build"'
+        bundle exec rake -t build
+        date -u
+        echo 'Running: "bundle exec rake -t extract_sitemap_urls > public/sitemap-fragment-proxy-resource.xml"'
+        bundle exec rake -t extract_sitemap_urls > public/sitemap-fragment-proxy-resource.xml
+        date -u
+        echo 'Running: "rm public/sitemap.xml"'
+        rm public/sitemap.xml
+        date -u
+      else
+        echo "Build blog only review app, no proxy resources needed"
+      fi
+  stage: build
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - public/
+      - bin/combine-sitemaps
+  tags:
+    - gitlab-org
+  cache:
+    key: "build_proxy_resource_ruby-2.6-stretch"
+    paths:
+      - tmp/cache
+      - vendor
+
+build_proxy_resource_branch:
+  <<: *build_proxy_resource_base
+  only:
+    - merge_requests
+  except:
+    - master
+
+build_proxy_resource_master:
+  <<: *build_proxy_resource_base
+  only:
+    - master
+
+build_master:
+  <<: *build_base
+  variables:
+    MIDDLEMAN_ENV: 'production'
+  only:
+    - master
+
+include:
+  - template: Code-Quality.gitlab-ci.yml
+
+code_quality:
+  only:
+    - merge_requests
+  stage: build
+  before_script: []
+  cache: {}
+  dependencies: []
+  artifacts:
+    paths:
+      - coffeelint.json
+      - gl-code-quality-report.json
+
+dependency_scanning:
+  only:
+    - merge_requests
+  stage: build
+  image: docker:stable
+  allow_failure: true
+  before_script: []
+  cache: {}
+  dependencies: []
+  tags: []
+  services:
+    - docker:stable-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env DEP_SCAN_DISABLE_REMOTE_CHECKS="${DEP_SCAN_DISABLE_REMOTE_CHECKS:-false}"
+        --volume "$PWD:/code"
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/dependency-scanning:$SP_VERSION" /code
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json
+
+apply_redirects_staging:
+  stage: deploy
+  cache: {}
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes:
+      - data/redirects.yml
+  when: manual
+  environment:
+    name: staging
+  script:
+    - export FASTLY_SRV_ID=$FASTLY_SRV_ID_STG
+    - export FASTLY_SRV_VER=$FASTLY_SRV_VER_STG
+    - export FASTLY_DICT_ID=$FASTLY_DICT_ID_STG
+    - export FASTLY_EXACT_ERR_SNIPPET_ID=$FASTLY_EXACT_ERR_SNIPPET_ID_STG
+    - export FASTLY_EXACT_RECV_SNIPPET_ID=$FASTLY_EXACT_RECV_SNIPPET_ID_STG
+    - export FASTLY_LITERAL_ERR_SNIPPET_ID=$FASTLY_LITERAL_ERR_SNIPPET_ID_STG
+    - export FASTLY_LITERAL_RECV_SNIPPET_ID=$FASTLY_LITERAL_RECV_SNIPPET_ID_STG
+    - export FASTLY_REGEX_ERR_SNIPPET_ID=$FASTLY_REGEX_ERR_SNIPPET_ID_STG
+    - export FASTLY_REGEX_RECV_SNIPPET_ID=$FASTLY_REGEX_RECV_SNIPPET_ID_STG
+    - export FASTLY_API_KEY=$FASTLY_API_KEY_STG
+    - bundle exec bin/apply-exact-match-redirects
+    - bundle exec bin/apply-regex-redirects
+
+apply_redirects:
+  stage: deploy
+  cache: {}
+  environment:
+    name: production
+  only:
+    refs:
+      - master
+    changes:
+      - data/redirects.yml
+  script:
+    - export FASTLY_SRV_ID=$FASTLY_SRV_ID_PROD
+    - export FASTLY_SRV_VER=$FASTLY_SRV_VER_PROD
+    - export FASTLY_DICT_ID=$FASTLY_DICT_ID_PROD
+    - export FASTLY_EXACT_ERR_SNIPPET_ID=$FASTLY_EXACT_ERR_SNIPPET_ID_PROD
+    - export FASTLY_EXACT_RECV_SNIPPET_ID=$FASTLY_EXACT_RECV_SNIPPET_ID_PROD
+    - export FASTLY_LITERAL_ERR_SNIPPET_ID=$FASTLY_LITERAL_ERR_SNIPPET_ID_PROD
+    - export FASTLY_LITERAL_RECV_SNIPPET_ID=$FASTLY_LITERAL_RECV_SNIPPET_ID_PROD
+    - export FASTLY_REGEX_ERR_SNIPPET_ID=$FASTLY_REGEX_ERR_SNIPPET_ID_PROD
+    - export FASTLY_REGEX_RECV_SNIPPET_ID=$FASTLY_REGEX_RECV_SNIPPET_ID_PROD
+    - export FASTLY_API_KEY=$FASTLY_API_KEY_PROD
+    - bundle exec bin/apply-exact-match-redirects
+    - bundle exec bin/apply-regex-redirects
+
+.gcp-setup: &gcp-setup
+  - ./bin/combine-sitemaps
+  - echo "$GCP_SERVICE_ACCOUNT_KEY" > key.json
+  - gcloud auth activate-service-account --key-file key.json
+  - gcloud config set project $GCP_PROJECT
+
+.gcp-base: &gcp-base
+  image: google/cloud-sdk:latest
+  stage: deploy
+  cache: {}
+  variables:
+    GIT_STRATEGY: none
+
+.review-base: &review-base
+  <<: *gcp-base
+  before_script:
+    - export GCP_PROJECT=$GCP_PROJECT_REVIEW_APPS
+    - export GCP_BUCKET=$GCP_BUCKET_REVIEW_APPS
+    - export GCP_SERVICE_ACCOUNT_KEY=$GCP_SERVICE_ACCOUNT_KEY_REVIEW_APPS
+    - *gcp-setup
+  only:
+    - merge_requests@gitlab-com/www-gitlab-com
+  except:
+    - master@gitlab-com/www-gitlab-com
+
+review:
+  <<: *review-base
+  resource_group: $CI_COMMIT_REF_SLUG
+  allow_failure: true
+  needs:
+    - build_branch
+    - build_proxy_resource_branch
+  script:
+    # We sometimes have absolute URLs, this replaces them with correct ones for the review app
+    - >
+      find public/ -type f -regextype egrep -iregex ".*\.(html|js|css|json|xml|txt)" -exec \
+        sed --in-place "s#https\?://about.gitlab.com#https://$CI_COMMIT_REF_SLUG.about.gitlab-review.app#g" "{}" +;
+    - gsutil -h "Cache-Control:public, max-age=600" -m rsync -c -d -r public/ gs://$GCP_BUCKET/$CI_COMMIT_REF_SLUG
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: https://$CI_COMMIT_REF_SLUG.about.gitlab-review.app
+    on_stop: review_stop
+
+review_stop:
+  <<: *review-base
+  script:
+    - gsutil -m rm -r gs://$GCP_BUCKET/$CI_COMMIT_REF_SLUG
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+
+.gcp-deploy-base: &gcp-deploy-base
+  <<: *gcp-base
+  needs:
+    - build_master
+    - build_proxy_resource_master
+  script:
+    - gsutil -h "Cache-Control:public, max-age=600" -m rsync -c -d -r public/ gs://$GCP_BUCKET
+  only:
+    - master@gitlab-com/www-gitlab-com
+
+deploy_staging:
+  <<: *gcp-deploy-base
+  resource_group: staging
+  before_script:
+    - export GCP_PROJECT=$GCP_PROJECT_STAGING
+    - export GCP_BUCKET=$GCP_BUCKET_STAGING
+    - export GCP_SERVICE_ACCOUNT_KEY=$GCP_SERVICE_ACCOUNT_KEY_STAGING
+    - *gcp-setup
+  environment:
+    name: staging
+    url: https://about.staging.gitlab.com
+
+deploy:
+  <<: *gcp-deploy-base
+  resource_group: production
+  before_script:
+    - export GCP_PROJECT=$GCP_PROJECT_PRODUCTION
+    - export GCP_BUCKET=$GCP_BUCKET_PRODUCTION
+    - export GCP_SERVICE_ACCOUNT_KEY=$GCP_SERVICE_ACCOUNT_KEY_PRODUCTION
+    - *gcp-setup
+  environment:
+    name: production
+    url: https://about.gitlab.com
+
+# Triggering a build of https://gitlab.com/gitlab-com/teampage-map when the team changes
+rebuild_map:
+  stage: deploy
+  allow_failure: true
+  trigger:
+    project: gitlab-com/teampage-map
+  only:
+    refs:
+      - master@gitlab-com/www-gitlab-com
+    changes:
+      - data/team.yml
+

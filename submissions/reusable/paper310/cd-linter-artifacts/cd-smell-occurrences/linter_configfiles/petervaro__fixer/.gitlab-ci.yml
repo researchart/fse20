@@ -1,0 +1,12 @@
+# https://hub.docker.com/r/base/archlinux/
+image: base/archlinux
+
+before_script:
+  - pacman -Syy dmd dub --needed --noconfirm
+  - mkdir -p ~/.fixer
+  - printf "$FIXER_API_ACCESS_KEY" > ~/.fixer/api-access-key.txt
+
+unit_tests:
+  stage: test
+  script: dub test
+

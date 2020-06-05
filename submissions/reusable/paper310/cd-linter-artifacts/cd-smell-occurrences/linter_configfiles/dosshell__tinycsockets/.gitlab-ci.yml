@@ -1,0 +1,55 @@
+variables:
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+
+
+.unit_tests:
+  script:
+    - apk add cmake g++ ninja
+    - mkdir build && cd build
+    - cmake -G "Ninja" ../
+    - ninja -v
+    - ./tests/tests
+  only:
+    - merge_requests
+
+Alpine 3.9 x64:
+  extends: .unit_tests
+  image: amd64/alpine:3.9
+
+Alpine 3.9 i386:
+  extends: .unit_tests
+  image: i386/alpine:3.9
+
+
+Static Linting:
+  image: ubuntu:18.04
+  script:
+    - apt update
+    - apt install -y cmake g++ clang ninja-build clang-tidy
+    - mkdir build && cd build
+    - cmake -G "Ninja" ../ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    - clang-tidy ../src/*.c ../examples/*.c
+  only:
+    - merge_requests
+
+Code Format:
+  image: alpine:3.9
+  script:
+    - apk add clang python3
+    - python3 ./tests/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
+  only:
+    - merge_requests
+
+Sphinx:
+  image: alpine:3.9
+  script:
+    - apk add python3 make doxygen
+    - pip3 install sphinx
+    - pip3 install -r docs/requirements.txt
+    - cd docs
+    - make html
+  only:
+    - merge_requests
+
+

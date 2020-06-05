@@ -1,0 +1,8 @@
+image: node:6.10.0
+
+bot:
+  script:
+    - npm install
+    - node ./examples/simple-ai-controller.js -l 1025 & node ./examples/simple-ai-controller.js -l 1025 & node ./examples/simple-ai-controller.js -l 1025 & node ./examples/simple-ai-controller.js -l 1025
+  when: manual
+

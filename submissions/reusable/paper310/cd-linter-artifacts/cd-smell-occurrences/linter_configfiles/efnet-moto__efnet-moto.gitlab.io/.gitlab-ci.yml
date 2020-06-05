@@ -1,0 +1,10 @@
+image: python:2.7-wheezy
+pages:
+  script:
+  - git clone https://github.com/getpelican/pelican-plugins.git /data/pelican-plugins
+  - pip install -r requirements.txt
+  - pelican -s publishconf.py
+  artifacts:
+    paths:
+    - public/
+

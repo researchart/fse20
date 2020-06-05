@@ -1,0 +1,27 @@
+stages:
+  - check_syntax
+  - deploy
+  - test
+
+check_deploy_code:
+  stage: check_syntax
+  tags:
+    - desktop
+  script:
+    - 'ansible-playbook -i hosts.ini deploy.yaml --check'
+    - 'ansible-playbook -i hosts.ini test.yaml --check'
+
+deploy_network_config:
+  stage: deploy
+  tags:
+    - desktop
+  script:
+    - 'ansible-playbook -i hosts.ini deploy.yaml'
+
+test_network_config:
+  stage: test
+  tags:
+    - desktop
+  script:
+    - 'ansible-playbook -i hosts.ini test.yaml'
+

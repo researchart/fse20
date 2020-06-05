@@ -1,0 +1,38 @@
+# Based on gitlab mono template
+
+image: coalzombik/mono-gtk2:5.14.0.177
+
+stages:
+  - build
+
+before_script:
+  - nuget restore -NonInteractive
+
+release:
+  stage: build
+  only:
+    - master
+    - tags
+  artifacts:
+    paths:
+      - CDAR/*
+  script:
+    # The output path is relative to the position of the csproj-file
+    - msbuild /p:Configuration="Release" /p:Platform="x86"
+      /p:OutputPath="./CDAR/" "CDAR.sln"
+    - ./mpo -e "./CDAR/locale/"
+
+debug:
+  stage: build
+  except:
+    - master
+    - tags
+  artifacts:
+    paths:
+      - CDAR-Debug/*
+  script:
+    # The output path is relative to the position of the csproj-file
+    - msbuild /p:Configuration="Debug" /p:Platform="x86"
+      /p:OutputPath="./CDAR-Debug/" "CDAR.sln"
+    - ./mpo -e "./CDAR-Debug/locale"
+

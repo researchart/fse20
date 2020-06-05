@@ -1,0 +1,14 @@
+image: node:latest
+
+pages:
+  stage: deploy
+  script:
+  - npm run build
+  - mv public public.old
+  - mv build public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,25 @@
+image: node:latest
+
+# Tests will be added later
+stages:
+  - test
+  - production
+
+test:
+  script:
+    - npm install
+    - ./node_modules/@angular/cli/bin/ng test --watch=false
+
+
+production:
+  type: deploy
+  stage: production
+  image: ruby:latest
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=angular-mp --api-key=$HEROKU_API_KEY
+  only:
+    - master
+

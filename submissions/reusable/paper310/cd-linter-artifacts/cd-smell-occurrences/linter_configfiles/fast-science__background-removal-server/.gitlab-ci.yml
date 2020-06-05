@@ -1,0 +1,33 @@
+deploy_to_heroku:
+  stage: deploy
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+  - docker:dind
+  before_script:
+    - apk add git --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/
+    # Install git-lfs
+    - apk add openssl --update-cache
+    - wget -qO- https://github.com/git-lfs/git-lfs/releases/download/v2.1.1/git-lfs-linux-amd64-2.1.1.tar.gz | tar xz
+    - mv git-lfs-*/git-lfs /usr/bin/ && rm -rf git-lfs-* && git lfs install && git lfs pull
+  script:
+    - git lfs pull
+    # Login to Heroku registry
+    - docker login --username=_ --password=$HEROKU_AUTH_TOKEN registry.heroku.com
+    # Build the docker image locally
+    - docker build -t registry.heroku.com/background-removal/web .
+    # Push docker image to Heroku registry to serve
+    - docker push registry.heroku.com/background-removal/web
+    ### Push to Gitlab registry
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/fast-science/background-removal-server .
+    - docker push registry.gitlab.com/fast-science/background-removal-server
+
+
+
+
+
+
+
+

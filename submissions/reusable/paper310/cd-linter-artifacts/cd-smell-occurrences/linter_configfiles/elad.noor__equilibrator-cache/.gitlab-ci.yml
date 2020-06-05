@@ -1,0 +1,34 @@
+image: python
+
+stages:
+  - test
+  - deploy
+
+before_script:
+  - pip install --upgrade pip setuptools wheel tox
+
+test36:
+  stage: test
+  image: python:3.6
+  script:
+    - tox -e isort,black,safety  #,flake8
+    - tox -e py36 -- --cov-report=xml --cov-report=term tests
+    - bash <(curl -s https://codecov.io/bash)
+test37:
+  stage: test
+  image: python:3.7
+  script:
+    - tox -e safety
+    - tox -e py37 -- --cov-report=xml --cov-report=term tests
+    - bash <(curl -s https://codecov.io/bash)
+
+pypi:
+  stage: deploy
+  image: python:3.6
+  script:
+    - pip install --upgrade wheel twine
+    - python setup.py sdist bdist_wheel
+    - twine upload --username=$PYPI_USERNAME --password=$PYPI_PASSWORD --skip-existing dist/*
+  only:
+  - tags
+

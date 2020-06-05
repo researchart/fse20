@@ -1,0 +1,6 @@
+image: "jrei/crystal-alpine:latest"
+
+build_binary:
+    stage: build
+    script: shards install && mkdir -p bin && crystal build src/main.cr --static --release --progress -o bin/crlocator
+

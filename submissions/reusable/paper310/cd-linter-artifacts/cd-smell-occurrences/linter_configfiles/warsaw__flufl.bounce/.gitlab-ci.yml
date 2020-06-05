@@ -1,0 +1,22 @@
+image: maxking/mailman-ci-runner
+
+qa:
+  script:
+    - tox -e qa
+
+tests:
+  script:
+    - tox -e py35-nocov,py36-nocov,py37-nocov
+
+coverage:
+  script:
+    - tox -e py35-cov,py36-cov,py37-cov
+
+diffcov:
+  script:
+    - tox -e py35-diffcov,py36-diffcov,py37-diffcov
+
+docs:
+  script:
+    - tox -e docs
+

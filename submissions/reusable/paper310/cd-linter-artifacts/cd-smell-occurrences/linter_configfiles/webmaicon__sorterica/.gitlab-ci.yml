@@ -1,0 +1,29 @@
+image: php:5.6
+
+cache:
+  key: apt-cache
+  paths:
+  - apt-cache/
+
+stages:
+    - testes
+    - gerar_numero
+
+before_script:
+    - export APT_CACHE_DIR=`pwd`/apt-cache && mkdir -pv $APT_CACHE_DIR
+    - apt-get update && apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y lynx
+
+gera_numero:
+    stage: gerar_numero
+    when: manual
+    script:
+        - php index.php | lynx -dump -stdin
+
+smoketest:
+    stage: testes
+    script:
+      - export REGEXNUM="\([1-9]\|[1-5][0-9]\|60\)"
+      - 'export RESULT=$(php index.php inicio=2069 | grep "Número Gerado: ${REGEXNUM},${REGEXNUM},${REGEXNUM},${REGEXNUM},${REGEXNUM},${REGEXNUM}<")'
+      - echo $RESULT | lynx -dump -stdin
+      - if [ "${RESULT}" == "" ]; then echo "Falha - Número não gerado" && exit 1;else echo "Teste Passou"; fi;
+

@@ -1,0 +1,9 @@
+image: golang:1.12
+
+before_script:
+  - source ci/prepare.sh
+
+test:
+  script:
+  - make CONCURRENT_JOBS=4 -k check
+

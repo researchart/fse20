@@ -1,0 +1,45 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+variables:
+  REPO_NAME: gitlab.com/maksim.dadzerkin/go-build-example
+
+stages:
+  - test
+  - build
+  - deploy
+
+test-project:
+  stage: test
+  image: golang:latest
+  script:
+    - mkdir -p $GOPATH/src/$REPO_NAME
+    - mv $CI_PROJECT_DIR/* $GOPATH/src/$REPO_NAME
+    - cd $GOPATH/src/$REPO_NAME
+    - go get -u github.com/golang/dep/cmd/dep
+    - go get -u github.com/magefile/mage
+    - go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+    - mage -v dep lint test
+  except:
+    - master
+
+build-and-release-project:
+  stage: build
+  image: golang:latest
+  script:
+    - mkdir -p $GOPATH/src/$REPO_NAME
+    - mv $CI_PROJECT_DIR/* $GOPATH/src/$REPO_NAME
+    - cd $GOPATH/src/$REPO_NAME
+    - go get -u github.com/golang/dep/cmd/dep
+    - go get -u github.com/magefile/mage
+    - go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+    - mage -v dep lint test compile
+    - go build -o $CI_PROJECT_DIR/release/go-build-example
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/release/go-build-example
+  only:
+    - master
+

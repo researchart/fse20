@@ -1,0 +1,74 @@
+image: php:apache-stretch
+
+build:
+  stage: build
+  script:
+    - apt-get -y update
+    - bash -c 'mkdir -p /usr/share/man/man{0..10}'
+    - apt-get -y install build-essential devscripts fakeroot dh-exec jdupes rst2pdf doxygen graphviz # todo build-dep instead, change this task's image to plain debian
+    - mv debian/changelog debian/changelog.old
+    - >
+      cat
+      <(echo "davical ($(cat VERSION)-99~git$(date +"%Y%m%d")-$(git rev-parse --short $CI_COMMIT_SHA)) unstable; urgency=medium")
+      <(echo "")
+      <(echo "  * Build on CI")
+      <(echo "")
+      <(echo " -- ${GITLAB_USER_NAME} <${GITLAB_USER_EMAIL}>  $(date -R)")
+      <(echo "")
+      debian/changelog.old
+      >debian/changelog
+    - rm debian/changelog.old
+    - debuild -us -uc -b -d
+    - 'mv ../davical_*_all.deb ./davical.deb'
+  artifacts:
+    paths:
+      - '*.deb'
+
+test:
+  stage: test
+  artifacts:
+    paths:
+      - testing/report.xml
+      - apache2_log/*
+    reports:
+      junit: testing/report.xml
+    when:
+      always
+  script:
+    - apt-get -y update
+    - bash -c 'mkdir -p /usr/share/man/man{0..10}'
+    - apt-get -y install locales
+    - echo "en_NZ.UTF-8 UTF-8" >> /etc/locale.gen
+    - locale-gen
+    - echo "LANG=en_NZ.UTF-8" > /etc/default/locale
+    - apt-get -y install libdbd-pg-perl libyaml-perl perl postgresql postgresql-client libpq-dev xmlstarlet
+    - curl 'https://gitlab.com/davical-project/awl/-/archive/master/awl-master.tar.gz' | tar zxf -
+    - mv awl-master /usr/share/awl/
+    - chown -R www-data /usr/share/awl/
+    - dpkg --ignore-depends=php,php-pgsql,php-xml,libawl-php,php-cli -i *.deb
+    - docker-php-ext-install -j$(nproc) pgsql
+    - docker-php-ext-install -j$(nproc) pdo_pgsql
+    - docker-php-ext-install -j$(nproc) calendar
+    - echo '127.0.1.1  regression mycaldav myempty' >> /etc/hosts
+    - cp testing/apache-site.conf.example /etc/apache2/sites-enabled/davical-regression.conf
+    - sed -i 's/\/path\/to/\/usr\/share/g' /etc/apache2/sites-enabled/davical-regression.conf
+    - mkdir /usr/share/davical/testing/
+    - cp testing/*.php /usr/share/davical/testing/
+    - rm /etc/davical/config.php
+    - cp testing/regression-conf.php.example /etc/davical/regression-conf.php
+    - ln -s /etc/davical/regression-conf.php /etc/davical/mycaldav-conf.php
+    - ln -s /etc/davical/regression-conf.php /etc/davical/myempty-conf.php
+    - sed -i '/peer/d' /etc/postgresql/9.6/main/pg_hba.conf
+    - echo 'local  all  all  trust' >> /etc/postgresql/9.6/main/pg_hba.conf
+    - pg_ctlcluster 9.6 main start
+    - su postgres -c 'createuser davical_dba --createdb --createrole --superuser'
+    - su postgres -c 'createuser davical_app --superuser'
+    - su postgres -c 'createuser testrunner --superuser'
+    - pg_ctlcluster 9.6 main restart
+    - a2enmod rewrite
+    - apache2ctl start
+    - useradd testrunner
+    - cd testing && su testrunner -c 'IS_CI=yes ALLSUITES="regression-suite binding carddav scheduling" ./run_regressions.sh all x'
+  after_script:
+    - cp -r /var/log/apache2 apache2_log
+

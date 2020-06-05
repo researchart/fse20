@@ -1,0 +1,33 @@
+stages:
+- package
+- deploy
+
+job:
+  stage: package
+  image: yarnpkg/node-yarn
+  script:
+  - yarn install
+  - yarn run build
+  only:
+  - master
+  artifacts:
+      expire_in: 1 week
+      paths:
+      - dist
+
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r dist .public
+  - cp index.html .public
+  - ls .public
+  - ls .public/dist
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

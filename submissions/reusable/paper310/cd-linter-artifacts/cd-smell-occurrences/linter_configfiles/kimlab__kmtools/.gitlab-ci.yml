@@ -1,0 +1,319 @@
+image: registry.gitlab.com/ostrokach-docker/conda:latest
+
+stages:
+  - lint
+  - build
+  - test
+  - post-test
+  - deploy
+
+# === Variables ===
+
+variables:
+  PACKAGE_VERSION: 0.2.4
+
+.py37: &py37
+  PYTHON_VERSION: "3.7"
+
+.py38: &py38
+  PYTHON_VERSION: "3.8"
+
+.db_tools: &db_tools
+  SUBPKG_NAME: db_tools
+
+.df_tools: &df_tools
+  SUBPKG_NAME: df_tools
+
+.ml_tools: &ml_tools
+  SUBPKG_NAME: ml_tools
+
+.py_tools: &py_tools
+  SUBPKG_NAME: py_tools
+
+.sequence_tools: &sequence_tools
+  SUBPKG_NAME: sequence_tools
+
+.structure_tools: &structure_tools
+  SUBPKG_NAME: structure_tools
+
+.system_tools: &system_tools
+  SUBPKG_NAME: system_tools
+
+# === Configurations ===
+
+.configure: &configure
+  before_script:
+    - conda config --append channels kimlab
+    - conda config --append channels ostrokach-forge
+    - conda config --append channels omnia
+    - conda update -n root -y -q conda conda-build --no-channel-priority
+
+# === Lint ===
+
+lint:
+  stage: lint
+  <<: [*configure]
+  variables:
+    <<: [*py38]
+  script:
+    - cd $(dirname ${CI_CONFIG_PATH})
+    - conda install -yq "python=${PYTHON_VERSION}" isort flake8 black mypy
+    - python -m isort -p ${CI_PROJECT_NAME} -c
+    - python -m flake8
+    - python -m black --config pyproject.toml --check .
+    - python -m mypy -p ${CI_PROJECT_NAME} || true
+
+# === Build ===
+
+.build: &build
+  stage: build
+  script:
+    - conda config --add channels defaults
+    - cd "${CI_PROJECT_DIR}/.ci/conda"
+    - conda build .
+      --no-test
+      --python $PYTHON_VERSION
+      --output-folder "$CI_PROJECT_DIR/conda-bld"
+  artifacts:
+    paths:
+    - conda-bld
+
+build-py37:
+  <<: [*configure, *build]
+  variables:
+    <<: [*py37]
+
+build-py38:
+  <<: [*configure, *build]
+  variables:
+    <<: [*py38]
+
+# === Test ===
+
+.test: &test
+  stage: test
+  script:
+    # Restore built packages
+    - cp -r $CI_PROJECT_DIR/conda-bld/* /opt/conda/conda-bld/
+    - conda index /opt/conda/conda-bld/
+    # Run tests
+    - cd ${CI_PROJECT_DIR}/.ci/conda
+    - conda build .
+      --test
+      --python $PYTHON_VERSION
+    # Code coverage
+    - mkdir "${CI_PROJECT_DIR}/coverage"
+    - mv "${CI_PROJECT_DIR}/.coverage" "${CI_PROJECT_DIR}/coverage/.coverage.${SUBPKG_NAME}"
+  coverage: /^TOTAL.* (\d+\%)/
+  artifacts:
+    paths:
+      - "${CI_PROJECT_DIR}/coverage/.coverage.${SUBPKG_NAME}"
+
+# Python 3.7
+
+db_tools-py37:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py37
+  variables:
+    <<: [*db_tools, *py37]
+
+df_tools-py37:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py37
+  variables:
+    <<: [*df_tools, *py37]
+
+ml_tools-py37:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py37
+  variables:
+    <<: [*ml_tools, *py37]
+
+py_tools-py37:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py37
+  variables:
+    <<: [*py_tools, *py37]
+
+sequence_tools-py37:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py37
+  variables:
+    <<: [*sequence_tools, *py37]
+
+structure_tools-py37:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py37
+  variables:
+    <<: [*structure_tools, *py37]
+
+system_tools-py37:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py37
+  variables:
+    <<: [*system_tools, *py37]
+
+# Python 3.8
+
+# db_tools-py38:
+#   <<: [*configure, *test]
+#   dependencies:
+#     - build-py38
+#   variables:
+#     <<: [*db_tools, *py38]
+
+# df_tools-py38:
+#   <<: [*configure, *test]
+#   dependencies:
+#     - build-py38
+#   variables:
+#     <<: [*df_tools, *py38]
+
+# ml_tools-py38:
+#   <<: [*configure, *test]
+#   dependencies:
+#     - build-py38
+#   variables:
+#     <<: [*ml_tools, *py38]
+
+# py_tools-py38:
+#   <<: [*configure, *test]
+#   dependencies:
+#     - build-py38
+#   variables:
+#     <<: [*py_tools, *py38]
+
+# sequence_tools-py38:
+#   <<: [*configure, *test]
+#   dependencies:
+#     - build-py38
+#   variables:
+#     <<: [*sequence_tools, *py38]
+
+# structure_tools-py38:
+#   <<: [*configure, *test]
+#   dependencies:
+#     - build-py38
+#   variables:
+#     <<: [*structure_tools, *py38]
+
+# system_tools-py38:
+#   <<: [*configure, *test]
+#   dependencies:
+#     - build-py38
+#   variables:
+#     <<: [*system_tools, *py38]
+
+# === Docs ===
+
+docs:
+  stage: post-test
+  variables:
+    <<: [*py37]
+  <<: [*configure]
+  script:
+    # Restore built packages
+    - cp -r $CI_PROJECT_DIR/conda-bld/* /opt/conda/conda-bld/
+    - conda index /opt/conda/conda-bld/
+    # Install required packages
+    - conda install -yq --use-local "python=$PYTHON_VERSION" $CI_PROJECT_NAME
+    - conda install -yq nbconvert ipython ipykernel pandoc
+    - pip install -q sphinx sphinx_rtd_theme recommonmark nbsphinx coverage
+    # Build docs
+    - (cd docs && sphinx-apidoc ../$CI_PROJECT_NAME -o api/generated -TeMP)
+    - sphinx-build docs public
+    # Coverage
+    - coverage combine coverage/
+    - coverage report
+    - coverage html
+    - mv htmlcov public/
+  coverage: /^TOTAL.* (\d+\%)/
+  dependencies:
+    - build-py37
+    - db_tools-py37
+    - df_tools-py37
+    - ml_tools-py37
+    - py_tools-py37
+    - sequence_tools-py37
+    - structure_tools-py37
+    - system_tools-py37
+  artifacts:
+    paths:
+      - public
+
+# === Deploy ===
+
+.deploy: &deploy
+  stage: deploy
+  before_script:
+    - conda install twine -yq --no-channel-priority
+  script:
+    # Rename wheels from `*-linux_x86_64.whl` to `*-manylinux1_x86_64.whl`
+    # so that they can be uploaded to PyPI.
+    - for i in $CI_PROJECT_DIR/conda-bld/linux-64/*.whl ; do
+      echo $i ;
+      if [[ $i = *"-linux_x86_64.whl" ]]; then
+        mv "${i}" "${i%%-linux_x86_64.whl}-manylinux1_x86_64.whl" ;
+      fi ;
+      done
+    # Development releases go to the Anaconda dev channel
+    - if [[ ${PACKAGE_VERSION} = *"dev"* ]] ; then
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u kimlab --label dev --force --no-progress ;
+       fi
+    # Tagged releases go to the Anaconda and PyPI main channels
+    - if [[ -n ${CI_COMMIT_TAG} ]] ; then
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u kimlab --no-progress ;
+        twine upload $CI_PROJECT_DIR/conda-bld/linux-64/*.whl || true ;
+      fi
+
+deploy-py37:
+  <<: *deploy
+  dependencies:
+    - build-py37
+
+# deploy-py38:
+#   <<: *deploy
+#   dependencies:
+#     - build-py38
+
+# === Pages ===
+
+pages:
+  stage: deploy
+  before_script:
+    - sudo yum install -y -q unzip
+  script:
+    # Create docs folder for the current version
+    - mv public "v${PACKAGE_VERSION%.dev}"
+    - mkdir public
+    - mv "v${PACKAGE_VERSION%.dev}" public/
+    # Create docs folder for each tag
+    - 'for tag in $(git tag) ; do
+      echo ${tag} ;
+      curl -L --header "JOB-TOKEN: $CI_JOB_TOKEN"
+      "https://gitlab.com/${CI_PROJECT_NAME}/${CI_PROJECT_NAMESPACE}/-/jobs/artifacts/${tag}/download?job=docs"
+      -o artifact-${tag}.zip || continue ;
+      unzip artifact-${tag}.zip -d public || continue ;
+      rm -rf public/${tag} ;
+      mv public/public public/${tag} ;
+      done'
+    # Create index file
+    # TODO:
+  dependencies:
+    - docs
+  only:
+    - master
+    - tags
+  except:
+    - triggers
+  artifacts:
+    paths:
+      - public
+

@@ -1,0 +1,175 @@
+image: golang:1.12
+
+stages:
+- version
+- build
+- image
+- release
+
+variables:
+  GSG_RELEASE_BRANCHES: master
+
+test:
+  stage: build
+  services:
+  - name: registry.gitlab.com/juhani/go-semrel-gitlab/gitlab-test
+    alias: gitlab
+  script:
+  - ./wait_for_gitlab.sh
+  - go test ./pkg/gitlabutil
+  when: manual
+  except:
+  - tags
+
+version:
+  stage: version
+  image: registry.gitlab.com/juhani/go-semrel-gitlab:v0.20.4
+  script:
+    - release next-version --allow-current > .next-version
+  artifacts:
+    paths:
+    - .next-version
+  except:
+    - tags
+
+compile:
+  stage: build
+  script:
+  - (cd /; go get github.com/mitchellh/gox)
+  - GO_FLAGS=-mod=vendor CGO_ENABLED=0 gox -arch=amd64 -os="linux windows darwin" -output="build/{{.OS}}_{{.Arch}}/release" -ldflags "-X main.version=v$(<.next-version)"
+  - cp build/linux_amd64/release .
+  - go build -mod=vendor ./cmd/gendoc
+  - ./release test-git --list-other-changes || true
+  - ./release test-api
+  - ./release -v
+  - ./release help
+  - echo "RELEASE_URL=https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/jobs/$CI_JOB_ID/artifacts/release" > build_info
+  - echo "RELEASE_DESC=\"Linux amd64 binary\"" >> build_info
+  - echo "MAC_RELEASE_URL=https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/jobs/$CI_JOB_ID/artifacts/build/darwin_amd64/release" >> build_info
+  - echo "MAC_RELEASE_DESC=\"Darwin amd64 binary\"" >> build_info
+  - echo "WIN_RELEASE_URL=https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/jobs/$CI_JOB_ID/artifacts/build/windows_amd64/release.exe" >> build_info
+  - echo "WIN_RELEASE_DESC=\"Windows amd64 binary\"" >> build_info
+  - echo "RELEASE_SHA=$CI_COMMIT_SHA" >> build_info
+  - echo "RELEASE_VERSION=$(<.next-version)" >> build_info
+  artifacts:
+    paths:
+    - release
+    - build_info
+    - gendoc
+    - build
+  except:
+  - tags
+
+gitlab-test-image:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+  - docker:dind
+  stage: image
+  script:
+  - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+  - cd gitlab-docker
+  - docker build -t $CI_REGISTRY_IMAGE/gitlab-test .
+  - docker push $CI_REGISTRY_IMAGE/gitlab-test
+  when: manual
+  except:
+  - tags
+
+pre-release-image:
+  stage: release
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+  - docker:dind
+  script:
+  - tag=`cat .next-version`
+  - cp release docker
+  - cp /etc/ssl/certs/ca-certificates.crt docker
+  - cd docker
+  - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+  - docker build -t $CI_REGISTRY_IMAGE:v$tag .
+  - docker push $CI_REGISTRY_IMAGE:v$tag
+  when: manual
+  only:
+    - branches
+
+    
+pre-release:
+  stage: release
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+  - docker:dind
+  script:
+  - rm -f pre_release_info
+  - mv build_info pre_release_info
+  - . pre_release_info
+  
+  - cp release docker
+  - cp /etc/ssl/certs/ca-certificates.crt docker
+  - cd docker
+  - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+  - docker build -t $CI_REGISTRY_IMAGE:v$RELEASE_VERSION .
+  - docker push $CI_REGISTRY_IMAGE:v$RELEASE_VERSION
+  - cd ..
+
+  - ./release -v
+  - ./release commit-and-tag --list-other-changes CHANGELOG.md pre_release_info
+  - ./release --ci-commit-tag v$RELEASE_VERSION add-download-link -n release -u $RELEASE_URL -d "$RELEASE_DESC"
+  - ./release --ci-commit-tag v$RELEASE_VERSION add-download-link -n release.exe -u $WIN_RELEASE_URL -d "$WIN_RELEASE_DESC"
+  - ./release --ci-commit-tag v$RELEASE_VERSION add-download-link -n release -u $MAC_RELEASE_URL -d "$MAC_RELEASE_DESC"
+  when: manual
+  only:
+  - branches
+
+release:
+  stage: release
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+  - docker:dind
+  script:
+  - rm -f release_info
+  - mv build_info release_info
+  - . release_info
+  
+  - cp release docker
+  - cp /etc/ssl/certs/ca-certificates.crt docker
+  - cd docker
+  - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+  - docker build -t $CI_REGISTRY_IMAGE:v$RELEASE_VERSION .
+  - docker push $CI_REGISTRY_IMAGE:v$RELEASE_VERSION
+  - cd ..
+
+  - ./release -v
+  - ./release changelog
+  - ./release commit-and-tag CHANGELOG.md release_info
+  - ./release --ci-commit-tag v$RELEASE_VERSION add-download-link -n release -u $RELEASE_URL -d "$RELEASE_DESC"
+  - ./release --ci-commit-tag v$RELEASE_VERSION add-download-link -n release.exe -u $WIN_RELEASE_URL -d "$WIN_RELEASE_DESC"
+  - ./release --ci-commit-tag v$RELEASE_VERSION add-download-link -n release -u $MAC_RELEASE_URL -d "$MAC_RELEASE_DESC"
+  when: manual
+  only:
+  - master
+
+pages:
+  stage: release
+  image: juranki/hugo
+  script:
+  - rm -f release
+  - rm -rf public
+  - sed -i 's/GA_ID/'"$GA"'/' site3/config.toml
+  - ./gendoc
+  - cat CHANGELOG.md >> site3/content/CHANGELOG.md
+  - sed -i.bak 's|(\([0-9a-f]\{8\}\)\([0-9a-f]\{32\}\))|<a href="https://gitlab.com/juhani/go-semrel-gitlab/commit/\1\2">(\1)</a>|g' site3/content/CHANGELOG.md
+  - hugo -s site3 -d ../public
+  artifacts:
+    paths:
+    - public
+  when: manual
+  only:
+  - master
+

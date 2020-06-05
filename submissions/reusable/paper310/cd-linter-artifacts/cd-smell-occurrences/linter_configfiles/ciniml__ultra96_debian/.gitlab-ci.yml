@@ -1,0 +1,48 @@
+stages:
+  - docker
+  - build
+
+build-docker:
+  stage: docker
+  image: docker:latest
+  services:
+    - docker:dind
+  only:
+    changes:
+      - Dockerfile
+  except:
+    variables:
+      - $NO_DOCKER_BUILD
+  tags:
+    - docker
+  variables:
+    IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+
+build:
+  stage: build
+  image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  only:
+    changes:
+      - Dockerfile
+      - Makefile
+      - ".config"
+    
+  tags:
+    - docker
+  dependencies:
+    - build-docker
+  script:
+    - make build-kernel build-rootfs
+  artifacts:
+    when: always
+    paths:
+      - "*.log"
+      - "*.deb"
+    name: "$CI_COMMIT_REF_SLUG"
+  
+

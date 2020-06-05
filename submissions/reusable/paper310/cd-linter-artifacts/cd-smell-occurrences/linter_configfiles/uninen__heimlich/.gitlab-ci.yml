@@ -1,0 +1,56 @@
+image: "revolutionsystems/python:3.6.9-wee-optimized-lto"
+
+stages:
+  - test
+
+variables:
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+  CYPRESS_CACHE_FOLDER: "$CI_PROJECT_DIR/cache/Cypress"
+
+cache:
+  paths:
+    - pip-cache
+    - cache/Cypress
+    - vue/.yarn
+  key: ${CI_COMMIT_REF_SLUG}
+
+test:
+  stage: test
+  script:
+    - apt-get update -qy
+    - apt-get install -y python-dev python-pip
+    - pip install pip-tools
+    - pip-sync requirements.txt requirements-dev.txt
+    - export SECRET_KEY="$DJANGO_SECRET_KEY"
+    - pytest heimlich/tickets/tests/ --create-db
+
+test-e2e:
+  stage: test
+  script:
+    - apt-get update -qy
+    - apt-get install -y apt-transport-https
+    - curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
+    - echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+    - curl -sL https://deb.nodesource.com/setup_10.x | bash -
+    - apt-get update -qy
+    - apt-get install -y libgconf2-dev libgconf-2-4 nodejs yarn xvfb libgtk2.0-0 libnotify-dev libnss3 libxss1 libasound2 python-dev python-pip
+    - pip install pip-tools
+    - pip-sync requirements.txt requirements-dev.txt
+    - export SECRET_KEY="$DJANGO_SECRET_KEY"
+    - export CYPRESS_HEIMLICH_PROJECT_ROOT="/builds/uninen/heimlich/"
+    - export PYTHONPATH="$PATH:/usr/local/lib/python3.6/site-packages:/builds/uninen/heimlich/"
+    - python manage.py migrate
+    - cd vue
+    - yarn global add @vue/cli
+    - yarn install --pure-lockfile --cache-folder .yarn
+    - yarn upgrade caniuse-lite browserslist
+    - export CYPRESS_ENV=true
+    - export ENABLE_FIXTURE_RUNNER=1
+    - yarn test:e2e-ci
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - vue/tests/e2e/screenshots
+      - vue/tests/e2e/videos
+

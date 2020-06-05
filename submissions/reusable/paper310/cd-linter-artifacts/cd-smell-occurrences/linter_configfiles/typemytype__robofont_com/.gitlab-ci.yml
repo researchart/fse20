@@ -1,0 +1,56 @@
+# This file is a template, and might need editing before it works on your project.
+# Template project: https://gitlab.com/pages/jekyll
+# Docs: https://docs.gitlab.com/ce/pages/
+image: ruby:2.6.4
+
+variables:
+  JEKYLL_ENV: production
+
+before_script:
+- apt-get update >/dev/null
+- apt-get install -y locales >/dev/null
+- echo "en_US UTF-8" > /etc/locale.gen
+- locale-gen en_US.UTF-8
+- export LANG=en_US.UTF-8
+- export LANGUAGE=en_US:en
+- export LC_ALL=en_US.UTF-8
+- bundle install
+
+# test:
+#   stage: test
+#   script:
+#   - bundle exec jekyll build -d test
+#   artifacts:
+#     paths:
+#     - test
+#   except:
+#   - master
+
+pages:
+  stage: deploy
+  script:
+  - for remote in `git branch -r | grep -v /HEAD`; do git checkout --track $remote ; done
+  - git branch -a
+  - git checkout master
+  - bundle exec jekyll build -d public
+  - |
+    for BRANCH in `git branch --list|sed 's/\*//g'`;
+    do
+      echo "Branch name '$BRANCH'"
+      if [ "$BRANCH" != "master" ];
+      then
+        echo "Build $BRANCH version"
+        git checkout $BRANCH
+        git fetch
+        echo "baseurl: /$BRANCH" >> _config.$BRANCH.yml
+        echo "branche_name: $BRANCH" >> _config.$BRANCH.yml
+        cat _config.$BRANCH.yml
+        bundle exec jekyll build -d public/$BRANCH --config _config.yml,_config.$BRANCH.yml
+      fi
+    done
+  artifacts:
+    paths:
+    - public
+  # only:
+  # - master
+

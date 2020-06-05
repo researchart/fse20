@@ -1,0 +1,32 @@
+image: "ruby:2.5"
+
+cache:
+  paths:
+    - vendor
+
+before_script:
+  - gem install bundler  --no-ri --no-rdoc
+  - bundle install -j $(nproc) --path vendor/bundle
+
+bundler_audit:
+  script:
+    - bin/bundler-audit check --verbose --update
+
+rubocop:
+  script:
+    - bin/rubocop --format html -o rubocop.html --format progress
+  artifacts:
+    paths:
+      - rubocop.html
+
+reek:
+  script:
+    - bin/reek --line-numbers
+
+rspec:
+  script:
+    - bin/rspec spec --format documentation --warnings
+  artifacts:
+    paths:
+      - coverage/
+

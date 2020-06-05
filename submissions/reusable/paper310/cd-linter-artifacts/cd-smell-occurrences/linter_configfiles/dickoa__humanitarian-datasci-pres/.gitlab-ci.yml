@@ -1,0 +1,17 @@
+image: rocker/tidyverse
+
+before_script:
+   - Rscript -e 'install.packages(c("xaringan", "DT", "anonymizer"))'
+   
+pages:
+ script:
+  - Rscript -e 'rmarkdown::render("index.Rmd", output_file = "index.html", output_format = "all")'
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+ artifacts:
+   paths:
+     - public
+ only:
+  - master
+

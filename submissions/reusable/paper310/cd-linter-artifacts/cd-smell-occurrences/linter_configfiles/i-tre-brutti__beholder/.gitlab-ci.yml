@@ -1,0 +1,33 @@
+image: golang:1.9
+
+variables:
+    REPO_NAME: gitlab.com/i-tre-brutti/beholder
+
+stages:
+  - test
+  - build
+
+services:
+  - mongo
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq mongodb-clients
+  - mongo mongodb://mongo/i3brutti_test --eval 'db.createCollection("confs");'
+  - mongo mongodb://mongo/i3brutti_test --eval 'db.createCollection("statuses");'
+  - mkdir -p $(dirname $GOPATH/src/$REPO_NAME)
+  - ln -sf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+  - go get -u gitlab.com/i-tre-brutti/common/...
+  - go get -u github.com/golang/dep/cmd/dep
+  - dep ensure
+
+test:
+  stage: test
+  script:
+    - MONGO_HOST=mongo go test ./... -v
+
+build:
+  stage: build
+  script:
+    - go build
+

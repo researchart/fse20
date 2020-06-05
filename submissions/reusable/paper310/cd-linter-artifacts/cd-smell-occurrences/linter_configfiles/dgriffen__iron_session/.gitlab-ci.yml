@@ -1,0 +1,10 @@
+before_script:
+    - apt-get update -qq && apt-get install -y -qq gcc sudo
+    - curl -sSf https://static.rust-lang.org/rustup.sh | sh
+    - rustc -Vv
+    - cargo -Vv
+    
+build:
+    script:
+        - cargo build
+

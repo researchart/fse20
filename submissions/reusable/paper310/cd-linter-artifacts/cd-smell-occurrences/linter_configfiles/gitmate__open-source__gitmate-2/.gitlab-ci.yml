@@ -1,0 +1,168 @@
+image: docker:1.10.3
+services:
+  - docker:dind
+variables:
+  DB_NAME: postgres
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_ADDRESS: postgres
+  DOCKER_DRIVER: overlay2
+
+before_script:
+  - which apk && apk add --no-cache bash
+  - export PROJECT_PATH=$(echo $CI_PROJECT_PATH | awk '{print tolower($0)}')
+  - export TEST_IMAGE_NAME=registry.gitlab.com/$PROJECT_PATH:$CI_COMMIT_SHA
+  - export MASTER_NAME=registry.gitlab.com/$PROJECT_PATH:latest
+  - export RC_NAME=registry.gitlab.com/$PROJECT_PATH:rc
+  - export RELEASE_NAME=registry.gitlab.com/$PROJECT_PATH:release
+
+stages:
+  - test
+  - release
+  - deploy
+
+cache:
+  paths:
+  - /root/.cache/pip
+
+run_tests: &run_tests
+  image: python:3.6
+  stage: test
+  services:
+    - postgres:9.6
+  script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends libblas-dev liblapack-dev libatlas-base-dev gfortran g++ git
+    - pip3 install -r requirements.txt
+    - pip3 install -r test-requirements.txt
+    - python3 manage.py makemigrations
+    - py.test -vv --cov --doctest-modules
+    - sh .ci/no_changes.sh
+  except:
+    - master
+
+run_tests_ee:
+  <<: *run_tests
+  before_script:
+    - ./install_deps.sh
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+  only:
+    - branches@gitmate/open-source/gitmate-2
+
+build_image: &build_image
+  stage: test
+  script:
+    - echo "$CI_COMMIT_SHA" > .version
+    - docker build -t $TEST_IMAGE_NAME .
+    - docker login -e gitlab-ci@gitlab.com -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker push $TEST_IMAGE_NAME
+  except:
+    - master
+
+build_image_ee:
+  <<: *build_image
+  before_script:
+    - export PROJECT_PATH=$(echo $CI_PROJECT_PATH | awk '{print tolower($0)}')
+    - export TEST_IMAGE_NAME="registry.gitlab.com/$PROJECT_PATH:$CI_COMMIT_SHA-ee"
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+  only:
+    - branches@gitmate/open-source/gitmate-2
+
+push_master_image:
+  stage: release
+  script:
+    - docker login -e gitlab-ci@gitlab.com -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - ./.ci/push_image.sh $TEST_IMAGE_NAME $MASTER_NAME
+    - ./.ci/push_image.sh "$TEST_IMAGE_NAME-ee" "$MASTER_NAME-ee"
+  only:
+    - master@gitmate/open-source/gitmate-2
+
+push_rc_image:
+  stage: release
+  script:
+    - docker login -e gitlab-ci@gitlab.com -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - ./.ci/push_image.sh $TEST_IMAGE_NAME $RC_NAME
+    - ./.ci/push_image.sh "$TEST_IMAGE_NAME-ee" "$RC_NAME-ee"
+  only:
+    - /^rc\/.*$/@gitmate/open-source/gitmate-2
+
+push_release_image: &push_release_image
+  stage: release
+  script:
+    - docker login -e gitlab-ci@gitlab.com -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - ./.ci/push_image.sh $TEST_IMAGE_NAME $RELEASE_NAME
+    - ./.ci/push_image.sh "$TEST_IMAGE_NAME-ee" "$RELEASE_NAME-ee"
+    - ./.ci/send_mattermost.sh "$MATTERMOST_RELEASE_WEBHOOK" "'$CI_COMMIT_REF_NAME' is now pushed to release"
+  when: manual
+  only:
+    - /^rc\/.*$/@gitmate/open-source/gitmate-2
+
+push_hotfix_image:
+  <<: *push_release_image
+  when: on_success
+  only:
+    - /^hotfix\/.*$/@gitmate/open-source/gitmate-2
+
+deploy_master:
+  stage: deploy
+  image: debian:9
+  script:
+    - which ssh-agent || (apt-get update -y && apt-get install -y --no-install-recommends openssh-client)
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$DEPLOY_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_SERVER_HOSTKEYS" > ~/.ssh/known_hosts
+    - ssh tomoko@moeka.gitmate.io 'bash -s' < .ci/deploy.master.sh
+  environment:
+    name: master
+    url: https://api.master.gitmate.io
+  dependencies:
+    - push_master_image
+  only:
+    - master@gitmate/open-source/gitmate-2
+
+deploy_rc:
+  stage: deploy
+  image: debian:9
+  script:
+    - which ssh-agent || (apt-get update -y && apt-get install -y --no-install-recommends openssh-client)
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$DEPLOY_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_SERVER_HOSTKEYS" > ~/.ssh/known_hosts
+    - ssh tomoko@moeka.gitmate.io 'bash -s' < .ci/deploy.rc.sh
+  environment:
+    name: rc
+    url: https://api.rc.gitmate.io
+  dependencies:
+    - push_rc_image
+  only:
+    - /^rc\/.*$/@gitmate/open-source/gitmate-2
+
+deploy_release: &deploy_release
+  stage: deploy
+  image: debian:9
+  script:
+    - which ssh-agent || (apt-get update -y && apt-get install -y --no-install-recommends openssh-client)
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$DEPLOY_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_SERVER_HOSTKEYS" > ~/.ssh/known_hosts
+    - ssh tomoko@nomoya.gitmate.io 'bash -s' < .ci/deploy.release.sh
+  environment:
+    name: release
+    url: https://api.gitmate.io
+  dependencies:
+    - push_release_image
+  when: manual
+  only:
+    - /^rc\/.*$/@gitmate/open-source/gitmate-2
+
+deploy_hotfix:
+  <<: *deploy_release
+  when: on_success
+  only:
+    - /^hotfix\/.*$/@gitmate/open-source/gitmate-2
+

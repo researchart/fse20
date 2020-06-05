@@ -1,0 +1,32 @@
+stages:
+  - test
+
+image: registry.gitlab.com/bff/rn
+
+cache:
+  key: $CACHE_KEY
+  paths:
+    - /root/.cargo
+
+unit_test:
+  stage: test
+  script:
+    - rustup update
+    - ./kcov.sh
+
+release_build:
+  stage: test
+  only:
+    - tags
+    - master
+  artifacts:
+    name: "rn"
+    paths:
+      - bin/
+  script:
+    - rustup update
+    - "cargo build --release"
+    - "mkdir -p bin/linux_x64"
+    - "cp target/release/rn bin/linux_x64/rn"
+    - "cp rn.sh bin/"
+

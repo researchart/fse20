@@ -1,0 +1,48 @@
+variables:
+  DEBIAN_FRONTEND: "noninteractive"
+  KITCHEN_YAML: ".kitchen.ci.yml"
+  BUNDLE_PATH: "$CI_PROJECT_DIR/.bundle"
+  DIGITALOCEAN_TESTBOX_FQDN: "${CI_PROJECT_NAME}.${CI_PROJECT_NAMESPACE}.ci.gitlab.test"
+
+stages:
+  - build
+  - integration
+  - publish
+
+# define cache globally for now
+cache:
+  paths:
+    - $BUNDLE_PATH
+    - $CI_PROJECT_DIR/data/
+
+build-deb:
+  image:
+    name: nlknguyen/alpine-shellcheck
+    # should be fixed in 10.2: https://gitlab.com/gitlab-org/gitlab-runner/issues/2692
+    # https://www.google.ru/search?q="%2Fbin%2Fsh%3A+can%27t+open+%27sh%27"&oq="%2Fbin%2Fsh%3A+can%27t+open+%27sh%27"
+    entrypoint: ["/bin/sh", "-c"]
+  stage: build
+  before_script:
+    - apk update && apk add openssl make dpkg ca-certificates gnupg tar
+    - update-ca-certificates
+  script:
+    - make deb
+
+kitchen-test-job:
+  image: ruby:2.4-alpine
+  stage: integration
+  before_script:
+    - apk update && apk add coreutils curl build-base openssh-client jq rsync
+  script:
+    - make kitchen
+
+publish:
+  image: alpine:latest
+  stage: publish
+  before_script:
+    - apk update && apk add make curl
+  script:
+    - make publish
+  only:
+    - master
+

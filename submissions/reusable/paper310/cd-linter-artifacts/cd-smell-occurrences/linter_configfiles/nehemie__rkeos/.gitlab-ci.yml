@@ -1,0 +1,37 @@
+before_script:
+- >
+  apt-get update -qq && apt-get -y install --no-install-recommends
+  gdal-bin
+  libgdal-dev
+  libproj-dev
+- >
+  apt-get -y install --no-install-recommends
+  texlive-base
+  texlive-latex-recommended
+  texlive-fonts-recommended
+  texlive-humanities
+  texlive-extra-utils
+  texlive-fonts-extra 
+- R --vanilla -f install.R
+
+
+build:rocker/ropensci:
+  image: rocker/ropensci
+  script: 
+    - make install roxygen check
+    - mv ../rkeos.Rcheck rcheck
+    - export 
+  artifacts: 
+    paths:
+    - rcheck/
+
+      # build:rocker-geospatial:
+      #   image: rocker/geospatial:devel
+      #   script: 
+      #     - make install roxygen check
+      #     - mv ../rkeos.Rcheck rcheck
+      #     - export 
+      #   artifacts: 
+      #     paths:
+      #     - rcheck/
+

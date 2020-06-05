@@ -1,0 +1,72 @@
+image: giomasce/testenv
+
+variables:
+  GIT_STRATEGY: clone
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_DEPTH: "3"
+
+before_script:
+  - cat /proc/cpuinfo
+  - cat /proc/meminfo
+  - apt-get update
+  - apt-get install -y --no-upgrade eatmydata
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - eatmydata apt-get install -y --no-upgrade make nasm python3 qemu-utils
+    - bash test/build_all_variants.sh
+    - ls -l build/asmg.x86.exe build/asmg_dbg.x86.exe
+  artifacts:
+    paths:
+      - artifacts
+  tags:
+    - docker
+
+tests:
+  stage: test
+  script:
+    - eatmydata apt-get install -y --no-upgrade python3 qemu-system-x86
+    - "qemu-system-i386 -hda artifacts/tests/boot_asmg.x86.qcow2 -serial file:/dev/stdout -display none -m 256M -enable-kvm | ./test/decode_tests.py"
+  tags:
+    - privileged
+
+mm0:
+  stage: test
+  script:
+    - eatmydata apt-get install -y --no-upgrade python3 qemu-system-x86
+    - "qemu-system-i386 -hda artifacts/mm0/boot_asmg.x86.qcow2 -serial file:/dev/stdout -display none -m 256M -enable-kvm | ./test/decode_tests.py just_malloc"
+  allow_failure: true
+  tags:
+    - privileged
+
+ipxe:
+  stage: test
+  script:
+    - eatmydata apt-get install -y --no-upgrade python3 qemu-system-x86
+    - cd http && python3 -m http.server 8080 &
+    - "qemu-system-i386 -hda artifacts/ipxe/boot_asmg.x86.qcow2 -serial file:/dev/stdout -display none -m 256M -enable-kvm | ./test/decode_tests.py just_malloc"
+  tags:
+    - privileged
+
+single_cream:
+  stage: test
+  script:
+    - eatmydata apt-get install -y --no-upgrade python3 qemu-system-x86
+    - "qemu-system-i386 -hda artifacts/single_cream/boot_asmg.x86.qcow2 -serial file:/dev/stdout -display none -m 256M -enable-kvm | ./test/decode_tests.py just_malloc"
+  allow_failure: true
+  tags:
+    - privileged
+
+mm0_c:
+  stage: test
+  script:
+    - eatmydata apt-get install -y --no-upgrade python3 qemu-system-x86
+    - "qemu-system-i386 -hda artifacts/mm0_c/boot_asmg.x86.qcow2 -serial file:/dev/stdout -display none -m 256M -enable-kvm | ./test/decode_tests.py just_malloc"
+  tags:
+    - privileged
+

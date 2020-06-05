@@ -1,0 +1,231 @@
+image: buildstream/buildstream-fedora:latest
+
+variables:
+  # Store everything under the /builds directory. This is a separate Docker
+  # volume. Note that GitLab CI will only cache stuff inside the build
+  # directory. Note also that YBD recursively scans the current directory
+  # to find what definitions to build -- that's why we put the cache in a
+  # hidden directory.
+  XDG_CACHE_HOME: "${CI_PROJECT_DIR}/.cache"
+  DEFS2BST_SHA: '1dc5c0719de9357470b29ad4adc9b63f7012db86'
+  GET_SOURCES_ATTEMPTS: 3
+
+.bst_before_script: &bst_before_script
+  before_script:
+    - |
+      export BST_SHA='06ae434a7017edbf67bf46c3fe2e327466801787'  # 1.1.3
+      export BST_EXTERNAL_SHA='fcd1fc365d0250bffe02937c89dcc31d11c299cf'
+      git clone https://gitlab.com/BuildStream/buildstream.git
+      # Use specific version of BuildStream
+      cd buildstream && git checkout $BST_SHA
+      pip3 install .
+      cd -
+      git clone https://gitlab.com/BuildStream/bst-external.git
+      # Use specific version of bst-external plugins
+      cd bst-external && git checkout $BST_EXTERNAL_SHA
+      pip3 install .
+      cd -
+
+    # Create ~/.ssh for storing keys
+    - mkdir -p ~/.ssh
+
+    # Private key stored as a protected variable that allows pushing to
+    # ostree@ostree.baserock.org
+    - |
+      if [ -z "$baserock_ostree_cache_private_key" ]; then
+          echo >&2 "Private key for ostree.baserock.org is not available."
+      else
+          echo "$baserock_ostree_cache_private_key" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub
+      fi
+
+    # Trust the host key of the cache server.
+    - ssh-keyscan -p 22200 ostree.baserock.org >> ~/.ssh/known_hosts
+
+    # If we can push, then enable push and pull for Baserock artifact cache
+    # (default config is pull only)
+    - |
+      if [ -n "$baserock_ostree_cache_private_key" ]; then
+          mkdir -p ~/.config
+          echo "projects:" > ~/.config/buildstream.conf
+          echo "  baserock:" >> ~/.config/buildstream.conf
+          echo "    artifacts:" >> ~/.config/buildstream.conf
+          echo "      - url: ssh://ostree@ostree.baserock.org:22200/cache" >> ~/.config/buildstream.conf
+          echo "        push: true" >> ~/.config/buildstream.conf
+          echo "scheduler:" >> ~/.config/buildstream.conf
+          echo "  fetchers: 1" >> ~/.config/buildstream.conf
+          echo "  on-error: quit" >> ~/.config/buildstream.conf
+      fi
+      cat ~/.config/buildstream.conf
+
+# Store all the downloaded git and ostree repos in the distributed cache.
+# This saves us fetching them from git.baserock.org and further afield
+# on every build.
+.bst_cache: &bst_cache
+  cache:
+    key: bst
+    paths:
+      - "${XDG_CACHE_HOME}/buildstream/sources/"
+
+stages:
+  - preprocess
+  - build-1
+  - deploy-1
+  - build-2
+
+##########################################
+# BuildStream conversions and tests      #
+##########################################
+
+# Convert the Baserock definitions to BuildStream format
+bst-convert:
+  stage: preprocess
+  <<: *bst_before_script
+  script:
+  # Clone last version of definitions with YBD systems
+  - export DEFINITIONS_YBD_SHA='8f8992a18d55c3abf28d4b6fc8036bd39d3dc1cf'
+  - git clone https://gitlab.com/baserock/definitions.git old-definitions-morph-format
+  - git -C old-definitions-morph-format checkout $DEFINITIONS_YBD_SHA
+  # Install YBD and defs2bst
+  - |
+    if [ ! -d ./ybd ]; then
+      git clone https://gitlab.com/baserock/ybd.git
+      git -C ybd checkout $YBD_SHA
+      cd ybd && ./install_dependencies.sh && cd -
+    fi
+    git clone https://gitlab.com/BuildStream/defs2bst.git
+    git -C defs2bst checkout $DEFS2BST_SHA
+    echo "defs2bst version: $(git -C ./defs2bst rev-parse HEAD)"
+  - ./convert
+  artifacts:
+    paths:
+    - elements/
+
+# Test building the simplest Baserock system first
+bst-build-minimal-system:
+  stage: build-1
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-build-or-show systems/minimal-system-content.bst
+  <<: *bst_cache
+
+bst-minimal-system-deploy:
+  stage: deploy-1
+  dependencies:
+  - bst-build-minimal-system
+  <<: *bst_before_script
+  script:
+  - scripts/bst-build-or-show systems/minimal-system-image-x86_64.bst
+  - bst checkout systems/minimal-system-image-x86_64.bst ./minimal-system
+  - dnf install -y qemu-system-x86
+  - scripts/test-minimal-system ./minimal-system/sda.img
+  <<: *bst_cache
+  artifacts:
+    name: "${CI_BUILD_NAME}-${CI_BUILD_REF}"
+    paths:
+    - ./minimal-system/sda.img
+    expire_in: 1 week
+
+# Test building a converted Baserock system
+bst-build-build-system-converted:
+  stage: build-2
+  dependencies:
+    - bst-convert
+  <<: *bst_before_script
+  script:
+  - scripts/bst-build-or-show systems/build-system-content.bst
+  <<: *bst_cache
+
+# Test building the rest of the Baserock systems
+bst-build-base-system:
+  stage: build-2
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-build-or-show systems/base-system-content.bst
+  <<: *bst_cache
+
+bst-build-build-system:
+  stage: build-2
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-build-or-show systems/build-system-content.bst
+  <<: *bst_cache
+
+bst-build-genivi-demo-platform-system:
+  stage: build-2
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-build-or-show systems/genivi-demo-platform-content.bst
+  <<: *bst_cache
+
+bst-build-gnome-system:
+  stage: build-2
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-build-or-show systems/gnome-system-content.bst
+  <<: *bst_cache
+
+bst-build-ivi-demo-platform-system:
+  stage: build-2
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-build-or-show systems/ivi-system-content.bst
+  <<: *bst_cache
+
+bst-build-openstack-system:
+  stage: build-2
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-build-or-show systems/openstack-system-content.bst
+  <<: *bst_cache
+
+bst-build-trove-system:
+  stage: build-2
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-build-or-show systems/trove-system-content.bst
+  <<: *bst_cache
+
+# Test cross building a toolchain and sysroot for each supported non-x86_64
+# architecture.
+bst-build-sysroot-armv8b64:
+  stage: build-2
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-cross-build-or-show armv8b64 gnu-toolchain/stage2.bst
+  <<: *bst_cache
+
+bst-build-sysroot-armv8l64:
+  stage: build-2
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-cross-build-or-show armv8l64 gnu-toolchain/stage2.bst
+  <<: *bst_cache
+
+bst-build-sysroot-ppc64b:
+  stage: build-2
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-cross-build-or-show ppc64b gnu-toolchain/stage2.bst
+  <<: *bst_cache
+
+bst-build-sysroot-ppc64l:
+  stage: build-2
+  dependencies: []
+  <<: *bst_before_script
+  script:
+  - scripts/bst-cross-build-or-show ppc64l gnu-toolchain/stage2.bst
+  <<: *bst_cache
+

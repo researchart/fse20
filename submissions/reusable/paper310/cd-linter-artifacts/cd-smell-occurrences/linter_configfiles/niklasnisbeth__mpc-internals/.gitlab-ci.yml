@@ -1,0 +1,15 @@
+image: conoria/alpine-pandoc
+
+pages:
+  stage: deploy
+  script:
+    - mkdir $OUTPUT_DIR
+    - sh build.sh README.md
+  variables:
+    OUTPUT_DIR: public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

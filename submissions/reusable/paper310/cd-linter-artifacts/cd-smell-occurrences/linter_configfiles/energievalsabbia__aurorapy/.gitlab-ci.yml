@@ -1,0 +1,32 @@
+linter:
+  image: python:3
+  script:
+    - pip install pipenv
+    - pipenv --three install --dev
+    # All tests but E501 (line too long), E302 (two blank lines between top level functions)
+    - pipenv run flake8 --ignore=E501,E302
+
+    # Silence pylint complaining about its missing config file.
+    - touch ~/.pylintrc
+    # Check Python 3 conformance.
+    - find -name '*.py' -print0 | xargs -0 pipenv run pylint --py3k --reports=n
+
+    # Check for security vulnerabilities
+    - pipenv check
+
+tests_py3:
+  image: python:3
+  script:
+    - pip install pipenv
+    - pipenv --three install --dev
+    - pipenv run python --version
+    - pipenv run python -m unittest discover test
+
+tests_py2:
+  image: python:2
+  script:
+    - pip install pipenv
+    - pipenv --two install --dev
+    - pipenv run python --version
+    - pipenv run python -m unittest discover test
+

@@ -1,0 +1,27 @@
+build:nightly:
+  image: "rustlang/rust:nightly"
+  script:
+  - rustc --version && cargo --version
+  - cargo build --all && cargo build --examples
+  - cargo test --all --verbose
+  - ASAN_OPTIONS=detect_odr_violation=0 RUSTFLAGS="-Z sanitizer=leak" cargo test --all
+  - ASAN_OPTIONS=detect_odr_violation=0 RUSTFLAGS="-Z sanitizer=address" cargo test --all
+
+build:stable:
+  image: "rust:latest"
+  script:
+  - rustc --version && cargo --version
+  - cargo build --all && cargo build --examples
+  - cargo test --all --verbose
+
+pages:
+  image: "rust:latest"
+  script:
+  - cargo doc
+  - mv target/doc/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

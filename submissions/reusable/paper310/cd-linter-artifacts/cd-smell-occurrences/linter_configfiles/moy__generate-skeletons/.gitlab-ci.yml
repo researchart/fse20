@@ -1,0 +1,19 @@
+before_script:
+  - pip install flake8
+  - pip install rstcheck
+  - pip install unidiff
+
+.job_template: &job_definition
+  script:
+  - flake8 .
+  - rstcheck *.rst
+  - cd tests && make
+
+test:2.7:
+  <<: *job_definition
+  image: python:2.7
+
+test:3.5:
+  <<: *job_definition
+  image: python:3.5
+

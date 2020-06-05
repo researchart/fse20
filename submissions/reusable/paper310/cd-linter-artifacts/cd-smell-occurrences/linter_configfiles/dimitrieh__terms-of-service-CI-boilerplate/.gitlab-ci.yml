@@ -1,0 +1,24 @@
+image: strages/pandoc-docker
+
+# uncomment this when making use of the dropbox feature
+# before_script:
+#   - chmod +x dropbox_uploader.sh
+#   - ./dropbox_uploader.sh -f dropbox_uploader_config download /
+
+# change "pages" to "build" if you dont want to make use of gitlab pages
+pages:
+  script:
+# Linux Libertine O is included in the docker image due to texlive-full. If using your own fonts (otf), put them in the fonts dir and use the following:
+  - cp fonts/* /usr/share/fonts/
+  - fc-cache -f -v
+  - echo "fonts are installed"
+  - make
+  - echo "pdf generated, well done machine!"
+  artifacts:
+    paths:
+    - public
+
+# uncomment this when making use of the dropbox feature
+# after_script:
+#   - ./dropbox_uploader.sh -f dropbox_uploader_config upload public/*.pdf pdfs
+

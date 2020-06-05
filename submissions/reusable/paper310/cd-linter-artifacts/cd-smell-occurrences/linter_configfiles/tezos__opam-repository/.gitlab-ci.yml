@@ -1,0 +1,32 @@
+
+stages:
+  - build
+
+cache:
+  key: alpine_packages
+  paths:
+  - _docker_build
+
+build:
+  stage: build
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+    - docker:dind
+  script:
+    - . ./scripts/version.sh
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    - ./scripts/create_docker_image.sh "${CI_REGISTRY_IMAGE}" "${CI_COMMIT_SHA}"
+    - docker push "${CI_REGISTRY_IMAGE}/hidapi.apk:${hidapi_version}"
+    - docker push "${CI_REGISTRY_IMAGE}:minimal--${CI_COMMIT_SHA}"
+    - docker push "${CI_REGISTRY_IMAGE}:opam--${CI_COMMIT_SHA}"
+    - docker push "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+    - if [ -n "${CI_COMMIT_REF_NAME}" ]; then
+        docker tag "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}"
+                   "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME}" ;
+        docker push "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME}" ;
+      fi
+  tags:
+    - safe_docker
+

@@ -1,0 +1,35 @@
+stages:
+  - build
+  - deploy
+
+cache:
+  paths:
+    - .m2/repository
+
+build:
+  stage: build
+  image: maven:3.3.9-jdk-8
+  script:
+    - "mvn clean package -B"
+  only:
+    - tags
+    - master
+  artifacts:
+    paths:
+      - target
+register:
+  stage: deploy
+  image: docker:latest
+  services:
+    - docker:dind
+  only:
+    - tags
+  script:
+    - export IMAGE_TAG=$(echo -en $CI_COMMIT_TAG | tr -c '[:alnum:]_.-' '-')
+    - docker login -u "gitlab-ci-token" -p "$CI_JOB_TOKEN" $CI_REGISTRY
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$IMAGE_TAG" .
+    - docker push "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
+    - docker tag "$CI_REGISTRY_IMAGE:$IMAGE_TAG" "$CI_REGISTRY_IMAGE:latest"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+
+

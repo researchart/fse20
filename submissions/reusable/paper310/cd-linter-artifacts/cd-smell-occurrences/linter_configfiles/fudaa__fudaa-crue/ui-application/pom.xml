@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.fudaa.soft.fudaa-crue</groupId>
+        <artifactId>fudaa-crue</artifactId>
+        <version>1.4.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>application</artifactId>
+    <packaging>nbm-application</packaging>
+
+    <name>Crue UI Application</name>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <netbeans.run.params.ide/>
+        <netbeans.run.params>${netbeans.run.params.ide}</netbeans.run.params>
+
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.netbeans.cluster</groupId>
+            <artifactId>platform</artifactId>
+            <version>${netbeans.version}</version>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-wrapper</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-planimetry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-loi</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-study</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-views</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-comparison</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-loader</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-commandline</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-branding</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-emh</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-modelling</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-post</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-report</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-sysdoc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-otfa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-aoc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>ui-options</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>nbm-maven-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                    <finalName>Fudaa-Crue-${project.version}</finalName>
+                    <etcConfFile>src/main/resources/etc/fudaacrue.conf</etcConfFile>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>dev</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>nbm-maven-plugin</artifactId>
+                        <configuration>
+                            <finalName>Dev-Fudaa-Crue-${project.version}</finalName>
+                            <etcConfFile>src/main/resources/etc/fudaacrueDev.conf</etcConfFile>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>assemble-windows</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>1.7</version>
+                        <executions>
+                            <execution>
+                                <id>icon</id>
+                                <phase>package</phase>
+                                <configuration>
+                                    <target>
+                                        <echo message="Replacing icon of Windows launcher executable"/>
+                                        <exec executable="${basedir}/src/main/resources/installer/ReplaceVistaIcon.exe" resolveexecutable="true">
+                                            <arg line="${project.build.directory}/${brandingToken}/bin/${brandingToken}.exe ${basedir}/src/main/resources/installer/icon.ico"/>
+                                        </exec>
+                                        <exec executable="${basedir}/src/main/resources/installer/ReplaceVistaIcon.exe" resolveexecutable="true">
+                                            <arg line="${project.build.directory}/${brandingToken}/bin/${brandingToken}64.exe ${basedir}/src/main/resources/installer/icon.ico"/>
+                                        </exec>
+                                        <zip destfile="${project.build.directory}/Fudaa-Crue-${project.version}.zip" update="true">
+                                            <zipfileset dir="target/${brandingToken}/bin" includes="${brandingToken}.exe" prefix="${brandingToken}/bin"/>
+                                            <zipfileset dir="target/${brandingToken}/bin" includes="${brandingToken}64.exe" prefix="${brandingToken}/bin"/>
+                                        </zip>
+
+                                    </target>
+                                </configuration>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>assemble-linux</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>1.7</version>
+                        <executions>
+                            <execution>
+                                <id>icon</id>
+                                <phase>package</phase>
+                                <configuration>
+                                    <target>
+                                        <echo message="Replacing icon of Windows launcher executable"/>
+                                        <exec executable="wine" resolveexecutable="false">
+                                            <arg line="${basedir}/src/main/resources/installer/ReplaceVistaIcon.exe ${project.build.directory}/${brandingToken}/bin/${brandingToken}.exe ${basedir}/src/main/resources/installer/icon.ico"/>
+                                        </exec>
+                                        <exec executable="wine" resolveexecutable="false">
+                                            <arg line="${basedir}/src/main/resources/installer/ReplaceVistaIcon.exe ${project.build.directory}/${brandingToken}/bin/${brandingToken}64.exe ${basedir}/src/main/resources/installer/icon.ico"/>
+                                        </exec>
+                                        <zip destfile="${project.build.directory}/Fudaa-Crue-${project.version}.zip" update="true">
+                                            <zipfileset dir="target/${brandingToken}/bin" includes="${brandingToken}.exe" prefix="${brandingToken}/bin"/>
+                                            <zipfileset dir="target/${brandingToken}/bin" includes="${brandingToken}64.exe" prefix="${brandingToken}/bin"/>
+                                        </zip>
+
+                                    </target>
+                                </configuration>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
+

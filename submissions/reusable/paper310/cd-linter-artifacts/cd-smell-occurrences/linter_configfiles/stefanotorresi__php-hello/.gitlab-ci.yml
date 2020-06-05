@@ -1,0 +1,38 @@
+image: docker:17.09
+
+services:
+  - docker:17.09-dind
+
+cache:
+  untracked: true
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - docker info
+
+stages:
+  - build
+  - test
+
+
+variables:
+  FPM_IMAGE: ${CI_REGISTRY_IMAGE}/fpm
+  NGINX_IMAGE: ${CI_REGISTRY_IMAGE}/nginx
+
+build:
+  stage: build
+  script:
+    - docker load -i fpm-image-cache.tar || docker pull ${FPM_IMAGE} || true
+    - docker load -i nginx-image-cache.tar || docker pull ${NGINX_IMAGE} || true
+    - docker build --target fpm -t ${FPM_IMAGE} --cache-from ${FPM_IMAGE} .
+    - docker build --target nginx -t ${NGINX_IMAGE} --cache-from ${NGINX_IMAGE} .
+    - docker push ${FPM_IMAGE}
+    - docker push ${NGINX_IMAGE}
+    - docker save -o fpm-image-cache.tar ${FPM_IMAGE}
+    - docker save -o nginx-image-cache.tar ${NGINX_IMAGE}
+
+test:
+  stage: test
+  script:
+    - '[[ "$(docker run --rm ${FPM_IMAGE} php index.php)" == "Hello World" ]] || false'
+

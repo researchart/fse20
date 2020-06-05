@@ -1,0 +1,62 @@
+stages:
+- build
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+  APT_CACHE_DIR: $CI_PROJECT_DIR/apt
+
+.rust-build-test:
+  before_script:
+  - rustc --version
+  - cargo --version
+  script:
+  - cargo build --verbose
+  - cargo test --verbose
+
+rust-latest:
+  extends: .rust-build-test
+  stage: build
+  image: rust:latest
+  cache:
+    key: latest
+
+rust-nightly:
+  extends: .rust-build-test
+  allow_failure: true
+  stage: build
+  image: rustlang/rust:nightly
+  cache:
+    key: nightly
+
+fmt-check:
+  image: rustlang/rust:nightly
+  allow_failure: true
+  stage: build
+  before_script:
+  - rustup component add rustfmt-preview --toolchain nightly
+  script:
+    - cargo +nightly fmt --all -- --check
+
+pages:
+  stage: build
+  image: rustlang/rust:nightly
+  allow_failure: true
+  cache:
+    key: nightly
+  script:
+  - cargo doc --document-private-items
+  - mv target/doc/ public/
+  # thx https://users.rust-lang.org/t/my-gitlab-config-docs-tests/16396 if this works
+  - echo '<meta http-equiv="refresh" content="0; url=node_amqp/">' > public/index.html
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+cache:
+  paths:
+  - apt/
+  - cargo/
+  - target/
+

@@ -1,0 +1,32 @@
+stages:
+  - build
+  - test
+
+variables:
+    IMAGE: registry.gitlab.com/$CI_PROJECT_PATH:$CI_COMMIT_REF_NAME
+  
+build_image:
+  stage: build
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker pull $IMAGE || true
+    - docker build --cache-from $IMAGE --tag $IMAGE docker
+    - docker push $IMAGE
+  only:
+    - master
+
+build:
+  stage: test
+  image: $IMAGE
+  script:
+  - make -C sample
+  artifacts:
+    paths:
+    - "sample/*.pdf"
+    - "sample/*.png"
+    - "sample/*.epub"
+
+

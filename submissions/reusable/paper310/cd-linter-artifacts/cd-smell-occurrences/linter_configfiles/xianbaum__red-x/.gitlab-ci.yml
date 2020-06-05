@@ -1,0 +1,31 @@
+image: node:latest
+
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+  - node -v
+  - npm -v
+  - npm install -g typescript
+  - npm install -g browserify
+  - npm install -g browserify-userscript-header
+  - tsc -v
+  - npm install
+
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo "$SSH_PRIVATE_KEY")
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - ssh-keyscan -t rsa latenight.christianbaum.com >> ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+  - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+  - chmod 600 ~/.ssh/id_rsa
+
+build:
+  script:
+      - npm run webextension
+      - npm run userscript
+      - scp -v red-x.user.js red-x.zip xian@latenight.christianbaum.com:~/red-x-latest/ || ":"
+

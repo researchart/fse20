@@ -1,0 +1,10 @@
+image: php:5.6
+
+stages:
+  - build
+
+job1:
+  stage: build
+  script:
+    - deploy/build.sh
+

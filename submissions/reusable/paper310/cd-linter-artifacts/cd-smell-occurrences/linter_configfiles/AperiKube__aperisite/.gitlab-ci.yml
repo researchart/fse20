@@ -1,0 +1,17 @@
+image: creased/docker-hugo:latest
+
+pages:
+    stage: build
+    script:
+        - git submodule update --init --recursive
+        - hugo -d public/ -b "${SITE_URL}"
+        - cp -r .well-known/ public/
+    artifacts:
+        paths:
+            - public
+    cache:
+        paths:
+            - public
+    only:
+        - master
+

@@ -1,0 +1,194 @@
+image: registry.gitlab.com/ostrokach-docker/conda:latest
+
+stages:
+  - lint
+  - build
+  - test
+  - deploy
+
+# === Variables ===
+
+variables:
+  PACKAGE_VERSION: "2.0.18"
+
+.py37: &py37
+  PYTHON_VERSION: "3.7"
+
+.py38: &py38
+  PYTHON_VERSION: "3.8"
+
+# === Configurations ===
+
+.configure: &configure
+  before_script:
+    - conda config --append channels kimlab
+    - conda update -y -q conda conda-build --no-channel-priority
+
+# === Lint ===
+
+lint:
+  stage: lint
+  <<: [*configure]
+  variables:
+    <<: [*py37]
+  script:
+    - cd $(dirname ${CI_CONFIG_PATH})
+    - conda create -n lint -y -q "python=${PYTHON_VERSION}" isort flake8 mypy
+    - source activate lint
+    - python -m isort -p ${CI_PROJECT_NAME} -c
+    - python -m flake8
+    - python -m black --config pyproject.toml --check . || true
+    - python -m mypy -p ${CI_PROJECT_NAME} || true
+
+# === Build ===
+
+.build: &build
+  stage: build
+  script:
+    - conda config --add channels defaults
+    - cd "${CI_PROJECT_DIR}/.ci/conda"
+    - conda build .
+      --no-test
+      --python ${PYTHON_VERSION}
+      --output-folder "${CI_PROJECT_DIR}/conda-bld"
+  artifacts:
+    paths:
+      - conda-bld
+
+build-py37:
+  <<: [*configure, *build]
+  variables:
+    <<: [*py37]
+
+build-py38:
+  <<: [*configure, *build]
+  variables:
+    <<: [*py38]
+
+# === Test ===
+
+.test: &test
+  stage: test
+  script:
+    # Restore built packages
+    - cp -r ${CI_PROJECT_DIR}/conda-bld/* /opt/conda/conda-bld/
+    - conda index /opt/conda/conda-bld/
+    # Run tests
+    - cd ${CI_PROJECT_DIR}/.ci/conda
+    - conda build .
+      --test
+      --python $PYTHON_VERSION
+  coverage: /^TOTAL.* (\d+\%)/
+  artifacts:
+    paths:
+      - environment-py${PYTHON_VERSION/./}.yml
+      - .ci/conda/.coverage
+
+test-py37:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py37
+  variables:
+    <<: [*py37]
+
+test-py38:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py38
+  variables:
+    <<: [*py38]
+
+# === Docs ===
+
+docs:
+  stage: test
+  <<: [*configure]
+  script:
+    # Restore built packages
+    - cp -r $CI_PROJECT_DIR/conda-bld/* /opt/conda/conda-bld/
+    - conda index /opt/conda/conda-bld/
+    # Install required packages
+    - conda install -yq --use-local "python=$PYTHON_VERSION" $CI_PROJECT_NAME
+    - conda install -yq nbconvert ipython ipykernel pandoc
+    - pip install -q sphinx sphinx_rtd_theme recommonmark nbsphinx
+    # Build docs
+    - sphinx-build ${CI_PROJECT_DIR}/docs public
+  dependencies:
+    - build-py38
+  variables:
+    <<: [*py38]
+  artifacts:
+    paths:
+      - public
+  except:
+    - triggers
+
+# === Deploy ===
+
+.deploy: &deploy
+  stage: deploy
+  before_script:
+    - conda install twine -yq --no-channel-priority
+  script:
+    # Rename wheels from `*-linux_x86_64.whl` to `*-manylinux1_x86_64.whl`
+    # so that they can be uploaded to PyPI.
+    - for i in $CI_PROJECT_DIR/conda-bld/linux-64/*.whl ; do
+      echo $i ;
+      if [[ $i = *"-linux_x86_64.whl" ]]; then
+        mv "${i}" "${i%%-linux_x86_64.whl}-manylinux1_x86_64.whl" ;
+      fi ;
+      done
+    # Development releases go to the Anaconda dev channel
+    - if [[ ${PACKAGE_VERSION} = *"dev"* ]] ; then
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u kimlab --label dev --force --no-progress ;
+       fi
+    # Tagged releases go to the Anaconda and PyPI main channels
+    - if [[ -n ${CI_COMMIT_TAG} ]] ; then
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u kimlab --no-progress ;
+        twine upload $CI_PROJECT_DIR/conda-bld/linux-64/*.whl || true ;
+      fi
+
+deploy-py37:
+  <<: *deploy
+  dependencies:
+    - build-py37
+
+deploy-py38:
+  <<: *deploy
+  dependencies:
+    - build-py38
+
+# === Pages ===
+
+pages:
+  stage: deploy
+  before_script:
+    - sudo yum install -y -q unzip
+  script:
+    # Create docs folder for the current version
+    - mv public "v${PACKAGE_VERSION%.dev}"
+    - mkdir public
+    - mv "v${PACKAGE_VERSION%.dev}" public/
+    # Create docs folder for each tag
+    - 'for tag in $(git tag) ; do
+      echo ${tag} ;
+      curl -L --header "JOB-TOKEN: $CI_JOB_TOKEN"
+      "https://gitlab.com/${CI_PROJECT_NAME}/${CI_PROJECT_NAMESPACE}/-/jobs/artifacts/${tag}/download?job=docs"
+      -o artifact-${tag}.zip || continue ;
+      unzip artifact-${tag}.zip -d public || continue ;
+      rm -rf public/${tag} ;
+      mv public/public public/${tag} ;
+      done'
+    # Create index file
+    # TODO:
+  dependencies:
+    - docs
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+    - tags
+  except:
+    - triggers
+

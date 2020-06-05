@@ -1,0 +1,69 @@
+stages:
+  - build
+  - deploy
+  - test
+  - release
+
+build_binary: 
+  image: ubuntu:16.04
+  stage: build
+  script:
+    # For fix bad permissions of control directory on GitLab CI.
+    # > https://gitlab.com/chusiang/coscup2017-cd-demo/-/jobs/26274225
+    - chmod 755 penguin-htdocs/DEBIAN
+
+    - dpkg -b penguin-htdocs
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - penguin-htdocs.deb
+  tags:
+    - docker
+
+deploy_to_dev: 
+  image: chusiang/ansible:alpine-3.6
+  stage: deploy
+  script:
+    - ls
+    - cd ansible-playbooks/
+    - echo "${VAULT_KEY}" > secret.txt
+    - ansible-playbook deploy.yml
+    - rm -f secret.txt
+  only:
+    - master@chusiang/coscup2017-cd-demo
+    - develop@chusiang/coscup2017-cd-demo
+    - tags@chusiang/coscup2017-cd-demo
+  tags:
+    - docker
+
+test_dev: 
+  image: chusiang/ansible:alpine-3.6
+  stage: test
+  script:
+    - cd ansible-playbooks/
+    - echo "${VAULT_KEY}" > secret.txt
+    - ansible-playbook test.yml
+    - rm -f secret.txt
+  only:
+    - master@chusiang/coscup2017-cd-demo
+    - develop@chusiang/coscup2017-cd-demo
+    - tags@chusiang/coscup2017-cd-demo
+  tags:
+    - docker
+
+release_to_prd: 
+  image: chusiang/ansible:alpine-3.6
+  stage: release
+  script:
+    - cd ansible-playbooks/
+    - echo "${VAULT_KEY}" > secret.txt
+    - ansible-playbook -i production deploy.yml
+    - rm -f secret.txt
+  only:
+    - master@chusiang/coscup2017-cd-demo
+    - tags@chusiang/coscup2017-cd-demo
+  tags:
+    - docker
+
+# vim: ft=yaml :
+

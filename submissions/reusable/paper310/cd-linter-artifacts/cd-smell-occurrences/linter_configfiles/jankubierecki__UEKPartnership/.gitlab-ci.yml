@@ -1,0 +1,43 @@
+image: docker:latest
+services:
+  - docker:dind
+stages:
+  - build
+  - test
+  - push
+
+build:
+  stage: build
+  script:
+    - echo "BUILD:build"
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t registry.gitlab.com/jankubierecki/uekpartnership:latest .
+    - docker push registry.gitlab.com/jankubierecki/uekpartnership:latest
+unittests:
+  stage: test
+  script:
+    - echo "TEST:unittests"
+    - apk add --no-cache python3
+    - apk add --no-cache py3-pip
+    - pip3 install --upgrade pip
+    - pip3 install docker-compose~=1.22.0
+    - export PYTHONUNBUFFERED=1
+    - docker pull registry.gitlab.com/jankubierecki/uekpartnership:latest
+    - docker tag registry.gitlab.com/jankubierecki/uekpartnership:latest registry.gitlab.com/jankubierecki/uekpartnership:latest
+    - docker-compose pull postgres
+    - docker-compose -p uekpartnership up -d postgres django
+    - python3 wait_for_container.py django postgres
+    - docker logs --details $(docker inspect --format='{{.Name}}' $(docker ps -aq --no-trunc) | cut -c2- | grep postgres)
+    - docker ps
+    - ./wait_for_postgres.sh
+    - docker-compose exec -T django /partnerships/run_tests.sh
+
+push:
+  stage: push
+  script:
+    - echo "PUSH:push"
+    - echo $DOCKER_PASSWORD | docker login registry.gitlab.com -u $DOCKER_LOGIN --password-stdin
+    - docker pull registry.gitlab.com/jankubierecki/uekpartnership:latest
+    - docker tag registry.gitlab.com/jankubierecki/uekpartnership:latest registry.gitlab.com/jankubierecki/uekpartnership:latest
+    - docker push registry.gitlab.com/jankubierecki/uekpartnership:latest
+

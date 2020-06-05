@@ -1,0 +1,31 @@
+image: fedora:24
+
+cache:
+  key: dnf
+  paths:
+  - /var/cache/dnf
+
+before_script:
+  - dnf --quiet --assumeyes install "dnf-command(copr)"
+  - dnf --assumeyes copr enable ngompa/nikola
+  - dnf --quiet --assumeyes install /usr/bin/nikola3
+
+test:
+  script:
+   - nikola3 build
+  except:
+   - master
+  tags:
+   - shared
+
+pages:
+  script:
+    - nikola3 build
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+  tags:
+    - shared
+

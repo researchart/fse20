@@ -1,0 +1,156 @@
+stages:
+  - prepare
+  - linting
+  - build
+  - test
+  - extra
+
+setenv:
+  stage: prepare
+  script:
+    - export CCACHE_NOHASHDIR=1
+    - export CCACHE_BASEDIR=${CI_PROJECT_DIR}
+
+cpplint:
+  stage: linting
+  script:
+    - sh tools/cpplint.sh
+
+pylint:
+  stage: linting
+  script:
+    - pycodestyle $(find -name "*.py")
+
+build_docs:
+  stage: build
+  script:
+    - cd docs
+    - pyenv local 3.6.3 && make html
+    - CI_LATEST_OUTPUT_PATH=/mace-build-output/$CI_PROJECT_NAME/latest
+    - CI_JOB_OUTPUT_PATH=/mace-build-output/$CI_PROJECT_NAME/$CI_PIPELINE_ID
+    - rm -rf $CI_JOB_OUTPUT_PATH
+    - mkdir -p $CI_JOB_OUTPUT_PATH
+    - cp -r _build/html $CI_JOB_OUTPUT_PATH/docs
+    - rm -rf $CI_LATEST_OUTPUT_PATH
+    - mkdir -p $CI_LATEST_OUTPUT_PATH
+    - cp -r _build/html $CI_LATEST_OUTPUT_PATH/docs
+
+  artifacts:
+    paths:
+      - docs/_build
+
+cmake_build_android-armeabi-v7a:
+  stage: build
+  script:
+    - RUNTIME=GPU bash tools/cmake/cmake-build-armeabi-v7a.sh
+    - LIBMACE32_FULL_SIZE=`stat -c%s build/cmake-build/armeabi-v7a/install/lib/libmace.so`
+    - if (( LIBMACE32_FULL_SIZE > 2200000 )) ; then echo "The libmace.so size too large"; exit 1; fi
+
+cmake_build_android-arm64-v8:
+  stage: build
+  script:
+    - RUNTIME=GPU bash tools/cmake/cmake-build-arm64-v8a.sh
+    - LIBMACE64_FULL_SIZE=`stat -c%s build/cmake-build/arm64-v8a/install/lib/libmace.so`
+    - if (( LIBMACE64_FULL_SIZE > 3100000 )) ; then echo "The libmace.so size too large"; exit 1; fi
+
+bazel_build:
+  stage: build
+  script:
+    - sh tools/bazel-build-standalone-lib.sh
+  only:
+    - triggers
+
+build_android_demo:
+  stage: build
+  script:
+    - ANDROID_NDK_HOME_SAVED=${ANDROID_NDK_HOME}
+    - export ANDROID_NDK_HOME=/opt/android-ndk-r17b
+    - pushd examples/android/ && bash build.sh static && bash build.sh dynamic && popd
+    - export ANDROID_NDK_HOME=${ANDROID_NDK_HOME_SAVED}
+  only:
+    - triggers
+
+mace_cc_test:
+  stage: test
+  script:
+    - if [ -z "$TARGET_SOCS" ]; then TARGET_SOCS=random; fi
+    - >
+      if ping -c 1 v9.git.n.xiaomi.com 1>/dev/null 2>&1; then
+        GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@v9.git.n.xiaomi.com:deep-computing/generic-mobile-devices.git
+        DEVICE_CONF_FILE=generic-mobile-devices/devices.yml
+      fi
+    - python tools/bazel_adb_run.py --target="//test/ccunit:mace_cc_test" --device_yml=${DEVICE_CONF_FILE} --run_target=True --stdout_processor=unittest_stdout_processor --target_abis=armeabi-v7a,arm64-v8a,arm64 --target_socs=$TARGET_SOCS
+
+mace_cc_benchmark:
+  stage: test
+  script:
+    - if [ -z "$TARGET_SOCS" ]; then TARGET_SOCS=random; fi
+    - python tools/bazel_adb_run.py --target="//test/ccbenchmark:mace_cc_benchmark" --run_target=True --stdout_processor=ops_benchmark_stdout_processor --target_abis=armeabi-v7a,arm64-v8a --target_socs=$TARGET_SOCS --args="--filter=.*SIGMOID.*"
+  only:
+    - triggers
+
+model_tests:
+  stage: test
+  script:
+    - pwd
+    - rm -rf mace-models
+    - rm -rf generic-mobile-devices
+    - GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:XiaoMi/mace-models.git
+    - CONF_FILE=mace-models/mobilenet-v1/mobilenet-v1.yml
+    - >
+      if ping -c 1 v9.git.n.xiaomi.com 1>/dev/null 2>&1; then
+        GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@v9.git.n.xiaomi.com:deep-computing/generic-mobile-devices.git
+        DEVICE_CONF_FILE=generic-mobile-devices/devices.yml
+      fi
+    - if [ -z "$TARGET_SOCS" ]; then TARGET_SOCS=random; fi
+    - python tools/converter.py convert --config=${CONF_FILE}  --target_socs=$TARGET_SOCS --model_graph_format=file --model_data_format=file --cl_mem_type=buffer
+    - python tools/converter.py run --config=${CONF_FILE} --target_socs=$TARGET_SOCS --device_yml=${DEVICE_CONF_FILE} --round=1 --target_abis=armeabi-v7a,arm64 --validate --model_graph_format=file --model_data_format=file
+    - CONF_FILE=mace-models/mobilenet-v2/mobilenet-v2-host.yml
+    - python tools/converter.py convert --config=${CONF_FILE} --target_socs=$TARGET_SOCS --model_graph_format=file --model_data_format=file
+    - python tools/converter.py run --config=${CONF_FILE} --target_socs=$TARGET_SOCS --round=1 --validate --model_graph_format=file --model_data_format=file --address_sanitizer
+    - python tools/converter.py run --config=${CONF_FILE} --target_socs=$TARGET_SOCS --round=5 --model_graph_format=file --model_data_format=file --benchmark
+    - python tools/converter.py convert --config=${CONF_FILE} --target_socs=$TARGET_SOCS --model_graph_format=code --model_data_format=file
+    - python tools/converter.py run --config=${CONF_FILE} --target_socs=$TARGET_SOCS --round=1 --validate --model_graph_format=code --model_data_format=file
+    - python tools/converter.py run --config=${CONF_FILE} --target_socs=$TARGET_SOCS --round=5 --model_graph_format=code --model_data_format=file --benchmark
+    - rm -rf mace-models
+
+quantization_tests:
+  stage: test
+  script:
+    - pwd
+    - rm -rf mace-models
+    - GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:XiaoMi/mace-models.git
+    - >
+      if ping -c 1 v9.git.n.xiaomi.com 1>/dev/null 2>&1; then
+        GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@v9.git.n.xiaomi.com:deep-computing/generic-mobile-devices.git
+        DEVICE_CONF_FILE=generic-mobile-devices/devices.yml
+      fi
+    - if [ -z "$TARGET_SOCS" ]; then TARGET_SOCS=random; fi
+    - >
+      for CONF_FILE in mace-models/mobilenet-v1/mobilenet-v1-quantize-friendly.yml mace-models/mobilenet-v1/mobilenet-v1-quantize-retrain-for-check-only.yml mace-models/mobilenet-v1/mobilenet-v1-quantize-retrain-dsp.yml;
+      do
+      python tools/converter.py convert --config=${CONF_FILE} --target_socs=$TARGET_SOCS --model_graph_format=file --model_data_format=file || exit 1;
+      python tools/converter.py run --config=${CONF_FILE} --target_socs=$TARGET_SOCS --device_yml=${DEVICE_CONF_FILE} --round=1 --validate --model_graph_format=file --model_data_format=file || exit 1;
+      done
+    - rm -rf mace-models
+
+dynamic_linking_test:
+  stage: extra
+  script:
+    - export ANDROID_NDK_HOME=/opt/android-ndk-r17b
+    - rm -rf mace-models
+    - rm -rf generic-mobile-devices
+    - GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:XiaoMi/mace-models.git
+    - CONF_FILE=mace-models/mobilenet-v1/mobilenet-v1.yml
+    - >
+      if ping -c 1 v9.git.n.xiaomi.com 1>/dev/null 2>&1; then
+        GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@v9.git.n.xiaomi.com:deep-computing/generic-mobile-devices.git
+        DEVICE_CONF_FILE=generic-mobile-devices/devices.yml
+      fi
+    - if [ -z "$TARGET_SOCS" ]; then TARGET_SOCS=random; fi
+    - python tools/converter.py convert --config=${CONF_FILE}  --target_socs=$TARGET_SOCS --model_graph_format=file --model_data_format=file --cl_mem_type=buffer || exit 1;
+    - python tools/converter.py run --config=${CONF_FILE} --target_socs=$TARGET_SOCS --device_yml=${DEVICE_CONF_FILE} --round=1 --validate --model_graph_format=file --model_data_format=file --mace_lib_type=dynamic || exit 1;
+    - rm -rf mace-models
+  only:
+    - triggers
+

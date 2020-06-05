@@ -1,0 +1,64 @@
+image: docker:latest
+services:
+- docker:dind
+
+stages:
+  - build
+  - test
+  - release
+  - deploy
+# When using dind, it's wise to use the overlayfs driver for improved performance.
+variables:
+  DOCKER_DRIVER: overlay2
+  CONTAINER_TEST_IMAGE: registry.gitlab.com/open-sismo/coordinate-api/image:$CI_COMMIT_REF_NAME
+  CONTAINER_RELEASE_IMAGE: registry.gitlab.com/open-sismo/coordinate-api/image:latest
+
+before_script:
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+test:
+  stage: test
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run $CONTAINER_TEST_IMAGE sh -c "COORDINATE_ENV=ci /code/bin/test.sh"
+
+release-image:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - master
+
+deploy_feature:
+  stage: deploy
+  variables:
+    TARGET_ENV: staging
+  script:
+    - ./bin/deploy.sh
+  environment:
+    name: Staging Kafeina.co
+    url: http://coordinate-staging.kafeina.co/
+  only:
+    - /^[\d]+[\w-_]+$/
+  when: manual
+deploy_staging:
+  stage: deploy
+  variables:
+    TARGET_ENV: staging
+  script:
+    - ./bin/deploy.sh
+  environment:
+    name: Staging Kafeina.co
+    url: http://coordinate-staging.kafeina.co/
+  only:
+    - master
+

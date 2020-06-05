@@ -1,0 +1,66 @@
+image: node:latest
+
+build:
+  stage: build
+  script:
+  - npm install
+  - npm install -g docco
+  - docco ./controllers/*.js ./helpers/*.js ./models/*.js
+  artifacts :
+      paths :
+      - docs/
+
+testing:
+  stage: test
+  script:
+  - npm install
+  - npm install -g mocha
+  - npm install -g istanbul
+  - npm install -g chai
+  - mocha
+  - npm test
+  artifacts :
+    paths :
+    - coverage/
+
+pages :
+  stage: deploy
+  dependencies:
+  - testing
+  - build
+  script:
+  - mv "docs" public/
+  - mv "coverage/lcov-report" public/
+  artifacts:
+    paths:
+    - public
+    expire_in: 30 days
+  only:
+    - develop
+    
+production:
+  stage: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - apt-get install -y ruby ruby-dev
+  - gem install dpl
+  - dpl --provider=heroku --app=umeeti-production --api-key=60ef4cff-4fe8-4299-88ff-51e395d617e8
+  only:
+  - master
+
+staging:
+  stage: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - apt-get install -y ruby
+  - gem install dpl
+  - dpl --provider=heroku --app=umeeti-staging --api-key=60ef4cff-4fe8-4299-88ff-51e395d617e8
+  only:
+  - develop
+
+cache:  
+  paths:
+    - node_modules/
+

@@ -1,0 +1,30 @@
+image: debian:unstable
+
+before_script:
+  - apt update
+  - apt -y install cppcheck valgrind ninja-build python3 git
+  - apt -y install gcc g++ libgtest-dev libboost-regex-dev google-mock python3-pip
+  - pip3 install meson --user
+
+build:
+  stage: build
+
+  script:
+    - mkdir build
+    - python3 ~/.local/bin/meson build && ninja -C build all
+  artifacts:
+    paths:
+      - build/
+
+# run tests using the binary built before
+test:
+  stage: test
+
+  script:
+    - cp data/colorlog.conf /etc/
+    - ninja -C build cppcheckAll
+    - ninja -C build test || (cat build/meson-logs/testlog.txt && exit 4)
+    - ninja -C build test-valgrind || (cat build/meson-logs/testlog-valgrind.txt && exit 4)
+  dependencies:
+    - build
+

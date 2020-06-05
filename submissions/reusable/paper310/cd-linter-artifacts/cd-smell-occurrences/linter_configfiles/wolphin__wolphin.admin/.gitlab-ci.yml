@@ -1,0 +1,61 @@
+---
+image: docker:stable
+
+services:
+  - docker:dind
+
+.docker_login: &docker_login |
+  echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+stages:
+  - test
+  - build
+
+run-tests:
+  stage: test
+  image: python:3.6-alpine
+  script:
+    - apk --update --no-cache add python3 python3-dev py-pip build-base
+    - pip install wheel==0.30.0 tox==3.0.0
+    - tox
+
+build-ubuntu-master:
+  stage: build
+  script:
+    - *docker_login
+    - docker build -f docker/Dockerfile-ubuntu --pull -t "$CI_REGISTRY_IMAGE:latest" .
+    - docker push "$CI_REGISTRY_IMAGE"
+  only:
+    refs:
+      - master
+
+build-alpine-master:
+  stage: build
+  script:
+    - *docker_login
+    - docker build -f docker/Dockerfile-alpine --pull -t "$CI_REGISTRY_IMAGE:latest"-alpine .
+    - docker push "$CI_REGISTRY_IMAGE:latest"-alpine
+  only:
+    refs:
+      - master
+
+#build-ubuntu:
+#  stage: build
+#  script:
+#    - *docker_login
+#    - docker build -f docker/Dockerfile-ubuntu --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" .
+#    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+#  except:
+#    refs:
+#      - master
+
+build-alpine:
+  stage: build
+  script:
+    - *docker_login
+    - docker build -f docker/Dockerfile-alpine --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"-alpine .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"-alpine
+  except:
+    refs:
+      - master
+

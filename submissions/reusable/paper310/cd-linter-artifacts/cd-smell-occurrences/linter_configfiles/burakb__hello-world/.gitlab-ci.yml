@@ -1,0 +1,55 @@
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_HOST: tcp://localhost:2375
+  SPRING_PROFILES_ACTIVE: local
+  USER_GITLAB: burakb
+  GCLOUD_PROJECT: dictionaryproject-33
+  GCLOUD_CLUSTER: guestbook
+  MAVEN_OPTS: "-Dhttps.protocols=TLSv1.2 -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
+
+
+stages:
+- build
+- docker
+- deploy
+
+maven-build:
+  image: maven:3.5-jdk-10-slim
+  stage: build
+  script: 'mvn $MAVEN_CLI_OPTS package -B'
+  cache:
+    paths:
+    - .m2/repository
+  only:
+  - master
+  - triggers
+  artifacts:
+    paths:
+    - target/*.jar
+
+docker-build:
+  stage: docker
+  image: docker:latest
+  services:
+  - docker:dind
+  only:
+  - master
+  script:
+  - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+  - docker build -t $CI_REGISTRY_IMAGE:${CI_COMMIT_SHA:0:6} .
+  - docker push $CI_REGISTRY_IMAGE
+
+k8s-deploy:
+  stage: deploy
+  image: google/cloud-sdk
+  only:
+  - master
+  script:
+  - echo "$GOOGLE_CLOUD_KEY" > key.json
+  - gcloud auth activate-service-account --key-file key.json
+  - gcloud config set compute/zone europe-west3-c
+  - gcloud config set project $GCLOUD_PROJECT
+  - gcloud container clusters get-credentials $GCLOUD_CLUSTER
+  - /bin/sh deploy.sh $CI_REGISTRY_IMAGE:${CI_COMMIT_SHA:0:6}
+

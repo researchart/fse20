@@ -1,0 +1,62 @@
+stages:
+  - generate_test_data
+  - coverage_report
+  - upload_report
+
+# Use cargo to generete test data the project
+generate_test_data:
+  image: "rust:latest"
+  stage: generate_test_data
+  script:
+    - rustc --version && cargo --version      # Print version info for debugging
+    - cargo test --no-run
+  artifacts:
+    paths:
+      - target/debug/*-*
+    expire_in: 30 minutes
+  only:
+    changes:
+      - Cargo.toml
+      - src/**/*
+      - tests/**/*
+      - benches/**/*
+      - examples/**/*
+
+# Run tests and generate coverage report
+coverage_report:
+  image:
+    name: "ragnaroek/kcov_head:latest"
+    #entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [""]
+  stage: "coverage_report"
+  script:
+    - ls target/debug/ || echo "notfound"
+    - for file in $(ls -1 target/debug | grep "-" | grep -v "\.d$");
+        do
+          mkdir -p "target/cov/$(basename $file)";
+          kcov --exclude-pattern=/.cargo,/usr/lib
+            --verify "target/cov/$(basename $file)"
+            "target/debug/$file";
+        done
+  artifacts:
+    paths:
+      - target/cov/*
+    expire_in: 30 minutes
+  only:
+    changes:
+      - Cargo.toml
+      - src/**/*
+      - tests/**/*
+
+upload_report:
+  image: "centos:latest"
+  stage: "upload_report"
+  script:
+    - bash <(curl -s https://codecov.io/bash) -Z
+  allow_failure : true
+  only:
+    changes:
+      - Cargo.toml
+      - src/**/*
+      - tests/**/*
+

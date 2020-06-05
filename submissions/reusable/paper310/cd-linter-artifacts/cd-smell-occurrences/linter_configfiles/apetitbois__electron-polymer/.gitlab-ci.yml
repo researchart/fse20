@@ -1,0 +1,18 @@
+stages:
+  - build
+
+build:
+  image: node
+  stage: build
+  script:
+    - npm install -g electron-packager vulcanize electron-prebuilt bower
+    - cd polymer;bower update --allow-root
+    - cd elements;vulcanize -o elements.vulcanized.html elements.html --strip-comments --inline-scripts --inline-css;cd ..
+    - cp bower_components/webcomponentsjs/webcomponents-lite.js scripts/webcomponents-lite.js
+    - rm -rf bower_components
+    - cd ..;electron-packager . --all --out=builds --overwrite --version=0.37.5
+  artifacts:
+    untracked: true
+    paths:
+      - builds/
+

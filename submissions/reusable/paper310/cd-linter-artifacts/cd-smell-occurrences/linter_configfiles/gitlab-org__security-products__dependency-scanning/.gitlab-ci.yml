@@ -1,0 +1,236 @@
+# When using dind, it's wise to use the overlayfs driver for
+# improved performance.
+variables:
+  DS_DEFAULT_ANALYZERS: bundler-audit,retire.js,gemnasium,gemnasium-maven,gemnasium-python
+  DOCKER_DRIVER: overlay2
+  MAJOR: 2
+  TMP_IMAGE: $CI_REGISTRY_IMAGE:tmp.$CI_COMMIT_SHA
+
+services:
+  - docker:stable-dind
+
+stages:
+  - go
+  - build
+  - test
+  - downstream
+  - tag
+  - deploy
+
+.go:
+  image: golang:1.13.6
+  stage: go
+
+go build:
+  extends: .go
+  variables:
+    CGO_ENABLED: 0
+  script:
+    - go get ./...
+    - go build -o ${CI_PROJECT_DIR}/dependency-scanning
+  artifacts:
+    paths:
+    - dependency-scanning
+
+go test:
+  extends: .go
+  script:
+    - go get ./...
+    - go test -race -cover -v ./...
+
+go lint:
+  extends: .go
+  script:
+    - go get -u golang.org/x/lint/golint
+    - golint -set_exit_status
+
+build commit:
+  image: docker:stable
+  stage: build
+  script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $TMP_IMAGE --build-arg DS_ANALYZER_IMAGE_TAG=$MAJOR .
+    - docker push $TMP_IMAGE
+
+integration test:
+  image: docker:stable
+  stage: test
+  variables:
+    DS_ANALYZER_IMAGE_TAG: $MAJOR
+  script:
+    - ./test.sh
+  dependencies:
+    - go build
+
+.qa-downstream-ds:
+  stage: downstream
+  variables:
+    SAST_DISABLED: "true"
+    CONTAINER_SCANNING_DISABLED: "true"
+    DAST_DISABLED: "true"
+    LICENSE_MANAGEMENT_DISABLED: "true"
+    DS_DISABLE_DIND: "false"
+    SP_VERSION: tmp.$CI_COMMIT_SHA
+  trigger:
+    project: ""
+    branch: master
+    strategy: depend
+
+java-maven-qa:
+  extends: .qa-downstream-ds
+  trigger:
+    project: gitlab-org/security-products/tests/java-maven
+
+java-maven-multimodule-qa:
+  extends: .qa-downstream-ds
+  trigger:
+    project: gitlab-org/security-products/tests/java-maven-multimodules
+
+js-npm-qa:
+  extends: .qa-downstream-ds
+  trigger:
+    project: gitlab-org/security-products/tests/js-npm
+
+js-yarn-qa:
+  extends: .qa-downstream-ds
+  trigger:
+    project: gitlab-org/security-products/tests/js-yarn
+
+php-composer-qa:
+  extends: .qa-downstream-ds
+  trigger:
+    project: gitlab-org/security-products/tests/php-composer
+
+python-pipenv-qa:
+  extends: .qa-downstream-ds
+  trigger:
+    project: gitlab-org/security-products/tests/python-pipenv
+
+python-pip-qa:
+  extends: .qa-downstream-ds
+  trigger:
+    project: gitlab-org/security-products/tests/python-pip
+
+ruby-bundler-qa:
+  extends: .qa-downstream-ds
+  trigger:
+    project: gitlab-org/security-products/tests/ruby-bundler
+
+go-modules-qa:
+  extends: .qa-downstream-ds
+  trigger:
+    project: gitlab-org/security-products/tests/go-modules
+
+.docker_tag:
+  image: docker:stable
+  stage: tag
+  script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - export SOURCE_IMAGE=$TMP_IMAGE
+    - export TARGET_IMAGE=$CI_REGISTRY_IMAGE:${IMAGE_TAG:-$CI_JOB_NAME}
+    - docker pull $SOURCE_IMAGE
+    - docker tag $SOURCE_IMAGE $TARGET_IMAGE
+    - docker push $TARGET_IMAGE
+  dependencies:
+    - go build
+
+tag branch:
+  extends: .docker_tag
+  variables:
+    IMAGE_TAG: $CI_COMMIT_REF_NAME
+  only:
+    - branches
+  except:
+    - master
+
+tag edge:
+  extends: .docker_tag
+  variables:
+    IMAGE_TAG: edge
+  only:
+    - master
+
+tag version:
+  extends: .docker_tag
+  before_script:
+    - export IMAGE_TAG=${CI_COMMIT_TAG/v/}
+    - echo "Checking that $CI_COMMIT_TAG is last in the changelog"
+    - test "$(grep '^## v' CHANGELOG.md |head -n 1)" = "## $CI_COMMIT_TAG"
+  only:
+    - tags
+  when: manual
+
+.release:
+  extends: .docker_tag
+  stage: deploy
+  only:
+    - tags
+
+major:
+  extends: .release
+  variables:
+    IMAGE_TAG: $MAJOR
+
+latest:
+  extends: .release
+
+12-10-stable:
+  extends: .release
+
+12-9-stable:
+  extends: .release
+
+12-8-stable:
+  extends: .release
+
+12-7-stable:
+  extends: .release
+
+12-6-stable:
+  extends: .release
+
+12-5-stable:
+  extends: .release
+
+12-4-stable:
+  extends: .release
+
+12-3-stable:
+  extends: .release
+
+12-2-stable:
+  extends: .release
+
+12-1-stable:
+  extends: .release
+
+12-0-stable:
+  extends: .release
+
+11-11-stable:
+  extends: .release
+
+11-10-stable:
+  extends: .release
+
+11-9-stable:
+  extends: .release
+
+11-8-stable:
+  extends: .release
+
+11-7-stable:
+  extends: .release
+
+include:
+  - template: SAST.gitlab-ci.yml
+  - template: Container-Scanning.gitlab-ci.yml
+  - template: License-Management.gitlab-ci.yml
+
+container_scanning:
+  variables:
+    CI_APPLICATION_REPOSITORY: $CI_REGISTRY_IMAGE
+    CI_APPLICATION_TAG: tmp.$CI_COMMIT_SHA
+

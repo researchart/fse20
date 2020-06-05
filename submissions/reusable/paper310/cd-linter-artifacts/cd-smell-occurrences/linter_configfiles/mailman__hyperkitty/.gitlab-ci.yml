@@ -1,0 +1,88 @@
+image: maxking/mailman-ci-runner
+
+stages:
+  - test
+  - quality-assurance
+
+py36-django-2.0:
+   stage: test
+   script:
+   - tox -e py36-django20
+
+py35-django-2.1:
+  stage: test
+  script:
+    - tox -e py35-django21
+
+py36-django-2.1:
+  stage: test
+  script:
+    - tox -e py36-django21
+
+py36-django-2.2:
+  stage: test
+  script:
+    - tox -e py36-django22
+
+py37-django-2.1:
+  stage: test
+  script:
+    - tox -e py37-django21
+
+py37-django-2.2:
+  stage: test
+  script:
+    - tox -e py37-django22
+
+py36-django-3.0:
+  stage: test
+  script:
+    - tox -e py36-django30
+
+py37-django-3.0:
+  stage: test
+  script:
+    - tox -e py37-django30
+
+
+py38-django-2.2:
+  stage: test
+  script:
+    - tox -e py38-django22
+
+lint:
+  stage: quality-assurance
+  script:
+  - tox -e lint
+
+docs:
+  stage: quality-assurance
+  script:
+  - tox -e docs
+
+coverage:
+  stage: quality-assurance
+  script:
+    - tox -e py36-django111-coverage
+
+
+sast:
+  image: docker:stable
+  stage: quality-assurance
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SAST_CONFIDENCE_LEVEL="${SAST_CONFIDENCE_LEVEL:-3}"
+        --volume "$PWD:/code"
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/sast:$SP_VERSION" /app/bin/run /code
+  artifacts:
+    reports:
+      sast: gl-sast-report.json
+
+

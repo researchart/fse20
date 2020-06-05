@@ -1,0 +1,29 @@
+image: node:8
+
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+  - node -v
+#  IDK if all these flags are necessary
+  - npx yarn install --pure-lockfile --emoji false --no-progress --non-interactive
+
+yarn_lint:
+  script:
+    - npx yarn lint
+
+pages:
+  stage: deploy
+  variables:
+      NODE_ENV: "production"
+  script:
+  #  IDK if all these flags are necessary
+  - npx yarn build --prod --pure-lockfile --emoji false --no-progress --non-interactive
+  - npx next export -o public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

@@ -1,0 +1,11 @@
+tests:
+  image: python:3.7
+  script:
+    - pip install flake8 mypy flask pytest
+    - pip install git+https://gitlab.com/ase/ase.git > ase.out
+    - pip install git+https://gitlab.com/mortengjerding/asr.git > asr.out
+    - pip install -e .
+    - pytest -v
+    - flake8 cmr docs
+    - mypy -p cmr
+

@@ -1,0 +1,41 @@
+build:x64:
+    stage: build
+    image: registry.gitlab.com/spoorcc/rocketmock/ubuntu-gcc:latest
+    script:
+      - mkdir -p build
+      - cd build
+      - cmake ..
+      - make
+      - make test
+
+build:avr:
+    stage: build
+    image: registry.gitlab.com/spoorcc/rocketmock/cmake-avr:latest
+    script:
+      - mkdir -p build
+      - cd build
+      - cmake -DBUILD_AVR=ON ..
+      - make 
+
+build:msp430:
+    stage: build
+    image: registry.gitlab.com/spoorcc/rocketmock/cmake-msp430:latest
+    script:
+      - mkdir -p build
+      - cd build
+      - cmake -DBUILD_MSP430=ON ..
+      - make       
+
+pages:
+  image: registry.gitlab.com/spoorcc/rocketmock/ubuntu-gcc:latest
+  script:
+      - mkdir -p build
+      - cd build
+      - cmake .. -DBUILD_ROCKET_MOCK_DOC=ON
+      - make doc
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

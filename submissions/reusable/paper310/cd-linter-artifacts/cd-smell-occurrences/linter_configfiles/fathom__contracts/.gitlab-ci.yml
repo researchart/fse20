@@ -1,0 +1,41 @@
+image: library/node:9.11.1
+stages:
+  - setup 
+  - test
+  - deploy
+
+installPackages:
+  stage: setup
+  script: npm i
+  artifacts:
+    paths:
+      - node_modules
+
+lintJS:
+  stage: test
+  script: npm run lint-js
+
+lintSolidity:
+  stage: test
+  script: npm run lint-solidity
+
+runTests:
+  stage: test
+  script:
+    - npm test
+
+publishPackage:
+  stage: deploy
+  only:
+    refs:
+      - master
+    variables:
+        - $CI_COMMIT_MESSAGE =~ /^release version*/i
+  script:
+    - npm run deploy
+
+    # Configure NPM to use our authentication token by creating .npmrc
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > .npmrc
+
+    - npm publish
+

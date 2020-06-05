@@ -1,0 +1,56 @@
+variables:
+  SOLUTION_PATH: '.\JustAnotherNetworkLib\JustAnotherNetworkLib.sln'
+  NUGET_PATH: 'F:\Tools\NuGet\nuget.exe'
+  MSBUILD_PATH: 'C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\MSBuild.exe'
+  NUNIT_PATH: 'F:\Tools\NUnit\nunit-console'
+  TEST_FOLDER: '.\JustAnotherNetworkLib\JustAnotherNetworkLib.Test\bin\Release'
+  SONAR_PATH: 'F:\Tools\SonarQubeScanner\SonarQube.Scanner.MSBuild.exe'
+  CODECOVERAGE_PATH: 'C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Team Tools\Dynamic Code Coverage Tools\CodeCoverage.exe'
+  
+
+stages:
+  - build
+  - test
+  - analyze
+
+build_job:
+  stage: build
+  only:
+    - branches
+  script:
+    - '& "$env:NUGET_PATH" restore "$env:SOLUTION_PATH"'
+    - '& "$env:MSBUILD_PATH" "$env:SOLUTION_PATH" /p:Configuration=Release /clp:ErrorsOnly /t:Rebuild /m'
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - '$env:TEST_FOLDER'
+
+test_job:
+  stage: test
+  only:
+    - branches
+  script:
+    - '& "$env:NUNIT_PATH\nunit3-console.exe" "$env:TEST_FOLDER\JustAnotherNetworkLib.Test.dll"'
+  dependencies:
+    - build_job
+
+analyze_with_sonar_job:
+  stage: analyze
+  only:
+    - branches
+  script:
+    - '& "$env:SONAR_PATH" begin /k:"justanothernetworklib" /d:sonar.organization="tollstudios" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.login="$env:SonarCloud_Token" /d:sonar.cs.vscoveragexml.reportsPaths=".\code.coveragexml"'
+    - '& "$env:NUGET_PATH" restore "$env:SOLUTION_PATH"'
+    - '& "$env:MSBUILD_PATH" "$env:SOLUTION_PATH" /p:Configuration=Release /clp:ErrorsOnly /t:Rebuild /m'
+    
+    # Code Coverage
+    - '& "$env:CODECOVERAGE_PATH" collect /output:".\code.coverage" "$env:NUNIT_PATH\nunit3-console.exe" "$env:TEST_FOLDER\JustAnotherNetworkLib.Test.dll"'
+    - '& "$env:CODECOVERAGE_PATH" analyze /output:".\code.coveragexml" ".\code.coverage"'
+    
+    - '& "$env:SONAR_PATH" end /d:sonar.login="$env:SonarCloud_Token"'
+    
+    # Stop all tasks from "MSBuild", because that sometimes doesn't work and it leads the next build to fail
+    - 'Stop-Process -Name "MSBuild"'
+  dependencies:
+    - build_job
+

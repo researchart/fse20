@@ -1,0 +1,34 @@
+image: ubuntu:16.04
+
+before_script:
+  - apt-get -qq update && apt-get -qq install -y lua5.3 make
+  - lua5.3 -v
+
+test_diff:
+  stage: test
+  script:
+    - echo -e "\033[36mBuilding initial compiler\033[0m"
+    - make LUA=lua5.3 all
+    - echo -e "\033[36mBuilding compiler using new compiler\033[0m"
+    - make LUA=lua5.3 all
+    - echo -e "\033[36mComparing output of compiler\033[0m"
+    - export TEMP_DIR=$(mktemp -d)
+    - make LUA=lua5.3 OUT_DIR="$TEMP_DIR" all
+    - "! (diff -rq \"$TEMP_DIR\" bin | grep \"$TEMP_DIR\")"
+
+test_run:
+  stage: test
+  script:
+    - echo -e "\033[36mBuilding initial compiler\033[0m"
+    - make LUA=lua5.3 all
+    - echo -e "\033[36mRunning tests\033[0m"
+    - make LUA=lua5.3 -k test
+
+test_docs:
+  stage: test
+  script:
+    - echo -e "\033[36mBuilding initial compiler\033[0m"
+    - make LUA=lua5.3 all
+    - echo -e "\033[36mGenerating docs\033[0m"
+    - make LUA=lua5.3 docs
+

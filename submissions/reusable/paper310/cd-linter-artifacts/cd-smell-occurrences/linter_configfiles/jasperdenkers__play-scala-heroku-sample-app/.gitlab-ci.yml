@@ -1,0 +1,27 @@
+image: java:8
+
+before_script:
+  # Install SBT
+  - echo "deb http://dl.bintray.com/sbt/debian /" | tee -a /etc/apt/sources.list.d/sbt.list
+  - apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 642AC823
+  - apt-get update -yq
+  - apt-get install sbt -y
+  - sbt sbt-version
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  script:
+    - sbt test
+
+deploy:
+  stage: deploy
+  script:
+    - apt-get update -yq
+    - apt-get install rubygems ruby-dev -y
+    - gem install dpl
+    - dpl --provider=heroku --app=gitlab-play-sample-app --api-key=$HEROKU_API_KEY
+

@@ -1,0 +1,85 @@
+# This file is a template, and might need editing before it works on your project.
+# Official language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/ruby/tags/
+image: "ruby:2.6"
+
+# Cache gems in between builds
+cache:
+  paths:
+    - vendor/ruby
+
+variables:
+ JRUBY_OPTS: "--debug"
+
+before_script:
+  - ruby -v                                   # Print out ruby version for debugging
+  - apt update
+  - apt install git build-essential -y
+  - gem install bundler --no-document         # Bundler is not installed with the image
+  - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+# Optional - Delete if not using `rubocop`
+rubocop:
+  script:
+  - bundle exec rubocop --version
+  - bundle exec rubocop --extra-details --display-style-guide --format clang
+  allow_failure: true
+
+reek:
+  script:
+  - bundle exec reek --version
+  - bundle exec reek
+  allow_failure: true
+
+fasterer:
+  script:
+  - bundle exec fasterer
+  allow_failure: true
+
+rspec:2.3:
+  image: "ruby:2.3"
+  script:
+  - bundle exec rspec spec
+
+rspec:2.4:
+  image: "ruby:2.4"
+  script:
+  - bundle exec rspec spec
+
+rspec:2.5:
+  image: "ruby:2.5"
+  script:
+  - bundle exec rspec spec
+
+rspec:
+  script:
+  - bundle exec rspec spec
+  artifacts:
+    paths:
+    - coverage/
+    expire_in: 30 days
+
+rspec:jruby:9.1:
+  image: "jruby:9.1"
+  script:
+  - bundle exec rspec spec
+
+rspec:jruby:9.2:
+  image: "jruby:9.2"
+  script:
+  - bundle exec rspec spec
+
+pages:
+  stage: deploy
+  dependencies:
+    - rspec
+  script:
+    - mkdir -p public/
+    - mv coverage/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+

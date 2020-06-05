@@ -1,0 +1,23 @@
+image: registry.gitlab.com/b0/qt-olm-docker
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - /opt/qt512/bin/qt512-env.sh
+    - mkdir build && cd build
+    - /opt/qt512/bin/qmake ..
+    - make
+    - cd ../
+  artifacts:
+    paths:
+    - build
+    
+test:
+  stage: test
+  script:
+    - ./build/QtOlm
+

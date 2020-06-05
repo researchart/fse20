@@ -1,0 +1,14 @@
+upload_conan:
+  image: alpine:edge
+  cache:
+    paths:
+      - cache
+  script:
+    - apk update
+    - apk add python3 build-base gcc wget git python3-dev
+    - mkdir -p cache
+    - chown -R $(id -u):$(id -g) cache
+    - python3 -m pip --cache-dir cache install --upgrade setuptools wheel
+    - python3 -m pip --cache-dir cache install --upgrade ./src
+    - conanpublish
+

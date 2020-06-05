@@ -1,0 +1,29 @@
+image: golang:1.12.5
+
+stages:
+  - build
+  - test
+
+before_script:
+  - mkdir -p ${GOPATH}/src/gitlab.com/xonvanetta/gerish
+  - mkdir -p ${CI_PROJECT_DIR}/artifacts
+  - go get github.com/golang/dep/cmd/dep
+  - cp -r ${CI_PROJECT_DIR}/* ${GOPATH}/src/gitlab.com/xonvanetta/gerish/
+  - cd ${GOPATH}/src/gitlab.com/xonvanetta/gerish
+
+build:
+  stage: build
+  script:
+    - dep ensure
+    - go build -o ${CI_PROJECT_DIR}/artifacts/gerish
+  artifacts:
+    paths:
+      - artifacts
+
+test:
+  stage: test
+  script:
+    - dep ensure
+    - go test ./... -coverprofile cover.out
+    - go tool cover -func cover.out
+

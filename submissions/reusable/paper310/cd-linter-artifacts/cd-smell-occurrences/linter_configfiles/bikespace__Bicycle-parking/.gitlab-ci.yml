@@ -1,0 +1,80 @@
+before_script:
+    - ruby -v
+    - echo "deb http://toolbelt.heroku.com/ubuntu ./" > /etc/apt/sources.list.d/heroku.list
+    - wget -O- https://toolbelt.heroku.com/apt/release.key | apt-key add -
+    - apt-get update -qy
+    - apt-get install -y libssl-dev build-essential wget ruby-dev heroku-toolbelt python3-dev python3-pip
+    - wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
+    - source /root/.bashrc
+    - nvm install --lts
+    - nvm use node
+    - node -v
+    - npm -v
+    - gem install dpl
+    - npm install
+    - pip3 install -r requirements.txt
+
+services:
+  - name: mdillon/postgis
+    alias: postgis
+
+variables:
+  POSTGRES_DB: bike_parking_toronto
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: "postgres"
+test:
+  script:
+  - apt-get update -qy
+  - source test/useci
+  - coverage run --source='bicycleparking/' manage.py test --no-input
+  - coverage html
+  - coverage report -m
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+  artifacts:
+    paths:
+      - htmlcov/
+
+pages:
+  stage: deploy
+  dependencies:
+    - test
+  script:
+    - mkdir -p public/
+    - mv htmlcov/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+
+develop:
+  type: deploy
+  script:
+  - cd bicycleparking && npm install && npm install --dev && npm run develop
+  - cd ../ && python3 manage.py collectstatic --noinput
+  - dpl --provider=s3 --local-dir="Bicycle_parking/staticfiles" --acl=public_read --access-key-id=$AWS_ACCESS_KEY_ID --secret-access-key=$AWS_SECRET_ACCESS_KEY --bucket="bikespace-develop-static" --region="us-east-1" --default_text_charset="utf-8" --skip-cleanup
+  - dpl --provider=heroku --app=torontobikeparking-staging --api-key=$HEROKU_STAGING_API_KEY
+  only:
+  - develop
+
+staging:
+  type: deploy
+  script:
+  - cd bicycleparking && npm install && npm install --dev && npm run staging
+  - cd ../ && python3 manage.py collectstatic --noinput
+  - dpl --provider=s3 --local-dir="Bicycle_parking/staticfiles" --acl=public_read --access-key-id=$AWS_ACCESS_KEY_ID --secret-access-key=$AWS_SECRET_ACCESS_KEY --bucket="bikespace-staging-static" --region="us-east-1" --default_text_charset="utf-8" --skip-cleanup
+  - dpl --provider=elasticbeanstalk --access-key-id=$AWS_ACCESS_KEY_ID --secret-access-key="$AWS_SECRET_ACCESS_KEY" --app="bikespace" --env="bikespace-staging" --region="us-east-1" --bucket_name=$ELB_BUCKET_NAME
+  only:
+  - master
+
+production:
+  type: deploy
+  script:
+  - cd bicycleparking && npm install && npm install --dev && npm run prod
+  - cd ../ && python3 manage.py collectstatic --noinput
+  - dpl --provider=s3 --local-dir="Bicycle_parking/staticfiles" --acl=public_read --access-key-id=$AWS_ACCESS_KEY_ID --secret-access-key=$AWS_SECRET_ACCESS_KEY --bucket="bikespace-static" --region="us-east-1" --default_text_charset="utf-8" --skip-cleanup
+  - dpl --provider=elasticbeanstalk --access-key-id=$AWS_ACCESS_KEY_ID --secret-access-key="$AWS_SECRET_ACCESS_KEY" --app="bikespace" --env="bikespace-env" --region="us-east-1" --bucket_name=$ELB_BUCKET_NAME
+  only:
+  - tags
+

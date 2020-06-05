@@ -1,0 +1,46 @@
+# Rafael Dutra
+image: docker:latest
+
+services:
+  - docker:dind
+
+before_script:
+  - mkdir -p public/resume
+  - apk update && apk add curl
+
+stages:
+  - build
+  - deploy
+
+Build Hugo:
+  stage: build
+  script:
+    - docker run --rm -v $(pwd):/src -v $(pwd)/public:/src/public raffaeldutra/docker-gohugo
+  artifacts:
+    paths:
+    - public
+  only:
+    - develop
+
+pages:
+  stage: deploy
+  script:
+    - docker run --rm -v $(pwd):/src -v $(pwd)/public:/src/public raffaeldutra/docker-gohugo
+    - curl
+      --form input_files[]=@content/page/cv/resume.md
+      --form from=markdown
+      --form to=pdf
+      --form other_files[]=@content/page/cv/css/resume.css
+      http://c.docverter.com/convert > public/resume/rafael-dutra-full-resume.pdf
+    - curl
+      --form input_files[]=@content/page/cv/resume.pt-br.md
+      --form from=markdown
+      --form to=pdf
+      --form other_files[]=@content/page/cv/css/resume.css
+      http://c.docverter.com/convert > public/resume/rafael-dutra-full-resume-pt-br.pdf
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

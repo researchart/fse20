@@ -1,0 +1,45 @@
+# Advise GitLab that these environment vars should be loaded from the Variables config.
+variables:
+  PYPI_USER    : SECURE
+  PYPI_PASSWORD: SECURE
+
+# Define the stages
+stages: [test, deploy]
+
+# Requires ROOT6-docker image for testing
+pytest:
+  stage: test
+  image: rootproject/root-ubuntu16
+  script: 
+  - sudo apt-get update -qy
+  - sudo apt-get install python-pip -yqq
+  - pip install -r requirements_test.txt
+  - export PYTHONPATH=/usr/local/lib/root:$PYTHONPATH:`pwd` # for examples
+  - python -m pytest -v
+  artifacts: {paths: [htmlcov/]}
+
+# Deploy to production PyPi, only major version
+pypi_production:
+  stage: deploy
+  image: python
+  script:
+    - pip install -U setuptools wheel twine
+    - echo "[pypi]" >> ~/.pypirc
+    - echo "username=" ${PYPI_USER} >> ~/.pypirc
+    - echo "password=" ${PYPI_PASSWORD} >> ~/.pypirc
+    - python setup.py sdist bdist_wheel
+    - twine upload dist/*
+    - echo "" > ~/.pypirc && rm ~/.pypirc
+  only:
+    - /^\d+\.\d+\.\d+?$/  # PEP-440 compliant version (tags)
+  except: [branches]
+
+# Deploy the coverage report to gitlab's Page
+pages:
+  stage: deploy
+  image: alpine:latest
+  dependencies: [pytest]
+  script: [mv htmlcov public]
+  artifacts: {paths: [public]}
+  only: [master]
+

@@ -1,0 +1,26 @@
+image: node:8
+
+before_script:
+  - npm install -g react-native-cli
+  - npm install
+  - react-native link
+
+stages:
+  - lint
+  - test
+
+eslint:
+  stage: lint
+  script:
+    - npm run lint
+
+flow:
+  stage: lint
+  script:
+    - npm run flow
+
+jest:
+  stage: test
+  script:
+    - npm run test-cov
+

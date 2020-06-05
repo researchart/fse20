@@ -1,0 +1,14 @@
+image: zenato/puppeteer
+
+before_script:
+  - which google-chrome-unstable
+
+test:
+  script:
+    - export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+    - export CHROMIUM_PATH=`which google-chrome-unstable`
+    - npm install
+    - cp .env.example .env
+    - node ace test
+
+

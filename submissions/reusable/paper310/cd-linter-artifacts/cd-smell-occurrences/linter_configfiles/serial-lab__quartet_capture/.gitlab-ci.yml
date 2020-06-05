@@ -1,0 +1,66 @@
+stages:
+  - test-python
+  - build-docs
+  - pypi
+
+python3_5_unit_test:
+  image: seriallab/python3.5dev
+  stage: test-python
+  script:
+  - apt-get install -y git
+  - export PYTHONPATH=$PYTHONPATH:$CI_PROJECT_DIR
+  - pip install -r requirements_test.txt
+  - coverage run runtests.py
+  - coverage report -m
+  - coverage html
+  artifacts:
+    paths:
+      - htmlcov/
+
+python3_6_unit_test:
+  image: seriallab/python3.6dev
+  stage: test-python
+  script:
+  - apt-get install -y git
+  - export PYTHONPATH=$PYTHONPATH:$CI_PROJECT_DIR
+  - pip install -r requirements_test.txt
+  - coverage run runtests.py
+  - coverage report -m
+  - coverage html
+  artifacts:
+    paths:
+      - htmlcov/
+
+pages:
+    image: seriallab/python3.6dev
+    stage: build-docs
+    script:
+    - pip install -r requirements_test.txt
+    - pip install sphinx sphinx_rtd_theme pygments ipython recommonmark
+    - make docs
+    - mv docs/_build/html/ public/
+    artifacts:
+        paths:
+        - public
+        expire_in: 1d
+    only:
+      - tags
+
+deploy_pypi:
+  image: seriallab/python3.6dev
+  stage: pypi
+  environment:
+    name: deployment
+    url: https://pypi.org/
+  script:
+    - echo "[distutils]" >> ~/.pypirc
+    - echo "index-servers = " >> ~/.pypirc
+    - echo "[pypi]" >> ~/.pypirc
+    - echo "username=$PYPI_USER" >> ~/.pypirc
+    - echo "password=$PYPI_PASSWORD" >> ~/.pypirc
+    - python setup.py check sdist bdist_wheel upload
+    - rm ~/.pypirc
+  only:
+    - tags
+    #- /\d+\.\d+\.\d+([abc]\d*)?$/
+

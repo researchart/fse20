@@ -1,0 +1,79 @@
+stages:
+  - build
+  - test
+  - release
+
+cache:
+  paths:
+  - $HOME/.gradle
+
+jdk8:
+  stage: build
+  image: openjdk:8
+  script: ./gradlew build -i -s -x gradleTest --scan
+  artifacts:
+    paths:
+    - .gradle/
+    - build/
+    expire_in: 60 min
+  except:
+  - pages
+
+jdk11:
+  stage: build
+  image: openjdk:11
+  script: ./gradlew -i -s assemble --scan
+  artifacts:
+    paths:
+    - .gradle/
+    - build/
+    expire_in: 60 min
+  except:
+  - pages
+
+test:gradle3:
+  stage: test
+  image: openjdk:8
+  except:
+  - pages
+  dependencies:
+  - jdk8
+  script: ./gradlew -i -s gradleTest -DgradleTest.versions=3.0,3.3,3.5 --scan
+
+test:gradle4:
+  stage: test
+  image: openjdk:8
+  except:
+  - pages
+  dependencies:
+  - jdk8
+  script: ./gradlew -i -s gradleTest -DgradleTest.versions=4.0.2,4.2.1,4.9 --scan
+
+test:gradle5:
+  stage: test
+  image: openjdk:8
+  except:
+  - pages
+  dependencies:
+  - jdk8
+  script: ./gradlew -i -s gradleTest -DgradleTest.versions=5.0-rc-4 --scan
+
+publish:
+  stage: release
+  image: openjdk:8
+  script: ./gradlew installDocs publishPlugins gitPublishPush -i -Dgradle.publish.key=$GRADLE_PORTAL_KEY -Dgradle.publish.secret=$GRADLE_PORTAL_SECRET -Dorg.ajoberstar.grgit.auth.username=$PAGES_PUBLISH_USER -Dorg.ajoberstar.grgit.auth.password=$PAGES_PUBLISH_KEY -Dorg.ajoberstar.grgit.auth.force=hardcoded --scan
+  dependencies:
+  - jdk8
+  only:
+  - release
+
+pages:
+  stage: release
+  script: ls -la
+  artifacts:
+    paths:
+    - public
+  only:
+  - pages
+
+

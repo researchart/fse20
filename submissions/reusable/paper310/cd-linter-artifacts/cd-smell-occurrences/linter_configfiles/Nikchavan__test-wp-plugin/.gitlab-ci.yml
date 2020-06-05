@@ -1,0 +1,47 @@
+variables:
+  # Configure mysql service (https://hub.docker.com/_/mysql/)
+  MYSQL_DATABASE: wordpress_tests
+  MYSQL_ROOT_PASSWORD: mysql
+
+before_script:
+  # Install dependencies
+  - bash bin/install_gitlab_tests.sh wordpress_tests root mysql mysql latest
+  # - composer install --no-interaction
+  # - composer --version
+  # - composer selfupdate
+
+PHPunit:PHP5.3:MySQL:
+  image: tetraweb/php:5.3
+  services:
+    - mysql:5.6
+  script:
+  - phpunit --configuration phpunit.xml.dist
+
+PHPunit:PHP5.4:MySQL:
+  image: tetraweb/php:5.4
+  services:
+    - mysql:5.6
+  script:
+  - phpunit --configuration phpunit.xml.dist
+
+PHPunit:PHP5.5:MySQL:
+  image: tetraweb/php:5.5
+  services:
+    - mysql:5.6
+  script:
+  - phpunit --configuration phpunit.xml.dist
+
+PHPunit:PHP5.6:MySQL:
+  image: tetraweb/php:5.6
+  services:
+    - mysql:5.6
+  script:
+  - phpunit --configuration phpunit.xml.dist
+
+PHPunit:PHP7.0:MySQL:
+  image: tetraweb/php:7.0
+  services:
+    - mysql:5.6
+  script:  
+  - phpunit --configuration phpunit.xml.dist
+

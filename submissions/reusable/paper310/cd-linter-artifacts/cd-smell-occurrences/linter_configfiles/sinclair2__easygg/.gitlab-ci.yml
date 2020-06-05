@@ -1,0 +1,26 @@
+
+stages:
+  - test
+
+codequality:
+  stage: test
+  image: alpine:latest
+  before_script:
+    - wget -nv https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz
+    - tar xvJf shellcheck-stable.linux.x86_64.tar.xz
+    - cp shellcheck-stable/shellcheck /usr/local/bin
+  script:
+    - shellcheck easygg
+    - shellcheck test/test.sh
+
+tests:
+  stage: test
+  image: centos:latest
+  before_script:
+    - yum install -y bash ImageMagick
+    - yum install -y epel-release
+    - yum install -y jhead
+  script:
+    - cd test && ./test.sh
+
+

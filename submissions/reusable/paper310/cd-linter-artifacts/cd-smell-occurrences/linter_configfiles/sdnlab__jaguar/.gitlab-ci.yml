@@ -1,0 +1,14 @@
+stages:
+  - build
+  - test
+
+jaguar-build:
+  stage: build
+  tags:
+    - jaguar
+  script: "mvn clean install"
+
+test:
+  stage: test
+  script: robot /home/systemtest/systemtest.robot
+

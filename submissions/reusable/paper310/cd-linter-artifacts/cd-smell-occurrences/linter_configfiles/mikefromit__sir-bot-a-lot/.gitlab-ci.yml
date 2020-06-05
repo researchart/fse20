@@ -1,0 +1,27 @@
+image: python:3.5
+
+stages:
+  - build
+  - test
+  - deploy
+
+lint:
+  stage: build
+  script:
+  - python setup.py flake8
+
+test:
+  stage: test
+  script:
+  - python setup.py test
+
+staging:
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y --no-install-recommends ruby-dev rubygems
+  - gem install dpl
+  - dpl --provider=heroku --app=sir-bot-a-lot --api-key=$HEROKU_STAGING_API_KEY
+  only:
+  - master
+

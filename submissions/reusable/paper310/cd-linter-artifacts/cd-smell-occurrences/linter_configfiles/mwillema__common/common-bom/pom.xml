@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.marcowillemart.common</groupId>
+    <artifactId>common-bom</artifactId>
+    <version>1.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Common (Bill of Materials)</name>
+    <description>Common (Bill of Materials)</description>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Common Core -->
+            <dependency>
+                <groupId>com.marcowillemart.common</groupId>
+                <artifactId>common-core</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- Common Enterprise -->
+            <dependency>
+                <groupId>com.marcowillemart.common</groupId>
+                <artifactId>common-enterprise</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- Common Event -->
+            <dependency>
+                <groupId>com.marcowillemart.common</groupId>
+                <artifactId>common-event</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- Common Projection -->
+            <dependency>
+                <groupId>com.marcowillemart.common</groupId>
+                <artifactId>common-projection</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- Common Starter Projection -->
+            <dependency>
+                <groupId>com.marcowillemart.common</groupId>
+                <artifactId>common-starter-projection</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- Common Starter Test -->
+            <dependency>
+                <groupId>com.marcowillemart.common</groupId>
+                <artifactId>common-starter-test</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- Common Starter Web -->
+            <dependency>
+                <groupId>com.marcowillemart.common</groupId>
+                <artifactId>common-starter-web</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- Common Test -->
+            <dependency>
+                <groupId>com.marcowillemart.common</groupId>
+                <artifactId>common-test</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- Common Web -->
+            <dependency>
+                <groupId>com.marcowillemart.common</groupId>
+                <artifactId>common-web</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
+</project>
+

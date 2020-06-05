@@ -1,0 +1,25 @@
+# Select image from https://hub.docker.com/_/php/
+image: php:7.4
+
+cache:
+  paths:
+    - vendor/
+
+before_script:
+  - apt-get update -yqq
+  - apt-get install -yqq git unzip libmcrypt-dev libpq-dev libcurl4-gnutls-dev libicu-dev libvpx-dev libjpeg-dev libpng-dev libxpm-dev zlib1g-dev libfreetype6-dev libxml2-dev libexpat1-dev libbz2-dev libgmp3-dev libldap2-dev unixodbc-dev libsqlite3-dev libaspell-dev libsnmp-dev libpcre3-dev libtidy-dev libzip-dev
+  # Install PHP extensions
+  - docker-php-ext-install curl json intl bz2 zip opcache
+  # Install and run Composer
+  - curl -sS https://getcomposer.org/installer | php
+  - php composer.phar install --prefer-dist --no-interaction
+  # Copy PHPUnit config
+  - cp phpunit.xml.dist phpunit.xml
+
+# Run our tests
+test:
+  script:
+    - php composer.phar validate --strict --no-check-lock
+    - vendor/bin/php-cs-fixer fix -v --dry-run --stop-on-violation --using-cache=no
+    - vendor/bin/simple-phpunit --configuration phpunit.xml --coverage-text --colors=never
+

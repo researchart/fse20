@@ -1,0 +1,42 @@
+# Documentation for this file: http://docs.gitlab.com/ce/ci/yaml/
+# More comprehensive: http://docs.gitlab.com/ce/ci/quick_start/README.html
+
+# Which Docker image to use
+image: "ruby:2.3.1"
+
+# Which Docker services to use
+services:
+  - postgres:latest
+
+# Build variables
+variables:
+  # Configure postgres service (https://hub.docker.com/_/postgres/)
+  # These variables need to be set for Rails too in database.yml.
+  POSTGRES_DB: resource_adaptor_test
+  POSTGRES_USER: resource_adaptor
+  POSTGRES_PASSWORD: resource_adaptor
+
+before_script:
+  - cp config/database-ci.yml config/database.yml
+  - ruby -v
+  - which ruby
+  - gem install bundler --no-ri --no-rdoc
+  - bundle check || bundle install
+  - RAILS_ENV=test bundle exec rake db:create
+  - RAILS_ENV=test bundle exec rake db:migrate
+
+connect:
+  image: postgres
+  before_script:
+    - cp config/database-ci.yml config/database.yml
+    - which psql
+  script:
+    # Official way to provide password to psql:
+    #     # http://www.postgresql.org/docs/9.3/static/libpq-envars.html
+    - export PGPASSWORD=$POSTGRES_PASSWORD
+    - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 'OK' AS status;"
+
+rspec:
+  script:
+    - bundle exec rspec
+

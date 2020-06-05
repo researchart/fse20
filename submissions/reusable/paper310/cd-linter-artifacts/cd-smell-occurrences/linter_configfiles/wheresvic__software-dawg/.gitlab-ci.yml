@@ -1,0 +1,15 @@
+image: node:8.11.2
+
+pages:
+  script:
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - public
+  cache:
+    paths:
+      - node_modules
+  only:
+    - master
+

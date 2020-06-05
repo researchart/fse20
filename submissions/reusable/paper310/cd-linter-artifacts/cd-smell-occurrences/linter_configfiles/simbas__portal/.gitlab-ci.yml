@@ -1,0 +1,40 @@
+image: docker:latest
+services:
+- docker:dind
+
+stages:
+- build
+
+.build: &build
+  stage: build
+  variables:
+    IMAGE: ''
+  script:
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  - docker build -t $IMAGE .
+  - docker push $IMAGE
+  coverage: '/Statements[ ]+: \d{0,3}+\.?\d{0,2}/'
+
+build:
+  <<: *build
+  only:
+  - branches
+  except:
+  - master
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+
+build and push latest:
+  <<: *build
+  only:
+  - master
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE:latest
+
+build and push tag:
+  <<: *build
+  only:
+  - tags
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+

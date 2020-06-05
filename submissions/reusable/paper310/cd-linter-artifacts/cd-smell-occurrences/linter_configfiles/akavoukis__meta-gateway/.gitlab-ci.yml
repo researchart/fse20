@@ -1,0 +1,54 @@
+before_script:
+  #- sudo apt-get update 
+  #- sudo apt-get -y install repo
+  - echo Starting
+
+build:
+  script:
+    # Move code to temp
+    - mkdir -p /tmp/meta-gateway
+    - mv * /tmp/meta-gateway
+    - mv .git /tmp/meta-gateway
+
+    # get yocto and all required checkouts
+    - repo init -u https://gitlab.com/akavoukis/meta-gateway-manifest.git -b sumo
+    - repo sync -j4
+
+    # current repo sync will also get the meta-gateway code
+    # we want to use the current working commit instead
+    # as it was previously saved in /tmp so delete those files
+    # and replace them with the files in /tmp
+    - rm -rf poky/meta-gateway
+    - mkdir -p poky/meta-gateway
+    - mv /tmp/meta-gateway poky
+
+    # Get the local.conf and bblayers.conf from meta-gateway
+    # to the build dir
+    - mkdir -p poky/build/conf
+    - cp poky/meta-gateway/recipes-core/local_conf/* poky/build/conf/
+
+
+    - if [ -d "/SSTATE_DIR" ]; then echo "SSTATE_DIR ?= \"/SSTATE_DIR\"" >> poky/build/conf/local.conf; fi
+    - if [ -d "/DL_DIR" ]; then echo "DL_DIR ?= \"/DL_DIR\"" >> poky/build/conf/local.conf; fi
+
+    # setup build env
+    - cd poky
+    - . oe-init-build-env
+
+    # build
+    # try not to build two seperate things just in case that this helps to get the same buildversion
+    #- bitbake rpi-zigbee-image
+    - bitbake update-image
+
+    # symblic link to latest cannot be used by artifacts download
+    # therefore I need to copy the file as latest
+    - cp tmp/deploy/images/raspberrypi3-gateway/update-image-raspberrypi3-gateway-*.swu 
+      tmp/deploy/images/raspberrypi3-gateway/update-image-raspberrypi3-gateway-latest.swu
+
+  artifacts:
+    name: "$CI_COMMIT_REF_SLUG"
+    expire_in: 30 day
+    paths:
+      - poky/build/tmp/deploy/images/raspberrypi3-gateway/update-image-raspberrypi3-gateway-latest.swu
+      - poky/build/tmp/deploy/images/raspberrypi3-gateway/rpi-zigbee-image-raspberrypi3-gateway-*.rootfs.wic
+

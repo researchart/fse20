@@ -1,0 +1,66 @@
+image: ubuntu:bionic
+
+cache:
+  key: apt-cache
+  paths:
+  - apt-cache/
+
+variables:
+    LIB_PKGS: "meson gtk-doc-tools libglib2.0-dev python3"
+    GIT_PKGS: "gobject-introspection libgirepository1.0-dev python3-gi python-gi-dev valac"
+    COVERAGE_PKGS: "signon-plugin-ssotest check dbus-test-runner lcov gcovr"
+    DAEMON_PKGS: "qt5-qmake qtbase5-dev qtchooser pkg-config libqt5sql5-sqlite doxygen libdbus-1-dev curl"
+    CI_TOOLS_PKGS: "unzip git"
+    GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+  - export APT_CACHE_DIR=`pwd`/apt-cache && mkdir -pv $APT_CACHE_DIR
+  - export PKG_CONFIG_PATH=/usr/lib64/pkgconfig
+  - apt-get update -yq && apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -yq $LIB_PKGS $GIT_PKGS
+  - apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -yq $COVERAGE_PKGS $DAEMON_PKGS $CI_TOOLS_PKGS
+  - cd ..
+  - git clone https://gitlab.com/accounts-sso/signond.git
+  - cd signond
+  - curl --header "PRIVATE-TOKEN:$PRIVATE_TOKEN" "https://gitlab.com/api/v4/projects/accounts-sso%2Fsignond/jobs/artifacts/master/download?job=build_amd64" -L -o artifacts.zip
+  - unzip artifacts.zip
+  - cd build
+  - make install
+  - cd ../../libsignon-glib
+
+build_amd64:
+  stage: build
+  script:
+    - export PYTHON=python3
+    - meson build -Ddebugging=true -Ddocumentation=true -Db_coverage=true
+    - ninja -C build
+  artifacts:
+    paths:
+      - ./
+
+test_amd64:
+  stage: test
+  script:
+    - ninja -C build test || (cat tests/test-suite.log && /bin/false)
+    - ninja -C build coverage-html
+    - ninja -C build libsignon-glib-doc
+  dependencies:
+    - build_amd64
+  artifacts:
+    paths:
+      - ./
+
+pages:
+  stage: deploy
+  script:
+    - mkdir public
+    - cp -a build/meson-logs/coveragereport public/coverage
+    - cp -a build/docs/reference/html/* public/
+  dependencies:
+    - test_amd64
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+

@@ -1,0 +1,52 @@
+stages:
+  - tests
+  - docs
+
+# running all the python tests
+python_tests:
+  stage: tests
+  image: python:3.6.5-alpine
+  script:
+    - apk --no-cache add git
+    - pip install nose coverage requests
+    - pip install -r requirements.txt 
+    - nosetests
+  artifacts:
+    paths:
+      - cover/*
+    expire_in: 1 week
+  except: [dissertation]
+
+
+# building all the python docs as html
+python_docs:
+  stage: docs
+  image: python:3.6.5-alpine
+  script:
+    - apk --no-cache add make
+    - apk --no-cache add git
+    - pip install sphinx sphinx_rtd_theme requests
+    - pip install -r requirements.txt
+    - cd docs
+    - make html
+  artifacts:
+    paths:
+      - docs/_build/html/*
+    expire_in: 1 week
+  only: [master, tags]
+
+
+# building all the documents for the dissertation
+docs-dissertation:
+  stage: docs
+  image: aergus/latex
+  script:
+    - cd dissertation
+    - latexmk -pdf
+  artifacts:
+    paths:
+      - dissertation/*.pdf
+      - dissertation/*.log
+    expire_in: 1 week
+  only: [dissertation]
+

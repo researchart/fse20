@@ -1,0 +1,51 @@
+stages:
+ - build
+ - deploy
+variables:
+  VER: 29
+image: registry.hub.docker.com/library/fedora:$VER
+build:x86_64:
+ stage: build
+ tags:
+  - ostack
+ script:
+  - rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-*
+  - dnf install openssl openssh-clients git pykickstart livecd-tools mock rsync file tar tree -y
+  - openssl enc -aes-256-cbc -d -in .stuff-gitlab.tar.gz.enc -out stuff.tar.gz -k $DE_PASS
+  - tar xzvf stuff.tar.gz -C /tmp/
+  - eval "$(ssh-agent -s)"
+  - chmod 600 /tmp/stuff/.deploy
+  - ssh-add /tmp/stuff/.deploy
+  - mkdir -p ~/.ssh
+  - mv /tmp/stuff/.host ~/.ssh/config
+  - chmod 600  ~/.ssh/config
+  - chown root  ~/.ssh/config
+  - export DE=$(echo ${CI_COMMIT_REF_NAME}|cut -d- -f1)
+  - if [ -z ${DE} ] || [ "${DE}" == "master" ]; then export DE=xfce;fi
+  - if [ -z ${VER} ] || [ "${VER}" == "master" ]; then export VER='29';fi
+  - git clone https://gitlab.com/korora/kp.git
+  - cd ./kp
+  - cp kp.conf.example kp.conf
+  - ./kp init
+  - dnf update -y
+  ### This is terrible a hack to modify livecd-creator
+  #- sed -i 's%filesystem(self\,\ size=None\,\ ops\=\x27\x27%filesystem(self\,\ size\=None\,\ ops=\x27nocheck\x27%g' /usr/lib/python3.*/site-packages/imgcreate/fs.py
+  #- sed -i '1050i\        time.sleep(120)' /usr/lib/python3.*/site-packages/imgcreate/fs.py
+  - /usr/bin/livecd-creator --help
+  - echo $?
+  - ./kp release --release-version ${VER} --desktop ${DE} korora-${DE}
+  - TASK_NAME="korora-live-${DE}-${VER}-x86_64"
+  - mkdir ./${TASK_NAME}
+  - STAMP=$(date +%Y%m%d%H)
+  - mv $(find ./ -name "*.iso" -print) ./${TASK_NAME}/${TASK_NAME}-${STAMP}.iso
+  - cd ./${TASK_NAME}
+  - md5sum ./${TASK_NAME}-${STAMP}.iso > ./${TASK_NAME}-${STAMP}.md5.txt
+  - cd ..
+  - rsync -arz --progress --delete --rsh=ssh -e "ssh -o StrictHostKeyChecking=no" ./${TASK_NAME} foobar2:public_html/pub/korora/iso/testing/${VER}/
+ artifacts:
+   when: on_failure
+   paths:
+   - ./*
+ only:
+  - master
+

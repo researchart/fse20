@@ -1,0 +1,18 @@
+image: rays3t/sourcemod-plugins-builder-ci
+build:
+    stage: build
+    script: 
+    - spcomp
+    - mkdir -p package/addons/sourcemod/plugins
+    - mkdir -p package/addons/sourcemod/scripting/include
+    - cp compiled/*.smx package/addons/sourcemod/plugins
+    - cp *.sp package/addons/sourcemod/scripting
+    - cp include/*.inc package/addons/sourcemod/scripting/include
+    - cp -r bundle/* package/
+    - cd package && rm -rf *.md
+    artifacts:
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}"
+        paths:
+        - package/*
+        
+

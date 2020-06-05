@@ -1,0 +1,73 @@
+# Created by Christopher Eaton in 2016
+# https://gitlab.com/chriseaton
+# https://gitlab.com/chriseaton/gitlab-ci-example-go
+#
+# This GitLab CI script is public domain through the
+# Unlicense license, see http://unlicense.org/
+####################################################
+
+# Setup CI environment.
+before_script:
+  - export GOPATH=$(pwd)
+
+stages:
+  - build
+  - test
+
+# Vet all *.go files in the current and sub-directories.
+vet:
+  image: golang:1.5
+  stage: build
+  script:
+  - for f in $(find ./ -name '*.go'); do go tool vet -composites=false -unusedresult=false $f; done
+
+# Attempt build
+go-build-1.4:
+  image: golang:1.4
+  stage: build
+  script:
+    # Ensure the source is current with required submodules
+    - git submodule update --init
+    # Get testify
+    - go get github.com/stretchr/testify
+    # Attempt build in the current directory.
+    - go build
+    # Build drivertest package //TODO
+    # - cd drivertest
+    # - go build
+
+go-build-1.5:
+  image: golang:1.5
+  stage: build
+  script:
+    # Ensure the source is current with required submodules
+    - git submodule update --init
+    # Get testify
+    - go get github.com/stretchr/testify
+    # Attempt build in the current directory.
+    - go build
+    # Build drivertest package //TODO
+    # - cd drivertest
+    # - go build
+
+# Run the tests (if there are any)
+# Like the go-build section above, you can duplicate this section and change out the version number
+# for additional go version tests.
+go-test-1.4:
+  image: golang:1.4
+  stage: test
+  script:
+    # Get testify
+    - go get github.com/stretchr/testify
+    # Run test
+    - go test
+
+go-test-1.5:
+  image: golang:1.5
+  stage: test
+  script:
+    # Get testify
+    - go get github.com/stretchr/testify
+    # Run test
+    - go test
+

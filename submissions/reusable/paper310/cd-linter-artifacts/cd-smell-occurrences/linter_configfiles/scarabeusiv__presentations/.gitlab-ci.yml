@@ -1,0 +1,22 @@
+image: opensuse/tumbleweed
+ 
+before_script:
+  - zypper in -y make tar graphviz graphviz-gnome liberation-fonts texlive-xetex-bin
+  - zypper in -y texlive-fontspec texlive-dejavu texlive-dejavu-fonts
+  - zypper in -y 'tex(beamer.cls)' 'tex(bbm.sty)' 'tex(capt-of.sty)' 'tex(textpos.sty)' 'tex(czech.ldf)' 'tex(pzdr.tfm)' 'tex(fancyvrb.sty)'
+  - zypper in -y pandoc
+ 
+stages:
+  - build
+ 
+build-pdfs:
+  stage: build
+  script:
+    - make -j$(nproc)
+ 
+  # The files which are to be made available in GitLab
+  # pdf are results
+  artifacts:
+    paths:
+      - "*/*.pdf"
+

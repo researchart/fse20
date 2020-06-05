@@ -1,0 +1,5 @@
+production:
+  type: deploy
+  script:
+  - set -e; curl -fs -XPOST -d "{\"after\":\"$CI_BUILD_REF\",\"ref\":\"refs/heads/$CI_BUILD_REF_NAME\",\"gitlab\":true}" http://live.leanpoker.org:80/api/tournament/58346a9c0d678f0004000003/team/poker-player-silly-gray-wolf/deploy?secret=$SECRET
+

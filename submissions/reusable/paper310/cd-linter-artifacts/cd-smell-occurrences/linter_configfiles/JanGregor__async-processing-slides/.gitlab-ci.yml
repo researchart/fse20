@@ -1,0 +1,14 @@
+image: node:6.11.2
+
+pages:
+  stage: deploy
+  script:
+  - npm install
+  - node_modules/.bin/gulp
+  - cp -R build public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

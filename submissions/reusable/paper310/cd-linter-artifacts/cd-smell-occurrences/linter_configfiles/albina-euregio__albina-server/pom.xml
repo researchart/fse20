@@ -1,0 +1,496 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>eu.albina</groupId>
+	<artifactId>albina</artifactId>
+	<packaging>war</packaging>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>ALBINA Maven Webapp</name>
+	<url>http://maven.apache.org</url>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<jersey.version>2.27</jersey.version>
+		<slf4j.version>1.7.25</slf4j.version>
+		<hibernate.version>5.2.9.Final</hibernate.version>
+		<itextpdf.version>7.0.4</itextpdf.version>
+	</properties>
+
+	<profiles>
+		<profile>
+			<id>env-local</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<properties>
+				<hibernate.connection.url>jdbc:mysql://localhost:3306/ais?useSSL=false&amp;amp;useUnicode=true&amp;amp;useJDBCCompliantTimezoneShift=true&amp;amp;useLegacyDatetimeCode=false&amp;amp;serverTimezone=UTC</hibernate.connection.url>
+				<hibernate.connection.username>ais</hibernate.connection.username>
+				<hibernate.connection.password>MD>5:X*n%)1V</hibernate.connection.password>
+				<hibernate.show-sql>false</hibernate.show-sql>
+				<javax.persistence.schema-generation.scripts.create-target>/opt/tomcat/webapps/albina/albina_create.sql</javax.persistence.schema-generation.scripts.create-target>
+				<javax.persistence.schema-generation.scripts.drop-target>/opt/tomcat/webapps/albina/albina_drop.sql</javax.persistence.schema-generation.scripts.drop-target>
+				<albina.conf.create-caaml>false</albina.conf.create-caaml>
+				<albina.conf.create-maps>false</albina.conf.create-maps>
+				<albina.conf.create-pdf>false</albina.conf.create-pdf>
+				<albina.conf.create-static-widget>false</albina.conf.create-static-widget>
+				<albina.conf.create-simple-html>false</albina.conf.create-simple-html>
+				<albina.conf.publish-to-social-media>false</albina.conf.publish-to-social-media>
+				<albina.conf.send-emails>false</albina.conf.send-emails>
+				<albina.conf.local-images-path>/images/</albina.conf.local-images-path>
+				<albina.conf.local-fonts-path>/mnt/daten1/fonts/</albina.conf.local-fonts-path>
+				<albina.conf.server-images-url-localhost>http://admin.avalanche.report/images/</albina.conf.server-images-url-localhost>
+				<albina.conf.server-images-url>https://admin.avalanche.report/images/</albina.conf.server-images-url>
+				<albina.conf.univie-maps-path></albina.conf.univie-maps-path>
+				<albina.conf.maps-path>/mnt/albina_files_local</albina.conf.maps-path>
+				<albina.conf.map-production-url></albina.conf.map-production-url>
+				<albina.conf.pdf-directory>/mnt/albina_files_local</albina.conf.pdf-directory>
+				<albina.conf.html-directory>/mnt/simple_local</albina.conf.html-directory>
+				<albina.conf.publish-at-5-pm>false</albina.conf.publish-at-5-pm>
+				<albina.conf.publish-at-8-am>false</albina.conf.publish-at-8-am>
+				<albina.conf.publish-bulletins-tyrol>true</albina.conf.publish-bulletins-tyrol>
+				<albina.conf.publish-bulletins-south-tyrol>true</albina.conf.publish-bulletins-south-tyrol>
+				<albina.conf.publish-bulletins-trentino>true</albina.conf.publish-bulletins-trentino>
+				<albina.conf.publish-blogs-tyrol>false</albina.conf.publish-blogs-tyrol>
+				<albina.conf.publish-blogs-south-tyrol>false</albina.conf.publish-blogs-south-tyrol>
+				<albina.conf.publish-blogs-trentino>false</albina.conf.publish-blogs-trentino>
+				<albina.conf.scripts-path>/opt/</albina.conf.scripts-path>
+				<albina.log.prefix>LOCAL</albina.log.prefix>
+				<albina.log.level>DEBUG</albina.log.level>
+				<albina.log.level.c3p0>SEVERE</albina.log.level.c3p0>
+				<albina.log.level.sql>INFO</albina.log.level.sql>
+				<albina.log.filepath>/opt/local/logs/</albina.log.filepath>
+				<albina.log.filename>albina_local.log</albina.log.filename>
+				<albina.log.dest>stdout</albina.log.dest>
+			</properties>
+		</profile>
+		<profile>
+			<id>env-dev</id>
+			<properties>
+				<hibernate.connection.url>jdbc:mysql://albinadb1rz:3306/ais_tmp?useSSL=false&amp;amp;useUnicode=true&amp;amp;useJDBCCompliantTimezoneShift=true&amp;amp;useLegacyDatetimeCode=false&amp;amp;serverTimezone=UTC</hibernate.connection.url>
+				<hibernate.connection.username>ais</hibernate.connection.username>
+				<hibernate.connection.password>MD>5:X*n%)1V</hibernate.connection.password>
+				<hibernate.show-sql>false</hibernate.show-sql>
+				<javax.persistence.schema-generation.scripts.create-target>/opt/tomcat/webapps/albina_dev/albina_create.sql</javax.persistence.schema-generation.scripts.create-target>
+				<javax.persistence.schema-generation.scripts.drop-target>/opt/tomcat/webapps/albina_dev/albina_drop.sql</javax.persistence.schema-generation.scripts.drop-target>
+				<albina.conf.create-caaml>true</albina.conf.create-caaml>
+				<albina.conf.create-maps>true</albina.conf.create-maps>
+				<albina.conf.create-pdf>true</albina.conf.create-pdf>
+				<albina.conf.create-static-widget>true</albina.conf.create-static-widget>
+				<albina.conf.create-simple-html>true</albina.conf.create-simple-html>
+				<albina.conf.publish-to-social-media>false</albina.conf.publish-to-social-media>
+				<albina.conf.send-emails>false</albina.conf.send-emails>
+				<albina.conf.local-images-path>/images/</albina.conf.local-images-path>
+				<albina.conf.local-fonts-path>/mnt/daten1/fonts/</albina.conf.local-fonts-path>
+				<albina.conf.server-images-url-localhost>http://localhost:8080/images/</albina.conf.server-images-url-localhost>
+				<albina.conf.server-images-url>https://admin.avalanche.report/images/</albina.conf.server-images-url>
+				<albina.conf.univie-maps-path>http://data1.geo.univie.ac.at/exchange/albina2/awm_dev/</albina.conf.univie-maps-path>
+				<albina.conf.maps-path>/mnt/albina_files_dev</albina.conf.maps-path>
+				<albina.conf.map-production-url>/opt/avalanche-warning-maps/</albina.conf.map-production-url>
+				<albina.conf.pdf-directory>/mnt/albina_files_dev</albina.conf.pdf-directory>
+				<albina.conf.html-directory>/mnt/simple_dev</albina.conf.html-directory>
+				<albina.conf.publish-at-5-pm>false</albina.conf.publish-at-5-pm>
+				<albina.conf.publish-at-8-am>false</albina.conf.publish-at-8-am>
+				<albina.conf.publish-bulletins-tyrol>true</albina.conf.publish-bulletins-tyrol>
+				<albina.conf.publish-bulletins-south-tyrol>true</albina.conf.publish-bulletins-south-tyrol>
+				<albina.conf.publish-bulletins-trentino>true</albina.conf.publish-bulletins-trentino>
+				<albina.conf.publish-blogs-tyrol>false</albina.conf.publish-blogs-tyrol>
+				<albina.conf.publish-blogs-south-tyrol>false</albina.conf.publish-blogs-south-tyrol>
+				<albina.conf.publish-blogs-trentino>false</albina.conf.publish-blogs-trentino>
+				<albina.conf.scripts-path>/opt/</albina.conf.scripts-path>
+				<albina.log.prefix>DEV</albina.log.prefix>
+				<albina.log.level>DEBUG</albina.log.level>
+				<albina.log.level.c3p0>WARN</albina.log.level.c3p0>
+				<albina.log.level.sql>ERROR</albina.log.level.sql>
+				<albina.log.filepath>/opt/tomcat/logs/</albina.log.filepath>
+				<albina.log.filename>albina_dev.log</albina.log.filename>
+				<albina.log.dest>file, sentry</albina.log.dest>
+			</properties>
+		</profile>
+		<profile>
+			<id>env-prod</id>
+			<properties>
+				<hibernate.connection.url>jdbc:mysql://albinadb1rz:3306/ais?useSSL=false&amp;amp;useUnicode=true&amp;amp;useJDBCCompliantTimezoneShift=true&amp;amp;useLegacyDatetimeCode=false&amp;amp;serverTimezone=UTC</hibernate.connection.url>
+				<hibernate.connection.username>ais</hibernate.connection.username>
+				<hibernate.connection.password>MD>5:X*n%)1V</hibernate.connection.password>
+				<hibernate.show-sql>false</hibernate.show-sql>
+				<javax.persistence.schema-generation.scripts.create-target>/opt/tomcat/webapps/albina/albina_create.sql</javax.persistence.schema-generation.scripts.create-target>
+				<javax.persistence.schema-generation.scripts.drop-target>/opt/tomcat/webapps/albina/albina_drop.sql</javax.persistence.schema-generation.scripts.drop-target>
+				<albina.conf.create-caaml>true</albina.conf.create-caaml>
+				<albina.conf.create-maps>true</albina.conf.create-maps>
+				<albina.conf.create-pdf>true</albina.conf.create-pdf>
+				<albina.conf.create-static-widget>true</albina.conf.create-static-widget>
+				<albina.conf.create-simple-html>true</albina.conf.create-simple-html>
+				<albina.conf.publish-to-social-media>true</albina.conf.publish-to-social-media>
+				<albina.conf.send-emails>true</albina.conf.send-emails>
+				<albina.conf.local-images-path>/images/</albina.conf.local-images-path>
+				<albina.conf.local-fonts-path>/mnt/daten1/fonts/</albina.conf.local-fonts-path>
+				<albina.conf.server-images-url-localhost>http://localhost:8080/images/</albina.conf.server-images-url-localhost>
+				<albina.conf.server-images-url>https://admin.avalanche.report/images/</albina.conf.server-images-url>
+				<albina.conf.univie-maps-path>http://data1.geo.univie.ac.at/exchange/albina2/awm/</albina.conf.univie-maps-path>
+				<albina.conf.maps-path>/mnt/albina_files</albina.conf.maps-path>
+				<albina.conf.map-production-url>http://data1.geo.univie.ac.at/projects/albina2/tools/awm/create_albina_maps/create_albina_maps2.php</albina.conf.map-production-url>
+				<albina.conf.pdf-directory>/mnt/albina_files</albina.conf.pdf-directory>
+				<albina.conf.html-directory>/mnt/simple</albina.conf.html-directory>
+				<albina.conf.publish-at-5-pm>true</albina.conf.publish-at-5-pm>
+				<albina.conf.publish-at-8-am>true</albina.conf.publish-at-8-am>
+				<albina.conf.publish-bulletins-tyrol>true</albina.conf.publish-bulletins-tyrol>
+				<albina.conf.publish-bulletins-south-tyrol>true</albina.conf.publish-bulletins-south-tyrol>
+				<albina.conf.publish-bulletins-trentino>true</albina.conf.publish-bulletins-trentino>
+				<albina.conf.publish-blogs-tyrol>true</albina.conf.publish-blogs-tyrol>
+				<albina.conf.publish-blogs-south-tyrol>true</albina.conf.publish-blogs-south-tyrol>
+				<albina.conf.publish-blogs-trentino>true</albina.conf.publish-blogs-trentino>
+				<albina.conf.scripts-path>/opt/</albina.conf.scripts-path>
+				<albina.log.prefix></albina.log.prefix>
+				<albina.log.level>INFO</albina.log.level>
+				<albina.log.level.c3p0>WARN</albina.log.level.c3p0>
+				<albina.log.level.sql>WARN</albina.log.level.sql>
+				<albina.log.filepath>/opt/tomcat/logs/</albina.log.filepath>
+				<albina.log.filename>albina.log</albina.log.filename>
+				<albina.log.dest>file, sentry</albina.log.dest>
+			</properties>
+		</profile>
+	</profiles>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.glassfish.jersey</groupId>
+				<artifactId>jersey-bom</artifactId>
+				<version>${jersey.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<repositories>
+		<repository>
+			<id>central</id>
+			<name>Central Repository</name>
+			<url>https://repo.maven.apache.org/maven2</url>
+			<layout>default</layout>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>avalanche.report</id>
+			<name>avalanche.report</name>
+			<url>https://avalanche.report/maven/</url>
+		</repository>
+	</repositories>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>28.2-jre</version>
+		</dependency>
+
+		<!-- timer -->
+		<dependency>
+			<groupId>org.quartz-scheduler</groupId>
+			<artifactId>quartz</artifactId>
+			<version>2.2.2</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>c3p0</artifactId>
+					<groupId>c3p0</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- rest -->
+		<dependency>
+			<groupId>org.glassfish.jersey.containers</groupId>
+			<artifactId>jersey-container-servlet</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish.jersey.media</groupId>
+			<artifactId>jersey-media-moxy</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish.jersey.inject</groupId>
+			<artifactId>jersey-hk2</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>javax.servlet-api</artifactId>
+			<version>4.0.1</version>
+		</dependency>
+
+		<!-- email -->
+		<dependency>
+			<groupId>org.freemarker</groupId>
+			<artifactId>freemarker</artifactId>
+			<version>2.3.27-incubating</version>
+		</dependency>
+		<dependency>
+			<groupId>javax.mail</groupId>
+			<artifactId>mail</artifactId>
+			<version>1.5.0-b01</version>
+		</dependency>
+
+		<!-- pdf -->
+		<dependency>
+			<groupId>com.itextpdf</groupId>
+			<artifactId>kernel</artifactId>
+			<version>${itextpdf.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.itextpdf</groupId>
+			<artifactId>layout</artifactId>
+			<version>${itextpdf.version}</version>
+		</dependency>
+
+		<!-- swagger -->
+		<dependency>
+			<groupId>io.swagger</groupId>
+			<artifactId>swagger-jersey2-jaxrs</artifactId>
+			<version>1.5.19</version>
+		</dependency>
+
+		<!-- joda time -->
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+			<version>2.9.1</version>
+		</dependency>
+
+		<!-- JSON -->
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20151123</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.github.fge</groupId>
+			<artifactId>json-schema-validator</artifactId>
+			<version>2.2.6</version>
+		</dependency>
+
+		<!-- logging -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>1.2.17</version>
+		</dependency>
+
+		<!-- database -->
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-core</artifactId>
+			<version>${hibernate.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-entitymanager</artifactId>
+			<version>${hibernate.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-spatial</artifactId>
+			<version>${hibernate.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-simple</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.jadira.usertype</groupId>
+			<artifactId>usertype.core</artifactId>
+			<version>6.0.1.GA</version>
+		</dependency>
+
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>8.0.12</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-c3p0</artifactId>
+			<version>${hibernate.version}</version>
+		</dependency>
+
+		<!-- testing -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.12</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.skyscreamer</groupId>
+			<artifactId>jsonassert</artifactId>
+			<version>1.3.0</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- websocket -->
+		<dependency>
+			<groupId>javax.websocket</groupId>
+			<artifactId>javax.websocket-api</artifactId>
+			<version>1.1</version>
+		</dependency>
+
+		<!-- authentication -->
+		<dependency>
+			<groupId>com.auth0</groupId>
+			<artifactId>java-jwt</artifactId>
+			<version>3.1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.mindrot</groupId>
+			<artifactId>jbcrypt</artifactId>
+			<version>0.4</version>
+		</dependency>
+
+		<!-- apache -->
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.6</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-configuration2</artifactId>
+			<version>2.2</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-beanutils</groupId>
+			<artifactId>commons-beanutils</artifactId>
+			<version>1.9.3</version>
+		</dependency>
+
+		<!--  twitter  -->
+		<dependency>
+			<groupId>org.twitter4j</groupId>
+			<artifactId>twitter4j-stream</artifactId>
+			<version>4.0.7</version>
+		</dependency>
+
+		<!--  json  -->
+		<!--need 2.9.7 minimun to solve-->
+		<!--https://github.com/FasterXML/jackson-databind/commit/ca990655cf91c1061ffbc5afaabe42bb3333ba6a-->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>2.9.7</version>
+		</dependency>
+		<dependency>
+			<groupId>com.bedatadriven</groupId>
+			<artifactId>jackson-datatype-jts</artifactId>
+			<version>2.2</version>
+		</dependency>
+
+		<!--  http  -->
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>fluent-hc</artifactId>
+			<version>4.5.6</version>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jsr310</artifactId>
+			<version>2.9.7</version>
+		</dependency>
+
+		<!--  sentry -->
+		<dependency>
+			<groupId>io.sentry</groupId>
+			<artifactId>sentry</artifactId>
+			<version>1.7.27</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.vividsolutions</groupId>
+			<artifactId>jts</artifactId>
+			<version>1.13</version>
+		</dependency>
+		<dependency>
+			<groupId>org.mapyrus</groupId>
+			<artifactId>mapyrus</artifactId>
+			<version>1.802</version>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+		<finalName>albina</finalName>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>2.5.1</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>1.4.1</version>
+				<configuration>
+					<rules>
+						<dependencyConvergence/>
+					</rules>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-maven-plugin</artifactId>
+				<version>9.4.12.v20180830</version>
+				<configuration>
+					<scanIntervalSeconds>10</scanIntervalSeconds>
+					<webApp>
+						<contextPath>/albina</contextPath>
+					</webApp>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.tomcat.maven</groupId>
+				<artifactId>tomcat7-maven-plugin</artifactId>
+				<version>2.2</version>
+				<configuration>
+					<url>https://admin.avalanche.report/manager/text</url>
+					<path>${env.TOMCAT_PATH}##${env.GIT_VERSION}</path>
+					<username>${env.TOMCAT_USERNAME}</username>
+					<password>${env.TOMCAT_PASSWORD}</password>
+				</configuration>
+			</plugin>
+		</plugins>
+
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
+
+	</build>
+</project>
+

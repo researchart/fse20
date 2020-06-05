@@ -1,0 +1,119 @@
+image: registry.gitlab.com/fudaa/fudaa-scripts:latest
+
+variables:
+  # This will supress any download for dependencies and plugins or upload messages which would clutter the console log.
+  # `showDateTime` will show the passed time in milliseconds. You need to specify `--batch-mode` to make this work.
+  MAVEN_OPTS: "-Dhttps.protocols=TLSv1.2 -Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
+
+# Cache downloaded dependencies and plugins between builds.
+cache:
+  paths:
+  - .m2/repository
+
+# we define the stages. By default, the first three are defined. We added the release stage to deliver the artifacts and tag the sources.
+stages:
+- build
+- test
+- deploy
+#to launch Pipelines of dependant project
+- trigger_dependant_projects
+#we added a manual stage to release version
+- release
+
+build:
+  stage: build
+  except:
+  - tags
+  script:
+  - mvn $MAVEN_CLI_OPTS compile  test-compile
+  artifacts:
+    #to keep the target folders between the jobs. 10 minutes is enough for that
+    expire_in: 10 min
+    untracked: true
+
+
+test:
+  stage: test
+  except:
+  - tags
+  before_script:
+  - bash /ci_scripts/prevent_maven_recompile.sh
+  script:
+  - mvn $MAVEN_CLI_OPTS -Pcoverage verify
+  after_script:
+  #just to have unit test reports
+  - mvn $MAVEN_CLI_OPTS surefire-report:report-only --fail-never
+  #just to have the css and resources to display html view of unit tests results
+  - mvn $MAVEN_CLI_OPTS site --fail-never --non-recursive
+  - mv target/site .tests-results
+  artifacts:
+    #keep longer to display unit tests errors
+    expire_in: 5 days
+    untracked: true
+    when: always
+
+generate_sonar_report:
+  stage: deploy
+  before_script:
+  - bash /ci_scripts/prevent_maven_recompile.sh
+  script:
+  - mvn sonar:sonar -Dsonar.projectKey=fudaa-framework -Dsonar.organization=fudaa -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$SONAR_TOKEN
+  only:
+  - master
+
+deploy:
+  stage: deploy
+  except:
+  - tags
+  before_script:
+  - bash /ci_scripts/prevent_maven_recompile.sh
+  script:
+  #skipTests: already done in the test stage
+  - mvn $MAVEN_CLI_OPTS -Psources -DskipTests deploy
+
+# Launch a Fudaa-Prepro build
+trigger_fudaa_prepro:
+  stage: trigger_dependant_projects
+  except: 
+  - tags
+  only: 
+  - master
+  script:
+  - curl --request POST --form "token=$CI_JOB_TOKEN" --form description="Launched from fudaa-framework project" --form ref=master https://gitlab.com/api/v4/projects/8893336/trigger/pipeline
+
+# Launch a Fudaa-Crue build
+trigger_fudaa_crue:
+  stage: trigger_dependant_projects
+  except:
+  - tags
+  only:
+  - master
+  script:
+  - curl --request POST --form "token=$CI_JOB_TOKEN" --form description="Launched from fudaa-framework project" --form ref=master https://gitlab.com/api/v4/projects/8895820/trigger/pipeline
+
+  # only launched if a tag release-* is done. In general this tag is created by the job release
+deploy_release:
+  stage: deploy
+  # use regexp
+  only:
+  - /^release-.*$/
+  #do not depend on previous job
+  dependencies: []
+  except:
+  - branches
+  script:
+  - bash /ci_scripts/install_gpg.sh
+  - mvn $MAVEN_CLI_OPTS -Prelease deploy
+
+#The release job, create a tag the next release version and update the current branch (MASTER) with the next SNAPSHOT
+release:
+  stage: release
+  except:
+  - tags
+  when: manual
+  # no dependencies on previous jobs as this job can be launched at any time.
+  dependencies: []
+  script:
+  - bash  /ci_scripts/maven_tag_new_version_and_next_snapshot.sh
+

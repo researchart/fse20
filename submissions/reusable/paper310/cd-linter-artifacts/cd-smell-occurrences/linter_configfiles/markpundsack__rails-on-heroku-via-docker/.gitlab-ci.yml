@@ -1,0 +1,121 @@
+# requires HEROKU_APP and HEROKU_API_KEY env variables
+# length of HEROKU_APP + branch name must be 30 characters or less
+image: docker:latest
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - review
+  - staging
+  - production
+  - cleanup
+
+variables:
+  DOCKER_DRIVER: overlay
+  GIT_STRATEGY: none
+
+before_script:
+  - set -euo pipefail
+  - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $CI_REGISTRY
+
+build:
+  stage: build
+  variables: {GIT_STRATEGY: fetch}
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
+  except:
+    - tags
+
+# rspec:
+#   image: "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
+#   services:
+#     - postgres
+#   variables:
+#     POSTGRES_DB: rails-on-heroku-via-docker_test
+#     POSTGRES_USER: postgres
+#     POSTGRES_PASSWORD: ""
+#   before_script:
+#     - set -euo pipefail
+#   stage: test
+#   script:
+#     - rake db:create db:migrate
+#     - rake test
+#   except:
+#     - tags
+
+create-review:
+  stage: review
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: https://$HEROKU_APP-$CI_BUILD_REF_NAME.herokuapp.com
+  before_script:
+    - set -euo pipefail
+    - wget -qO- https://toolbelt.heroku.com/install-ubuntu.sh | sh
+    - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $CI_REGISTRY
+  script:
+    - heroku create $HEROKU_APP-CI_BUILD_REF_NAME
+    - docker pull "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
+    - heroku container:login
+    - heroku container:push --app $HEROKU_APP-CI_BUILD_REF_NAME
+  except:
+    - master
+    - tags
+
+stop-review:
+  stage: cleanup
+  environment: review/$CI_BUILD_REF_NAME
+  before_script:
+    - set -euo pipefail
+    - wget -qO- https://toolbelt.heroku.com/install-ubuntu.sh | sh
+  script:
+    - heroku destroy --confirm $HEROKU_APP-CI_BUILD_REF_NAME
+  when: manual
+  except:
+    - master
+    - tags
+
+auto-deploy-master: &staging
+  stage: staging
+  environment:
+    name: staging
+    url: https://$HEROKU_APP-staging.herokuapp.com
+  script:
+    - docker login --username=_ --password=$HEROKU_API_KEY registry.heroku.com
+    - docker pull "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
+    - docker tag "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" registry.heroku.com/$HEROKU_APP-staging/web
+    - docker push registry.heroku.com/$HEROKU_APP-staging/web
+  only:
+    - master
+
+# Optional, if you want to allow deploying topic branches to staging
+deploy-to-staging:
+  <<: *staging
+  only:
+  when: manual
+  except:
+    - master
+    - tags
+
+# Optional, if you want to auto deploying tags to production
+auto-deploy-tags: &production
+  stage: production
+  environment:
+    name: production
+    url: https://$HEROKU_APP.herokuapp.com
+  script:
+    - docker login --username=_ --password=$HEROKU_API_KEY registry.heroku.com
+    - docker pull "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
+    - docker tag "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" registry.heroku.com/$HEROKU_APP/web
+    - docker push registry.heroku.com/$HEROKU_APP/web
+  only:
+    - tags
+
+deploy-to-production:
+  <<: *production
+  when: manual
+  only:
+    - master
+

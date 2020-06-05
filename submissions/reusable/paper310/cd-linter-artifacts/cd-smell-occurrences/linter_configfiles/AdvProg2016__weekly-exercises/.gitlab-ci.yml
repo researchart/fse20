@@ -1,0 +1,56 @@
+image: python:3.5
+
+teaching-team-test:
+  script:
+    - python -m unittest discover -s week_7 -v
+    - python -m unittest discover -s week_6 -v
+    - python -m unittest discover -s week_5 -v
+    - python -m unittest discover -s week_4 -v
+    - python -m unittest discover -s week_3 -v
+  only:
+    - /.*sol$/@AdvProg2016/course-materials-development
+  except:
+    - master@AdvProg2016/course-materials-development
+    - branches@AdvProg2016/weekly-exercises
+    - master@AdvProg2016/weekly-exercises
+
+student-test-week-7:
+  script:
+    - python -m unittest discover -s week_7 -v
+  except:
+    - master@AdvProg2016/course-materials-development
+    - branches@AdvProg2016/course-materials-development
+    - master@AdvProg2016/weekly-exercises
+
+student-test-week-6:
+  script:
+    - python -m unittest discover -s week_6 -v
+  except:
+    - master@AdvProg2016/course-materials-development
+    - branches@AdvProg2016/course-materials-development
+    - master@AdvProg2016/weekly-exercises
+
+student-test-week-5:
+  script:
+    - python -m unittest discover -s week_5 -v
+  except:
+    - master@AdvProg2016/course-materials-development
+    - branches@AdvProg2016/course-materials-development
+    - master@AdvProg2016/weekly-exercises
+
+student-test-week-4:
+  script:
+    - python -m unittest discover -s week_4 -v
+  except:
+    - master@AdvProg2016/course-materials-development
+    - branches@AdvProg2016/course-materials-development
+    - master@AdvProg2016/weekly-exercises
+
+student-test-week-3:
+  script:
+    - python -m unittest discover -s week_3 -v
+  except:
+    - master@AdvProg2016/course-materials-development
+    - branches@AdvProg2016/course-materials-development
+    - master@AdvProg2016/weekly-exercises
+

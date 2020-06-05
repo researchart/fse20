@@ -1,0 +1,132 @@
+---
+image: ruby:2.6-alpine
+
+stages:
+  - test
+  - build
+
+.chatops: &chatops
+  image: registry.ops.gitlab.net/gitlab-com/chatops:latest
+  variables:
+    GIT_STRATEGY: none
+    GIT_SUBMODULE_STRATEGY: none
+  only:
+    - chat
+  tags:
+    - chatops
+  script:
+    - cd /app
+    - bundle exec ruby /app/bin/chatops $CI_JOB_NAME
+
+.ruby: &ruby
+  except:
+    - chat
+    - schedules
+  before_script:
+    - apk add --update build-base postgresql-dev
+    - gem install bundler --no-document
+    - ruby --version
+    - gem --version
+    - bundle --version
+    - bundle install --path vendor --retry=3
+  cache:
+    paths:
+      - vendor/ruby
+
+build:image:
+  services:
+    - docker:dind
+  stage: build
+  image: docker:git
+  only:
+    - master
+    - schedules
+  script:
+    # When building the image, we want to push into the container registry of
+    # the project CI runs in, instead of a fixed one. This ensures that on
+    # GitLab.com we push into the GitLab.com registry, while on the ops instance
+    # we push into the ops instance's registry.
+    - ./bin/docker "${CI_REGISTRY_IMAGE}:latest"
+
+rspec:
+  <<: *ruby
+  stage: test
+  script:
+    - bundle exec rake coverage
+  services:
+    - postgres:latest
+  variables:
+    # Configure the "postgres" service itself.
+    POSTGRES_DB: chatops
+    POSTGRES_USER: runner
+    POSTGRES_PASSWORD: runner-password
+    # Configure the test environment to connect to said service.
+    TEST_DATABASE_HOST: postgres
+    TEST_DATABASE_USER: runner
+    TEST_DATABASE_NAME: chatops
+    TEST_DATABASE_PASSWORD: runner-password
+    COVERAGE: 'true'
+
+rubocop:
+  <<: *ruby
+  stage: test
+  script:
+    - bundle exec rubocop
+
+broadcast:
+  <<: *chatops
+
+explain:
+  <<: *chatops
+
+feature:
+  <<: *chatops
+
+graph:
+  <<: *chatops
+
+help:
+  <<: *chatops
+
+publish:
+  <<: *chatops
+
+query:
+  <<: *chatops
+
+user:
+  <<: *chatops
+
+deploy:
+  <<: *chatops
+
+member:
+  <<: *chatops
+
+oncall:
+  <<: *chatops
+
+canary:
+  <<: *chatops
+
+release:
+  <<: *chatops
+
+gitaly:
+  <<: *chatops
+
+namespace:
+  <<: *chatops
+
+auto_deploy:
+  <<: *chatops
+
+helm:
+  <<: *chatops
+
+deploycmd:
+  <<: *chatops
+
+mirror:
+  <<: *chatops
+

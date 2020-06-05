@@ -1,0 +1,23 @@
+---
+image: alpine:3.8
+
+before_script:
+  - apk add cppcheck build-base linux-headers sdl2-dev sdl2_ttf-dev cryptsetup-dev
+
+stages:
+  - test
+  - build
+
+static-analysis:
+  stage: test
+  script:
+    - test/static_analysis.sh
+
+build::amd64:
+  stage: build
+  script:
+    - make
+  artifacts:
+    paths:
+      - bin/
+

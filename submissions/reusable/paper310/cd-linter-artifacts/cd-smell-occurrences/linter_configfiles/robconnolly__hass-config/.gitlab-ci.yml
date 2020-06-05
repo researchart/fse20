@@ -1,0 +1,190 @@
+
+stages:
+  - preflight
+  - homeassistant
+  - deploy
+  - docker-deploy
+  - postflight
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+# Generic preflight template
+.preflight: &preflight
+  stage: preflight
+  tags:
+    - hass
+
+# Generic Home Assistant template
+.ha: &ha
+  stage: homeassistant
+  variables:
+    PYTHONPATH: "/usr/src/app:$PYTHONPATH"
+  before_script:
+    - python -m homeassistant --version
+    - mv fake_secrets.yaml secrets.yaml
+  script:
+    - |
+      python -m homeassistant \
+        --config $CI_PROJECT_DIR \
+        --script check_config \
+        --info all
+  tags:
+    - hass
+
+#before_script:
+#  - apt-get update
+#  - apt-get install -y mosquitto-clients
+
+# Preflight jobs
+shellcheck:
+  <<: *preflight
+  image:
+    name: koalaman/shellcheck-alpine:stable
+    entrypoint: [""]
+  before_script:
+    - ln -s $CI_PROJECT_DIR /config
+    - mv shell_commands/fake_secrets.sh shell_commands/secrets.sh
+    - shellcheck --version
+    - apk --no-cache add grep
+  script:
+    - |
+      for file in $(grep -IRl "#\!\(/usr/bin/env \|/bin/\)" --exclude-dir ".git" .); do
+        if ! shellcheck -x $file; then
+          export FAILED=1
+        else
+          echo "$file OK"
+        fi
+      done
+      if [ "${FAILED}" = "1" ]; then
+        exit 1
+      fi
+
+yamllint:
+  <<: *preflight
+  image: sdesbure/yamllint
+  before_script:
+    - yamllint --version
+    - mv fake_secrets.yaml secrets.yaml
+    - rm known_devices.yaml appdaemon.yaml apps/apps.yaml
+  script:
+    - yamllint .
+  allow_failure: true
+
+jsonlint:
+  <<: *preflight
+  image: sahsu/docker-jsonlint
+  before_script:
+    - jsonlint --version || true
+  script:
+    - |
+      for file in $(find . -type f -name "*.json" -path "mysensors.json" -prune); do
+        if ! jsonlint -q $file; then
+          export FAILED=1
+        else
+          echo "$file OK"
+        fi
+      done
+      if [ "${FAILED}" = "1" ]; then
+        exit 1
+      fi
+
+markdownlint:
+  <<: *preflight
+  image:
+    name: ruby:alpine
+    entrypoint: [""]
+  before_script:
+    - apk --no-cache add git
+    - gem install mdl
+    - mdl --version
+  script:
+    - mdl --style all --warnings --git-recurse .
+
+# Home Assistant test jobs
+ha-latest:
+  <<: *ha
+  image:
+    name: homeassistant/home-assistant:latest
+    entrypoint: [""]
+
+ha-rc:
+  <<: *ha
+  image:
+    name: homeassistant/home-assistant:rc
+    entrypoint: [""]
+  allow_failure: true
+
+ha-dev:
+  <<: *ha
+  image:
+    name: homeassistant/home-assistant:dev
+    entrypoint: [""]
+  allow_failure: true
+
+deploy:
+  stage: deploy
+  image:
+    name: alpine:latest
+    entrypoint: [""]
+  environment:
+    name: home-assistant
+  before_script:
+    - apk --no-cache add openssh-client
+    - echo "$DEPLOYMENT_SSH_KEY" > id_rsa
+    - chmod 600 id_rsa
+  script:
+    - ssh -i id_rsa -o "StrictHostKeyChecking=no" $DEPLOYMENT_SSH_LOGIN "cd /mnt/docker-data/home-assistant && git fetch && git checkout $CI_COMMIT_SHA && git submodule sync --recursive && git submodule update --init --recursive"
+  after_script:
+    - rm id_rsa
+  only:
+    refs:
+      - master
+  tags:
+    - hass
+
+docker-deploy:
+  stage: docker-deploy
+  image:
+    name: alpine:latest
+    entrypoint: [""]
+  environment:
+    name: home-assistant
+  before_script:
+    - apk --no-cache add openssh-client
+    - echo "$DEPLOYMENT_SSH_KEY" > id_rsa
+    - chmod 600 id_rsa
+  script:
+    - ssh -i id_rsa -o "StrictHostKeyChecking=no" $DEPLOYMENT_SSH_LOGIN "cd /mnt/docker-data/home-assistant && ./update.sh"
+  after_script:
+    - rm id_rsa
+  only:
+    refs:
+      - master
+    changes:
+      - docker-compose.yml
+      - update.sh
+  tags:
+    - hass
+
+restart-hass:
+  stage: postflight
+  image:
+    name: alpine:latest
+    entrypoint: [""]
+  environment:
+    name: home-assistant
+  before_script:
+    - apk --no-cache add curl
+  script:
+    - "curl -X POST -H \"Authorization: Bearer $DEPLOYMENT_HASS_TOKEN\" -H \"Content-Type: application/json\" $DEPLOYMENT_HASS_URL/api/services/homeassistant/restart"
+  only:
+    refs:
+      - master
+  except:
+    changes:
+      - docker-compose.yml
+      - update.sh
+  tags:
+    - hass
+

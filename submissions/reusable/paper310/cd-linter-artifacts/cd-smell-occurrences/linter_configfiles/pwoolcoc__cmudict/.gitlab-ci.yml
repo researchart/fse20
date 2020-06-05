@@ -1,0 +1,15 @@
+stages:
+  - test
+
+stable:
+  image: rust:latest
+  stage: test
+  script:
+    - cargo test --verbose
+
+nightly:
+  image: rustlang/rust:nightly
+  stage: test
+  script:
+    - cargo test --verbose
+

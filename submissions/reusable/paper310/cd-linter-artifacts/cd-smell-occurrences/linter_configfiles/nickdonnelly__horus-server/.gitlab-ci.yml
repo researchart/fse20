@@ -1,0 +1,10 @@
+stages:
+  - mirror
+
+GH mirror:
+  stage: mirror
+  image: haffmans/git-mirror:latest
+  script:
+    - git-mirror "${CI_PROJECT_DIR}" git@github.com:${GITHUB_REPOSITORY}
+    - echo "Mirrored to Github"
+

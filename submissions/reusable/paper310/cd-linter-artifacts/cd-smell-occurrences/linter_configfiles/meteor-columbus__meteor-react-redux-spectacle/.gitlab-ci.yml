@@ -1,0 +1,30 @@
+stages:
+  - test
+  - deploy
+
+cache:
+  untracked: true
+  paths:
+    - node_modules
+    - .meteor
+
+before_script:
+  - npm i
+
+mocha:
+  image: node:latest
+  stage: test
+  script:
+    - npm t
+
+deploy:
+  image: node:latest
+  stage: deploy
+  only:
+    - master
+  script:
+    - echo $METEOR_TOKEN > meteor_session_file.json
+    - echo $METEOR_SETTINGS > meteor_settings.json
+    - curl https://install.meteor.com/ | sh
+    - METEOR_PROFILE=1 DEPLOY_HOSTNAME=$DEPLOY_HOSTNAME METEOR_SESSION_FILE=meteor_session_file.json meteor deploy magic.modweb.io --settings meteor_settings.json
+

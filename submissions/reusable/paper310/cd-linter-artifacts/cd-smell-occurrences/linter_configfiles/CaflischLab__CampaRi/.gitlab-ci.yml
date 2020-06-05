@@ -1,0 +1,85 @@
+# Specify the docker image to use (only used if using docker runners)
+# See: http://doc.gitlab.com/ee/ci/docker/using_docker_images.html
+image: itzlacoliuhque/con-campari:latest
+# variables:
+stages:
+  - test
+  - check
+  - codecov
+  - deploy
+
+before_script:
+#  - apt-get install -y libfftw3-3 libfftw3-dev libfftw3-bin # not necessary
+  - export _R_CHECK_CRAN_INCOMING_=FALSE
+  - export _R_CHECK_FORCE_SUGGESTS_=TRUE
+  - echo 'R_MAX_NUM_DLLS=500' >> ~/.Renviron
+  - export R_MAX_NUM_DLLS=500
+
+#image: rocker/rstudio
+#test:
+#   script:
+#    - R -e 'install.packages(c("needed here"))'
+#    - R CMD build . --no-build-vignettes --no-manual
+#    - PKG_FILE_NAME=$(ls -1t *.tar.gz | head -n 1)
+#    - R CMD check "${PKG_FILE_NAME}" --no-build-vignettes --no-manual
+#    - R -e 'devtools::test()'
+
+pkg_test:
+  stage: test
+  script:
+    - pwd
+    - ls 
+    - Rscript -e 'devtools::load_all(quiet = F)'
+    - Rscript -e 'devtools::test()'
+  allow_failure: false
+
+pkg_check:
+  stage: check
+  script: 
+    - Rscript -e 'devtools::load_all(quiet = F)'
+#    - Rscript -e 'pkgbuild::compile_dll()'
+#    - devtools::document()
+    - Rscript -e 'devtools::check()'
+  allow_failure: true
+
+pkg_codecov:
+  stage: codecov
+  script: Rscript -e "covr::codecov(quiet = F, token = '266db23c-b9d1-405f-9aef-c5889ea5227d')"
+  allow_failure: true
+
+pages:
+  stage: deploy
+  script: 
+    - R -e 'devtools::install_github("r-lib/rlang", build_vignettes = TRUE)'
+    - Rscript -e 'devtools::load_all(quiet = F)'
+#    - Rscript -e 'pkgbuild::compile_dll()'
+    - Rscript -e "pkgdown::build_site()"
+    - mv docs/ public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+
+#r-devel:
+#  stage: test
+#  image: rocker/drd:latest
+#  script:
+#    - RDscript -e 'install.packages(c("devtools", "roxygen2"))'
+#    - RDscript -e 'devtools::install_dev_deps()'
+#    - RDscript -e 'devtools::check()'
+#  tags:
+#    - docker
+
+#r-oldrel:
+#  stage: test
+#  image: r-base:3.2.5
+#  script:
+#    - Rscript -e 'install.packages(c("devtools", "roxygen2"))'
+#    - Rscript -e 'devtools::install_dev_deps()'
+#    - Rscript -e 'devtools::check()'
+#  tags:
+#    - docker
+#  allow_failure: true
+

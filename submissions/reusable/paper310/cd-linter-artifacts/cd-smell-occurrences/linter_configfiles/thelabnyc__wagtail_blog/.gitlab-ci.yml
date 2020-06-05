@@ -1,0 +1,17 @@
+image: python:3.8-slim
+
+variables:
+  POETRY_VIRTUALENVS_CREATE: 'false'
+
+cache:
+  paths:
+  - ~/.cache/pip/
+
+before_script:
+  - pip install poetry
+  - poetry install --no-interaction --no-ansi
+
+test:
+  script:
+  - ./manage.py test
+

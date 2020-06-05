@@ -1,0 +1,123 @@
+image: maxking/mailman-ci-runner
+
+py37-django-20:
+  stage: test
+  script:
+    - tox -e py37-django20
+
+py36-django-20:
+  stage: test
+  script:
+    - tox -e py36-django20
+
+py35-django-20:
+  stage: test
+  script:
+    - tox -e py35-django20
+
+py35-django-21:
+  stage: test
+  script:
+    - tox -e py35-django21
+
+py36-django-21:
+  stage: test
+  script:
+    - tox -e py36-django21
+
+py37-django-21:
+  stage: test
+  script:
+    - tox -e py37-django21
+
+py36-django-22:
+  stage: test
+  script:
+    - tox -e py36-django22
+
+py37-django-22:
+  stage: test
+  script:
+    - tox -e py37-django22
+
+py36-django-30:
+  stage: test
+  script:
+    - tox -e py36-django30
+
+py37-django-30:
+  stage: test
+  script:
+    - tox -e py37-django30
+
+py38-django-30:
+  stage: test
+  script:
+    - tox -e py38-django30
+
+py38-django-22:
+  stage: test
+  script:
+    - tox -e py38-django22
+
+coverage:
+  stage: test
+  script:
+  - tox -e coverage
+  artifacts:
+    paths:
+    - coverage
+    expire_in: 5 days
+
+pep8:
+  stage: test
+  script:
+  - tox -e pep8
+
+git-heads:
+  stage: test
+  allow_failure: true
+  script:
+  - tox -e py36-head
+
+django-latest:
+  stage: test
+  allow_failure: true
+  script:
+    - tox -e py36-django-latest
+
+upstream-client:
+  stage: test
+  script:
+    - tox -e upstream-client
+  only:
+    variables:
+      - $MAILMANCLIENT_COMMIT_SHA
+
+upstream-django-mailman3:
+  stage: test
+  script:
+    - tox -e upstream-django-mailman3
+  only:
+    variables:
+      - $DJANGO_MAILMAN3_COMMIT_SHA
+
+
+sast:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SAST_CONFIDENCE_LEVEL="${SAST_CONFIDENCE_LEVEL:-3}"
+        --volume "$PWD:/code"
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/sast:$SP_VERSION" /app/bin/run /code
+  artifacts:
+    reports:
+      sast: gl-sast-report.json
+

@@ -1,0 +1,156 @@
+stages:
+- build
+- deploy
+
+build-review:
+  stage: build
+  variables:
+    IMAGE_VERSION: $CI_COMMIT_REF_SLUG
+  script:
+  - chmod +x ./devops/scripts/build.sh
+  - ./devops/scripts/build.sh
+  tags:
+  - drim-ci-1
+  only:
+  - /^feature\/.*$/
+
+deploy-review:
+  stage: deploy
+  variables:
+    IMAGE_VERSION: $CI_COMMIT_REF_SLUG
+    APP_HOST: $CI_COMMIT_REF_SLUG.mc0.drim.team
+    K8S_NAMESPACE: mc-review-$CI_COMMIT_REF_SLUG
+  script:
+  - chmod +x ./devops/scripts/deploy.sh
+  - ./devops/scripts/deploy.sh
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: http://$CI_COMMIT_REF_SLUG.mc0.drim.team:30000
+    on_stop: stop-review
+  tags:
+  - drim-ci-1
+  only:
+  - /^feature\/.*$/
+
+stop-review:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+    K8S_NAMESPACE: mc-review-$CI_COMMIT_REF_SLUG
+  script:
+  - chmod +x ./devops/scripts/stop.sh
+  - ./devops/scripts/stop.sh
+  tags:
+  - drim-ci-1
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+  only:
+  - /^feature\/.*$/
+
+build-develop:
+  stage: build
+  variables:
+    IMAGE_VERSION: develop
+  script:
+  - chmod +x ./devops/scripts/build.sh
+  - ./devops/scripts/build.sh
+  tags:
+  - drim-ci-1
+  only:
+  - develop
+
+deploy-develop:
+  stage: deploy
+  variables:
+    IMAGE_VERSION: develop
+    APP_HOST: develop.mc0.drim.team
+    K8S_NAMESPACE: mc-develop
+  script:
+  - chmod +x ./devops/scripts/deploy.sh
+  - ./devops/scripts/deploy.sh
+  environment:
+    name: develop
+    url: http://develop.mc0.drim.team:30000
+  tags:
+  - drim-ci-1
+  only:
+  - develop
+
+build-release:
+  stage: build
+  variables:
+    IMAGE_VERSION: $CI_COMMIT_REF_SLUG
+  script:
+  - chmod +x ./devops/scripts/build.sh
+  - ./devops/scripts/build.sh
+  tags:
+  - drim-ci-1
+  only:
+  - /^release\/.*$/
+
+deploy-release:
+  stage: deploy
+  variables:
+    IMAGE_VERSION: $CI_COMMIT_REF_SLUG
+    APP_HOST: $CI_COMMIT_REF_SLUG.mc0.drim.team
+    K8S_NAMESPACE: mc-$CI_COMMIT_REF_SLUG
+  script:
+  - chmod +x ./devops/scripts/deploy.sh
+  - ./devops/scripts/deploy.sh
+  environment:
+    name: release/$CI_COMMIT_REF_SLUG
+    url: http://$CI_COMMIT_REF_SLUG.mc0.drim.team:30000
+    on_stop: stop-release
+  tags:
+  - drim-ci-1
+  only:
+  - /^release\/.*$/
+
+stop-release:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+    K8S_NAMESPACE: mc-$CI_COMMIT_REF_SLUG
+  script:
+  - chmod +x ./devops/scripts/stop.sh
+  - ./devops/scripts/stop.sh
+  tags:
+  - drim-ci-1
+  when: manual
+  environment:
+    name: release/$CI_COMMIT_REF_SLUG
+    action: stop
+  only:
+  - /^release\/.*$/
+
+build-production:
+  stage: build
+  variables:
+    IMAGE_VERSION: production
+  script:
+  - chmod +x ./devops/scripts/build.sh
+  - ./devops/scripts/build.sh
+  tags:
+  - drim-ci-1
+  only:
+  - master
+
+deploy-production:
+  stage: deploy
+  variables:
+    IMAGE_VERSION: production
+    APP_HOST: mc0.drim.team
+    K8S_NAMESPACE: mc-production
+  script:
+  - chmod +x ./devops/scripts/deploy.sh
+  - ./devops/scripts/deploy.sh
+  environment:
+    name: production
+    url: http://mc0.drim.team:30000
+  tags:
+  - drim-ci-1
+  only:
+  - master
+

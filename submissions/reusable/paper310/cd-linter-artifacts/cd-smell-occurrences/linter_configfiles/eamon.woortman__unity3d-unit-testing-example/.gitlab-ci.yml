@@ -1,0 +1,39 @@
+stages:
+  - build
+variables:
+    UNITY_PROJECT_SOURCE: "${CI_PROJECT_DIR}"
+    UNITY_PROJECT_FOLDER: "/unity_project"
+    OUTPUT_FOLDER: "${CI_PROJECT_DIR}/build_output"
+    EDITOR_CMD: "xvfb-run --error-file ${OUTPUT_FOLDER}/xvfb_error.log --server-args='-screen 0 1024x768x24' /opt/Unity/Editor/Unity -batchmode -quit"
+    BUILD_PARAMETERS: "-projectPath ${UNITY_PROJECT_FOLDER} -logFile ${OUTPUT_FOLDER}/unity_docker_build.log -buildTarget ${BUILD_TARGET} ${ADDITIONAL_PARAMETERS} ${OUTPUT_FOLDER}/${OUTPUT_NAME}"
+
+before_script:
+    - mkdir -p ${UNITY_PROJECT_FOLDER}
+    - mkdir ${OUTPUT_FOLDER}
+    - cp -R ${UNITY_PROJECT_SOURCE}/* ${UNITY_PROJECT_FOLDER} # needed because of lacking permissions on mounted volumes
+
+after_script:
+    - rm  ${OUTPUT_FOLDER}/*.pdb
+    
+build_win32:
+    image: "eamonwoortman/unity3d:develop"
+    stage: build
+    only:
+        - develop
+    
+    variables:
+        OUTPUT_NAME: "test.exe"
+        BUILD_TARGET: "win32"
+        ADDITIONAL_PARAMETERS: "-buildWindowsPlayer"
+
+    script:
+        - eval ${EDITOR_CMD} ${BUILD_PARAMETERS}
+
+    artifacts:
+        when: always
+        name: "${CI_BUILD_STAGE}_${CI_BUILD_REF_NAME}"
+        expire_in: 1 week
+        paths:
+            - ${OUTPUT_FOLDER}/
+            
+

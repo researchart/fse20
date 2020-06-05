@@ -1,0 +1,253 @@
+image: php:alpine
+
+stages:
+  - analyze
+  - build
+  - tests
+  - docs
+  - deploy
+  - healthcheck
+  - notify
+
+variables:
+  AUTO_DEVOPS_BRANCH_PREFIX: "gitlab-ci-auto-devops"
+  AUTO_DEVOPS_BRANCH_NAME: "${AUTO_DEVOPS_BRANCH_PREFIX}-${CI_PIPELINE_ID}-${CI_JOB_STAGE}-${CI_JOB_ID}"
+
+.environment-staging: &environment-staging
+  environment:
+    name: staging
+    url: https://$CI_ENVIRONMENT_SLUG.$AUTO_DEVOPS_DOMAIN
+
+.only-master: &only-master
+  only:
+    - master
+
+.staging: &staging
+  <<: *environment-staging
+  <<: *only-master
+
+.environment-production: &environment-production
+  environment:
+    name: production
+    url: https://$AUTO_DEVOPS_DOMAIN
+
+.only-tags-semver: &only-tags-semver
+  only:
+    - /^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/
+  except:
+    - branches
+
+.production: &production
+  <<: *environment-production
+  <<: *only-tags-semver
+
+.environment-review: &environment-review
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: https://$CI_COMMIT_REF_SLUG.$AUTO_DEVOPS_DOMAIN
+
+.only-branches: &only-branches
+  only:
+    - branches
+
+.except-master: &except-master
+  except:
+    - master
+
+.all-merge-requests: &all-merge-requests
+  <<: *only-branches
+  <<: *except-master
+
+.except-auto-devops-merge-requests: &except-auto-devops-merge-requests
+  except:
+    - master
+    - /^$AUTO_DEVOPS_BRANCH_PREFIX.*$/
+
+.only-auto-devops-merge-requests: &only-auto-devops-merge-requests
+  only:
+    - /^$AUTO_DEVOPS_BRANCH_PREFIX.*$/
+
+.merge-request: &merge-request
+  <<: *all-merge-requests
+  <<: *except-auto-devops-merge-requests
+
+.docker-in-docker: &docker-in-docker
+  image: docker:stable
+  services:
+    - docker:stable-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+    - "docker pull $CI_REGISTRY_IMAGE:latest || :"
+
+.composer-install-before: &composer-install-before
+  before_script:
+    - composer global require hirak/prestissimo
+    - composer install --ignore-platform-reqs --prefer-dist --optimize-autoloader
+
+.composer-caches: &composer-caches
+  cache:
+    paths:
+      - vendor/
+      - composer.lock
+
+.composer: &composer
+  <<: *composer-install-before
+  <<: *composer-caches
+
+.git-clone: &git-clone
+  before_script:
+    - apk add --update git openssh-client
+    - eval $(ssh-agent -s)
+    - mkdir ~/.ssh
+    - echo "$GIT_SSH_KEY" > ~/.ssh/id_rsa_gitlab
+    - chmod 0600 ~/.ssh/id_rsa_gitlab
+    - ssh-add ~/.ssh/id_rsa_gitlab
+    - ssh-keyscan -t rsa gitlab.com >> ~/.ssh/known_hosts
+    - git config --global user.email "$GITLAB_USER_EMAIL"
+    - git config --global user.name "$CI_REGISTRY_USER"
+    - git clone git@gitlab.com:${CI_PROJECT_PATH}.git ${CI_PROJECT_NAME}
+    - cd ${CI_PROJECT_NAME}
+
+Auto Merge-Request:
+  <<: *only-auto-devops-merge-requests
+  stage: analyze
+  before_script:
+    - apk add --update curl bash python3
+    - chmod +x bin/auto-merge-request
+  variables:
+    HOST: ${CI_PROJECT_URL}
+  script:
+    - env bin/auto-merge-request >> /dev/null 2>&1
+
+PHPLint:
+  <<: *merge-request
+  stage: analyze
+  image: jakzal/phpqa
+  script:
+    - phplint --no-interaction $CI_PROJECT_DIR
+
+PSR1 & PSR2 Code Standards:
+  <<: *merge-request
+  stage: analyze
+  image: jakzal/phpqa
+  allow_failure: true
+  script:
+    - php-cs-fixer fix $CI_PROJECT_DIR --verbose --rules=@PSR2,@PSR1 --diff --dry-run
+
+Deprecation Detector:
+  <<: *merge-request
+  <<: *composer
+  stage: analyze
+  image: jakzal/phpqa
+  allow_failure: true
+  script:
+    - deprecation-detector check $CI_PROJECT_DIR $CI_PROJECT_DIR/composer.lock
+
+Security Checker:
+  <<: *merge-request
+  <<: *composer
+  stage: analyze
+  image: jakzal/phpqa
+  allow_failure: true
+  script:
+    - security-checker security:check $CI_PROJECT_DIR/composer.lock
+
+Update CHANGELOG.md:
+  <<: *production
+  <<: *git-clone
+  stage: docs
+  allow_failure: true
+  script:
+    - echo "Update CHANGELOG.md"
+    - echo $CI_COMMIT_TAG >> CHANGELOG.md
+    - echo `date` >> CHANGELOG.md
+    - git add CHANGELOG.md
+    - git commit -m "Update CHANGELOG.md"
+    - git branch $AUTO_DEVOPS_BRANCH_NAME
+    - git push -u origin $AUTO_DEVOPS_BRANCH_NAME
+
+Build Test:
+  <<: *merge-request
+  <<: *docker-in-docker
+  stage: build
+  script:
+    - |
+      docker build \
+        --pull \
+        --build-arg XDEBUG=on \
+        --build-arg "BUILD_TAG=$CI_COMMIT_REF_NAME" \
+        --cache-from "$CI_REGISTRY_IMAGE:latest" \
+        --tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" \
+        .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+
+PHPUnit Test Suite:
+  <<: *merge-request
+  <<: *composer
+  stage: tests
+  image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  script:
+    - vendor/bin/phpunit --coverage-text --colors=never
+  coverage: /^\s*Lines:\s*\d+.\d+\%/
+
+License Management:
+    stage: tests
+    image:
+        name: "registry.gitlab.com/gitlab-org/security-products/license-management:$CI_SERVER_VERSION_MAJOR-$CI_SERVER_VERSION_MINOR-stable"
+        entrypoint: [""]
+    allow_failure: true
+    script:
+        - /run.sh analyze .
+    artifacts:
+        reports:
+            license_management: gl-license-management-report.json
+
+Build Staging:
+  <<: *staging
+  <<: *docker-in-docker
+  stage: build
+  script:
+    - docker build --pull --no-cache --tag "$CI_REGISTRY_IMAGE:latest" .
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+
+Build Production:
+  <<: *production
+  <<: *docker-in-docker
+  stage: build
+  script:
+    - docker build --pull --build-arg "BUILD_TAG=$CI_COMMIT_TAG" --cache-from "$CI_REGISTRY_IMAGE:latest" --tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"
+
+Deploy to Staging:
+  <<: *staging
+  stage: deploy
+  script:
+    - echo "Deploy to staging server"
+
+Deploy to Production:
+  <<: *production
+  stage: deploy
+  script:
+    - echo "Deploy to production server"
+
+Health Check Staging Deployment:
+  <<: *staging
+  stage: healthcheck
+  script:
+    - echo "Making sure that it will be all right!"
+
+Health Check Production Deployment:
+  <<: *production
+  stage: healthcheck
+  script:
+    - echo "Making sure that it will be all right!"
+
+Notify Pipeline Failures:
+  <<: *production
+  stage: notify
+  when: on_failure
+  script:
+    - echo "Oh no! Something happen! :("
+

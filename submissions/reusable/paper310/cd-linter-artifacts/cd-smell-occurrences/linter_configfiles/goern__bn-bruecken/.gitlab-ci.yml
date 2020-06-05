@@ -1,0 +1,63 @@
+image: node:6
+
+stages:
+  - test
+  - package
+  - deploy
+  - release
+  
+test:
+  stage: test
+  script:
+   - npm install
+   - npm test
+
+build-container-image:
+  stage: package
+
+  image: docker:latest
+  services:
+    - docker:dind
+
+  variables:
+    IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  
+  script:
+    - docker build --tag $IMAGE_TAG --file Dockerfile.node .
+    - docker push $IMAGE_TAG
+
+  only:
+    - tags
+    - master
+    
+production:
+  stage: deploy
+
+  image: ruby:2.1
+
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - gem install dpl
+  - dpl --provider=heroku --app=fe-bruecke-bot --api-key=$HEROKU_PRODUCTION_API_KEY
+
+  only:
+  - master
+
+release:
+  stage: release
+
+  before_script:
+    - npm install
+
+  only:
+    - master
+
+  script:
+    - npm --no-git-tag-version version # bump version string in package.json
+    - $(npm bin)/semantic-release-gitlab # do the release
+
+

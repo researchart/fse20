@@ -1,0 +1,274 @@
+image: python:2
+
+before_script:
+  - apt-get update -yqq
+  - apt-get install apt-transport-https
+  - curl -sL https://deb.nodesource.com/setup_10.x | bash -
+  - apt-get update -yqq
+  - apt-get install -yqq nodejs
+  # enable unsafe-perm to avoid problems with running npm as root
+  # see adblockplusui#193
+  - export npm_config_unsafe_perm=true
+  - pip install --user Jinja2 cryptography fonttools brotli
+  - export PATH=$PATH:~/.local/bin
+
+stages:
+  - lint
+  - test
+  - build
+  - pages
+  - uploadcrowdin
+  - uploadxtm
+  - updatextm
+  - downloadxtm
+
+lint:
+  stage: lint
+  script:
+    - npm install
+    - npm run lint
+  only:
+    variables:
+      - $CI_PROJECT_NAME == 'adblockplusui'
+
+test:
+  stage: test
+  script:
+    - npm install
+    - npm run dist
+    - npm run test
+  only:
+    variables:
+      - $CI_PROJECT_NAME == 'adblockplusui'
+
+build:
+  stage: build
+  script:
+    # Since adblockplusui exists before we run build.py we need to call
+    # npm install explicitly
+    - npm install
+    - npm run dist
+    # We cannot upload artifacts from outside the build folder so we need to
+    # add a hirachy level to make space for adblockpluschrome
+    - cd ..
+    - mkdir adblockplusui.new
+    - mv adblockplusui adblockplusui.new/
+    - mv adblockplusui.new adblockplusui
+    - cd adblockplusui
+    # gitlab uses a custom template when cloning repositories so we need to
+    # create .git/info/exclude, which is needed by ensure_dependencies.py,
+    # ourselves
+    - mkdir -p adblockplusui/.git/info && touch adblockplusui/.git/info/exclude
+    # Clone adblockpluschrome
+    - git clone ${CI_REPOSITORY_URL/adblockplusui.git/adblockpluschrome.git}
+    - ln -s `pwd`/adblockplusui adblockpluschrome
+    - cd adblockpluschrome
+    # If adblockpluschrome has a matching branch (e.g.
+    # adblockplusui@release-YYYY-N => adblockpluschrome@release-YYYY-N) use
+    # the matching branch instead of master
+    - |
+      IFS=$'\n';
+      for HEADS in $(git --git-dir ../adblockplusui/.git log --pretty=format:%D origin/master..HEAD | sed "/^$/d"); do
+        IFS=$', ';
+        for HEAD in $HEADS; do
+          # Skip special ref HEAD since it will always be present
+          if [[ $HEAD == *"HEAD"* ]]; then
+            continue;
+          fi
+          # Strip ref e.g. ref/branch => branch
+          export HEAD=$(echo $HEAD | sed "s/[^\/]\+\///g");
+          if [ $(git rev-parse --quiet --verify origin/$HEAD) ]; then
+            git reset --hard origin/$HEAD;
+            break 2;
+          fi
+        done
+      done
+    # Include resulting HEAD in debug output
+    - git log --oneline HEAD^..
+    # Tweak dependencies to use the right repositories i.e. eyeo/adblockplus/abp/*
+    - export REPOSITORY_ROOT_URL_ESCAPED=$(echo ${CI_REPOSITORY_URL/adblockplusui.git/} | sed -e 's/[\/&]/\\&/g')
+    # Tweak dependencies to automagically use the current UI version
+    - sed -i -E "s/(_root = hg:[^ ]+ git:)([^ ]+)/\1$REPOSITORY_ROOT_URL_ESCAPED/g" dependencies
+    - sed -i -E "s/(adblockplusui = adblockplusui hg:[[:alnum:]]{12} git:)([[:alnum:]]{7})/\1${CI_COMMIT_SHA:0:8}/g" dependencies
+    # Include resulting dependencies in debug output
+    - cat dependencies
+    - pip install cryptography==2.2.2 Jinja2==2.10 tox==3.0.0 PyYAML==3.12 urllib3==1.22
+    # Since build.py doesn't call npm install for adblockpluschrome itself,
+    # we need to call npm install explicitly
+    - npm install
+    # Finally build abp
+    - python build.py build -t gecko adblockplus-firefox-${CI_COMMIT_SHA:0:8}.xpi
+    - python build.py build -t chrome adblockplus-chrome-${CI_COMMIT_SHA:0:8}.zip
+    - python build.py build -t edge adblockplus-edge-${CI_COMMIT_SHA:0:8}.zip
+  artifacts:
+    paths:
+      - adblockpluschrome/adblockplus-firefox-${CI_COMMIT_SHA:0:8}.xpi
+      - adblockpluschrome/adblockplus-chrome-${CI_COMMIT_SHA:0:8}.zip
+      - adblockpluschrome/adblockplus-edge-${CI_COMMIT_SHA:0:8}.zip
+  only:
+    refs:
+      - /^release-[0-9]{4}-[0-9]+(\.-?[0-9]+)?$/
+      - /^feature-[1-9][0-9]*(|-.+)$/
+      - /^compat-\w+-[0-9]{4}-[0-9]+(\.-?[0-9]+)?$/
+    variables:
+      - $CI_PROJECT_NAME == 'adblockplusui'
+
+pages:
+  stage: pages
+  script:
+    - pip install python-gitlab requests Jinja2==2.10
+    - mkdir -p public
+    - |
+      python -c "import gitlab;
+      import jinja2;
+
+      gitlab = gitlab.Gitlab(
+        url='https://gitlab.com',
+        private_token='$PRIVATE_TOKEN_ABPUI');
+      project = gitlab.projects.get('eyeo/adblockplus/abpui/adblockplusui');
+
+      jobs = [];
+      for pipeline in project.pipelines.list(per_page=100, status='success'):
+          for job in pipeline.jobs.list(all=True):
+              if job.attributes['name'] == 'build':
+                  if job.attributes['commit']:
+                    short_id = job.attributes['commit']['short_id']
+                    created_at = job.attributes['commit']['created_at']
+
+                    jobs.append((
+                      job.id,
+                      job.attributes['web_url'],
+                      job.attributes['ref'],
+                      short_id,
+                      created_at,
+                    ));
+
+      env = jinja2.Environment();
+      template = env.from_string('''<html>
+      <head><title>ABP UI Nightlies</title></head>
+      <body>
+      <h1>ABP UI Nightlies</h1>
+      <p>
+        To install the Firefox version (adblockplus-firefox.xpi) you first need to enable installation of an unsigned extension got to
+        <i>about:config</i> and disable <i>xpinstall.signatures.required</i>, see <a href='https://support.mozilla.org/en-US/kb/add-on-signing-in-firefox?as=u&utm_source=inproduct#w_what-are-my-options-if-i-want-to-use-an-unsigned-add-on-advanced-users'>here</a>.
+      </p>
+      <p>
+        To install the Chrome version (adblockplus-chrome.zip) you need unpack the zip archive somewhere, then go to <i>chrome://extensions/</i> enable <i>Developer mode</i> and then load the unpacked extension from the folder you unpacked it to previously.
+      </p>
+      <p>
+        To install the Edge version (adblockplus-edge.zip), first unpack the zip archive somewhere, then go to <i>about:flags/</i> and check the <i>Enable extension developer features</i> checkbox. After that, load the unpacked extension from the Edge's <i>Extensions</i> menu via the <i>Load extension</i> button.
+      </p>
+      {%- for id, url, ref, commit, date in jobs %}
+      <p>
+          Job: <a href='{{ url }}'>{{ id }}</a>
+          Ref: <a href='https://gitlab.com/eyeo/adblockplus/abpui/adblockplusui/commit/{{ commit }}'>{{ ref }} ({{ commit }})</a>
+          Date: {{ date }}
+          Extension: <a href='https://gitlab.com/api/v4/projects/eyeo%2fadblockplus%2fabpui%2fadblockplusui/jobs/{{ id }}/artifacts/adblockpluschrome/adblockplus-firefox-{{ commit }}.xpi'>adblockplus-firefox-{{ commit }}.xpi</a> / <a href='https://gitlab.com/api/v4/projects/eyeo%2fadblockplus%2fabpui%2fadblockplusui/jobs/{{ id }}/artifacts/adblockpluschrome/adblockplus-chrome-{{ commit }}.zip'>adblockplus-chrome-{{ commit }}.zip (Chrome)</a> / <a href='https://gitlab.com/api/v4/projects/eyeo%2fadblockplus%2fabpui%2fadblockplusui/jobs/{{ id }}/artifacts/adblockpluschrome/adblockplus-edge-{{ commit }}.zip'>adblockplus-edge-{{ commit }}.zip (Edge)</a>
+      </p>
+      {%- endfor %}
+      </body>
+      </html>
+      ''');
+
+      with open('public/index.html', 'w+') as out:
+          out.write(template.render(jobs=jobs));"
+  artifacts:
+    paths:
+      - public/
+  only:
+    refs:
+      - /^release-[0-9]{4}-[0-9]+(\.-?[0-9]+)?$/
+      - /^feature-[1-9][0-9]*(|-.+)$/
+      - /^compat-\w+-[0-9]{4}-[0-9]+(\.-?[0-9]+)?$/
+    variables:
+      - $CI_PROJECT_NAME == 'adblockplusui-nightlies'
+
+uploadcrowdin:
+  variables:
+    BASENAME: 'adblockplusui'
+  stage: uploadcrowdin
+  script:
+    # gitlab uses a custom template when cloning repositories so we need to
+    # create .git/info/exclude, which is needed by ensure_dependencies.py,
+    # ourselves
+    - mkdir -p .git/info && touch .git/info/exclude
+    - npm install
+    # To allow uploading to a test project you can override the basename via
+    # the environment variable BASENAME. This ensures BASENAME and basename in
+    # metadata.generic are the same.
+    - sed -i -E "s/basename\s=\s.+$/basename = $BASENAME/g" metadata.generic
+    # show resulting metadata.generic so we can see which basename was used
+    - cat metadata.generic
+    # finally upload source strings and translations to crowdin
+    - npm run $ crowdin.upload-strings
+    - npm run $ crowdin.upload-translations
+  when: manual
+  environment:
+    name: crowdin/$BASENAME
+    url: https://crowdin.com/project/$BASENAME
+
+.xtm:
+  variables:
+    USER_ID: $XTM_USER_ID
+    CLIENT: $XTM_CLIENT
+    PASSWORD: $XTM_PASSWORD
+  environment:
+    name: xtm/$CI_COMMIT_REF_SLUG
+
+uploadxtm:
+  stage: uploadxtm
+  extends: .xtm
+  script:
+    - mkdir -p .git/info && touch .git/info/exclude
+    - npm install
+    # Currently the xtm script determines the branch name using git rev-parse
+    # which doesn't work inside the CI environment because it's using a detached
+    # head (see https://gitlab.com/gitlab-org/gitlab-ce/issues/19421) to make
+    # it work we need to created the corresponding branches
+    - git branch master origin/master
+    - git checkout -B "$CI_BUILD_REF_NAME" "$CI_BUILD_REF"
+    - npm run $ xtm.create
+  when: manual
+
+updatextm:
+  stage: updatextm
+  extends: .xtm
+  script:
+    - mkdir -p .git/info && touch .git/info/exclude
+    - npm install
+    # Currently the xtm script determines the branch name using git rev-parse
+    # which doesn't work inside the CI environment because it's using a detached
+    # head (see https://gitlab.com/gitlab-org/gitlab-ce/issues/19421) to make
+    # it work we need to created the corresponding branches
+    - git branch master origin/master
+    - git checkout -B "$CI_BUILD_REF_NAME" "$CI_BUILD_REF"
+    - npm run $ xtm.update
+  when: manual
+
+downloadxtm:
+  stage: downloadxtm
+  extends: .xtm
+  script:
+    - mkdir -p .git/info && touch .git/info/exclude
+    - npm install
+    # Currently the xtm script determines the branch name using git rev-parse
+    # which doesn't work inside the CI environment because it's using a detached
+    # head (see https://gitlab.com/gitlab-org/gitlab-ce/issues/19421) to make
+    # it work we need to created the corresponding branches
+    - git branch master origin/master
+    - git checkout -B "$CI_BUILD_REF_NAME" "$CI_BUILD_REF"
+    # Download the translations
+    - npm run $ xtm.download
+    # Configure author for commit
+    - git config user.email "$GITLAB_USER_EMAIL"
+    - git config user.name "$GITLAB_USER_NAME"
+    # Add changes and commit
+    - git add locale
+    - export COMMIT_MSG="Noissue - Added XTM translations for $CI_BUILD_REF_NAME"
+    - git commit -m "$COMMIT_MSG"
+    # Push into new branch and create a new merge request
+    - export TARGET_BRANCH="$CI_BUILD_REF_NAME""-xtm-download"
+    - export PUSH_URL=$(echo $CI_PROJECT_URL | sed "s/:\/\//:\/\/$GITLAB_USER:$GITLAB_TOKEN@/g")
+    - "git push --push-option=merge_request.create --push-option=merge_request.target=$CI_BUILD_REF_NAME --push-option=merge_request.remove_source_branch --push-option=merge_request.title=\"WIP: ${COMMIT_MSG}\" $PUSH_URL HEAD:$TARGET_BRANCH"
+  when: manual
+

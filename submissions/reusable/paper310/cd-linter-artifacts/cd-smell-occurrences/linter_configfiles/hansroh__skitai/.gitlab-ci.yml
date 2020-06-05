@@ -1,0 +1,99 @@
+before_script:
+  - python -V
+  - pip install -U setuptools pip
+
+variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+.before_python_test: &before_python_test
+    before_script:
+      - python -V
+      - python -m venv venv
+      - source venv/bin/activate
+      - pip install -U setuptools pip
+      - pip install -e .
+      - pip install -U --pre --no-cache-dir aquests rs4 sqlphile
+      - python -c 'from aquests.dbapi import syndbi, asynpsycopg2, asynmongo, asynredis'
+      - python -c 'from aquests.protocols.grpc import discover'
+      - pip install --pre --no-cache-dir atila
+      - pip install -Ur tests/requirements.txt
+      - pip install -U tfserver tensorflow==1.13.2
+      - pip install -U --force pymongo
+
+.before_python_notf_test: &before_python_notf_test
+    before_script:
+      - python -V
+      - python -m venv venv
+      - source venv/bin/activate
+      - pip install -U setuptools pip
+      - pip install -e .
+      - pip install -U --pre --no-cache-dir aquests rs4 sqlphile
+      - python -c 'from aquests.dbapi import syndbi, asynpsycopg2, asynmongo, asynredis'
+      - python -c 'from aquests.protocols.grpc import discover'
+      - pip install --pre --no-cache-dir atila
+      - pip install -Ur tests/requirements.txt
+      - pip install -U --force pymongo
+
+.before_pypy_test: &before_pypy_test
+    before_script:
+      - pypy3 -V
+      - pypy3 -m venv venv
+      - source venv/bin/activate
+      - pip install -U setuptools pip
+      - pip install -e .
+      - pip install -U --pre --no-cache-dir aquests rs4 sqlphile
+      - pypy3 -c 'from aquests.dbapi import syndbi, asynpsycopg2, asynmongo, asynredis'
+      - pypy3 -c 'from aquests.protocols.grpc import discover'
+      - pip install --pre --no-cache-dir atila
+      - pip install -Ur tests/requirements.txt
+      - pip install -U --force pymongo
+
+.test_template: &test
+  script:
+    - cd tests
+    - pytest level1
+    - pytest level2
+    - pytest level3
+    - pytest level4
+    - pytest level5
+    - deactivate
+  only:
+    - master
+
+.test_template_win32: &test-win32
+  script:
+    - cd tests
+    - pytest level3/test_app.py
+  only:
+    - master
+
+python 3.5stretch:
+  image: python:3.5-stretch
+  <<: *before_python_test
+  <<: *test
+
+python 3.6stretch:
+  image: python:3.6-stretch
+  <<: *before_python_test
+  <<: *test
+
+python 3.7stretch:
+  image: python:3.7-stretch
+  <<: *before_python_test
+  <<: *test
+
+python 3.8buster:
+  image: python:3.8-buster
+  <<: *before_python_notf_test
+  <<: *test
+
+python pypy3:
+  image: pypy:3
+  <<: *before_pypy_test
+  <<: *test
+

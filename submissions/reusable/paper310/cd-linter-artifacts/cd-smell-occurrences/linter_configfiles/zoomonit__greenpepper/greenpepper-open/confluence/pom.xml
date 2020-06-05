@@ -1,0 +1,75 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<!-- - Basic Project Information -->
+	<parent>
+		<artifactId>greenpepper-open</artifactId>
+		<groupId>com.github.strator-dev.greenpepper</groupId>
+		<version>4.2.5-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>greenpepper-confluence</artifactId>
+	<packaging>pom</packaging>
+	<name>GreenPepper Confluence</name>
+
+	<properties>
+		<!-- Confluence version -->
+		<atlassian.product.version>5.0.3</atlassian.product.version>
+		<confluence.version>5.0.3</confluence.version>
+		<confluence.data.version>5.0.3</confluence.data.version>
+		<plugin.testrunner.version>1.2.3</plugin.testrunner.version>
+		<amps.version>5.1.20</amps.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>log4j-over-slf4j</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>jcl-over-slf4j</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>jul-to-slf4j</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
+
+	<modules>
+		<module>greenpepper-confluence-code</module>
+		<module>greenpepper-confluence-plugin</module>
+		<module>greenpepper-confluence-demo</module>
+	</modules>
+
+	<pluginRepositories>
+		<pluginRepository>
+			<id>atlassian-public</id>
+			<url>https://maven.atlassian.com/repository/public</url>
+			<snapshots>
+				<enabled>true</enabled>
+				<updatePolicy>never</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</snapshots>
+			<releases>
+				<enabled>true</enabled>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
+		</pluginRepository>
+	</pluginRepositories>
+</project>
+

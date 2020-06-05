@@ -1,0 +1,39 @@
+image: "ruby:2.4.4"
+
+services :
+  - postgres:latest
+
+variables :
+  POSTGRES_DB: team-d_development
+
+cache :
+  paths:
+    - vendor/ruby
+
+stages :
+  - build
+  - deploy
+
+proses compile:
+  variables :
+    DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/$POSTGRES_DB"
+  stage: build
+  script:
+  - apt-get update && apt install -y -qq nodejs
+  - gem install bundler --no-ri --no-rdoc
+  - gem install execjs
+  - RAILS_ENV=test bundle install --jobs $(nproc) "${FLAGS[@]}"
+  - bundle exec rails db:migrate
+  - bundle exec rails db:seed
+  except :
+  - master
+
+proses deploy production:
+  stage: deploy
+  environment: production
+  script:
+  - gem install dpl
+  - dpl --provider=heroku --app=airdo-web --api-key=24911925-128a-4ff9-9f30-dbf280b10199
+  only :
+  - master
+

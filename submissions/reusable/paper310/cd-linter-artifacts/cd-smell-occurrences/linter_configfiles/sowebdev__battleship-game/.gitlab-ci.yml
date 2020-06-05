@@ -1,0 +1,20 @@
+before_script:
+- bash ci/docker_install.sh > /dev/null
+
+# use following regex to enable Gitlab to parse coverage : ^Total:\s*(\d+.\d+)\%
+
+unit tests:php7.0:
+  image: php:7.0
+  script:
+  - vendor/bin/kahlan --coverage
+
+unit tests:php7.1:
+  image: php:7.1
+  script:
+  - vendor/bin/kahlan --coverage
+
+coding style:
+  image: php:7.0
+  script:
+  - vendor/bin/phpcs
+

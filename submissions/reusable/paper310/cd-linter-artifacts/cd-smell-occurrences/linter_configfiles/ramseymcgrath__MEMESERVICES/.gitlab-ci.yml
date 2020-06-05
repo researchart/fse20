@@ -1,0 +1,57 @@
+image: node:latest
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+    - build/default
+
+stages:
+  - build
+  - deploy
+
+build_app:
+  stage: build
+  script:
+    - npm config set user 0
+    - npm config set unsafe-perm true
+    - npm install -g polymer-cli bower
+    - bower cache clean --allow-root
+    - bower install --allow-root
+    - bower prune --allow-root
+    - polymer build
+
+#deploy_qa:
+#  stage: qa
+#  environment: 
+#    name: qa
+#    url: https://qa.memeservices.com
+#  only:
+#    - master
+#  script:
+#    - apt-get update
+#    - apt-get install npm
+#    - npm config set user 0
+#    - npm config set unsafe-perm true
+#    - npm install -g firebase-tools
+#    - firebase use --token $FIREBASE_PROD_KEY default
+#    - firebase deploy -m "Pipeline $CI_PIPELINE_ID, build $CI_BUILD_ID" --non-interactive --token $FIREBASE_PROD_KEY
+
+deploy_production:
+  stage: deploy
+  environment: 
+    name: production
+    url: https://memeservices.com
+  only:
+    - master
+  script:
+    - npm config set user 0
+    - npm config set unsafe-perm true
+    - npm install -g firebase-tools
+    - pwd && ls
+    - ls build
+    - cd build
+    - ls
+    - firebase use --token $FIREBASE_PROD_KEY default
+    - firebase deploy --non-interactive --token $FIREBASE_PROD_KEY
+

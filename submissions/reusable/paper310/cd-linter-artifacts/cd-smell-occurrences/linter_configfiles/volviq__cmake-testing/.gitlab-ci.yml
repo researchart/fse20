@@ -1,0 +1,15 @@
+image: registry.gitlab.com/volviq/cmake-testing:latest
+
+stages:
+  - build
+  - test
+
+cmake_hello:
+    stage: build
+    script:
+          - cd hello-world
+          - mkdir build && cd build
+          - cmake .. && make && find .
+          - ./hello
+
+

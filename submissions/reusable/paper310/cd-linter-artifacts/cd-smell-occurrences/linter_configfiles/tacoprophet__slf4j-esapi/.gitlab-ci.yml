@@ -1,0 +1,40 @@
+image: maven:3.3.9-jdk-8
+
+cache:
+  paths:
+    - .m2/
+
+variables:
+  MAVEN_OPTS: -Dmaven.repo.local=${CI_PROJECT_DIR}/.m2
+
+build:
+  script:
+    - "mvn install -B"
+
+coverage:
+  script:
+    - "mvn cobertura:cobertura"
+  artifacts:
+    paths:
+      - target/site/cobertura
+
+site:
+  script:
+    - "mvn site"
+  artifacts:
+    paths:
+      - target/site
+
+pages:
+  stage: deploy
+  dependencies:
+    - site
+  script:
+    - mv target/site/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+      - master
+

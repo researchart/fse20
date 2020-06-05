@@ -1,0 +1,15 @@
+image: docker:latest
+
+stages:
+  - build_images
+
+build_images:
+  stage: build_images
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - ./build.sh
+    - docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+    - docker push jeanfi/ubuntu-desktop
+

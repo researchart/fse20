@@ -1,0 +1,190 @@
+stages:
+    - audit
+    - lint
+    - build-app
+    - test
+    - build-web
+    - release
+
+default:
+    image: docker:19-git
+    services:
+        - docker:dind
+    before_script:
+        - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+
+# =====
+# Audit
+# =====
+
+audit:php:
+    stage: audit
+    image: php:7.3-alpine
+    services: []
+    allow_failure: true
+    before_script:
+        - curl -sS https://get.sensiolabs.org/security-checker.phar -o check.phar
+    script:
+        - php check.phar security:check composer.lock
+
+audit:node:
+    stage: audit
+    image: node:10-alpine
+    services: []
+    allow_failure: true
+    before_script: []
+    script:
+        - yarn audit
+
+
+# ====
+# Lint
+# ====
+
+lint:js:
+    image: node:10-alpine
+    stage: lint
+    services: []
+    except:
+        - schedules
+    before_script:
+        - yarn
+    script:
+        - yarn run lint:js
+
+lint:7.4: &lint
+    stage: lint
+    image: php:7.4-alpine
+    services: []
+    except:
+        - schedules
+    before_script: []
+    script:
+        - find config public src tests -type f -name "*.php" -print0 |
+          xargs -0 -n1 -P4 php -l -n |
+          (! grep -v "No syntax errors detected" )
+
+lint:7.3:
+    <<: *lint
+    image: php:7.3-alpine
+
+lint:7.2:
+    <<: *lint
+    image: php:7.2-alpine
+
+
+# =========
+# Build app
+# =========
+
+build-app:7.4: &build-app
+    stage: build-app
+    image: docker:19-git
+    except:
+        - schedules
+    services:
+        - docker:dind
+    variables: &build-app-vars
+        PHP_VERSION: '7.4'
+        TEST_IMAGE_APP: ${CI_REGISTRY_IMAGE}/app:${PHP_VERSION}-${CI_COMMIT_SHA}
+        TEST_IMAGE_WEB: ${CI_REGISTRY_IMAGE}/web:${CI_COMMIT_SHA}
+    script:
+        - docker build --pull
+            --build-arg APP_VERSION="$(git describe --tags)"
+            --build-arg APP_BRANCH="$CI_COMMIT_REF_NAME"
+            --build-arg PHP_VERSION="$PHP_VERSION"
+            --target postmill_php -t $TEST_IMAGE_APP .
+        - docker push $TEST_IMAGE_APP
+
+build-app:7.3:
+    <<: *build-app
+    variables:
+        <<: *build-app-vars
+        PHP_VERSION: '7.3'
+
+build-app:7.2:
+    <<: *build-app
+    variables:
+        <<: *build-app-vars
+        PHP_VERSION: '7.2'
+
+
+# ====
+# Test
+# ====
+
+test:7.4: &test
+    image: ${CI_REGISTRY_IMAGE}/app:7.4-${CI_COMMIT_SHA}
+    stage: test
+    except:
+        - schedules
+    services:
+        - postgres:9.4-alpine
+    variables:
+        APP_ENV: test
+        DATABASE_URL: pgsql://postmill:secret@postgres/postmill?serverVersion=9.4
+        ENABLE_EXPERIMENTAL_REST_API: 1
+        POSTGRES_USER: postmill
+        POSTGRES_PASSWORD: secret
+    before_script:
+        - composer install --prefer-dist --no-suggest --no-interaction
+        - bin/console doctrine:migrations:migrate --no-interaction
+        - bin/console doctrine:fixtures:load --no-interaction
+        - mkdir public/build
+        - cp /app/public/build/*.json public/build/
+    script:
+        - bin/phpunit
+        - bin/console doctrine:mapping:info -q
+        - bin/console lint:yaml config
+        - bin/console lint:twig templates
+        - bin/console lint:yaml translations
+        - composer validate --strict
+
+test:7.3:
+    <<: *test
+    image: ${CI_REGISTRY_IMAGE}/app:7.3-${CI_COMMIT_SHA}
+
+test:7.2:
+    <<: *test
+    image: ${CI_REGISTRY_IMAGE}/app:7.2-${CI_COMMIT_SHA}
+
+
+# =========
+# Build web
+# =========
+
+build-web:
+    stage: build-web
+    variables:
+        <<: *build-app-vars
+    except:
+        - schedules
+    script:
+        - docker pull $TEST_IMAGE_APP
+        - docker build --cache-from $TEST_IMAGE_APP --target postmill_web -t $TEST_IMAGE_WEB .
+        - docker push $TEST_IMAGE_WEB
+
+
+# =======
+# Release
+# =======
+
+release:
+    stage: release
+    variables:
+        <<: *build-app-vars
+        RELEASE_IMAGE_APP: ${CI_REGISTRY_IMAGE}/app:latest
+        RELEASE_IMAGE_WEB: ${CI_REGISTRY_IMAGE}/web:latest
+    script:
+        - docker pull $TEST_IMAGE_APP
+        - docker pull $TEST_IMAGE_WEB
+        - docker tag $TEST_IMAGE_APP $RELEASE_IMAGE_APP
+        - docker tag $TEST_IMAGE_WEB $RELEASE_IMAGE_WEB
+        - docker push $RELEASE_IMAGE_APP
+        - docker push $RELEASE_IMAGE_WEB
+    except:
+        - schedules
+    only:
+        - master
+

@@ -1,0 +1,52 @@
+variables:
+  DOCKER_TAG: "1"
+  USER: "gitlab-ci"
+  REGISTRY: $CI_REGISTRY
+  IMAGE_NAME: $CI_PROJECT_NAME
+  NAMESPACE: $CI_PROJECT_NAMESPACE
+
+stages:
+  - build_docker
+  - create_package
+  - upload_package
+
+build_docker:
+  stage: build_docker
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+  - alias 'dockerize=git whatchanged HEAD^! | grep Dockerfile >/dev/null'
+  - dockerize && docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $REGISTRY
+  - dockerize && apk --no-cache add bash
+  - dockerize && ${CI_PROJECT_DIR}/.gitlab-ci/dockerize.sh
+  - dockerize || (echo "no need to build new docker image" && exit 0)
+  only:
+    - tags
+  except:
+    - branches
+
+nextcloud-client-package:
+  stage: create_package
+  image: ${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}:${DOCKER_TAG}
+  script:
+    - $CI_PROJECT_DIR/.gitlab-ci/package.sh
+  artifacts:
+    paths:
+    - $CI_PROJECT_DIR/client_theming/build-linux/*.deb
+  only:
+    - tags
+  except:
+    - branches
+
+upload_packages:
+  stage: upload_package
+  image: docker:git
+  script:
+  - apk --no-cache add bash curl
+  - $CI_PROJECT_DIR/.gitlab-ci/upload.sh
+  only:
+    - tags
+  except:
+    - branches
+

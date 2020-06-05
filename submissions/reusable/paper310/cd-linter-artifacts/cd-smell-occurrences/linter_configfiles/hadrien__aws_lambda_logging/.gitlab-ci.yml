@@ -1,0 +1,36 @@
+variables:
+  GIT_STRATEGY: clone
+
+stages:
+  - Test
+  - Release
+
+Run tox:
+  image: python:3.6
+  stage: Test
+  before_script:
+    - pip install -e .[tests]
+  script: tox
+
+
+Patch release:
+  image: python
+  stage: Release
+  before_script:
+    - eval $(ssh-agent -s)
+    - mkdir -p ~/.ssh
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    - pip install -U bumpversion twine
+    - git config --global user.email $GITLAB_USER_EMAIL
+    - git config --global user.name "Gitlab CI"
+    - git checkout master
+  script:
+    - bumpversion patch ./VERSION --commit --tag --message 'Releasing {new_version}'
+    - git push --tags git@gitlab.com:$CI_PROJECT_PATH.git master
+    - python setup.py sdist
+    - twine upload dist/*
+  only:
+    - master@hadrien/aws_lambda_logging
+  when: manual
+

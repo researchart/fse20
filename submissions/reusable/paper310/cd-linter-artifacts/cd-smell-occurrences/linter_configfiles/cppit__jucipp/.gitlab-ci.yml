@@ -1,0 +1,51 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - test
+  - chore
+
+.script: &compile
+  stage: test
+  script:
+    - mkdir build && cd build
+    - cmake -DBUILD_TESTING=1 ..
+    - make -j$(nproc)
+    - broadwayd & CTEST_OUTPUT_ON_FAILURE=1 make test
+
+ubuntu:
+  image: cppit/jucipp:ubuntu
+  <<: *compile
+fedora:
+  image: cppit/jucipp:fedora
+  <<: *compile
+arch:
+  image: cppit/jucipp:arch
+  <<: *compile
+static-analysis:
+  image: cppit/jucipp:arch
+  stage: test
+  script:
+    - mkdir build && cd build
+    - scan-build cmake ..
+    - scan-build --status-bugs make -j$(nproc)
+thread-safety-analysis:
+  image: cppit/jucipp:arch
+  stage: test
+  script:
+  - mkdir build && cd build
+  - CXX=clang++ CXXFLAGS=-Werror cmake ..
+  - make -j$(nproc)
+debian-testing:
+  image: cppit/jucipp:debian-testing
+  <<: *compile
+debian:
+  image: cppit/jucipp:debian
+  <<: *compile
+
+Clean appveyor cache:
+  stage: chore
+  when: manual
+  script:
+    - 'curl -H "Authorization: Bearer v2.${APPVEYOR_TOKEN}" -H "Content-Type: application/json" -X "DELETE" https://ci.appveyor.com/api/projects/zalox/jucipp-oisms/buildcache'
+

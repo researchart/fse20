@@ -1,0 +1,212 @@
+image: java:8-jdk
+
+# cicd-commands are passed by ending the commit message on "@cicd: <command>[,<command>]".
+# the available commands are:
+# skip_tests    - tests will be skipped (overwrites settings.xml config)
+# execute_tests - tests will be executed (overwrites settings.xml config)
+# major         - deploys a new major-version
+# minor         - deploys a new minor-version
+# patch         - deploys a new patch-version
+# snapshot      - deploys a new snapshot
+# no_log        - commit message will not appear in the changelog
+
+stages:
+  - initialize
+  - build
+  - test
+  - deploy
+
+initialize:
+  stage: initialize
+  before_script:
+    - apt update -y && apt install xml-twig-tools -y
+  script:
+    - git checkout 'artifacts'
+    - MAIN_CLASS=$(xml_grep /settings/packaging/mainClass settings.xml --text_only)
+    - INCLUDE_DEPENDENCIES=$(xml_grep /settings/packaging/includeDependencies settings.xml --text_only)
+    - MAJOR=$(xml_grep /settings/latestVersion/major settings.xml --text_only)
+    - MINOR=$(xml_grep /settings/latestVersion/minor settings.xml --text_only)
+    - PATCH=$(xml_grep /settings/latestVersion/patch settings.xml --text_only)
+    - SNAPSHOT=$(xml_grep /settings/latestVersion/snapshot settings.xml --text_only)
+    - SKIP_TESTS=$(xml_grep /settings/tests/skip settings.xml --text_only)
+    - TEST_SUIT=$(xml_grep /settings/tests/suit settings.xml --text_only)
+    - LOG="true"
+    - DEPLOY="false"
+    - RE='@cicd:([a-zA-Z_, ]*$)'
+    - >
+      if [[ $CI_COMMIT_MESSAGE =~ $RE ]]; then
+        COMMANDS=${BASH_REMATCH[1]};
+        if [[ $COMMANDS =~ execute_tests ]]; then
+          SKIP_TESTS="false";
+        fi
+        if [[ $COMMANDS =~ skip_tests ]]; then
+          SKIP_TESTS="true";
+        fi
+        if [[ $COMMANDS =~ snapshot ]]; then
+          SNAPSHOT="true";
+          DEPLOY="true";
+        fi
+        if [[ $COMMANDS =~ patch ]]; then
+          PATCH=$((PATCH+1));
+          SNAPSHOT="false";
+          DEPLOY="true";
+        fi
+        if [[ $COMMANDS =~ minor ]]; then
+          MINOR=$((MINOR+1));
+          PATCH=0;
+          SNAPSHOT="false";
+          DEPLOY="true";
+        fi
+        if [[ $COMMANDS =~ major ]]; then
+          MAJOR=$((MAJOR+1));
+          MINOR=0;
+          PATCH=0;
+          SNAPSHOT="false";
+          DEPLOY="true";
+        fi
+        if [[ $COMMANDS =~ no_log ]]; then
+          LOG="false";
+        fi
+      fi
+    - VERSION=${MAJOR}.${MINOR}.${PATCH}
+    - >
+      if [[ ${SNAPSHOT} == "true" ]]; then
+        VERSION=${VERSION}-SNAPSHOT;
+      fi
+    - echo MAIN_CLASS=\"$MAIN_CLASS\" > ./cicd-variables
+    - echo INCLUDE_DEPENDENCIES=\"$INCLUDE_DEPENDENCIES\" >> ./cicd-variables
+    - echo MAJOR=\"$MAJOR\" >> ./cicd-variables
+    - echo MINOR=\"$MINOR\" >> ./cicd-variables
+    - echo PATCH=\"$PATCH\" >> ./cicd-variables
+    - echo VERSION=\"$VERSION\" >> ./cicd-variables
+    - echo SKIP_TESTS=\"$SKIP_TESTS\" >> ./cicd-variables
+    - echo TEST_SUIT=\"$TEST_SUIT\" >> ./cicd-variables
+    - echo LOG=\"$LOG\" >> ./cicd-variables
+    - echo DEPLOY=\"$DEPLOY\" >> ./cicd-variables
+    - echo DATE=\"$(date '+%Y-%m-%d')\" >> ./cicd-variables;
+  artifacts:
+    paths:
+      - ./cicd-variables
+
+build:
+  stage: build
+  before_script:
+    - source ./cicd-variables
+  script:
+    - find src/main/java -name "*.java" > sources.txt
+    - javac -classpath "./lib/main/*" @sources.txt
+    - rm sources.txt
+    - 'echo -e Manifest-Version: 1.0 > MANIFEST.MF'
+    - 'echo -e Created-By: DrWursterich > MANIFEST.MF'
+    - 'if [[ $MAIN_CLASS != "" ]]; then echo -e Main-Class: $MAIN_CLASS >> MANIFEST.MF; fi'
+    - >
+      if [[ $INCLUDE_DEPENDENCIES == "true" ]] && [[ -d lib/main ]]; then
+        find lib/main -name "*.jar" | while read file; do
+          if [ -e $file ]; then
+            unzip $file -d ./src/main/java/;
+            rm $file;
+            rm -rf ./src/main/java/META-INF;
+          fi;
+        done;
+      fi
+    - jar -cvfm $CI_PROJECT_NAME.jar MANIFEST.MF -C src/main/java/ .
+  artifacts:
+    paths:
+      - ./$CI_PROJECT_NAME.jar
+
+test:
+  stage: test
+  before_script:
+    - source ./cicd-variables
+  script:
+    - >
+      if [[ $SKIP_TESTS = "true" ]]; then
+        echo SKIPPING TESTS;
+        exit 0;
+      fi
+    - >
+      if [[ -d ./lib/main ]]; then
+        mv ./lib/main/* ./lib/;
+      fi
+    - >
+      if [[ -d ./lib/test ]]; then
+        mv ./lib/test/* ./lib/;
+      fi
+    - find -name "*.java" > sources.txt
+    - javac -classpath "./lib/*" @sources.txt
+    - rm sources.txt
+    - mv src/test/java/* src/main/java/
+    - >
+      if [[ -d lib ]]; then
+        find lib -name "*.jar" | while read file; do
+          if [ -e $file ]; then 
+            unzip $file -d ./src/main/java/; 
+            rm $file; 
+            rm -rf ./src/main/java/META-INF; 
+          fi; 
+        done
+      fi
+    - jar -cvf $CI_PROJECT_NAME-$VERSION-JUnit-Tests.jar -C src/main/java/ .
+    - java -cp "./$CI_PROJECT_NAME-$VERSION-JUnit-Tests.jar" org.junit.runner.JUnitCore $TEST_SUIT
+
+deploy:
+  stage: deploy
+  only:
+    - master
+  before_script:
+    - source ./cicd-variables
+    - apt update -y && apt install xml-twig-tools -y
+    - apt-get install xsltproc -y
+  script:
+    - mkdir -p ~/.ssh
+    - ssh-keyscan -t rsa gitlab.com > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - echo "$PRIVATE_SSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 700 ~/.ssh/id_rsa
+    - eval $(ssh-agent -s)
+    - ssh-add ~/.ssh/id_rsa
+    - git config --global user.name "$GITLAB_USER_LOGIN"
+    - git config --global user.email "AutomatedDeployment+$GITLAB_USER_LOGIN@users.noreply.github.com"
+    - >
+      if [[ $DEPLOY == "true" ]]; then
+        mkdir ./$VERSION;
+        mv ./$CI_PROJECT_NAME.jar ./$VERSION/$CI_PROJECT_NAME-$VERSION.jar;
+        git add ./$VERSION/$CI_PROJECT_NAME-$VERSION.jar;
+        git stash;
+        git checkout 'artifacts';
+        git stash pop;
+      else
+        rm ./$CI_PROJECT_NAME.jar;
+        git checkout 'artifacts';
+      fi
+    - >
+      if [[ $DEPLOY == "true" || $LOG == "true" ]]; then
+        RE='([^@]+)';
+        if [[ $LOG == "true" && $CI_COMMIT_MESSAGE =~ $RE ]]; then
+          CHANGE=$(echo ${BASH_REMATCH[1]} | sed -e 's/[\n]/ /g');
+          xsltproc -novalid -stringparam "CHANGE" "${CHANGE}" ./resources/unreleasedChanges.xsl settings.xml > newSettings.xml && mv newSettings.xml settings.xml;
+        fi
+        if [[ $DEPLOY == "true" ]]; then
+          if [[ $SNAPSHOT != "true" ]]; then
+            xsltproc -novalid -stringparam "VERSION" "${VERSION}" -stringparam "DATE" "${DATE}" ./resources/released.xsl settings.xml > newSettings.xml && mv newSettings.xml settings.xml;
+          fi
+          xsltproc -novalid -stringparam "MAJOR" "${MAJOR}" -stringparam "MINOR" "${MINOR}" -stringparam "PATCH" "${PATCH}" -stringparam "SNAPSHOT" "${SNAPSHOT}" ./resources/version.xsl settings.xml > newSettings.xml && mv newSettings.xml settings.xml;
+          xsltproc -novalid -stringparam "VERSION" "${VERSION}" -stringparam "DATE" "${DATE}" ./resources/changelog.xsl settings.xml > ./$VERSION/CHANGELOG.md
+          git reset;
+        fi
+        git add settings.xml;
+        git commit -m "Updated Settings.xml";
+        if [[ $DEPLOY == "true" ]]; then
+          FILES=./*-SNAPSHOT;
+          for FILE in $FILES; do
+            if [[ $FILE != ./$VERSION ]]; then
+              rm -rf $FILE;
+            fi
+          done
+          git add ./$VERSION/*;
+          git commit -m "${VERSION} automated deployment";
+        fi
+        git push git@gitlab.com:$CI_PROJECT_PATH artifacts
+      fi
+

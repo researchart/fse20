@@ -1,0 +1,18 @@
+image: node:8.0.0
+
+before_script:
+  - yarn
+
+stages:
+  - deployExtension
+
+deployExtension:
+  stage: deployExtension
+  only:
+    - master
+  script:
+    - npm run build
+    - mv -v web-ext-artifacts/*.zip extension.zip
+    - CLIENT_ID=${CLIENT_ID} CLIENT_SECRET=${CLIENT_SECRET} EXTENSION_ID=${EXTENSION_ID} REFRESH_TOKEN=${REFRESH_TOKEN} node ./.deploytoChromeStore.js
+    - node ./.deploytoAMO.js firefox .
+

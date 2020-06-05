@@ -1,0 +1,100 @@
+# Docker image
+image: maven:latest
+
+# Variables
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode"
+
+
+# Cache libraries in between jobs
+cache:
+  paths:
+    - .m2/repository
+    - target/
+
+# Stages
+stages:
+    - compile
+    - static-analysis
+    - test
+    - deploy
+
+# Jobs
+compile:
+  stage: compile
+
+  script:
+    - 'mvn $MAVEN_CLI_OPTS clean compile'
+
+static-analysis:
+  stage: static-analysis
+
+  script:
+    - "mvn $MAVEN_CLI_OPTS -B test-compile checkstyle:check"
+    - "mvn $MAVEN_CLI_OPTS -B pmd:check"
+
+test:
+  stage: test
+
+  # Test steps
+  script:
+    - 'mvn $MAVEN_CLI_OPTS -B install'
+    - awk -F"," '{ instructions += $4 + $5; covered += $5 } END { print covered, "/",
+      instructions, "instructions covered"; print 100*covered/instructions, "%
+      covered" }' target/site/jacoco/jacoco.csv
+
+  coverage: /(\d+.\d+ \%) covered/
+
+  artifacts:
+    # Define which files/directories should be kept as artifacts e.g. jars
+    paths:
+      - target/surefire-reports
+      - target/site/jacoco
+    expire_in: 30 days
+
+    reports:
+      # Show differences in unit tests results in Gitlab GUI
+      # https://docs.gitlab.com/ee/ci/junit_test_reports.html
+      junit:
+        - target/surefire-reports/TEST-*.xml
+
+pages:
+  stage: deploy
+
+  # Only run this Job in certain branches
+  only:
+    - master
+    - development
+
+  # Copy steps
+  script:
+    - 'mvn $MAVEN_CLI_OPTS -B site'
+    - mv target/site/apidocs public/
+
+  artifacts:
+    # Define which files/directories should be kept as artifacts e.g. jars
+    paths:
+      - public
+
+deploy-snapshot:
+  stage: deploy
+
+  # Only run this Job in certain branches
+  only:
+    - development
+
+  script:
+    - 'mvn $MAVEN_CLI_OPTS -Djga.version=1.0.0.2-SNAPSHOT deploy'
+
+deploy:
+  stage: deploy
+
+  # Only run this Job in certain branches
+  only:
+    - master
+
+  script:
+    - 'mvn $MAVEN_CLI_OPTS -Djga.version=1.0.0.2 deploy'
+
+

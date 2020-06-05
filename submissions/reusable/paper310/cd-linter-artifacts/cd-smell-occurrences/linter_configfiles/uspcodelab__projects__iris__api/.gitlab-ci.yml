@@ -1,0 +1,106 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - release
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+before_script:
+  # List info about docker
+  - docker info
+
+  # Login into GitLab Container Registry
+  - docker login -u "gitlab-ci-token" -p "$CI_JOB_TOKEN" $CI_REGISTRY
+
+  # Install Heroku CLI
+  - apk add --update nodejs nodejs-npm   
+  - npm install -g heroku
+
+# Build
+
+build:
+  stage: build
+  variables:
+    RC_IMAGE: $CI_REGISTRY_IMAGE:rc
+    CACHE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+    BUILD_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  script:
+    - docker image pull "$CACHE_IMAGE" || docker pull "$RC_IMAGE" || true
+    - docker image build --pull --cache-from "$CACHE_IMAGE" --cache-from "$RC_IMAGE" --tag "$BUILD_IMAGE" .
+    - docker image push "$BUILD_IMAGE"
+
+# Release
+
+.release-image: &release-image
+  stage: release
+  script:
+    - docker image pull "$CI_REGISTRY_IMAGE:$BASE_TAG"
+    - docker image tag "$CI_REGISTRY_IMAGE:$BASE_TAG" "$CI_REGISTRY_IMAGE:$RELEASE_TAG"
+    - docker image push "$CI_REGISTRY_IMAGE:$RELEASE_TAG"
+
+cache-image:
+  <<: *release-image
+  except:
+    - tags
+    - master
+  variables:
+    BASE_TAG: $CI_COMMIT_SHA
+    RELEASE_TAG: $CI_COMMIT_REF_SLUG
+
+rc-image:
+  <<: *release-image
+  only:
+    - master
+  variables:
+    BASE_TAG: $CI_COMMIT_SHA
+    RELEASE_TAG: rc
+
+versioned-image:
+  <<: *release-image
+  only:
+    - tags
+  variables:
+    BASE_TAG: $CI_COMMIT_SHA
+    RELEASE_TAG: $CI_COMMIT_TAG
+
+# Deploy
+
+.deploy-heroku: &deploy-heroku
+  stage: deploy
+  when: manual
+  script:
+    # Login into Heroku Container Registry
+    - docker login -u "$HEROKU_USERNAME" -p "$HEROKU_API_KEY" $HEROKU_REGISTRY
+
+    # Deploy
+    - docker image pull "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - docker image tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" "$HEROKU_REGISTRY/$HEROKU_APP_NAME/web"
+    - docker image push "$HEROKU_REGISTRY/$HEROKU_APP_NAME/web"
+    - heroku container:release web -a iris-system
+
+staging-app:
+  <<: *deploy-heroku
+  only:
+    - master
+  environment:
+    name: staging
+    url: https://$HEROKU_STAGING_APP_NAME.herokuapp.com/
+  variables:
+    HEROKU_APP_NAME: $HEROKU_STAGING_APP_NAME
+
+production-app:
+  <<: *deploy-heroku
+  only:
+    - tags
+  environment:
+    name: production
+    url: https://$HEROKU_PRODUCTION_APP_NAME.herokuapp.com/
+  variables:
+    HEROKU_APP_NAME: $HEROKU_PRODUCTION_APP_NAME
+

@@ -1,0 +1,21 @@
+image: "alpine:3.8"
+
+stages:
+- build
+
+pack:
+  stage: build
+  script:
+  - apk add --no-cache jq git bash zip openssl
+  - VERSION="$(jq -r '.version' src/manifest.json)"
+  - GIT_VERSION_TAG="$(TZ=UTC git show -s --date=format-local:'%Y%m%d_%H%M%S' --format='%cd-%h')"
+  - NAME="$CI_PROJECT_NAME-$VERSION-$GIT_VERSION_TAG"
+  - mkdir -p build
+  - echo "$EXTENSION_SIGNING_KEY" > build/"$NAME".pem
+  - ./bin/webext_pack.sh "$NAME"
+  artifacts:
+    expire_in: 2h
+    paths:
+    - build/*.crx
+    - build/*.xpi
+

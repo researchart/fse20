@@ -1,0 +1,28 @@
+image: gcc
+
+stages:
+  - build-dbg
+  - build
+
+build-dbg:
+  stage: build-dbg
+
+  script:
+    - make all -B DEBUG=yes
+
+  artifacts:
+    name: "edil-dbg"
+    paths:
+      - bin/edil
+
+build:
+  stage: build
+
+  script:
+    - make all -B DEBUG=no
+
+  artifacts:
+    name: "edil"
+    paths:
+      - bin/edil
+

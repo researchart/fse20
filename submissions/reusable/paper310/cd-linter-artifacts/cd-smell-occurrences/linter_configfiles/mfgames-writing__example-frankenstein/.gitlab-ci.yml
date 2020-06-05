@@ -1,0 +1,36 @@
+image:  dmoonfire/mfgames-writing-js:1.0.0
+
+stages:
+    - deploy
+
+stage:
+    stage: deploy
+    environment:
+        name: staging
+    only:
+        - master
+    tags:
+        - docker
+    script:
+        - npm install
+        - ./node_modules/.bin/mfgames-writing-format build
+    artifacts:
+        paths:
+            - build
+
+publish:
+    stage: deploy
+    environment:
+        name: published
+    when: manual
+    only:
+        - master
+    tags:
+        - docker
+    script:
+        - npm install
+        - ./node_modules/.bin/mfgames-writing-format build
+    artifacts:
+        paths:
+            - build
+

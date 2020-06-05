@@ -1,0 +1,101 @@
+before_script:
+  - which python
+  - python --version
+
+conda_build_27:
+  image: "continuumio/miniconda"
+  only:
+    - tags
+    - triggers
+    - schedules
+  script:
+    - export CI_PYTHON_VERSION=2.7
+    - bash conda_buildpackage.sh
+
+conda_build_34:
+  image: "continuumio/miniconda3"
+  only:
+    - tags
+    - triggers
+    - schedules
+  script:
+    - export CI_PYTHON_VERSION=3.4
+    - bash conda_buildpackage.sh
+
+conda_build_35:
+  image: "continuumio/miniconda3"
+  only:
+    - tags
+    - triggers
+    - schedules
+  script:
+    - export CI_PYTHON_VERSION=3.5
+    - bash conda_buildpackage.sh
+
+conda_build_36:
+  image: "continuumio/miniconda3"
+  only:
+    - tags
+    - triggers
+    - schedules
+  script:
+    - export CI_PYTHON_VERSION=3.6
+    - bash conda_buildpackage.sh
+
+py27:
+  image: "python:2.7"
+  except:
+    - tags
+  script:
+    - pip install -r requirements_ci.txt
+    - which tox
+    - tox -v -e py27
+
+py34:
+  image: "python:3.4"
+  except:
+    - tags
+  script:
+    - pip install -r requirements_ci.txt
+    - which tox
+    - tox -v -e py34
+
+py35:
+  image: "python:3.5"
+  except:
+    - tags
+  script:
+    - pip install -r requirements_ci.txt
+    - which tox
+    - tox -v -e py35
+
+py36:
+  image: "python:3.6"
+  except:
+    - tags
+  script:
+    - pip install -r requirements_ci.txt
+    - which tox
+    - tox -v -e py36
+
+check-setup:
+  image: "python:3.6"
+  except:
+    - tags
+  script:
+    - pip install -r requirements_ci.txt
+    - which tox
+    - tox -v -e check
+
+coverage-report:
+  image: "python:3.6"
+  except:
+    - tags
+  script:
+    - pip install -r requirements_ci.txt
+    - which tox
+    - tox -e report
+
+#docs:
+#  script: tox -v -e docs
+

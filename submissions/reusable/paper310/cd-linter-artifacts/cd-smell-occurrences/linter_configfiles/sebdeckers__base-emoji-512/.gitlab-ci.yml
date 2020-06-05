@@ -1,0 +1,8 @@
+image: node:latest
+cache:
+  paths:
+    - node_modules
+job:
+  script:
+    - npm it
+

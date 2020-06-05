@@ -1,0 +1,19 @@
+# Copyright (C) 2017-2019 Jens Lechtenbörger
+# SPDX-License-Identifier: CC0-1.0
+
+image: registry.gitlab.com/oer/docker/emacs-reveal:3.2
+
+pages:
+  stage: deploy
+  before_script:
+  - git submodule sync --recursive
+  - git submodule update --init --recursive
+  script:
+  - emacs --batch --load elisp/publish.el
+  - find public -type f -regex '.*\.\(html\|js\|css\)$' -exec gzip -f -k {} \;
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

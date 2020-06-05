@@ -1,0 +1,23 @@
+image: "registry.gitlab.com/noughmad/serde_any_ci:latest"
+
+test:cargo:
+  script:
+  - rustc --version && cargo --version
+  - cargo test --all
+  - cargo doc
+  - linkchecker target/doc/serde_any/
+  - cargo tarpaulin --out Xml
+  - "bash <(curl -s https://codecov.io/bash)"
+
+test:features:
+  script:
+  - rustc --version && cargo --version
+  - cargo build --no-default-features
+  - cargo build --no-default-features --features=json
+  - cargo build --no-default-features --features=yaml
+  - cargo build --no-default-features --features=toml
+  - cargo build --no-default-features --features=ron
+  - cargo build --no-default-features --features="json, yaml"
+  - cargo build --no-default-features --features="toml, ron"
+  - cargo build --no-default-features --features="json, yaml, toml, ron"
+

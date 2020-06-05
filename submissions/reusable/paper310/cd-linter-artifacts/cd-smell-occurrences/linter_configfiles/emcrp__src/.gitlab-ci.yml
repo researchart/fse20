@@ -1,0 +1,18 @@
+stages:
+  - build-and-push
+
+variables:
+  IMAGE_NAME: registry.gitlab.com/emcrp/src
+
+build-and-push:
+  stage: build-and-push
+  image: docker:18.09-rc
+  when: manual
+  services:
+    - docker:dind
+  script:
+    - docker build -t $IMAGE_NAME .
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker push $IMAGE_NAME
+
+

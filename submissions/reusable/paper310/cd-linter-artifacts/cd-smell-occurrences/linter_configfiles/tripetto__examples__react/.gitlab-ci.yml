@@ -1,0 +1,19 @@
+image: node
+
+before_script:
+  - node --version
+  - npm --version
+  - npm ci || npm install
+
+pages:
+  script:
+    - npm run make
+  environment:
+    name: Production
+    url: https://example-react-bootstrap.tripetto.com/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

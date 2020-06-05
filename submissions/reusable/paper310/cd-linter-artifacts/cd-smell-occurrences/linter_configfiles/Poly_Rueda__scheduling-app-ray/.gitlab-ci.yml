@@ -1,0 +1,21 @@
+image: circleci/node:8.11.1
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - deploy
+
+deploy:
+  stage: deploy
+  script:
+    - npm install
+    - npm test
+    - npm run build --prod
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

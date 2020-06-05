@@ -1,0 +1,14 @@
+image: ubuntu:artful
+
+jobs:
+  script:
+    - apt-get update
+    - apt-get -y install sudo gnome-software-dev git wget git cmake g++ libcurl4-openssl-dev libx11-dev libz-dev libssl-dev vim-common desktop-file-utils libinotifytools0-dev libarchive-dev libfuse-dev liblzma-dev
+    - git submodule update --init --recursive
+    - bash -xe travis/travis-build.sh
+    - ls -lh .
+
+  artifacts:
+    paths:
+      - libgs-plugin-appimage.so
+

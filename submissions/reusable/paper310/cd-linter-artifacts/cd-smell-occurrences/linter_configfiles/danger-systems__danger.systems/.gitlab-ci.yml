@@ -1,0 +1,55 @@
+# This file is a template, and might need editing before it works on your project.
+# Full project: https://gitlab.com/pages/middleman
+image: ruby:2.3
+
+test:
+  script:
+  - echo "Hi"
+  except:
+    - master
+
+test:
+  script:
+  - git config --global user.email "orta+dangersystems@artsy.net"
+  - git config --global user.name "Danger.Systems"
+
+  # unsure whats up with the qqqq
+  - apt-get update -yqqq
+
+  # We need node for the js section, and some of the ruby stuff
+  - curl -sL https://deb.nodesource.com/setup_6.x | bash -
+  
+  - export NVM_DIR=$HOME_DIR/.nvm
+  - export PROFILE=$HOME_DIR/.profile
+
+  - apt-get install -y build-essential libssl-dev
+  - curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.4/install.sh | bash
+  - source /root/.bashrc
+  - nvm install 8
+
+  # Needed for yarn
+  - apt-get install -y apt-transport-https
+  - curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
+  - echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+  - apt-get update && apt-get install -y yarn
+  - apt-get install -y pngquant
+
+  # Start the static site preparation
+  - gem install bundler -v 1.15.4
+  - bundle install
+  - bundle update danger
+  - export RUBYOPT='-E utf-8'
+  - mkdir static/json_data
+  - bundle exec rake generate
+
+  # Running ^ will screw up your bundler setup, so re-create it
+  - bundle install
+  - cd static
+  - bundle exec middleman build --clean --verbose
+  - cd ..
+  - mv static/build public
+  - npm install netlify-cli@^1.0 -g
+  - netlify deploy --path public  --site-id 83354caf-7886-446f-99eb-f91a58b2a682 --access-token $NETLIFY_ACCESS_TOKEN
+  only:
+  - master
+

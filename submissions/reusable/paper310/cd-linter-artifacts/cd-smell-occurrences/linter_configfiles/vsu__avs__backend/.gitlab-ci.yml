@@ -1,0 +1,48 @@
+image: docker:latest
+
+services:
+  - docker:dind
+  - postgres:10-alpine
+  - redis:4-alpine
+
+variables:
+    DOCKER_DRIVER: overlay2
+    IMAGE: ${CI_REGISTRY_IMAGE}/${CI_COMMIT_REF_NAME}
+    TAGGED_IMAGE: ${CI_REGISTRY_IMAGE}/${CI_COMMIT_REF_NAME}:CI_${CI_PIPELINE_ID}
+    POSTGRES_DB: project_ci_test
+    POSTGRES_USER: postgres
+    POSTGRES_PORT: '5432'
+
+stages:
+  - build
+  - test
+  # - release
+  # - deploy
+
+build:
+  stage: build
+  before_script:
+    - apk add --no-cache py-pip
+    - pip install docker-compose
+  script:
+    - docker build -t avs_backend .
+    - ash .ci_scripts/push.sh
+
+test_cov:
+  stage: test
+  image: ${TAGGED_IMAGE}
+  script:
+    - py.test -v --cov
+  variables:
+    DJANGO_SETTINGS_MODULE: 'settings.settings'
+    POSTGRES_HOST: postgres
+    REDIS_HOST: 'redis'
+    REDIS_PORT: '6379'
+    RAVEN_DSN: 'https://5f1717b7a0b8451794cbba68b4de395b:d51c5c8994624af39d2c5325a30852f2@sentry.io/301454'
+
+test_lint:
+  stage: test
+  image: ${TAGGED_IMAGE}
+  script:
+    - pycodestyle --exclude='*/migrations/*, settings/*' .
+

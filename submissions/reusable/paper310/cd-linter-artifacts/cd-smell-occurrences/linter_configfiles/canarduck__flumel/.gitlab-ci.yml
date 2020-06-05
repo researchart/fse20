@@ -1,0 +1,78 @@
+image: python:latest
+
+services:
+- antespi/docker-imap-devel
+
+variables:
+  MAILNAME: antespi__docker-imap-devel
+  MAIL_ADDRESS: user@antespi__docker-imap-devel
+  BOT_EMAIL: debug@antespi__docker-imap-devel
+  MAIL_PASS: debug
+  SMTP_HOST: antespi__docker-imap-devel
+  SMTP_PORT: 25
+  SMTP_LOGIN: debug@antespi__docker-imap-devel
+  SMTP_PASSWORD: debug
+  IMAP_HOST: antespi__docker-imap-devel
+  IMAP_PORT: 993
+  IMAP_LOGIN: debug@antespi__docker-imap-devel
+  IMAP_PASSWORD: debug
+
+before_script:
+- python -V
+- locale
+
+stages:
+- test
+- deploy
+
+unittesting:
+  stage: test
+  except:
+  - schedules
+  script:
+  - pip install -r requirements.txt
+  - pip install -r dev-requirements.txt
+  - coverage run setup.py test
+  - coverage html
+  - coverage report
+  artifacts:
+    when: always
+    untracked: true
+
+security:
+  stage: test
+  only:
+  - tags
+  script:
+  - pip install safety
+  # rapport complet si besoin
+  - safety check --cache -r requirements.txt -r dev-requirements.txt
+  # code de retour à 0 si vide donc succès
+  - safety check --bare
+
+pypi:
+  stage: deploy
+  only:
+  - tags
+  script:
+  - python -V
+  - apt update && apt -y install pandoc
+  - pip install pypandoc pandoc
+  - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc
+  - printf "[pypi]\n""repository:"" https://upload.pypi.org/legacy/\n" >> ~/.pypirc
+  - printf "username= ${PYPI_USER}\n" >> ~/.pypirc
+  - printf "password= ${PYPI_PASSWORD}\n" >> ~/.pypirc
+  - python setup.py check sdist upload -r pypi
+  - echo "" > ~/.pypirc && rm ~/.pypirc
+
+pages:
+  stage: deploy
+  except:
+  - schedules
+  script:
+  - python -V
+  - mv coverage_html_report public
+  artifacts:
+    paths:
+    - public
+

@@ -1,0 +1,38 @@
+image: "rust:1.20.0"
+
+before_script:
+    - apt-get update
+    - apt-get install -y gcc g++
+    - apt-get install -y cmake
+    - rustc --version
+    - cargo --version
+
+stages:
+    - build:dacite
+    - build:utilities
+    - build:examples
+
+build:dacite:
+    stage: build:dacite
+    script:
+        - cd dacite
+        - cargo build --verbose --jobs 1 --release
+
+build:dacite-winit:
+    stage: build:utilities
+    script:
+        - cd dacite-winit
+        - cargo build --verbose --jobs 1 --release
+
+build:examples/triangles-offscreen:
+    stage: build:examples
+    script:
+        - cd examples/triangle-offscreen
+        - cargo build --verbose --jobs 1 --release
+
+build:examples/triangles:
+    stage: build:examples
+    script:
+        - cd examples/triangle
+        - cargo build --verbose --jobs 1 --release
+

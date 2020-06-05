@@ -1,0 +1,588 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>nikita</groupId>
+  <artifactId>nikita-noark5-core</artifactId>
+  <packaging>jar</packaging>
+  <version>0.4</version>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.1.6.RELEASE</version>
+  </parent>
+
+  <name>nikita-noark5</name>
+
+  <issueManagement>
+    <url>https://gitlab.com/OsloMet-ABI/nikita-noark5-core/issues</url>
+    <system>GitLab Issues</system>
+  </issueManagement>
+
+  <licenses>
+    <license>
+      <name>GNU Affero General Public License v3.0 or later</name>
+      <url>https://www.gnu.org/licenses/agpl-3.0.html</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <email>tsodring@oslomet.no</email>
+      <name>Thomas Sødring</name>
+      <url>https://gitlab.com/tsodring</url>
+      <id>tsodring</id>
+    </developer>
+    <developer>
+      <email>pere@hungry.com</email>
+      <name>Petter Reinholdtsen</name>
+      <url>http://www.hungry.com/~pere/</url>
+      <id>pere</id>
+    </developer>
+  </developers>
+
+  <properties>
+    <start-class>nikita.N5CoreApp</start-class>
+    <java.version>11</java.version>
+
+    <!-- dependency versions -->
+    <spring-security-saml2-core.version>1.0.3.RELEASE</spring-security-saml2-core.version>
+    <spring-security-oauth2.version>2.3.5.RELEASE</spring-security-oauth2.version>
+    <spring-security-jwt.version>1.0.10.RELEASE</spring-security-jwt.version>
+    <commons-lang3.version>3.4</commons-lang3.version>
+    <springfox-swagger2.version>2.7.0</springfox-swagger2.version>
+    <springfox-swagger-ui.version>2.7.0</springfox-swagger-ui.version>
+    <antlr.version>4.7.2</antlr.version>
+    <antlr-maven-plugin.version>4.7.2</antlr-maven-plugin.version>
+      <maven-surefire-plugin.version>3.0.0-M1</maven-surefire-plugin.version>
+    <tika-parsers.version>1.18</tika-parsers.version>
+
+    <!-- JS / GUI -->
+    <jquery.version>3.3.1-1</jquery.version>
+    <angularjs.version>1.7.0</angularjs.version>
+    <font-awesome.version>5.0.9</font-awesome.version>
+    <bootstrap.version>4.1.1</bootstrap.version>
+    <angular-file-upload.version>12.2.13</angular-file-upload.version>
+    <popper.version>1.14.1</popper.version>
+  </properties>
+
+  <dependencies>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+
+    <!-- required for metrics support -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
+    </dependency>
+
+    <!-- Security etc ..-->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.security.oauth</groupId>
+      <artifactId>spring-security-oauth2</artifactId>
+      <version>${spring-security-oauth2.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.security.extensions</groupId>
+      <artifactId>spring-security-saml2-core</artifactId>
+      <version>${spring-security-saml2-core.version}</version>
+    </dependency>
+
+    <!-- Required for saml, "landing" etc -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-thymeleaf</artifactId>
+    </dependency>
+
+    <!-- Required for detecting mime-types and retrieving metadata -->
+    <dependency>
+      <groupId>org.apache.tika</groupId>
+      <artifactId>tika-parsers</artifactId>
+      <version>${tika-parsers.version}</version>
+    </dependency>
+
+    <!-- Used in EventHandler to record in blockchain -->
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+    </dependency>
+
+
+    <!-- Used for CompareToBuilder etc -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>${commons-lang3.version}</version>
+    </dependency>
+
+    <!-- Used for the @Audited annotation-->
+    <dependency>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-envers</artifactId>
+    </dependency>
+
+    <!-- antlr dependency for parsing OData syntax -->
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>${antlr.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-jwt</artifactId>
+      <version>${spring-security-jwt.version}</version>
+    </dependency>
+
+    <!-- For JDK 11, JAXB has been removed from Java SE and needs to added in the pom to the
+    code continues to work. -->
+    <dependency>
+      <groupId>com.sun.xml.bind</groupId>
+      <artifactId>jaxb-core</artifactId>
+      <version>2.3.0.1</version>
+    </dependency>
+
+    <dependency>
+      <groupId>javax.xml.bind</groupId>
+      <artifactId>jaxb-api</artifactId>
+      <version>2.3.1</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.sun.xml.bind</groupId>
+      <artifactId>jaxb-impl</artifactId>
+      <version>2.3.1</version>
+    </dependency>
+
+    <!-- In memory database, used for demo mode only -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+    </dependency>
+
+    <!-- Postgres database. Toggled using profiles. -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+    </dependency>
+
+    <!-- MySQL database. Toggled using profiles. -->
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+    </dependency>
+
+    <!-- swagger dependency -->
+    <dependency>
+      <groupId>io.springfox</groupId>
+      <artifactId>springfox-swagger-ui</artifactId>
+      <version>${springfox-swagger-ui.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.springfox</groupId>
+      <artifactId>springfox-swagger2</artifactId>
+      <version>${springfox-swagger2.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.ryantenney.metrics</groupId>
+      <artifactId>metrics-spring</artifactId>
+      <version>3.1.3</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <!-- Used for OData, Elasticsearch query generation and in tests -->
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20180130</version>
+    </dependency>
+
+    <!--
+    We are experiencing this issue
+    https://stackoverflow.com/questions/27808734/jdk8-error-class-file-for-javax-interceptor-interceptorbinding-not-found-whe
+    The following dependency resolves the issue.
+    -->
+    <dependency>
+      <groupId>javax.interceptor</groupId>
+      <artifactId>javax.interceptor-api</artifactId>
+      <version>1.2</version>
+    </dependency>
+
+    <!-- Testing stuff -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.restdocs</groupId>
+      <artifactId>spring-restdocs-mockmvc</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.restdocs</groupId>
+      <artifactId>spring-restdocs-asciidoctor</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.restdocs</groupId>
+      <artifactId>spring-restdocs-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Introduced to handle reflection to retrieve a list of entities. There is
+     a dependency from org.reflections.Reflections to this jar
+     Caused by: java.lang.NoSuchMethodError:
+     'com.google.common.collect.UnmodifiableIterator com.google.common.collect.Sets$SetView.iterator()'
+
+     If this dependency falls away, then this jar can be removed. -->
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>28.2-jre</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- WebJar dependencies to download js stuff for GUI -->
+    <dependency>
+      <groupId>org.webjars</groupId>
+      <artifactId>jquery</artifactId>
+      <version>${jquery.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.webjars</groupId>
+      <artifactId>angularjs</artifactId>
+      <version>${angularjs.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.webjars</groupId>
+      <artifactId>font-awesome</artifactId>
+      <version>${font-awesome.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.webjars</groupId>
+      <artifactId>bootstrap</artifactId>
+      <version>${bootstrap.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.webjars</groupId>
+      <artifactId>popper.js</artifactId>
+      <version>${popper.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.webjars</groupId>
+      <artifactId>angular-file-upload</artifactId>
+      <version>${angular-file-upload.version}</version>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>unpack</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.webjars</groupId>
+                  <artifactId>angularjs</artifactId>
+                  <version>${angularjs.version}</version>
+                  <type>jar</type>
+                  <includes>**/*.js</includes>
+                  <outputDirectory>
+                    ${project.basedir}/web/dependencies/vendor/
+                  </outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.webjars</groupId>
+                  <artifactId>popper.js</artifactId>
+                  <version>${popper.version}</version>
+                  <type>jar</type>
+                  <includes>**/*.css</includes>
+                  <outputDirectory>
+                    ${project.basedir}/web/dependencies/vendor/
+                  </outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.webjars</groupId>
+                  <artifactId>angular-file-upload</artifactId>
+                  <version>${angular-file-upload.version}</version>
+                  <type>jar</type>
+                  <includes>**/*.js</includes>
+                  <outputDirectory>
+                    ${project.basedir}/web/dependencies/vendor/
+                  </outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.webjars</groupId>
+                  <artifactId>font-awesome</artifactId>
+                  <version>${font-awesome.version}</version>
+                  <type>jar</type>
+                  <includes>**/*.css</includes>
+                  <outputDirectory>
+                    ${project.basedir}/web/dependencies/vendor/
+                  </outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.webjars</groupId>
+                  <artifactId>font-awesome</artifactId>
+                  <version>${font-awesome.version}</version>
+                  <type>jar</type>
+                  <includes>**/**fonts/**/*</includes>
+                  <outputDirectory>
+                    ${project.basedir}/web/dependencies/vendor/
+                  </outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.webjars</groupId>
+                  <artifactId>jquery</artifactId>
+                  <version>${jquery.version}</version>
+                  <type>jar</type>
+                  <includes>**/*.js</includes>
+                  <outputDirectory>
+                    ${project.basedir}/web/dependencies/vendor/
+                  </outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.webjars</groupId>
+                  <artifactId>bootstrap</artifactId>
+                  <version>${bootstrap.version}</version>
+                  <type>jar</type>
+                  <includes>**/*.css</includes>
+                  <outputDirectory>
+                    ${project.basedir}/web/dependencies/vendor/
+                  </outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.webjars</groupId>
+                  <artifactId>bootstrap</artifactId>
+                  <version>${bootstrap.version}</version>
+                  <type>jar</type>
+                  <includes>**/*.js</includes>
+                  <outputDirectory>
+                    ${project.basedir}/web/dependencies/vendor/
+                  </outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.webjars</groupId>
+                  <artifactId>popper.js</artifactId>
+                  <version>${popper.version}</version>
+                  <type>jar</type>
+                  <includes>**/*.js</includes>
+                  <outputDirectory>
+                    ${project.basedir}/web/dependencies/vendor/
+                  </outputDirectory>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <mainClass>nikita.N5CoreApp</mainClass>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>build-info</goal>
+            </goals>
+            <configuration>
+              <additionalProperties>
+                <java.version>${java.version}</java.version>
+              </additionalProperties>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <version>3.1.0</version>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>${project.basedir}/web/dependencies/vendor/</directory>
+              <includes>
+                <include>**/*</include>
+              </includes>
+              <followSymlinks>false</followSymlinks>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.0.0-M1</version>
+      </plugin>
+      <plugin>
+        <groupId>org.asciidoctor</groupId>
+        <artifactId>asciidoctor-maven-plugin</artifactId>
+        <version>1.5.3</version>
+        <executions>
+            <execution>
+            <id>generate-docs</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>process-asciidoc</goal>
+            </goals>
+            <configuration>
+              <backend>html</backend>
+              <doctype>book</doctype>
+            </configuration>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>org.springframework.restdocs</groupId>
+            <artifactId>spring-restdocs-asciidoctor</artifactId>
+            <version>2.0.1.RELEASE</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+      <plugin>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-maven-plugin</artifactId>
+        <version>${antlr-maven-plugin.version}</version>
+        <configuration>
+          <listener>true</listener>
+          <visitor>true</visitor>
+          <arguments>
+            <argument>-package</argument>
+            <argument>nikita.webapp.odata.base</argument>
+          </arguments>
+          <sourceDirectory>${basedir}/src/main/antlr</sourceDirectory>
+          <outputDirectory>${basedir}/src/main/java/nikita/webapp/odata/base</outputDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <id>antlr</id>
+            <goals>
+              <goal>antlr4</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!--      <plugin>
+        <groupId>org.asciidoctor</groupId>
+        <artifactId>asciidoctor-maven-plugin</artifactId>
+        <version>1.5.3</version>
+        <executions>
+          <execution>
+            <id>generate-docs</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>process-asciidoc</goal>
+            </goals>
+            <configuration>
+              <backend>html</backend>
+              <doctype>book</doctype>
+              <attributes>
+                <snippets>>${snippetsDirectory}</snippets>
+              </attributes>
+              <sourceDirectory>src/main/asciidoc</sourceDirectory>
+              <outputDirectory>target/generated-docs</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>org.springframework.restdocs</groupId>
+            <artifactId>spring-restdocs-asciidoctor</artifactId>
+            <version>2.0.1.RELEASE</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+
+<plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <includes>
+            <include>**/*Documentation.java</include>
+          </includes>
+        </configuration>
+        <executions>
+          <execution>
+            <id>integration-test</id>
+            <goals>
+              <goal>test</goal>
+            </goals>
+            <phase>integration-test</phase>
+            <configuration>
+              <excludes>
+                <exclude>none</exclude>
+              </excludes>
+              <includes>
+                <include>**/*IT.java</include>
+              </includes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+-->
+    </plugins>
+  </build>
+</project>
+

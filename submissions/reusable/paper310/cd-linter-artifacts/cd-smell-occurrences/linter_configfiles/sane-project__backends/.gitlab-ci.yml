@@ -1,0 +1,136 @@
+# .gitlab-ci.yml -- to test some source code build scenarios
+# Copyright (C) 2016-2019  Olaf Meeuwissen
+#
+# License: GPL-3.0+
+
+variables:
+  REGISTRY_HUB: "registry.gitlab.com/sane-project/ci-envs"
+  CONFIGURE_MINI: "--enable-silent-rules"
+  CONFIGURE_FULL: "--with-usb --enable-avahi --enable-pnm-backend --with-libcurl"
+
+stages:
+  - tarball
+  - compile
+  - snapshot
+  - release
+
+# This job creates the source tarball that is the *sole* input to our
+# compile stage.  The job is meant to be run on the stable release of
+# Debian GNU/Linux.
+
+make-dist:
+  image: $REGISTRY_HUB:debian-buster-mini
+  stage: tarball
+  script:
+  - git ls-files | xargs ./tools/style-check.sh
+  - ./autogen.sh
+  - ./tools/create-changelog.sh
+  - ./configure
+  - make dist
+  artifacts:
+    paths:
+    - sane-backends-*.tar.gz
+    expire_in: 1 day
+
+.compile_template: &compile_definition
+  stage: compile
+  script:
+  - mkdir build
+  - cd build
+  - tar xzf ../sane-backends-*.tar.gz --strip-components=1
+  - ./configure $CONFIGURE_OPTS
+  - make -j2 -k $MAKE_FLAGS
+
+debian-9-full:
+  image: $REGISTRY_HUB:debian-stretch-full
+  variables:
+    CONFIGURE_OPTS: "$CONFIGURE_MINI $CONFIGURE_FULL"
+    MAKE_FLAGS: "CFLAGS=-Werror CXXFLAGS=-Werror"
+  <<: *compile_definition
+
+debian-10-mini:
+  image: $REGISTRY_HUB:debian-buster-mini
+  variables:
+    CONFIGURE_OPTS: "$CONFIGURE_MINI"
+    MAKE_FLAGS: "CFLAGS=-Werror"
+  <<: *compile_definition
+
+# In addition to the regular compile check, the full Debian stable
+# environment is used to keep some of the HTML documentation that's
+# available from our website up-to-date.
+
+debian-10-full:
+  image: $REGISTRY_HUB:debian-buster-full
+  variables:
+    CONFIGURE_OPTS: "$CONFIGURE_MINI $CONFIGURE_FULL"
+    MAKE_FLAGS: "CFLAGS=-Werror CXXFLAGS=-Werror"
+  <<: *compile_definition
+  after_script:
+  - make -C build/doc html-pages
+  - rm -rf lists && mkdir lists && mv build/doc/*.html lists/
+  - cd build/doc && doxygen doxygen-sanei.conf && mv sanei-html ../../doc
+  artifacts:
+    paths:
+    - sane-backends-*.tar.gz
+    - lists
+    - doc/sanei-html
+    expire_in: 1 day
+
+fedora-31-clang:
+  image: $REGISTRY_HUB:fedora-31-clang
+  variables:
+    CONFIGURE_OPTS: "$CONFIGURE_MINI $CONFIGURE_FULL"
+  <<: *compile_definition
+
+alpine-3.11-musl:
+  image: $REGISTRY_HUB:alpine-3.11-musl
+  variables:
+    CONFIGURE_OPTS: "$CONFIGURE_MINI $CONFIGURE_FULL"
+  <<: *compile_definition
+
+# This snapshot stage job makes sure that the source tarball has all
+# it needs to rebuild itself, install everything built and cleans up
+# without leaving any droppings behind when uninstalling.  The build
+# result will be available as a snapshot for a limited time period.
+# People that prefer a source tarball to work with should use this
+# snapshot.
+# Some HTML documentation derived from this project's source is also
+# uploaded for use by our website so it uses the latest information.
+# It gets these artifacts from the full compile job on Debian stable,
+# hence the dependency.
+
+make-distcheck:
+  image: $REGISTRY_HUB:debian-buster-full
+  stage: snapshot
+  dependencies:
+  - debian-10-full
+  script:
+  - tar xzf sane-backends-*.tar.gz --strip-components=1
+  - rm sane-backends-*.tar.gz
+  - ./configure
+  - make distcheck
+  artifacts:
+    paths:
+    - sane-backends-*.tar.gz
+    - lists
+    - doc/sanei-html
+    expire_in: 90 days
+
+# For release tags only, this manual job handles putting all of the
+# releasables on the Project Releases page.  See the script for more
+# details.
+
+upload:
+  image: alpine
+  stage: release
+  before_script:
+    - apk --no-cache add curl git jq
+  script:
+    - ./tools/create-release.sh
+  only:
+    - tags
+  when: manual
+  variables:
+    GIT_DEPTH: "3"
+  allow_failure: false
+

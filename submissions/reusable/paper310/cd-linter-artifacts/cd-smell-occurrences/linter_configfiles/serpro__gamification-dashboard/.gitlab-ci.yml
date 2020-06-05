@@ -1,0 +1,77 @@
+image: node:8
+variables:
+    GIT_SSL_NO_VERIFY: "true"
+    SSHPASS: "$SERVER_PASSWORD"
+
+cache:
+  key: "$CI_COMMIT_REF_NAME"
+  paths:
+    - node_modules/
+#    - /cache
+
+before_script:
+#    - ls 
+#    - ls node_modules/
+    - apt-get update
+    - apt-get install -y sshpass 
+    - git config --global url."https://".insteadOf git://
+    - export PATH=$PATH:node_modules/.bin
+    - npm install --unsafe-perm
+    - ls -la
+    - ls node_modules/
+
+build:
+  stage: build
+  script:
+#    - npm run build
+    - ng build
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - dist
+
+test:
+  stage: test
+  script:
+#    - npm run test:ci
+    - echo "RUNNING TESTS"
+    - ng test --code-coverage --single-run
+#    - ng test
+  artifacts:
+    expire_in: 1 week
+    paths:
+        - coverage/*
+
+
+development:
+  stage: deploy
+  only:
+    - master
+  script:
+    - echo "DEPLOY DEVELOPMENT"
+    - echo "$SSH_PRIVATE_KEY"
+    - ls -la
+    - ls node_modules/
+    - sshpass -e scp -o StrictHostKeyChecking=no -r dist $SERVER_USER@$SERVER_HOST:/opt/personal-dashboard/current/
+  environment: development
+  dependencies:
+    - build
+
+staging:
+  stage: deploy
+  only:
+    - staging
+  script: echo "DEPLOY STAGING"
+  environment: staging
+  dependencies:
+    - build
+
+production:
+  stage: deploy
+  only:
+    - production
+  script: echo "DEPLOY PRODUCTION"
+  environment: production
+  dependencies:
+    - build
+

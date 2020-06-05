@@ -1,0 +1,220 @@
+image: vesuvius/android-sdk:latest
+
+stages:
+  - build
+  - test
+  - package
+
+build_debug:
+  stage: build
+  except:
+    - sit_uat
+    - staging
+    - production
+    - master
+  script:
+    - gradle assembleDebug
+
+build_staging:
+  stage: build
+  only:
+    - sit_uat
+    - staging
+  script:
+    - gradle assembleStaging
+
+build_release:
+  stage: build
+  only:
+    - master
+    - production
+  script:
+    - gradle assembleRelease
+
+test_debug:
+  stage: test
+  coverage: '/\(\d+.\d+\%\) covered/'
+  except:
+    - sit_uat
+    - staging
+    - production
+    - master
+  artifacts:
+    paths:
+    - codeCoverageReport/
+  script:
+    # Execute unit test
+    - gradle testDebug
+
+    # Linter Test
+    - gradle lint
+    - test `gradle lint | grep "0 issues" | wc -l` = `gradle lint | grep "issues" | wc -l`
+
+    # Code Coverage Artifact Generation
+    - mv app/build/reports/jacoco/testDebug ./codeCoverageReport
+
+    # Code Coverage Computation
+    - MINIMUM_COVERAGE=0
+    - MISSED_COUNT=`cat ./codeCoverageReport/testDebug.xml | grep -Po '<counter type="INSTRUCTION"[^>]*>' | tail -n 1 | cut -d '"' -f 4`
+    - COVERED_COUNT=`cat ./codeCoverageReport/testDebug.xml | grep -Po '<counter type="INSTRUCTION"[^>]*>' | tail -n 1 | cut -d '"' -f 6`
+    - COVERAGE=`bc -l <<< "100.0 * $COVERED_COUNT / ( $MISSED_COUNT + $COVERED_COUNT )"`
+    - echo "Coverage result - ($COVERAGE%) covered, Minimum coverage is $MINIMUM_COVERAGE%"
+
+    # Minimum Code Coverage Check
+    - test `bc <<< "$COVERAGE>=$MINIMUM_COVERAGE"` = 1
+
+test_staging:
+  stage: test
+  coverage: '/\(\d+.\d+\%\) covered/'
+  only:
+    - sit_uat
+    - staging
+  artifacts:
+    paths:
+    - codeCoverageReport/
+  script:
+    # Execute unit test
+    - gradle testStaging
+
+    # Linter Test
+    - gradle lint
+    - test `gradle lint | grep "0 issues" | wc -l` = `gradle lint | grep "issues" | wc -l`
+
+    # Code Coverage Artifact Generation
+    - mv app/build/reports/jacoco/testStaging ./codeCoverageReport
+
+    # Code Coverage Computation
+    - MINIMUM_COVERAGE=0
+    - MISSED_COUNT=`cat ./codeCoverageReport/testStaging.xml | grep -Po '<counter type="INSTRUCTION"[^>]*>' | tail -n 1 | cut -d '"' -f 4`
+    - COVERED_COUNT=`cat ./codeCoverageReport/testStaging.xml | grep -Po '<counter type="INSTRUCTION"[^>]*>' | tail -n 1 | cut -d '"' -f 6`
+    - COVERAGE=`bc -l <<< "100.0 * $COVERED_COUNT / ( $MISSED_COUNT + $COVERED_COUNT )"`
+    - echo "Coverage result - ($COVERAGE%) covered, Minimum coverage is $MINIMUM_COVERAGE%"
+
+    # Minimum Code Coverage Check
+    - test `bc <<< "$COVERAGE>=$MINIMUM_COVERAGE"` = 1
+
+test_release:
+  stage: test
+  coverage: '/\(\d+.\d+\%\) covered/'
+  only:
+    - master
+    - production
+  artifacts:
+    paths:
+    - codeCoverageReport/
+  script:
+    # Linter Test
+    - gradle lint
+    - test `gradle lint | grep "0 issues" | wc -l` = `gradle lint | grep "issues" | wc -l`
+
+    # Execute unit test
+    - gradle testRelease
+
+    # Code Coverage Artifact Generation
+    - mv app/build/reports/jacoco/testRelease ./codeCoverageReport
+
+    # Code Coverage Computation
+    - export MINIMUM_COVERAGE=0
+    - MISSED_COUNT=`cat ./codeCoverageReport/testRelease.xml | grep -Po '<counter type="INSTRUCTION"[^>]*>' | tail -n 1 | cut -d '"' -f 4`
+    - COVERED_COUNT=`cat ./codeCoverageReport/testRelease.xml | grep -Po '<counter type="INSTRUCTION"[^>]*>' | tail -n 1 | cut -d '"' -f 6`
+    - COVERAGE=`bc -l <<< "100.0 * $COVERED_COUNT / ( $MISSED_COUNT + $COVERED_COUNT )"`
+    - echo "Coverage result - ($COVERAGE%) covered, Minimum coverage is $MINIMUM_COVERAGE%"
+
+    # Minimum Code Coverage Check
+    - test `bc <<< "$COVERAGE>=$MINIMUM_COVERAGE"` = 1
+
+package_debug:
+  stage: package
+  environment: coba_coba
+  except:
+    - sit_uat
+    - staging
+    - production
+    - master
+  script:
+    # Set some variables
+    - export APP_NAME=TemanCatat
+    - export VERSION_NAME=`egrep '^[[:blank:]]+versionName[[:blank:]]'  app/build.gradle | awk '{print $2}' | sed s/\"//g`
+    - export VERSION_CODE=`egrep '^[[:blank:]]+versionCode[[:blank:]]'  app/build.gradle | awk '{print $2}'`
+
+    # Generate build artifact
+    - mkdir -p deliverables
+    - touch ./deliverables/info.txt
+    - echo "Build date          $(date)"                >> ./deliverables/info.txt
+    - echo "App version name    ${VERSION_NAME}"        >> ./deliverables/info.txt
+    - echo "App version code    ${VERSION_CODE}"        >> ./deliverables/info.txt
+    - echo "Git branch          ${CI_COMMIT_REF_NAME}"  >> ./deliverables/info.txt
+    - echo "Git commit          ${CI_COMMIT_SHA}"       >> ./deliverables/info.txt
+    - echo "Gitlab pipeline     ${CI_PIPELINE_ID}"      >> ./deliverables/info.txt
+
+    # Produce apk
+    - gradle assembleDebug
+    - mv app/build/outputs/apk/debug/app-debug.apk ./deliverables/$APP_NAME-v$VERSION_NAME-$VERSION_CODE-debug.apk
+
+  artifacts:
+    expire_in: 48 hours
+    paths:
+    - deliverables
+
+package_staging:
+  stage: package
+  environment: sit_uat
+  only:
+    - sit_uat
+    - staging
+  script:
+    # Set some variables
+    - export APP_NAME=TemanCatat
+    - export VERSION_NAME=`egrep '^[[:blank:]]+versionName[[:blank:]]'  app/build.gradle | awk '{print $2}' | sed s/\"//g`
+    - export VERSION_CODE=`egrep '^[[:blank:]]+versionCode[[:blank:]]'  app/build.gradle | awk '{print $2}'`
+
+    # Generate build artifact
+    - mkdir -p deliverables
+    - touch ./deliverables/info.txt
+    - echo "Build date          $(date)"                >> ./deliverables/info.txt
+    - echo "App version name    ${VERSION_NAME}"        >> ./deliverables/info.txt
+    - echo "App version code    ${VERSION_CODE}"        >> ./deliverables/info.txt
+    - echo "Git branch          ${CI_COMMIT_REF_NAME}"  >> ./deliverables/info.txt
+    - echo "Git commit          ${CI_COMMIT_SHA}"       >> ./deliverables/info.txt
+    - echo "Gitlab pipeline     ${CI_PIPELINE_ID}"      >> ./deliverables/info.txt
+
+    # Produce apk
+    - gradle assembleStaging
+    - mv app/build/outputs/apk/staging/app-staging.apk ./deliverables/$APP_NAME-v$VERSION_NAME-$VERSION_CODE-staging.apk
+
+  artifacts:
+    expire_in: 48 hours
+    paths:
+    - deliverables
+
+package_release:
+  stage: package
+  environment: production
+  only:
+    - master
+    - production
+  script:
+    # Set some variables
+    - export APP_NAME=TemanCatat
+    - export VERSION_NAME=`egrep '^[[:blank:]]+versionName[[:blank:]]'  app/build.gradle | awk '{print $2}' | sed s/\"//g`
+    - export VERSION_CODE=`egrep '^[[:blank:]]+versionCode[[:blank:]]'  app/build.gradle | awk '{print $2}'`
+
+    # Generate build artifact
+    - mkdir -p deliverables
+    - touch ./deliverables/info.txt
+    - echo "Build date          $(date)"                >> ./deliverables/info.txt
+    - echo "App version name    ${VERSION_NAME}"        >> ./deliverables/info.txt
+    - echo "App version code    ${VERSION_CODE}"        >> ./deliverables/info.txt
+    - echo "Git branch          ${CI_COMMIT_REF_NAME}"  >> ./deliverables/info.txt
+    - echo "Git commit          ${CI_COMMIT_SHA}"       >> ./deliverables/info.txt
+    - echo "Gitlab pipeline     ${CI_PIPELINE_ID}"      >> ./deliverables/info.txt
+
+    # Produce apk
+    - gradle assembleRelease
+    - mv app/build/outputs/apk/release/app-release.apk ./deliverables/$APP_NAME-v$VERSION_NAME-$VERSION_CODE-release.apk
+
+  artifacts:
+    paths:
+    - deliverables
+
+

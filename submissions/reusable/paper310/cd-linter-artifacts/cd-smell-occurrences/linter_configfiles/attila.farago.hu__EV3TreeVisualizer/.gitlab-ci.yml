@@ -1,0 +1,54 @@
+variables:
+  PROJECT_NAME: Ev3TreeVisApp
+  BUILD_CONFIG: Release
+  BUILD_CONFIG_PARAM: /property:Configuration=Release
+before_script:
+  - echo "starting build for %PROJECT_NAME%"
+stages:
+  - build
+  - test
+  - deploy
+cache:
+  untracked: true
+    
+# Build  
+build:
+  stage: build
+  variables:
+    PROJECT_FILE: Ev3TreeVisApp\Ev3TreeVisApp.csproj
+  before_script:
+  - echo Restoring NuGet Packages...
+  - nuget restore 
+  script:
+  - echo Release build...
+  - MSBuild.exe /maxcpucount /nologo /property:Configuration=Release Ev3TreeVisApp\Ev3TreeVisApp.csproj
+  after_script:
+  - copy .\Ev3TreeVisApp\bin\Release\Ev3TreeVis.exe .
+  - copy .\EV3TreeVisLib\bin\Release\EV3TreeVisLib.dll .
+  artifacts:
+    paths:
+    - Ev3TreeVis.exe
+    - EV3TreeVisLib.dll
+    name: "%PROJECT_NAME%"
+
+## Test
+test:
+  stage: test
+  before_script:
+  - echo "Restoring NuGet Packages..."
+  - nuget restore 
+  script:
+  - echo "Running Unit tests for a reduced set of files"
+  - MSBuild.exe /maxcpucount /nologo /property:Configuration=Release UnitTestProject\UnitTestProject.csproj
+  - vstest.console.exe UnitTestProject\bin\Release\UnitTestProject.dll /Tests:TestFilesRootOnly
+    
+## Deployment
+deploy_to_s3:
+  stage: deploy
+  variables:
+    AWS_BUCKET: "ev3treevis"
+    AWS_REGION: "eu-west-3"
+  script:
+    - zip ev3treevis-win-x86.zip Ev3TreeVis.exe
+    - aws s3 cp ./ev3treevis-win-x86.zip s3://"%AWS_BUCKET%" --acl public-read --storage-class REDUCED_REDUNDANCY
+

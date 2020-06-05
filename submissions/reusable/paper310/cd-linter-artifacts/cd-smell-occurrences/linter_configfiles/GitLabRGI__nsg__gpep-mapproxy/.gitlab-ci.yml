@@ -1,0 +1,12 @@
+nsg:2.7:
+    image: python:2.7-jessie
+    variables:
+        PYMSSQL_BUILD_WITH_BUNDLED_FREETDS: "1"
+    before_script:
+        #check if package libproj0 exists, to ensure connectivity
+       - apt-cache search libproj
+       - apt-get update -y && apt-get upgrade -y
+       - apt-get install -y gdal-bin libproj-dev libgeos-dev libgdal-dev libxslt1-dev libxml2-dev build-essential python-dev libjpeg-dev zlib1g-dev libfreetype6-dev protobuf-compiler libprotoc-dev freetds-dev
+       - pip install -r test-requirements.txt
+    script: nosetests mapproxy
+

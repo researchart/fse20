@@ -1,0 +1,20 @@
+
+before_script:
+  - set -ex
+  - set -o errexit
+  - set -o pipefail
+  - apt-get -qq -y update > /dev/null
+  - apt-get -qq -y install git > /dev/null
+  - curl -sS https://getcomposer.org/installer | php > /dev/null
+  - COMPOSER_DISCARD_CHANGES=true php composer.phar install --quiet --no-interaction
+
+test:php-5.5:
+  image: php:5.5
+  script:
+    - vendor/bin/ci test --show-successes=false --exit-code
+
+test:php-7.0:
+  image: php:7.0
+  script:
+    - vendor/bin/ci test --show-successes=false --exit-code
+

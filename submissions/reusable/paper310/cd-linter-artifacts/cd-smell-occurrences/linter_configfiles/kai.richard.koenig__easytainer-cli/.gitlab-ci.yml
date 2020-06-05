@@ -1,0 +1,56 @@
+image: themattrix/tox
+
+stages:
+  - validate
+  - tests
+  - integration
+  - deploy
+
+.tox_environment: &tox_environment
+  only:
+  - branches
+
+linting:
+  <<: *tox_environment
+  stage: validate
+  script: tox -e lint
+
+py27_tests:
+  <<: *tox_environment
+  stage: tests
+  script: tox -e py27
+
+py33_tests:
+  <<: *tox_environment
+  stage: tests
+  script: tox -e py33
+
+py34_tests:
+  <<: *tox_environment
+  stage: tests
+  script: tox -e py34
+
+py35_tests:
+  <<: *tox_environment
+  stage: tests
+  script: tox -e py35
+
+py36_tests:
+  <<: *tox_environment
+  stage: tests
+  script: tox -e py36
+
+install:
+  stage: integration
+  script:
+    - pip install -e .
+    - et --help
+
+
+deploy:
+  stage: deploy
+  image: python:slim
+  script:
+    - pip install twine
+    - python setup.py upload
+

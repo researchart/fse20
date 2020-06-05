@@ -1,0 +1,91 @@
+stages:
+  - analysis
+  - test
+  - deploy
+
+cppcheck:
+  image: ubuntu:bionic
+  stage: analysis
+  before_script:
+    - apt update
+    - apt install -y --no-install-recommends cppcheck=1.82-1
+    - cppcheck --version
+  script:
+    - cppcheck lib/*.cpp --verbose --enable=all --inconclusive --language=c++ --error-exitcode=1
+
+clang-tidy:
+  image: base/archlinux:2018.09.01
+  stage: analysis
+  variables:
+    CC: clang
+    CXX: clang++
+  before_script:
+    - pacman -Syu --needed --noconfirm clang-tools-extra=6.0.1-2
+    - clang-tidy --version
+  script:
+    - clang-tidy -warnings-as-errors="*" -checks="-*,clang-analyzer-*,-clang-analyzer-alpha*" lib/hello.cpp -- -Iinclude
+
+doxygen:
+   image: alpine:3.7
+   stage: analysis
+   before_script:
+     - apk update
+     - apk add --no-cache -t .required_apks doxygen=1.8.13-r1 graphviz=2.40.1-r0
+     - mkdir -p build/docs
+   script:
+     - doxygen docs/Doxyfile
+   artifacts:
+     paths:
+       - build/docs/html/
+
+build-gcc7:
+    image: lasote/conangcc7
+    stage: test
+    before_script:
+      - sudo apt update
+      - sudo apt install gcovr
+    script:
+      - mkdir -p build && cd build
+      - conan install ..
+      - cmake ..
+      - cmake --build .
+      - cmake --build . --target test
+      - cmake --build . --target memcheck
+      - cmake --build . --target coverage
+    artifacts:
+      paths:
+        - build/coverage/
+        - build/test/Testing/Temporary/
+
+build-clang6:
+    image: lasote/conanclang60
+    stage: test
+    before_script:
+      - sudo apt update
+      - sudo apt install -y --no-install-recommends gcovr
+    script:
+      - mkdir -p build && cd build
+      - conan install ..
+      - cmake ..
+      - cmake --build .
+      - cmake --build . --target test
+      - cmake --build . --target memcheck
+      - cmake --build . --target coverage
+
+deploy-bintray:
+    image: lasote/conangcc7
+    stage: deploy
+    before_script:
+      - sudo apt update
+      - sudo apt install -y --no-install-recommends curl
+    script:
+      - mkdir -p build && cd build
+      - cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
+      - cmake --build .
+      - cpack -G DEB .
+    after_script:
+      - curl -T build/hello-0.1.0.deb -uuilianries:${BINTRAY_API_KEY} "https://api.bintray.com/content/uilianries/dpkg/hello/0.1.0/pool/main/h/hello/hello_0.1.0_amd64.deb;deb_distribution=testing;deb_component=main;deb_architecture=i386,amd64;publish=1"
+    artifacts:
+      paths:
+        - build/*.deb
+

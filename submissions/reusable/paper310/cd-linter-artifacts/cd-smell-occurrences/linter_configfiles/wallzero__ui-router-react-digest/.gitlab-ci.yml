@@ -1,0 +1,236 @@
+image: node:13-alpine
+
+stages:
+  - install
+  - build
+  - test
+  - e2e
+  - deploy
+
+before_script:
+  - echo "CPU $(awk '/siblings/ {print $3}' /proc/cpuinfo | uniq)x$(awk '/cpu MHz/ {print $4}' /proc/cpuinfo | sort -nrk 1 | head -1) MHz"
+  - echo "Memory $(($(awk '/MemTotal/ {print $2}' /proc/meminfo)/1024)) gB"
+  - node -v
+  - npm -v
+  - pwd
+  - ls -alh --color | grep "^d" && ls -alh --color | grep -v "^d"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+  - node_modules/
+  - yarn.lock
+  - packages/digest/node_modules/
+  - demo/redux/node_modules/
+  - demo/simple/node_modules/
+
+##
+# DEFAULTS
+##
+
+.defaults: &defaults
+  except:
+  - tags
+  retry: 2
+
+.build: &build
+  <<: *defaults
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    policy: pull
+  stage: build
+
+.test: &test
+  <<: *defaults
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    policy: pull
+  dependencies:
+  - build:digest
+  - build:connect
+  stage: test
+
+.test_demo: &test_demo
+  <<: *test
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    policy: pull
+  artifacts:
+    expire_in: 2 hrs
+    paths:
+    - public/
+
+.e2e: &e2e
+  <<: *defaults
+  artifacts:
+    expire_in: 2 hrs
+    paths:
+    - public/
+    - reports/screenshots/
+    when: always
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    policy: pull
+  dependencies:
+  - lint
+  - unit
+  - build:digest
+  - build:connect
+  - build:demo-simple
+  - build:demo-redux
+  image: registry.hub.docker.com/atlassianlabs/docker-node-jdk-chrome-firefox:latest
+  retry: 0
+  stage: e2e
+
+.deploy: &deploy
+  <<: *defaults
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    policy: pull
+  dependencies:
+  - build:digest
+  - build:connect
+  - chrome
+#  - firefox
+  image: node:13
+  only:
+  - master@wallzero/ui-router-react-digest
+  stage: deploy
+
+##
+# INSTALL
+##
+
+install:
+  <<: *defaults
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - yarn.lock
+    - packages/digest/node_modules/
+    - demo/redux/node_modules/
+    - demo/simple/node_modules/
+    policy: push
+  script:
+  - yarn add --dev --frozen-lockfile --ignore-workspace-root-check lerna
+  - yarn lerna bootstrap
+  stage: install
+
+##
+# BUILD
+##
+
+build:digest:
+  <<: *build
+  artifacts:
+    expire_in: 2 hrs
+    paths:
+    - packages/digest/dist
+    - public
+  script:
+  - PARALLEL='off' yarn lerna run build --scope ui-router-react-digest --include-filtered-dependencies
+  - yarn copy:stats
+
+build:connect:
+  <<: *build
+  artifacts:
+    expire_in: 2 hrs
+    paths:
+    - packages/connect/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope ui-router-react-connect --include-filtered-dependencies
+  - yarn copy:stats
+
+##
+# TEST
+##
+
+lint:
+  <<: *test
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    policy: pull
+  script:
+  - yarn lint
+
+unit:
+  <<: *test
+  artifacts:
+    expire_in: 2 hrs
+    paths:
+    - public/
+    reports:
+      junit: reports/junit.xml
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    policy: pull
+  script:
+  - yarn unit:ci
+  - yarn unit:merge
+  - yarn copy:stats
+
+build:demo-simple:
+  <<: *test_demo
+  script:
+  - PARALLEL='off' yarn lerna run build --scope ui-router-react-digest-simple-demo
+  - yarn copy:stats
+
+build:demo-redux:
+  <<: *test_demo
+  script:
+  - PARALLEL='off' yarn lerna run build --scope ui-router-react-digest-redux-demo
+  - yarn copy:stats
+
+##
+# E2E
+##
+
+chrome:
+  <<: *e2e
+  script:
+  - ln -sf /opt/google/chrome/google-chrome /usr/bin/google-chrome
+  - google-chrome --version
+  - yarn run e2e:build
+  - yarn run e2e:chrome
+
+firefox:
+  <<: *e2e
+  script:
+  - ln -sf /usr/lib/firefox-esr/firefox-esr /usr/bin/firefox
+  - /usr/bin/firefox --version
+  - yarn run e2e:build
+  - yarn run e2e:firefox
+
+##
+# DEPLOY
+##
+
+release:
+  <<: *deploy
+  script:
+  - yarn semantic-release
+  - yarn release
+
+pages:
+  <<: *deploy
+  artifacts:
+    paths:
+    - public/
+  script:
+  - echo "deploying demo to gitlab pages"
+

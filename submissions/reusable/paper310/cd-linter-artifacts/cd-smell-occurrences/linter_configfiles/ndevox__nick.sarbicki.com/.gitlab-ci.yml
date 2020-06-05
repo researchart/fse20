@@ -1,0 +1,20 @@
+# GitLab CI/CD Configuration
+# --------------------------
+
+stages:
+  - build
+
+build:
+  services:
+    - docker:dind
+  stage: build
+  image: docker:latest
+  script:
+    - docker login -u $DOCKER_USER -p=$DOCKER_PASS $DOCKER_REGISTRY
+    - docker build . -t $DOCKER_IMAGE
+    - docker push $DOCKER_IMAGE
+  only:
+    - master
+  except:
+    - tags
+

@@ -1,0 +1,52 @@
+stages:
+    - test
+    - npm_package_test
+    - release
+    - publish
+
+variables:
+    GIT_SSL_NO_VERIFY: "true"
+
+test:
+    image: maven:3.3.9-jdk-8
+    variables:
+        MAVEN_OPTS: -Dmaven.repo.local=/cache/maven.repository
+    script:
+        - mvn clean verify exec:java
+    stage: test
+npm_package_test:
+    image: node:6
+    before_script:
+        - cd npm-package
+        - yarn install --freeze-lockfile --ignore-engines
+    script:
+        - npm run test:ci
+    stage: npm_package_test
+release:
+    image: node:6
+    variables: 
+        GITLAB_AUTH_TOKEN: "6qBnvowwxHFzbV4Dvk8z"
+        NODE_DEBUG: "request semantic-release-gitlab"
+        DEBUG: "semantic-release-gitlab semantic-release-gitlab"
+    before_script:
+        - cd npm-package
+        - yarn install --freeze-lockfile
+    only:
+        - npm-publish-automated@desdr/doubleagent-validator
+    script:
+        - $(yarn bin)/semantic-release-gitlab
+    stage: release
+publish:
+    image: node:6
+    variables:
+        NPM_TOKEN: "b5f96317-1cc8-47ad-b72e-44af1dbbe13c"
+    before_script:
+        - cd npm-package
+        - yarn install --freeze-lockfile --ignore-engines
+    only:
+        - tags
+    script:
+        - npm run compile
+        - $(yarn bin)/npm-publish-git-tag
+    stage: publish
+

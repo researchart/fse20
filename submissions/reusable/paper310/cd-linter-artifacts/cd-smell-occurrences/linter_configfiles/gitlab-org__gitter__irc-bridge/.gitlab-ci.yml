@@ -1,0 +1,71 @@
+stages:
+  - test
+  - deploy
+
+test:
+  image: node:10
+  stage: test
+  script:
+    - npm install
+    - npm test
+  tags:
+    - docker
+    - shared
+
+.deploy_job: &deploy_job
+  stage: deploy
+  image: registry.gitlab.com/gitlab-org/gitter/webapp/deploy-build-image:latest
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    # run ssh-agent
+    - eval $(ssh-agent -s)
+    # add ssh key stored in SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$DEPLOY_KEY_ANSIBLE_REPO")
+    - ssh-add <(echo "$INTERNAL_GITTER_NETWORK_SSH_KEY")
+    - mkdir -p ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    # Make the infra tools available (like Ansible)
+    - git clone git@gitlab.com:gitlab-com/gl-infra/gitter-infrastructure.git
+    - ANSIBLE_DIR=$(cd gitter-infrastructure/ansible && pwd) && echo $ANSIBLE_DIR
+    - mkdir -p /root && echo "$ANSIBLE_VAULT_PASS" > /root/.vault_pass
+  tags:
+    - internal # This has to be within the Gitter network
+
+deploy_beta: &deploy_beta
+  <<: *deploy_job
+  only:
+    - master
+  script:
+    - cd $ANSIBLE_DIR && ansible-playbook -i beta --vault-password-file "/root/.vault_pass" playbooks/gitter/irc-servers.yml
+  environment:
+    name: beta
+    url: https://irc-beta.gitter.im
+
+deploy_beta_manual:
+  <<: *deploy_beta
+  when: manual
+
+deploy_prod_manual:
+  <<: *deploy_job
+  only:
+    - tags
+  # Production is only manual
+  when: manual
+  script:
+    - cd $ANSIBLE_DIR && ansible-playbook -i prod --vault-password-file "/root/.vault_pass" playbooks/gitter/irc-servers.yml
+  environment:
+    name: prod
+    url: https://irc.gitter.im
+
+check_version:
+  stage: test
+  image: busybox:latest
+  only:
+    - /^release/.*$/
+  script:
+    - PACKAGE_VERSION=$(grep -m1 version package.json | sed "s/[\", ]//g" | cut -d ":" -f2)
+    - BRANCH_VERSION=$(echo $CI_COMMIT_REF_NAME | sed -n -e 's/release\/\(.*\)/\1/p')
+    - if [ "$PACKAGE_VERSION" == "$BRANCH_VERSION" ]; then echo "Version in package.json up to date ($PACKAGE_VERSION) ✅"; exit 0; else echo "Version in package.json not up to date (branch $BRANCH_VERSION !== package.json $PACKAGE_VERSION) ❌"; exit 1; fi
+  allow_failure: true
+

@@ -1,0 +1,76 @@
+###### STAGES #################################################################
+stages:
+  - install
+  - test
+  - build
+  - publish
+
+###### TEMPLATES ##############################################################
+.general: &general
+  image: node:8.11
+  tags:
+    - gitlab-org
+  variables:
+    GIT_STRATEGY: fetch
+
+.release: &release
+  <<: *general
+  only:
+    - release
+
+###### JOBS ###################################################################
+install:
+  <<: *general
+  stage: install
+  artifacts:
+    paths:
+      - node_modules
+    expire_in: 1 day
+  script:
+    - yarn install
+
+lint:
+  <<: *general
+  stage: test
+  dependencies:
+    - install
+  script:
+    - yarn lint
+
+test:
+  <<: *general
+  stage: test
+  dependencies:
+    - install
+  artifacts:
+    paths:
+      - coverage
+    expire_in: 1 month
+  script:
+    - yarn test --ci --color --coverage
+
+# Run the jobs below only for `release` branch.
+build:
+  <<: *release
+  stage: build
+  dependencies:
+    - install
+  artifacts:
+    paths:
+      - dist
+    expire_in: 1 day
+  script:
+    - yarn build
+
+publish to npm:
+  <<: *release
+  stage: publish
+  dependencies:
+    - build
+  allow_failure: false
+  script:
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > .npmrc
+    - export PACKAGE_VERSION=$(node -p -e "require('./package.json').version")
+    - echo "Publish & Tag version v${PACKAGE_VERSION}"
+    - npm publish && git tag v${PACKAGE_VERSION} && git push --tags
+

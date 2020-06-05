@@ -1,0 +1,84 @@
+variables:
+    APT_CACHE_DIR: apt-cache
+
+cache:
+    key: "$CI_JOB_NAME"
+    untracked: true
+    paths:
+    - apt-cache/
+    - cargo/
+    - target/
+
+stages:
+  - build
+  - test
+  - package
+
+before_script:
+    - mkdir -pv $APT_CACHE_DIR
+    - apt-get -qq update
+    - apt-get -o dir::cache::archives="$APT_CACHE_DIR" -qq -y install libudev-dev libgtk-3-dev
+    - export PATH="/root/.cargo/bin:$PATH"
+
+build:1.31:
+    image: "rust:1.31"
+    stage: build
+    script:
+    - cargo update
+    - cargo build --verbose
+
+build:stable:
+    image: "rust:latest"
+    stage: build
+    script:
+    - cargo update
+    - cargo build --verbose
+
+test:rustfmt:
+    image: "debian:stable-slim"
+    stage: test
+    allow_failure: true
+    script:
+    - export RUST_ARCHIVE=rust-nightly-x86_64-unknown-linux-gnu.tar.gz
+    - export RUST_DOWNLOAD_URL=https://static.rust-lang.org/dist/$RUST_ARCHIVE
+    - curl -fsOSL $RUST_DOWNLOAD_URL
+    - curl -s $RUST_DOWNLOAD_URL.sha256 | sha256sum -c -
+    - tar -xzf $RUST_ARCHIVE --strip-components=1
+    - ./install.sh
+    - cargo update
+    - cargo build --verbose
+    - cargo install rustfmt-nightly
+    - cargo fmt -- --write-mode=diff
+
+test:clippy:
+    image: "debian:stable-slim"
+    stage: test
+    allow_failure: true
+    script:
+    - export RUST_ARCHIVE=rust-nightly-x86_64-unknown-linux-gnu.tar.gz
+    - export RUST_DOWNLOAD_URL=https://static.rust-lang.org/dist/$RUST_ARCHIVE
+    - curl -fsOSL $RUST_DOWNLOAD_URL
+    - curl -s $RUST_DOWNLOAD_URL.sha256 | sha256sum -c -
+    - tar -xzf $RUST_ARCHIVE --strip-components=1
+    - ./install.sh
+    - cargo update
+    - cargo build --verbose
+    - cargo install clippy
+    - cargo clippy -- --allow=cyclomatic_complexity -D warnings
+
+package:
+    image: "rust:latest"
+    artifacts:
+      paths:
+      - resources
+      - gattii
+      - LICENSE.txt
+      - README.md
+      name: "$CI_BUILD_REF_NAME"
+    stage: package
+    script:
+    - cargo update
+    - cargo build --release
+    - cp target/release/gattii .
+
+

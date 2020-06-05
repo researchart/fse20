@@ -1,0 +1,16 @@
+build:
+  image: python:3
+  before_script:
+    - pip install setuptools m2r
+  script:
+    - python setup.py sdist
+
+test:
+  image: python:3
+  before_script:
+    - pip install -r requirements.txt  
+    - pip install pytest pytest-cov
+  script:
+    - pytest --cov-report term-missing --cov=./src/ ./tests/
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
+

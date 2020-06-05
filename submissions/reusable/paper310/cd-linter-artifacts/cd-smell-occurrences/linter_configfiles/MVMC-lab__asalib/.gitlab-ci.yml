@@ -1,0 +1,43 @@
+image: ncumvmclab/c4mlib-build-image
+
+stages:
+  - build
+  - release-test
+  - release
+
+build:
+  stage: build
+  script:
+    - python3 scripts/build.py
+    - python3 test/build_test.py
+  artifacts:
+    paths:
+      - dist/
+
+release-test:
+  only:
+    refs:
+      - merge_requests
+    variables:
+      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
+  stage: release-test
+  script:
+    - export GITLAB_PAT
+    - export PYTHONIOENCODING=utf-8
+    - python3 scripts/test_tag_exist.py
+    - python3 scripts/releasenote.py
+
+release-to-gitlab:
+  only:
+    - master
+  stage: release
+  dependencies:
+    - build
+  script:
+    - export GITLAB_PAT
+    - export PYTHONIOENCODING=utf-8
+    - python3 scripts/test_tag_exist.py
+    - python3 scripts/release.py
+  when:
+    on_success
+

@@ -1,0 +1,31 @@
+variables:
+  COMPOSER_CACHE_DIR: ".cache/composer"
+
+stages:
+  - test
+
+.test_template: &test_template
+  stage: test
+  tags: [docker]
+  script:
+    - composer install -o --ansi --no-progress
+    - find src/ -name *.php -print0 | xargs -0 -n 1 -P 4 php -ln
+    - vendor/bin/phpunit --colors=always
+  cache:
+    key: common
+    paths:
+      - .cache
+      - vendor
+
+test 5.6:
+  <<: *test_template
+  image: registry.gitlab.com/dmore/docker-chrome-headless:5.6
+
+test 7.0:
+  <<: *test_template
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.0
+
+test 7.1:
+  <<: *test_template
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.1
+

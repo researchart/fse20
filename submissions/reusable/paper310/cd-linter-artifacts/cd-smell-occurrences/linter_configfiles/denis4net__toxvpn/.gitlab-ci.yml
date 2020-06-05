@@ -1,0 +1,20 @@
+image: denis4inet/toxvpn-build-env
+variables:
+  CXX: g++-5
+  CC: gcc-5
+  LINK_STATICALLY: "true"
+  VERSION: 0.0.${CI_PROJECT_ID}
+
+stages:
+  - build
+
+toxvpn:
+  stage: build
+  script:
+    - make all
+  artifacts:
+    paths:
+      - toxvpn
+  only:
+    - master
+

@@ -1,0 +1,15 @@
+image: debian:stretch-slim
+
+pages:
+  script:
+  - apt-get update
+  - apt-get -y install python3-sphinx
+  - apt-get -y install make texlive-full latexmk
+  - make html
+  - mv _build/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,8 @@
+image: golang:1.4
+
+test:
+  script:
+  - go-wrapper download
+  - go-wrapper download gopkg.in/check.v1
+  - go -cover test
+

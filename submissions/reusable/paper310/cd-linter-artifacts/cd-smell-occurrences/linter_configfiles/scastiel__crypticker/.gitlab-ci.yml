@@ -1,0 +1,31 @@
+image: node:6
+
+cache:
+    key: "$CI_BUILD_REF_NAME"
+    paths:
+    - node_modules/
+
+stages:
+- test
+- deploy
+
+test:
+    stage: test
+    script:
+    - npm install
+    - npm run test
+
+pages:
+    stage: deploy
+    script:
+    - npm install
+    - npm run build
+    - mv public _public
+    - mv build public
+    artifacts:
+        paths:
+        - public
+    only:
+    - master
+    - 10-gitlab-pages
+

@@ -1,0 +1,11 @@
+pages:
+  script:
+  - git submodule init
+  - git submodule update
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+

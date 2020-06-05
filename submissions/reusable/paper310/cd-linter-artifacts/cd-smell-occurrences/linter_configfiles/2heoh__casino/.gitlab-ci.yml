@@ -1,0 +1,19 @@
+image: sjdweb/go-docker-build:1.10
+
+stages:
+- test
+
+before_script:
+- cd $GOPATH/src
+- mkdir -p gitlab.com/$CI_PROJECT_NAMESPACE
+- cd gitlab.com/$CI_PROJECT_NAMESPACE
+- ln -s $CI_PROJECT_DIR
+- cd $CI_PROJECT_NAME
+- echo -e "machine gitlab.com\nlogin gitlab-ci-token\npassword ${CI_JOB_TOKEN}" > ~/.netrc
+- dep init
+- dep ensure -vendor-only
+
+unit_tests:
+  stage: test
+  script: make test
+

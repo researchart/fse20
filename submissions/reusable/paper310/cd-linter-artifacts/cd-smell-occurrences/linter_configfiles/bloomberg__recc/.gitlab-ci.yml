@@ -1,0 +1,87 @@
+image: docker:stable
+services:
+    - docker:19.03.5-dind # gitlab issue: https://gitlab.com/gitlab-com/support-forum/issues/5202
+
+stages:
+    - build
+    - test
+    - release
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+
+build_only:
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build . --pull --build-arg ENABLE_TESTS= #Build without tests
+
+test_cover:
+  stage: build
+  image: python:3-buster
+  coverage: '/^TOTAL.*\ (\d+\.*\d+\%)$/'
+  dependencies: []
+  before_script:
+    - pip3 install gcovr pycobertura
+    - curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+    - echo "deb [arch=amd64] https://download.docker.com/linux/debian buster stable" > /etc/apt/sources.list.d/docker.list
+    - apt-get update && apt-get install --no-install-recommends docker-ce-cli
+    - export IMAGE_TAG="${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA}_coverage"
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t "$IMAGE_TAG" . --pull --build-arg ENABLE_TESTS=1 --build-arg RUN_GCOV=1
+  script:
+    - export MOUNT_DIR="/builds/$CI_PROJECT_PATH/mnt" # https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#use-docker-in-docker-workflow-with-docker-executor
+    - mkdir -p "$MOUNT_DIR"
+    - echo "Copying generated files to CI"
+    - export PROJECT_DIR="recc"
+    - docker run --rm -v "$MOUNT_DIR:/mnt" -t "$IMAGE_TAG" /bin/sh -c "cp -r /$PROJECT_DIR/ /mnt/"
+    # Copy the project with coverage data in the root directory
+    # so that the coverage reports show up with nicer paths to source.
+    - cp -r "$MOUNT_DIR/$PROJECT_DIR" "/"
+    - export BUILT_PROJECT_DIR="/$PROJECT_DIR/"
+    - export COVERAGE_DIR="$CI_PROJECT_DIR/public/coverage" # This is picked up as an artifact
+    - mkdir -p  "$COVERAGE_DIR"
+    - cd "$BUILT_PROJECT_DIR"
+    - export LC_ALL=C.UTF-8 && export LANG=C.UTF-8
+    - gcovr --xml-pretty -g -k -s -o "$COVERAGE_DIR/gcovr.xml"
+    - pycobertura show --format text --output "$COVERAGE_DIR/report.txt" -s "$BUILT_PROJECT_DIR" "$COVERAGE_DIR/gcovr.xml"
+    - echo >> "$COVERAGE_DIR/report.txt"
+    - pycobertura show --format html --output "$COVERAGE_DIR/report.html" -s "$BUILT_PROJECT_DIR" "$COVERAGE_DIR/gcovr.xml"
+    - cat "$COVERAGE_DIR/report.txt" # show the textual report here, also used by GitLab to pick-up coverage %
+  artifacts:
+    paths:
+      - public # name GitLab uses for Pages feature
+
+# Check C++ code formatting using clang-format
+# Since the GitLab CI API doesn't currently provide an MR Commit SHA so that we can
+# run all the files modified in the current MR (Single Commit is doable) we just
+# run clang-format for the diff between "empty tree magic SHA" and the current commit
+# on all the C++ files (by extension: c,cc,cpp,cxx,h)
+# Discussion on the "empty tree magic SHA": https://stackoverflow.com/questions/9765453/
+# NOTE: git-clang-format runs only for files in the directories specified below
+#       due to not having the option to exclude directories like "third_praty".
+check_formatting:
+    image: ubuntu:bionic
+    stage: build
+    before_script:
+        - apt-get update && apt-get install -y clang-format-6.0 git-core
+    script:
+        - echo `which clang-format-6.0`
+        - ln -s `which clang-format-6.0` /usr/bin/clang-format
+        - cd "$CI_PROJECT_DIR"
+        # The directories to check
+        - export CLANG_FORMAT_DIRS="src/ test/"
+        - export CLANG_FORMAT_SINCE_COMMIT="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+        # No quotes around CLANG_FORMAT DIRS to explicitly split
+        - linter_errors=$(git-clang-format-6.0 --commit "$CLANG_FORMAT_SINCE_COMMIT" -q --diff --style file --extensions c,cc,cpp,cxx,h  $CLANG_FORMAT_DIRS| grep -v --color=never "no modified files to format" || true)
+        - echo "$linter_errors"
+        - if [[ ! -z "$linter_errors" ]]; then echo "Detected formatting issues; please fix"; exit 1; else echo "Formatting is correct"; exit 0; fi
+
+e2e:
+    image: registry.gitlab.com/buildgrid/buildbox/buildbox-e2e:latest
+    stage: test
+    dependencies: []
+    script:
+        - RECC_SOURCE_ROOT=`pwd` end-to-end-test.sh
+

@@ -1,0 +1,12 @@
+pages:
+  stage: deploy
+  image: python:2.7
+  script:
+  - pip install "lektor==1.1"
+  - lektor build --output-path public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

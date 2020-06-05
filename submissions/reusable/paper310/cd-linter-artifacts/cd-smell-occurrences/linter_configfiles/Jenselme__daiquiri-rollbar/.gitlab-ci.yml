@@ -1,0 +1,29 @@
+before_script:
+  - pip install tox setuptools
+
+cache:
+  paths:
+  - /root/.cache
+
+stages:
+  - style
+  - test
+
+flake8:
+  image: python:3.6
+  stage: style
+  script:
+    - tox -e flake8
+
+py35:
+  stage: test
+  image: python:3.5
+  script:
+    - tox -e py35
+
+py36:
+  stage: test
+  image: python:3.6
+  script:
+    - tox -e py36
+

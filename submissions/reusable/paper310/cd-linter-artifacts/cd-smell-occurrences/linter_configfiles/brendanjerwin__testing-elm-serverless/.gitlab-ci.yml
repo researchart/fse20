@@ -1,0 +1,54 @@
+image: brendanjerwin/elm-ci
+
+build_elm:
+  stage: build
+  script:
+    - make clean
+    - make build
+  artifacts:
+    untracked: true
+    paths:
+      - .
+
+test_elm:
+  script:
+    - make test
+
+fmt_elm:
+  script:
+    - make test_fmt
+
+test_terraform:
+  dependencies:
+    - build_typescript
+  image: brendanjerwin/terraform-ci
+  script:
+    - make test_terraform
+
+build_typescript:
+  stage: build
+  script:
+    - cd ./backend/lambda/ping/
+    - make build
+  artifacts:
+    paths:
+      - ./backend/lambda/ping/build/*.zip
+
+test_typescript:
+  stage: test
+  script:
+    - cd ./backend/lambda/ping/
+    - make test
+
+production:
+  dependencies:
+    - build_elm
+    - build_typescript
+  environment: production
+  stage: deploy
+  image: brendanjerwin/terraform-ci
+  only:
+    - master
+  script:
+    - make deploy
+

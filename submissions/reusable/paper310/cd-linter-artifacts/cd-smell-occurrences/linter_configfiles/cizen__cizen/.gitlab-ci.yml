@@ -1,0 +1,17 @@
+image: elixir:1.7
+
+before_script:
+  - mix local.hex --force
+  - mix local.rebar --force
+  - mix deps.get
+
+mix:
+  script:
+  - mix test
+  - mix check
+
+cache:
+  paths:
+    - _build
+    - deps
+

@@ -1,0 +1,17 @@
+image: python:3.5
+services:
+ - postgres:9.5
+variables:
+ POSTGRES_DB: bookdb
+ DB_STRING: "postgresql://postgres:postgres@postgres:5432/$POSTGRES_DB"
+ ##DB_STRING: "postgresql+psycopg2://[nobeldb]:[asd123]@/postgres?host=/cloudsql/[cs329e-219714:us-central1:nobeldb]"
+before_script:
+ - date
+ - uname -a
+ - pip install --upgrade pip
+ - pip install -r requirements.txt
+ - printenv | sort
+test:
+ script:
+ - python test.py
+

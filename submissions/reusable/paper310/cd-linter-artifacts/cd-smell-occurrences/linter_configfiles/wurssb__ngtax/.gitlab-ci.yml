@@ -1,0 +1,22 @@
+image: wurssb/ngtaxdoc
+
+#before_script:
+#  - R -e "install.packages('DT')"
+#  - R -e "install.packages('ggplot2')"
+#  - R -e "install.packages('plotly')"
+#  - R -e "install.packages('d3r')"
+#  - R -e "install.packages('treemap')"
+#  - R -e "install.packages('devtools')"
+#  - R -e "devtools::install_github('timelyportfolio/sankeytree')"
+
+pages:
+  script:
+    - R -e "rmarkdown::render_site()"
+    - mv _site public
+    - ls
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

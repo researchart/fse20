@@ -1,0 +1,19 @@
+image: registry.gitlab.com/augfab/game-of-life:latest
+
+stages:
+    - style
+    - build
+
+style:
+    stage: style
+    script:
+        - find . -type f -regex '.*\.[hc]' -print0 | xargs -0 indent -linux
+        - git diff --exit-code
+
+build:
+    stage: build
+    script:
+        - make all
+        - ./build/life -x 100 -y 100 -c 100 -s 123
+        - valgrind --error-exitcode=1 --leak-check=full --show-leak-kinds=all ./build/life -c 100 -x 100 -y 100
+

@@ -1,0 +1,37 @@
+image: node:11
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - test
+  - reports
+
+test:
+  stage: test
+  script:
+   - npm install
+   - npm test
+  artifacts:
+      paths:
+        - coverage/
+      expire_in: 30 days
+eslint:
+  stage: test
+  script:
+    - npm install
+    - $(npm bin)/eslint .
+
+pages:
+  stage: reports
+  dependencies:
+    - test
+  script:
+    - mkdir -p public/$CI_COMMIT_REF_NAME
+    - mv coverage/ "public/$CI_COMMIT_REF_NAME"
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+

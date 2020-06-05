@@ -1,0 +1,13 @@
+image: python:3
+
+stages:
+  - test
+
+py.test:
+  stage: test
+  script:
+    - pip3 install -r requirements.txt
+    - pip3 install -r requirements.test.txt
+    - echo $LOCAL_CFG | base64 -d > env-local.cfg
+    - py.test
+

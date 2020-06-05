@@ -1,0 +1,33 @@
+image: debian:buster
+
+before_script:
+- apt-get -qq update
+- apt-get -qq install -y gnupg2 python2.7 python2.7-dev build-essential make gcc g++ git curl
+- curl -sL https://deb.nodesource.com/setup_10.x | bash -
+- apt-get install -y nodejs
+- npm install -g npm
+- npm set progress=false
+
+stages:
+- test
+- docs
+
+tests:
+  stage: test
+  script:
+  - npm install --unsafe-perm
+  - git config --global user.name 'gitty-test'
+  - git config --global user.email 'gitty@test'
+  - npm test
+
+pages:
+  stage: docs
+  script:
+  - npm install --unsafe-perm
+  - npm run generate-docs
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

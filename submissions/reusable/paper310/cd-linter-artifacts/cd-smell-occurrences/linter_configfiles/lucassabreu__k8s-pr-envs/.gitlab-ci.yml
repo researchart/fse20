@@ -1,0 +1,86 @@
+stages:
+  - build
+  - review
+  - staging
+  - production
+  - cleanup
+
+variables:
+  KUBE_DOMAIN: getup.io
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker login -u "gitlab-ci-token" -p "$CI_JOB_TOKEN" $CI_REGISTRY
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+    - echo "Pushing image $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+  only:
+    - branches
+
+review:
+  stage: review
+  image: lucassabreu/openshift-k8s-cli:latest
+  variables:
+    CI_ENVIRONMENT_URL: http://$CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG.$KUBE_DOMAIN
+  environment:
+    name: r/$CI_COMMIT_REF_NAME
+    url: http://$CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG.$KUBE_DOMAIN
+    on_stop: stop_review
+  script:
+    - k8s/deploy
+  only:
+    - branches
+  except:
+    - master
+
+stop_review:
+  stage: cleanup
+  image: lucassabreu/openshift-k8s-cli:latest
+  environment:
+    name: r/$CI_COMMIT_REF_NAME
+    action: stop
+  when: manual
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - oc login "$KUBE_URL" --token "$KUBE_TOKEN"
+    - oc project "$KUBE_NAMESPACE"
+    - oc delete deployments -l "app=$CI_ENVIRONMENT_SLUG"
+    - oc delete all -l "app=$CI_ENVIRONMENT_SLUG"
+  only:
+    - branches
+  except:
+    - master
+
+staging:
+  stage: staging
+  image: lucassabreu/openshift-k8s-cli:latest
+  variables:
+    CI_ENVIRONMENT_URL: http://$CI_PROJECT_NAME-staging.$KUBE_DOMAIN
+  environment:
+    name: staging
+    url: http://$CI_PROJECT_NAME-staging.$KUBE_DOMAIN
+  script:
+    - k8s/deploy
+  only:
+    - master
+
+production:
+  stage: production
+  image: lucassabreu/openshift-k8s-cli:latest
+  variables:
+    CI_ENVIRONMENT_URL: http://$CI_PROJECT_NAME.$KUBE_DOMAIN
+  environment:
+    name: production
+    url: http://$CI_PROJECT_NAME.$KUBE_DOMAIN
+  when: manual
+  script:
+    - k8s/deploy
+  only:
+    - master
+
+

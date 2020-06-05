@@ -1,0 +1,25 @@
+image: rust:1.26-slim
+
+stages:
+  - build
+
+variables:
+  CARGO_HOME: "${CI_PROJECT_DIR}/.cargo"
+
+# Avoid rebuilding deps if we don't need to
+cache:
+  paths:
+  - .cargo/
+  - target/
+
+mc-wrap:
+  stage: build
+  script:
+  - cargo build --release
+  - strip target/release/mc-wrap
+  - mv target/release/mc-wrap ./
+  artifacts:
+    name: mc-wrap
+    paths:
+    - mc-wrap
+

@@ -1,0 +1,13 @@
+pages:
+  stage: deploy
+  script:
+  - mkdir public
+  - curl https://raw.githubusercontent.com/Yonder-Dynamics/wiki-common/master/build_wiki.py | python - public README.md
+  - find public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+

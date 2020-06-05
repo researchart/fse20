@@ -1,0 +1,102 @@
+stages:
+  - build
+  - test
+  - deploy
+  - cleanup
+
+variables:
+  # for auto-labeling META Data of the docker image
+  ODAGRUN_IMAGE_LICENSES: MIT
+  ODAGRUN_IMAGE_VENDOR: Gioxa Ltd
+  ODAGRUN_IMAGE_TITLE: CentOS 7 docker image with all dependencies to build and package ruby with rpmbuild.
+  ODAGRUN_IMAGE_REFNAME: ruby-rpm-build-centos
+  DISTRO_RELEASE: 7
+  DOCKER_NAMESPACE: gioxa
+  GIT_CACHE_STRATEGY: pull
+  ODAGRUN_POD_SIZE: micro
+  
+# append to base image the base for our application
+build_base:
+  image: gioxa/imagebuilder-c7
+  stage: build
+  retry: 1
+  variables:
+    ODAGRUN_POD_SIZE: medium
+    GIT_CACHE_STRATEGY: push-pull
+    WORK_SPACES: |
+          - name: repocache C${DISTRO_RELEASE}
+            key: x86_64
+            scope: global
+            path:
+              - cache/yum/x86_64/$DISTRO_RELEASE/base
+              - cache/yum/x86_64/$DISTRO_RELEASE/updates
+            strategy: push-pull
+            threshold:
+              path:
+                - cache/yum/x86_64/$DISTRO_RELEASE/base/packages/*.rpm
+                - cache/yum/x86_64/$DISTRO_RELEASE/updates/packages/*.rpm
+  script:
+    - export OS_CONFIG=make_os.conf
+    - make_os
+    - registry_push --rootfs --ISR --reference=$CI_PIPELINE_ID --config=docker_config.yml
+  tags:
+    - odagrun
+
+test_fpm:
+  image: ImageStream:$CI_PIPELINE_ID
+  stage: test
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - echo $PATH
+    - uname -a
+    - rpmbuild --version
+  tags:
+    - odagrun
+ 
+# push image to registry with tag
+push-image-tags:
+  stage: deploy
+  image: scratch
+  environment: production
+  script:
+     # get ODAGRUN_IMAGE_VERSION from artifacts
+      # process DockerHub long description: full_description.md.in
+     - copy --to_var=DOCKER_CONFIG_YML --from_file=docker_config.yml
+     - copy --to_var=MAKE_OS_CONF --from_file=make_os.conf
+     - copy --to_var=ODAGRUN_IMAGE_DESCRIPTION --substitute --from_file=./full_description.md.in
+     - >-
+        DockerHub_set_description
+        --allow-fail
+        --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME
+        --set-private=no
+     - >-
+        registry_push
+        --from_ISR --from_reference=$CI_PIPELINE_ID
+        --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$ODAGRUN_SHORT_DATE
+        --skip_label
+     - >-
+        registry_tag_image
+        --image=${DOCKER_NAMESPACE}/${ODAGRUN_IMAGE_REFNAME}:${ODAGRUN_SHORT_DATE}
+        --tag=latest
+     - MicroBadger_Update  --allow-fail --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME
+  only:
+    - master
+  tags:
+     - odagrun
+ 
+cleanup:
+  image: scratch
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+  script:
+   - ImageStream_delete --name="" --allow-fail
+  stage: cleanup
+  allow_failure: true
+  when: always
+  tags:
+     - odagrun
+
+

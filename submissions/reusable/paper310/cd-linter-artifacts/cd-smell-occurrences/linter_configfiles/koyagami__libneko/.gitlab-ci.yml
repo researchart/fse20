@@ -1,0 +1,76 @@
+variables:
+  PYPI_USER: SECURE
+  PYPI_PASSWORD: SECURE
+  CI_PUSH_TOKEN: SECURE
+  DOCKER_DRIVER: overlay2
+
+stages:
+  - testing
+  - pypi
+  - pages
+  
+before_script:
+  - bash scripts/ci-before-script.sh
+
+"Test in Python3.6":
+  image: python:3.6
+  stage: testing
+  script:
+    - bash scripts/unit-test.sh
+  allow_failure: false
+  #except:
+  #  - /\d+\.\d+\.\d+[A-Za-z0-9]*/
+  
+"Test in Python3.7":
+  image: python:3.7
+  stage: testing
+  script:
+    - bash scripts/unit-test.sh
+  allow_failure: false
+  #except:
+  #  - /\d+\.\d+\.\d+[A-Za-z0-9]*/
+
+"Install from GitLab":
+  image: python:3
+  stage: testing
+  before_script:
+    - pip install virtualenv
+    - mkdir test
+    - cd test    
+    - python -m venv .venv-test
+    - source .venv-test/bin/activate
+  script:
+    - pip install -U git+https://github.com/rapptz/discord.py@rewrite
+    - pip install -U git+https://gitlab.com/koyagami/libneko
+  allow_failure: false
+  only:
+    - master
+    - /\d+\.\d+\.\d+[A-Za-z0-9]*/
+    
+pages:
+  image: python:3.6
+  stage: pages
+  script:
+    - bash scripts/generate-docs.sh
+  artifacts:
+    paths:
+      - public
+  allow_failure: false
+  only:
+    - master
+    - /\d+\.\d+\.\d+[A-Za-z0-9]*/
+
+"Black and PyPi":
+  stage: pypi
+  image: python:3.7
+  script:
+    - pip install black
+    - black libneko --py36 -S -l 100
+    - bash scripts/pypi-deploy.sh
+  after_script:
+    - bash scripts/pypi-tidyup.sh
+  allow_failure: false
+  only:
+    - /\d+\.\d+\.\d+[A-Za-z0-9]*/
+
+

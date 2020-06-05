@@ -1,0 +1,9 @@
+compile_pdf:
+    image: aergus/latex
+    script:
+        - make pdf
+    artifacts:
+        paths:
+            - thesis.pdf
+
+

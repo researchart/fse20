@@ -1,0 +1,10 @@
+image: node:7.10.0
+
+build_checker:
+  script:
+   - npm install
+  only:
+   - branches
+  except:
+   - master
+

@@ -1,0 +1,14 @@
+image: python:2.7
+
+stages:
+ - test
+
+before_script:
+  - "pip install -U platformio"
+  - "platformio lib -g install USB-Host-Shield-20"
+
+job:
+  stage: test
+  script: "platformio run"
+  variables: {PLATFORMIO_CI_SRC: "src/main.cpp"}
+

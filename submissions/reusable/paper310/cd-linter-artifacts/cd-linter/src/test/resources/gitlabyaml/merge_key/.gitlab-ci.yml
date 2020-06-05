@@ -1,0 +1,34 @@
+.job_template: &job_definition
+  retry: 1
+
+.job_template2: &job_definition2
+  allow_failure: true
+  when: manual
+
+.postgres_services:
+  services: &postgres_definition
+    - postgres
+    - ruby
+
+.mysql_services:
+  services: &mysql_definition
+    - mysql
+    - ruby
+
+test:postgres:
+  <<: *job_definition
+  <<: *job_definition2
+  script:
+    - blabla
+  services: *postgres_definition
+
+test:mysql:
+  <<: *job_definition
+  script:
+    - blabla
+  services: *mysql_definition
+  retry: 0
+
+test:sqlite:
+  script: hello
+  allow_failure: true

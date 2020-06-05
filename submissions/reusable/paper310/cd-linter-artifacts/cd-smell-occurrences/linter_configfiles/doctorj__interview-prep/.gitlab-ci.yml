@@ -1,0 +1,15 @@
+before_script:
+  - pip install -r requirements.txt
+
+test:3.4:
+  image: python:3.4
+  script: ./runtests
+
+test:3.5:
+  image: python:3.5
+  script: ./runtests
+
+test:3.6:
+  image: python:3.6
+  script: ./runtests
+

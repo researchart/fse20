@@ -1,0 +1,36 @@
+before_script:
+  - rm -rf ~/.rustup
+  - rm -rf ~/.cargo
+  - rm -rf ~/.nvm
+  - export PATH=~/.cargo/bin:${PATH}
+  - export PATH=~/.nvm/versions/node/v10.4.0/bin:${PATH}
+  - echo 'export PATH="${HOME}/.cargo/bin:$PATH"' >> ~/.profile
+  - echo 'export PATH="${HOME}/.nvm/versions/node/v10.4.0/bin:${PATH}"' >> ~/.profile
+  - sh -c "{  mv ${CI_PROJECT_DIR}/.cache/.rustup ~/.rustup && mv ${CI_PROJECT_DIR}/.cache/.cargo ~/.cargo ; } || ./scripts/fetch-rust.sh"
+  - ln -sf ~/.rustup ~/.multirust
+  - which cargo-web || cargo install cargo-web
+  - mv ${CI_PROJECT_DIR}/.cache/.nvm ~/.nvm || ./scripts/fetch-node.sh
+  - mkdir -p ${CI_PROJECT_DIR}/.cache
+  - cp -rf ~/.rustup ${CI_PROJECT_DIR}/.cache/.rustup
+  - cp -rf ~/.cargo ${CI_PROJECT_DIR}/.cache/.cargo
+  - cp -rf ~/.nvm ${CI_PROJECT_DIR}/.cache/.nvm
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - ${CI_PROJECT_DIR}/.cache/.rustup/
+    - ${CI_PROJECT_DIR}/.cache/.cargo/
+    - ${CI_PROJECT_DIR}/.cache/.nvm/
+    - ${CI_PROJECT_DIR}/target/
+    - ${CI_PROJECT_DIR}/web/target/
+
+test:
+  script:
+    - rustup --version
+    - cargo --version
+    - rustc --version
+    - cargo web --version
+    - node --version
+    - cargo test
+    - pushd web && cargo web test --release --nodejs && popd
+

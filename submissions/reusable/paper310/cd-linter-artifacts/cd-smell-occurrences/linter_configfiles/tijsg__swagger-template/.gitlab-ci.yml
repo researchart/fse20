@@ -1,0 +1,53 @@
+stages:
+- test
+- build
+- deploy
+
+test:
+  stage: test
+  image: ruby:alpine
+  tags:
+  - docker
+  script:
+  - echo "Checking Swagger YAML syntax for all .yaml files in folder"
+  - for i in $(find . -type f -name "*.yaml"); do echo "Checking file $i"; ruby -e "require 'yaml'; puts YAML.load_file('$i')" > /dev/null; done
+
+build:
+  stage: build
+  image: tijsg/java-plantuml
+  tags:
+  - docker
+  script:
+  - pwd
+  - ls
+  - mkdir public
+  - for i in $(find . -type f -name "*.txt"); do java -jar /plantuml.jar $i -o public; done
+  - java -jar /plantuml.jar test.txt -o public
+  - ls public
+  artifacts:
+    paths:
+    - public
+
+pages:
+  stage: deploy
+  image: tijsg/alpine-git-swaggerui
+  tags:
+  - docker
+  script:
+  - mv /swagger-ui/dist/index.html /swagger-ui/dist/swagger.html
+  - rm -f /swagger-ui/dist/favicon-16x16.png
+  - rm -f /swagger-ui/dist/favicon-32x32.png
+  - cp -a /swagger-ui/dist/. public
+  - cp index.html public
+  - for i in $(find . -type f -name "*.yaml"); do cp $i public; done
+  - cd public
+  - echo "<h2>Service contracts</h2><ul>" >> contracts.html
+  - for i in $(find . -type f -name "*.yaml" -exec basename {} \;); do echo "<li><a href=swagger.html?url=$i target="_blank">$i</a></li>" >> contracts.html; done
+  - echo "</ul>" >> contracts.html
+  - echo "<h2>UML Diagrams</h2><ul>" >> uml.html
+  - for i in $(find . -type f -name "*.png" -exec basename {} \;); do echo "<li><a href=$i target="_blank">$i</a></li>" >> uml.html; done
+  - echo "</ul>" >> uml.html
+  artifacts:
+    paths:
+    - public
+

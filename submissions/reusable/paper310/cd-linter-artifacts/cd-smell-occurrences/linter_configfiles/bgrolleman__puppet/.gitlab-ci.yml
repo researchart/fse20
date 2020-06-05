@@ -1,0 +1,28 @@
+# Usefull info http://doc.gitlab.com/ce/ci/yaml/README.html
+# 
+# Most of the requirements should be in the docker image to speed up builds
+before_script:
+  - export PATH=$HOME/bin:/usr/local/bundle/bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  - gem install puppet -v 3.8.4
+  - gem install puppetlabs_spec_helper puppet-lint facter rake r10k
+  - gem environment
+  - r10k puppetfile check
+  - r10k puppetfile install
+
+stages:
+  - all
+
+all_job:
+  stage: all
+  tags:
+    - ruby
+  script:
+    - rake validate_puppet_code
+    - rake validate_ruby_code
+    - rake validate_erb_code
+    - cd site/profile
+    - rake lint
+    - rake spec
+
+
+

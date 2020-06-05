@@ -1,0 +1,24 @@
+image: node:6
+
+cache:
+  key: 'gitlab-label-bot'
+  paths:
+    - node_modules/
+
+before_script:
+  - npm config set loglevel warn
+  - npm install --quiet
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - npm test
+
+lint:
+  stage: test
+  script:
+    - ./node_modules/.bin/tslint -- "src/**/*.ts"
+

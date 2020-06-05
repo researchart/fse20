@@ -1,0 +1,119 @@
+image: mcr.microsoft.com/dotnet/core/sdk:latest
+
+stages:
+  - restore
+  - build
+  - test
+  - deploy
+
+restore:
+  stage: restore
+  script:
+    - dotnet restore --packages .nuget/packages -warnaserror
+    - if [ ! -f .nuget/reportgenerator ]; then
+        dotnet tool install --tool-path .nuget dotnet-reportgenerator-globaltool;
+      fi
+  artifacts:
+    paths:
+      - src/*/obj
+      - tests/*/obj
+  cache:
+    key: "$CI_PROJECT_ID"
+    paths:
+      - .nuget
+
+build:
+  stage: build
+  script: dotnet build --no-restore -warnaserror
+  dependencies:
+    - restore
+  artifacts:
+    paths:
+      - src/*/bin
+      - src/*/obj
+      - tests/*/bin
+      - tests/*/obj
+  cache:
+    key: "$CI_PROJECT_ID"
+    paths:
+      - .nuget
+    policy: pull
+
+pack:
+  stage: build
+  script: dotnet pack --no-restore -c Release -warnaserror
+  dependencies:
+    - restore
+  artifacts:
+    paths:
+      - src/*/bin/Release/*.nupkg
+  cache:
+    key: "$CI_PROJECT_ID"
+    paths:
+      - .nuget
+    policy: pull
+
+test:
+  stage: test
+  script:
+    - dotnet test --no-build tests/Jita.Tests -p:CollectCoverage=true -p:Include='[Jita]*' -p:ExcludeByFile='**/obj/**.cs'
+    - dotnet test --no-build tests/Jita.Expressions.Tests -p:CollectCoverage=true -p:Include='[Jita.Expressions]*:[Jita.Expressions.Float]*:[Jita.Expressions.Vector]*' -p:ExcludeByFile='**/obj/**.cs' -p:CoverletOutputFormat=opencover -p:MergeWith=$CI_PROJECT_DIR/tests/Jita.Tests/coverage.json
+    - .nuget/reportgenerator -reports:tests/Jita.Expressions.Tests/coverage.opencover.xml -targetdir:public/coverage
+  coverage: '/\| Total +\| ([0-9.]+)% +\|/'
+  dependencies:
+    - build
+  artifacts:
+    paths:
+      - public/
+  cache:
+    key: "$CI_PROJECT_ID"
+    paths:
+      - .nuget
+    policy: pull
+
+benchmark:
+  stage: test
+  script:
+    - dotnet run --no-restore -c Release -p tests/Jita.Benchmarks -- -e html -f '*'
+    - mkdir -p public/benchmark
+    - cp BenchmarkDotNet.Artifacts/results/Jita.Benchmarks.RootBenchmark-report.html public/benchmark/index.html
+    - >
+      awk -F'"' -v OFS='' '{ for (i = 2; i <= NF; i += 2) gsub(",", "", $i) } 1' BenchmarkDotNet.Artifacts/results/Jita.Benchmarks.RootBenchmark-report.csv |
+      awk -F, 'BEGIN { printf "{" } NR>1 { gsub(" .*", "", $44); if ($43 == "Double") baseline = $44; else printf ","; printf " \"%s\": \"%.2fx\"", $43, $44 / baseline } END { printf " }" }' > public/benchmark/results.json
+  dependencies:
+    - restore
+  artifacts:
+    paths:
+      - publish/
+  cache:
+    key: "$CI_PROJECT_ID"
+    paths:
+      - .nuget
+    policy: pull
+
+pages:
+  stage: deploy
+  script: "true"
+  dependencies:
+    - test
+    - benchmark
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+nuget:
+  stage: deploy
+  script: echo src/*/bin/Release/*.nupkg | xargs -n1 dotnet nuget push --api-key $NUGET_API_KEY --source https://nuget.org
+  dependencies:
+    - pack
+  only:
+    - tags
+  cache:
+    key: "$CI_PROJECT_ID"
+    paths:
+      - .nuget
+    policy: pull
+
+

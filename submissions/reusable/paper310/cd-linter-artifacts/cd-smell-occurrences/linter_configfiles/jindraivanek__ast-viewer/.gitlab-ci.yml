@@ -1,0 +1,51 @@
+image: docker:stable
+services:
+  - docker:dind
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+
+before_script:
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+stages:
+  - build
+  - deploy
+  - deploy-azure
+
+build:
+  stage: build
+  script:
+    - docker build -f build.Dockerfile -t $IMAGE_TAG .
+  only:
+    - merge_requests
+
+pages:
+  stage: deploy
+  script:
+    - docker build -f build.Dockerfile -t $IMAGE_TAG .
+    # copy client files from docker image to public dir
+    - id=$(docker run -d -i $IMAGE_TAG bash)
+    - docker cp $id:/build/public public
+    - docker stop $id
+    - docker rm -v $id
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+
+azure:
+  stage: deploy-azure
+  script:
+    - docker build -f deploy.Dockerfile -t $IMAGE_TAG --build-arg AZ_PASS=$SECRET_AZ_PASS --build-arg AZ_USER=$SECRET_AZ_USER --build-arg AZ_TENANT=$SECRET_AZ_TENANT --build-arg AZ_RESOURCEGROUP=$SECRET_AZ_RESOURCEGROUP --build-arg AZ_FUNCTIONNAME=$SECRET_AZ_FUNCTIONNAME .
+  only:
+    refs:
+      - master
+    changes:
+      - src/Server/**
+      - paket.lock
+

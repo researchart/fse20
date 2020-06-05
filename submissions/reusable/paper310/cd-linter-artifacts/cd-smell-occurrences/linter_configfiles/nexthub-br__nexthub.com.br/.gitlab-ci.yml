@@ -1,0 +1,12 @@
+image: alpine
+
+pages:
+  stage: deploy
+  script:
+  - ls public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,116 @@
+image: fedora:latest
+
+cache:
+  key: dnf-cache
+  paths:
+    - dnf-cache/
+
+variables:
+  YUMDNF: dnf
+  EXTRA_REPO_INST_COMMAND: /bin/true
+  EXTRA_REPO_CONFIGURE_COMMAND: /bin/true
+  JPEG_PACKAGE: "pkgconfig(libjpeg)"
+  CMAKE_PACKAGE: "/usr/bin/cmake"
+  DEPENDENCY_PACKAGES: "pkgconfig(openal) pkgconfig(sdl2) pkgconfig(glu) pkgconfig(libpng) pkgconfig(vorbis) pkgconfig(vorbisfile) pkgconfig(ogg) pkgconfig(jsoncpp)"
+  COMMON_PACKAGES: "$COMPILER_PACKAGES $CMAKE_PACKAGE make $DEPENDENCY_PACKAGES $JPEG_PACKAGE"
+
+before_script:
+  - $EXTRA_REPO_INST_COMMAND
+  - $EXTRA_REPO_CONFIGURE_COMMAND
+  - $YUMDNF --setopt=cachedir=`pwd`/${YUMDNF}-cache --quiet --assumeyes install $COMMON_PACKAGES
+
+build_oldgcc:
+  image: centos:7
+  cache:
+    key: yum-cache
+    paths:
+      - yum-cache/
+  variables:
+    YUMDNF: yum
+    EXTRA_REPO_INST_COMMAND: "yum --setopt=cachedir=`pwd`/yum-cache --quiet --assumeyes install epel-release yum-utils"
+    EXTRA_REPO_CONFIGURE_COMMAND: "yum-config-manager --enable cr"
+    JPEG_PACKAGE: "libjpeg-devel"
+    CMAKE_PACKAGE: "/usr/bin/cmake3"
+    COMPILER_PACKAGES: "gcc gcc-c++"
+  stage: build
+  script:
+    - export CC=gcc; export CXX=g++
+    - mkdir -p x86_64-linux-gnu-oldgcc oldgcc-build; cd x86_64-linux-gnu-oldgcc
+    - cmake3 .. -DCMAKE_INSTALL_PREFIX=/builds/${CI_PROJECT_PATH}/oldgcc-build
+    - make -j4; make install
+  artifacts:
+    expire_in: 14d
+    paths:
+      - ./oldgcc-build
+  tags:
+    - shared
+
+build_gcc:
+  stage: build
+  variables:
+    COMPILER_PACKAGES: "gcc gcc-c++"
+  script:
+    - export CC=gcc; export CXX=g++
+    - mkdir -p x86_64-linux-gnu-gcc gcc-build; cd x86_64-linux-gnu-gcc
+    - cmake .. -DCMAKE_INSTALL_PREFIX=/builds/${CI_PROJECT_PATH}/gcc-build
+    - make -j4; make install
+  artifacts:
+    expire_in: 14d
+    paths:
+      - ./gcc-build
+  tags:
+    - shared
+
+build_clang:
+  stage: build
+  variables:
+    COMPILER_PACKAGES: "clang"
+  script:
+    - export CC=clang; export CXX=clang++
+    - mkdir -p x86_64-linux-gnu-clang clang-build; cd x86_64-linux-gnu-clang
+    - cmake .. -DCMAKE_INSTALL_PREFIX=/builds/${CI_PROJECT_PATH}/clang-build
+    - make -j4; make install
+  artifacts:
+    expire_in: 14d
+    paths:
+      - ./clang-build
+  tags:
+    - shared
+
+build_mingw32:
+  stage: build
+  variables:
+    COMPILER_PACKAGES: "mingw32-gcc mingw32-gcc-c++ mingw32-binutils mingw32-headers"
+    DEPENDENCY_PACKAGES: "mingw32-libjpeg-turbo mingw32-libpng mingw32-SDL2 mingw32-libvorbis mingw32-libogg mingw32-openal-soft mingw32-jsoncpp"
+  script:
+    - export PKG_CONFIG_LIBDIR="/usr/i686-w64-mingw32/sys-root/mingw/lib/pkgconfig:/usr/i686-w64-mingw32/sys-root/mingw/share/pkgconfig"
+    - export PATH=/usr/i686-w64-mingw32/bin:$PATH
+    - mkdir -p i686-w64-mingw32 mingw32-build; cd i686-w64-mingw32
+    - cmake .. -DCMAKE_TOOLCHAIN_FILE=/usr/share/mingw/toolchain-mingw32.cmake -DCMAKE_INSTALL_PREFIX=/builds/${CI_PROJECT_PATH}/mingw32-build
+    - make -j4; make install
+  artifacts:
+    expire_in: 14d
+    paths:
+      - ./mingw32-build
+  tags:
+    - shared
+
+build_mingw64:
+  stage: build
+  variables:
+    COMPILER_PACKAGES: "mingw64-gcc mingw64-gcc-c++ mingw64-binutils mingw64-headers"
+    DEPENDENCY_PACKAGES: "mingw64-libjpeg-turbo mingw64-libpng mingw64-SDL2 mingw64-libvorbis mingw64-libogg mingw64-openal-soft mingw64-jsoncpp"
+  script:
+    - export PKG_CONFIG_LIBDIR="/usr/x86_64-w64-mingw32/sys-root/mingw/lib/pkgconfig:/usr/x86_64-w64-mingw32/sys-root/mingw/share/pkgconfig"
+    - export PATH=/usr/x86_64-w64-mingw32/bin:$PATH
+    - mkdir -p x86_64-w64-mingw32 mingw64-build; cd x86_64-w64-mingw32
+    - cmake .. -DCMAKE_TOOLCHAIN_FILE=/usr/share/mingw/toolchain-mingw64.cmake -DCMAKE_INSTALL_PREFIX=/builds/${CI_PROJECT_PATH}/mingw64-build
+    - make -j4; make install
+  artifacts:
+    expire_in: 14d
+    paths:
+      - ./mingw64-build
+  tags:
+    - shared
+
+

@@ -1,0 +1,97 @@
+image: alpine:latest
+
+before_script:
+  - apk add --update bash curl wget aria2
+  - chmod +x linux_downloader.sh
+
+all_test:
+  script:
+    - ./linux_downloader.sh --test &> test.log
+  artifacts:
+    paths:
+      - test.log
+    when: always
+    expire_in: 1 week
+
+all_torrent:
+  script:
+    - ./linux_downloader.sh &> torrent.log
+  artifacts:
+    paths:  
+      - torrent.log
+    when: always
+    expire_in: 1 week
+
+archlinux_iso:
+  script:
+    - ./linux_downloader.sh --test --iso --archlinux
+    - ./linux_downloader.sh --iso --aria 5 --archlinux
+
+archlinux_torrent:
+  script:
+    - ./linux_downloader.sh --test --archlinux
+
+centos_iso:
+  script:
+    - ./linux_downloader.sh --test --iso --centos
+    - ./linux_downloader.sh --iso --aria 5 --centos
+
+centos_torrent:
+  script:
+    - ./linux_downloader.sh --test --centos
+
+debian_iso:
+  script:
+    - ./linux_downloader.sh --test --iso --debian
+    - ./linux_downloader.sh --iso --aria 5 --debian
+
+debian_torrent:
+  script:
+    - ./linux_downloader.sh --test --debian
+
+fedora_iso:
+  script:
+    - ./linux_downloader.sh --test --iso --fedora
+    - ./linux_downloader.sh --iso --aria 5 --fedora
+
+fedora_torrent:
+  script:
+    - ./linux_downloader.sh --test --fedora
+
+kali_iso:
+  script:
+    - ./linux_downloader.sh --test --iso --kali
+    - ./linux_downloader.sh --iso --aria 5 --kali
+
+kali_torrent:
+  script:
+    - ./linux_downloader.sh --test --kali
+
+opensuse_iso:
+  script:
+    - ./linux_downloader.sh --test --iso --opensuse
+    - ./linux_downloader.sh --iso --aria 5 --opensuse
+
+opensuse_torrent:
+  script:
+    - ./linux_downloader.sh --test --opensuse
+  
+tumbleweed_iso:
+  script:
+    - ./linux_downloader.sh --test --iso --tumbleweed
+    - ./linux_downloader.sh --iso --aria 5 --tumbleweed
+
+tumbleweed_torrent:
+  script:
+    - ./linux_downloader.sh --test --tumbleweed
+
+ubuntu_iso:
+  script:
+    - ./linux_downloader.sh --test --iso --ubuntu
+    - ./linux_downloader.sh --iso --aria 5 --ubuntu
+
+ubuntu_torrent:
+  script:
+    - ./linux_downloader.sh --test --ubuntu
+
+

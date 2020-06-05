@@ -1,0 +1,22 @@
+image: mgoral/super-ci-runner:latest
+
+before_script:
+    - pip install virtualenv tox
+    - ./configure --skip-deps-check --no-install-man
+
+build:
+    script:
+        - make
+        - make install
+        - make uninstall
+
+test:
+    script:
+        - make check-tox
+
+test-docs:
+    script:
+        - make man
+        - make install-man
+        - make uninstall-man
+

@@ -1,0 +1,172 @@
+style_check:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  script:
+    - pycodestyle d3m
+
+type_check:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  script:
+    - mypy d3m
+
+tests:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    DOCKER_HOST: tcp://docker:2375
+
+  script:
+    - sed -i "s/__version__ = 'devel'/__version__ = '1970.1.1'/" d3m/__init__.py
+    - python3 setup.py sdist
+    - pip3 install $(ls dist/*)
+    - rm -rf d3m d3m.*
+    - pip3 freeze
+    - pip3 check
+    - python3 ./run_tests.py
+
+tests_oldest_dependencies:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    DOCKER_HOST: tcp://docker:2375
+
+  script:
+    - sed -i "s/__version__ = 'devel'/__version__ = '1970.1.1'/" d3m/__init__.py
+    - python3 setup.py sdist
+    - pip3 install $(ls dist/*)
+    - rm -rf d3m d3m.*
+    - ./oldest_dependencies.py | pip3 install --upgrade --upgrade-strategy only-if-needed --exists-action w --requirement /dev/stdin
+    - pip3 freeze
+    - pip3 check
+    - python3 ./run_tests.py
+
+benchmarks:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    DOCKER_HOST: tcp://docker:2375
+
+  script:
+    - ./run_benchmarks.sh
+
+test_datasets:
+  stage: build
+
+  tags:
+    - datasets
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+    - git -C /data/datasets show -s
+    - git -C /data/datasets_public show -s
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    DOCKER_HOST: tcp://docker:2375
+
+  script:
+    - sed -i "s/__version__ = 'devel'/__version__ = '1970.1.1'/" d3m/__init__.py
+    - python3 setup.py sdist
+    - pip3 install $(ls dist/*)
+    - rm -rf d3m
+    - find /data/datasets -name datasetDoc.json -print0 | xargs -r -0 python3 -m d3m dataset describe --continue --list --time
+    - find /data/datasets_public -name datasetDoc.json -print0 | xargs -r -0 python3 -m d3m dataset describe --continue --list --time
+    - find /data/datasets -name problemDoc.json -print0 | xargs -r -0 python3 -m d3m problem describe --continue --list --no-print
+    - find /data/datasets_public -name problemDoc.json -print0 | xargs -r -0 python3 -m d3m problem describe --continue --list --no-print
+
+run_check:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  script:
+    - sed -i "s/__version__ = 'devel'/__version__ = '1970.1.1'/" d3m/__init__.py
+    - python3 setup.py sdist
+    - pip3 install $(ls dist/*)
+    - rm -rf d3m d3m.*
+    - python3 -m d3m index discover
+
+pages:
+  stage: deploy
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  script:
+    - |
+      set -o errexit
+      if [[ ${CI_COMMIT_TAG} == v* ]] || [[ ${CI_COMMIT_REF_NAME} == devel ]]; then
+        ./site/build_site.sh
+        git checkout devel
+        python3 site/build_site_types.py
+      fi
+
+  artifacts:
+    paths:
+      - public
+
+  only:
+    - devel
+    - tags
+
+trigger_images_rebuild:
+  stage: deploy
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  script:
+    # This triggers a pipeline in https://gitlab.com/datadrivendiscovery/images
+    - if [ -n "$TRIGGER_TOKEN" ]; then curl --fail -X POST -F token=$TRIGGER_TOKEN -F ref=master -F variables[REBUILD_IMAGE]=core:ubuntu-bionic-python36-devel https://gitlab.com/api/v4/projects/5024100/trigger/pipeline; fi
+
+  only:
+    - devel
+
+trigger_docs_generation:
+  stage: deploy
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  script:
+    # This triggers a pipeline in https://gitlab.com/datadrivendiscovery/docs
+    - if [ -n "$DOCS_TRIGGER_TOKEN" ]; then curl --fail -X POST -F token=$DOCS_TRIGGER_TOKEN -F ref=master https://gitlab.com/api/v4/projects/7130595/trigger/pipeline; fi
+
+  only:
+    - devel
+    - tags
+

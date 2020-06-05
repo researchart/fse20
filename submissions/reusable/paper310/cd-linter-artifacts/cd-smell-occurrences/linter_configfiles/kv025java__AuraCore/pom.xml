@@ -1,0 +1,646 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>academy.softserve</groupId>
+    <artifactId>AuraCore</artifactId>
+    <packaging>${packaging.type}</packaging>
+    <version>1.0.0</version>
+    <name>Aura Core</name>
+
+    <properties>
+        <packaging.type>jar</packaging.type>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>1.8</java.version>
+        <spring.version>4.3.8.RELEASE</spring.version>
+        <spring.security.version>4.2.2.RELEASE</spring.security.version>
+        <spring.data.jpa.version>1.11.1.RELEASE</spring.data.jpa.version>
+        <org.slf4j.version>1.7.25</org.slf4j.version>
+        <javax.servlet.version>3.1.0</javax.servlet.version>
+        <jackson.dataformat.xml.version>2.8.8</jackson.dataformat.xml.version>
+        <junit.version>4.12</junit.version>
+        <org.mockito.version>1.10.19</org.mockito.version>
+        <tomcat7.maven.plugin.version>2.2</tomcat7.maven.plugin.version>
+        <maven.compiler.plugin.version>3.6.1</maven.compiler.plugin.version>
+        <maven.resources.plugin.version>3.0.2</maven.resources.plugin.version>
+        <maven.war.plugin.version>3.1.0</maven.war.plugin.version>
+        <maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
+        <swagger.core.version>1.5.13</swagger.core.version>
+        <swagger.plugin.version>2.2.2</swagger.plugin.version>
+        <swagger.springfox.version>2.7.0</swagger.springfox.version>
+        <jersey-version>2.25.1</jersey-version>
+        <jackson.version>2.8.9</jackson.version>
+        <migbase64.version>2.2</migbase64.version>
+        <joda.time.version>2.9.9</joda.time.version>
+        <swagger.yaml.file>${basedir}/swagger/swagger.yaml</swagger.yaml.file>
+        <hibernate.version>5.2.10.Final</hibernate.version>
+        <hibernate.validator.version>5.2.5.Final</hibernate.validator.version>
+        <hibernate.jpa.2.1.api.version>1.0.0.Final</hibernate.jpa.2.1.api.version>
+        <javax.validation.api.version>1.1.0.Final</javax.validation.api.version>
+        <javax.el.api.version>3.0.1-b04</javax.el.api.version>
+        <mapstruct.processor.version>1.2.0.Beta2</mapstruct.processor.version>
+        <liquibase.version>3.5.3</liquibase.version>
+        <liquibase.plugin.version>3.5.3</liquibase.plugin.version>
+        <liquibase.hibernate.extension.version>3.6</liquibase.hibernate.extension.version>
+        <postgre.driver.version>42.1.1</postgre.driver.version>
+        <mapstruct.version>1.2.0.Beta3</mapstruct.version>
+        <hsqldb.version>2.4.0</hsqldb.version>
+        <jacoco.version>0.7.9</jacoco.version>
+        <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
+        <sonar.jacoco.reportPaths>${basedir}/target/coverage-reports/jacoco-unit.exec</sonar.jacoco.reportPaths>
+        <sonar.junit.reportsPath>${basedir}/target/surefire-reports</sonar.junit.reportsPath>
+        <jetty.server.version>9.4.5.v20170502</jetty.server.version>
+        <httpclient.version>4.5.3</httpclient.version>
+        <powermock.version>1.7.0</powermock.version>
+        <kafka.version>0.11.0.0</kafka.version>
+        <zookeeper.version>3.4.5</zookeeper.version>
+        <jjwt.version>0.7.0</jjwt.version>
+    </properties>
+    <profiles>
+        <!-- Main AuraCore profile -->
+        <profile>
+        <id>AuraCoreServer</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+                <property>
+                    <name>swagger</name>
+                    <value>server</value>
+                </property>
+            </activation>
+            <properties>
+                <packaging.type>war</packaging.type>
+            </properties>
+            <build>
+                <plugins>
+                    <!-- War plugin-->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-war-plugin</artifactId>
+                        <version>${maven.war.plugin.version}</version>
+                        <configuration>
+                            <goal>war</goal>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+    </profile>
+        <!--Karma Client Api profile -->
+    <profile>
+        <id>KarmaClientAPI</id>
+            <activation>
+                <property>
+                    <name>swagger</name>
+                    <value>client</value>
+                </property>
+            </activation>
+            <properties>
+                <packgaing.type>jar</packgaing.type>
+            </properties>
+        <build>
+            <plugins>
+                <!--Swagger codegen plugin -->
+                <plugin>
+                    <groupId>io.swagger</groupId>
+                    <artifactId>swagger-codegen-maven-plugin</artifactId>
+                    <version>${swagger.plugin.version}</version>
+                    <executions>
+                        <!-- Client side api-->
+                        <execution>
+                            <id>clientApi</id>
+                            <goals>
+                                <goal>generate</goal>
+                            </goals>
+                            <configuration>
+                                <inputSpec>${swagger.yaml.file}</inputSpec>
+                                <language>java</language>
+                                <configOptions>
+                                    <library>jersey2</library>
+                                    <dateLibrary>java8</dateLibrary>
+                                </configOptions>
+                                <apiPackage>academy.softserve.karma.client</apiPackage>
+                                <modelNameSuffix>Dto</modelNameSuffix>
+                                <modelPackage>academy.softserve.karma.model</modelPackage>
+                                <ignoreFileOverride>.swagger-codegen-ignore</ignoreFileOverride>
+                                <addCompileSourceRoot>true</addCompileSourceRoot>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- JAR plugin to generate lib -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>${maven.jar.plugin.version}</version>
+                    <configuration>
+                        <classifier>AuraClientApi</classifier>
+                       <includes>
+                           <include>
+                               **/karma/**
+                           </include>
+                       </includes>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </build>
+    </profile>
+
+    <profile>
+        <id>PythonClientAPI</id>
+        <activation>
+            <property>
+                <name>swagger</name>
+                <value>pclient</value>
+            </property>
+        </activation>
+        <properties>
+            <packgaing.type>jar</packgaing.type>
+        </properties>
+        <build>
+            <plugins>
+                <!--Swagger codegen plugin -->
+                <plugin>
+                    <groupId>io.swagger</groupId>
+                    <artifactId>swagger-codegen-maven-plugin</artifactId>
+                    <version>${swagger.plugin.version}</version>
+                    <executions>
+                        <!-- Client side api-->
+                        <execution>
+                            <id>clientApi</id>
+                            <goals>
+                                <goal>generate</goal>
+                            </goals>
+                            <configuration>
+                                <inputSpec>${swagger.yaml.file}</inputSpec>
+                                <language>python</language>
+                                <apiPackage>academy.softserve.karma.client</apiPackage>
+                                <modelNameSuffix>Dto</modelNameSuffix>
+                                <modelPackage>academy.softserve.karma.model</modelPackage>
+                                <ignoreFileOverride>.swagger-codegen-ignore</ignoreFileOverride>
+                                <addCompileSourceRoot>true</addCompileSourceRoot>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </build>
+    </profile>
+    </profiles>
+
+    <dependencies>
+        <!-- Spring -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-core</artifactId>
+            <version>${spring.security.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-config</artifactId>
+            <version>${spring.security.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-web</artifactId>
+            <version>${spring.security.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-orm</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+
+        <!--Hibernate-->
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-core</artifactId>
+            <version>${hibernate.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-validator</artifactId>
+            <version>${hibernate.validator.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.hibernate.javax.persistence</groupId>
+            <artifactId>hibernate-jpa-2.1-api</artifactId>
+            <version>${hibernate.jpa.2.1.api.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>javax.validation</groupId>
+            <artifactId>validation-api</artifactId>
+            <version>${javax.validation.api.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>javax.el</groupId>
+            <artifactId>javax.el-api</artifactId>
+            <version>${javax.el.api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-c3p0</artifactId>
+            <version>${hibernate.version}</version>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${org.slf4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>${org.slf4j.version}</version>
+        </dependency>
+
+        <!-- Servlet -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>${javax.servlet.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${org.mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.powermock</groupId>
+            <artifactId>powermock-module-junit4</artifactId>
+            <version>${powermock.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.powermock</groupId>
+            <artifactId>powermock-api-mockito</artifactId>
+            <version>${powermock.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+
+        <dependency>
+            <groupId>org.hsqldb</groupId>
+            <artifactId>hsqldb</artifactId>
+            <version>${hsqldb.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Swagger codegen -->
+        <dependency>
+            <groupId>io.swagger</groupId>
+            <artifactId>swagger-core</artifactId>
+            <version>${swagger.core.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger2</artifactId>
+            <version>${swagger.springfox.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger-ui</artifactId>
+            <version>${swagger.springfox.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!--Swagger Client API dependencies -->
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-client</artifactId>
+            <version>${jersey-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.media</groupId>
+            <artifactId>jersey-media-json-jackson</artifactId>
+            <version>${jersey-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.media</groupId>
+            <artifactId>jersey-media-multipart</artifactId>
+            <version>${jersey-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.jaxrs</groupId>
+            <artifactId>jackson-jaxrs-base</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.jaxrs</groupId>
+            <artifactId>jackson-jaxrs-json-provider</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <!-- Base64 encoding -->
+        <dependency>
+            <groupId>com.brsanthu</groupId>
+            <artifactId>migbase64</artifactId>
+            <version>${migbase64.version}</version>
+        </dependency>
+
+        <!--for xml controller response-->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+            <version>${jackson.dataformat.xml.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>${joda.time.version}</version>
+        </dependency>
+
+        <!-- Liquibase -->
+        <dependency>
+            <groupId>org.liquibase</groupId>
+            <artifactId>liquibase-core</artifactId>
+            <version>${liquibase.version}</version>
+        </dependency>
+
+        <!-- DB -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgre.driver.version}</version>
+        </dependency>
+
+        <!-- tools, etc -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <version>${mapstruct.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!--for integration tests-->
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+            <version>${jetty.server.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-webapp</artifactId>
+            <version>${jetty.server.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <scope>test</scope>
+            <version>${httpclient.version}</version>
+        </dependency>
+
+        <!-- Kafka -->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>${zookeeper.version}</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.tomcat.maven</groupId>
+                <artifactId>tomcat7-maven-plugin</artifactId>
+                <version>${tomcat7.maven.plugin.version}</version>
+                <configuration>
+                    <path>/</path>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>${maven.resources.plugin.version}</version>
+                <configuration>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                </configuration>
+                <executions>
+                    <!--add to avoid creation of new dispatcher servlet by swagger-->
+                    <execution>
+                        <id>copy-resources</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${basedir}/target/generated-sources/swagger</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${basedir}/src/main/resources</directory>
+                                    <includes>
+                                        <include>.swagger-codegen-ignore</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--Swagger codegen plugin -->
+            <plugin>
+                <groupId>io.swagger</groupId>
+                <artifactId>swagger-codegen-maven-plugin</artifactId>
+                <version>${swagger.plugin.version}</version>
+                <executions>
+                    <!-- Server side api-->
+                    <execution>
+                        <id>api</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${swagger.yaml.file}</inputSpec>
+                            <language>spring</language>
+                            <configOptions>
+                                <library>spring-mvc</library>
+                                <dateLibrary>java8</dateLibrary>
+                            </configOptions>
+                            <apiPackage>academy.softserve.aura.core.swagger.controllers</apiPackage>
+                            <modelNameSuffix>Dto</modelNameSuffix>
+                            <modelPackage>academy.softserve.aura.core.swagger.model</modelPackage>
+                            <ignoreFileOverride>.swagger-codegen-ignore</ignoreFileOverride>
+                            <addCompileSourceRoot>true</addCompileSourceRoot>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Liquibase plugin -->
+            <plugin>
+                <groupId>org.liquibase</groupId>
+                <artifactId>liquibase-maven-plugin</artifactId>
+                <version>${liquibase.plugin.version}</version>
+                <configuration>
+                    <changeLogFile>liquibase/changelogs/changelog-main.xml</changeLogFile>
+                    <diffChangeLogFile>liquibase/changelogs/diff-generatedchangelog-${maven.build.timestamp}.xml</diffChangeLogFile>
+                    <propertyFile>liquibase/liquibase.properties</propertyFile>
+                </configuration>
+                <dependencies>
+                    <!--Liquibase Hibernate extension-->
+                    <dependency>
+                        <groupId>org.liquibase.ext</groupId>
+                        <artifactId>liquibase-hibernate5</artifactId>
+                        <version>${liquibase.hibernate.extension.version}</version>
+                    </dependency>
+
+                    <dependency>
+                        <groupId>org.springframework</groupId>
+                        <artifactId>spring-beans</artifactId>
+                        <version>${spring.version}</version>
+                    </dependency>
+
+                    <dependency>
+                        <groupId>org.springframework.data</groupId>
+                        <artifactId>spring-data-jpa</artifactId>
+                        <version>${spring.data.jpa.version}</version>
+                    </dependency>
+
+                    <dependency>
+                        <groupId>javax.validation</groupId>
+                        <artifactId>validation-api</artifactId>
+                        <version>${javax.validation.api.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <phase>site</phase>
+                        <goals>
+                            <goal>update</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <configuration>
+                    <destFile>${basedir}/target/coverage-reports/jacoco-unit.exec</destFile>
+                    <append>true</append>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>jacoco-initialize</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>jacoco-site</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <configuration>
+                            <dataFile>${basedir}/target/coverage-reports/jacoco-unit.exec</dataFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+        <resources>
+            <resource>
+                <directory>target\generated-sources\swagger\src\main\resources</directory>
+            </resource>
+            <resource>
+                <directory>src\main\resources</directory>
+            </resource>
+        </resources>
+    </build>
+</project>
+

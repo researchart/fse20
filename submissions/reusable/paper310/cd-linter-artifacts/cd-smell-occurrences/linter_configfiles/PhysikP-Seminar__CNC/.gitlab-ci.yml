@@ -1,0 +1,17 @@
+image: python:latest
+stages:
+  - build
+  - test
+
+compile:
+  stage: build
+  script:
+    - pip install -r requirements.txt
+    - cd server
+    - python compile-all.py
+
+tests:
+  stage: test
+  script:
+    - echo empty
+

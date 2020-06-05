@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.marcowillemart.eventstore</groupId>
+        <artifactId>eventstore</artifactId>
+        <version>1.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>eventstore-client-embedded</artifactId>
+
+    <name>EventStore Client Embedded</name>
+    <description>
+        Client to access an embedded event store.
+        It can later be turned into a standalone event store.
+    </description>
+
+    <properties>
+        <main.basedir>${project.basedir}/../..</main.basedir>
+    </properties>
+
+    <dependencies>
+        <!-- Common Event -->
+        <dependency>
+            <groupId>com.marcowillemart.common</groupId>
+            <artifactId>common-event</artifactId>
+        </dependency>
+
+        <!-- EventStore Core -->
+        <dependency>
+            <groupId>com.marcowillemart.eventstore</groupId>
+            <artifactId>eventstore-engine</artifactId>
+        </dependency>
+
+        <!-- Common Test -->
+        <dependency>
+            <groupId>com.marcowillemart.common</groupId>
+            <artifactId>common-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>
+

@@ -1,0 +1,46 @@
+image: node:8
+
+cache:
+  paths:
+  - node_modules
+
+stages:
+  - build
+  - deploy
+  
+grunt_build:
+  coverage: /Lines\s*:\s*(\d+\.\d+)%/
+  stage: build
+  only:
+    - master
+    - develop
+  script:
+    - useradd -m -p 123 builder
+    # TODO: maso, 2018: install opera, firefox
+    - apt-get update
+    - apt-get -yq install chromium git zip gzip tar
+    - npm install -g bower grunt-cli
+    - npm install
+    - bower install --allow-root --no-interactive
+    - chmod 777 -fR .
+    - su builder -c "grunt"
+    - find . -name lcov.info | xargs -d '\n' cat | node_modules/.bin/codacy-coverage -t $CODACY_PROJECT_TOKEN
+  artifacts:
+    paths:
+      - ./${CI_PROJECT_NAME}.zip
+      - ./doc
+
+
+marketplace_deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    - useradd -m -p 123 builder
+    - npm install -g bower grunt-cli
+    - npm install
+    - bower install --allow-root --no-interactive
+    - chmod 777 -fR .
+    - su builder -c "grunt build"
+    - curl -F "file=@./${CI_PROJECT_NAME}.zip" http://marketplace.webpich.com/api/v2/marketplace/spas/token-$MARKETPLACE_TOKEN
+

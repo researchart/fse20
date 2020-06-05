@@ -1,0 +1,21 @@
+before_script:
+  - apt-get update -qq && apt-get install -y -qq python-pip python-setuptools wget unzip tar build-essential python-dev
+  - pip install mkdocs
+
+test:
+  script:
+    - sh ./do get_libs
+    - mkdocs build -c
+
+pages:
+  script:
+    - mkdir -p public/pub
+    - sh ./do get_libs
+    - python ./setup.py sdist --dist-dir public/pub
+    - mkdocs build -c -d public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

@@ -1,0 +1,152 @@
+include:
+  - template: SAST.gitlab-ci.yml
+  - template: Dependency-Scanning.gitlab-ci.yml
+
+variables:
+  SERVER: "meditation.sirimangalo.org"
+  SERVER_TEST: "meditation-dev.sirimangalo.org"
+  USER: "ci"
+  FOLDER: "/opt/meditation-plus"
+  TARGET_BUILD_IMAGE: "node:10.15"
+
+.build:
+  image: $TARGET_BUILD_IMAGE
+  stage: test
+  cache:
+    key: yarncache
+    paths:
+      - .yarn-cache
+  script:
+    - cd client
+    - yarn --cache-folder ../.yarn-cache --frozen-lockfile
+    - sed -i "/public static url/c\  public static url = 'https://$DEPLOYMENT_SERVER';" src/api.config.ts
+    - node_modules/.bin/ng build --prod
+    - yarn sw
+    - mv dist/service-worker.js dist/sw.js
+    - cd ../server
+    - yarn --cache-folder ../.yarn-cache --frozen-lockfile
+    - yarn docs
+    - yarn build
+    - cp -R src/app/helper/mail-templates dist/app/helper/mail-templates
+    - cp src/app/helper/reserved-usernames.json dist/app/helper/reserved-usernames.json
+    - yarn --cache-folder ../.yarn-cache --frozen-lockfile --prod
+  artifacts:
+    paths:
+      - client/dist
+      - server/dist
+      - server/doc
+      - server/node_modules
+
+.test-server:
+  stage: test
+  services:
+    - mongo:3.6
+  cache:
+    key: yarncache
+    paths:
+      - .yarn-cache
+  tags:
+    - docker
+  script:
+    - cd server
+    - yarn --cache-folder ../.yarn-cache --frozen-lockfile
+    - yarn lint
+    - cp src/config/config.json.ci src/config/config.json
+    - cp src/config/firebase.json.ci src/config/firebase.json
+    - yarn test
+
+stages:
+  - test
+  - deploy
+
+test client:
+  image: registry.gitlab.com/sirimangalo/angular-build:latest
+  stage: test
+  cache:
+    key: yarncache
+    paths:
+      - .yarn-cache
+  tags:
+    - docker
+  script:
+    - cd client
+    - yarn --cache-folder ../.yarn-cache --frozen-lockfile
+    - node_modules/.bin/ng lint
+    - node_modules/.bin/ng test --watch=false
+
+test node8:
+  extends: .test-server
+  image: node:8
+
+test node10:
+  extends: .test-server
+  image: node:10
+
+test node11:
+  extends: .test-server
+  image: node:11
+
+test mongo4:
+  extends: .test-server
+  image: node:10
+  services:
+    - mongo:4
+
+build dev:
+  extends: .build
+  variables:
+    DEPLOYMENT_SERVER: $SERVER_TEST
+  except:
+    - tags
+  artifacts:
+    expire_in: 1 week
+
+build prod:
+  extends: .build
+  variables:
+    DEPLOYMENT_SERVER: $SERVER
+  only:
+    - tags
+
+staging:
+  image: registry.gitlab.com/sirimangalo/angular-build:latest
+  tags:
+    - docker
+  stage: deploy
+  only:
+    - master
+  environment:
+    name: Staging
+    url: https://$SERVER_TEST
+  script:
+    - sh deploy.sh "$SSH_PRIVATE_KEY" $USER $SERVER_TEST $FOLDER "$CI_JOB_ID.0.0"
+
+staging manual:
+  image: registry.gitlab.com/sirimangalo/angular-build:latest
+  tags:
+    - docker
+  stage: deploy
+  when: manual
+  except:
+    - master
+    - tags
+  environment:
+    name: Staging
+    url: https://$SERVER_TEST
+  script:
+    - sh deploy.sh "$SSH_PRIVATE_KEY" $USER $SERVER_TEST $FOLDER "$CI_JOB_ID.0.0"
+
+production:
+  image: registry.gitlab.com/sirimangalo/angular-build:latest
+  tags:
+    - docker
+  stage: deploy
+  only:
+    - tags
+  when: manual
+  environment:
+    name: Production
+    url: https://$SERVER
+  script:
+    - sh deploy.sh "$SSH_PRIVATE_KEY" $USER $SERVER $FOLDER $CI_COMMIT_TAG
+

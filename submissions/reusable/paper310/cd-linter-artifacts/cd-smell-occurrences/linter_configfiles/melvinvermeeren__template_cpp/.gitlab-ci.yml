@@ -1,0 +1,220 @@
+stages:
+  - analyse
+  - test
+  - package
+  - deploy
+
+variables:
+  GIT_SUBMODULE_STRATEGY: normal
+
+clang_format:
+  stage: analyse
+  allow_failure: true
+  image: git.mel.vin:5005/template/c/cicd/clang_tools:1.5
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCODE:BOOL=OFF -DFORMAT:BOOL=ON -DWERROR:BOOL=ON ..
+    - make format_check
+
+clang_tidy:
+  stage: analyse
+  allow_failure: true
+  image: git.mel.vin:5005/template/c/cicd/clang_tools:1.5
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE:STRING=Debug -DCLANG_TIDY:BOOL=ON -DTEST:BOOL=ON
+      -DWERROR:BOOL=ON ..
+    - make -j $(nproc)
+
+doxygen:
+  stage: analyse
+  allow_failure: true
+  image: git.mel.vin:5005/template/c/cicd/doxygen:1.2
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCODE:BOOL=OFF -DDOC:STRING=doxygen -DWERROR:BOOL=ON ..
+    - make doc
+
+line_limit:
+  stage: analyse
+  allow_failure: true
+  image: git.mel.vin:5005/template/c/cicd/coreutils:1.2
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCODE:BOOL=OFF -DLINE_LIMIT:BOOL=ON -DWERROR:BOOL=ON ..
+    - make line_limit
+
+regex_check:
+  stage: analyse
+  allow_failure: true
+  image: git.mel.vin:5005/template/c/cicd/coreutils:1.2
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCODE:BOOL=OFF -DREGEX_CHECK:BOOL=ON -DWERROR:BOOL=ON ..
+    - make regex_check
+
+clang_sanitise:
+  stage: test
+  image: git.mel.vin:5005/template/c/cicd/clang_tools:1.5
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE:STRING=Debug -DSANITISE:BOOL=ON -DTEST:BOOL=ON
+      -DWERROR:BOOL=ON ..
+    - make -j $(nproc)
+    - ctest -j $(nproc) --output-on-failure
+
+gcc_coverage:
+  stage: test
+  image: git.mel.vin:5005/template/c/cicd/gcc_coverage:1.5
+  coverage: '/^ *lines\.+: (\d+\.\d+\%) \(\d+ of \d+ lines\)$/'
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE:STRING=Debug -DCOVERAGE:BOOL=ON -DTEST:BOOL=ON
+      -DWERROR:BOOL=ON ..
+    - make -j $(nproc)
+    - ctest -j $(nproc) --output-on-failure
+    - make coverage_report
+  artifacts:
+    paths:
+      - build/coverage_report
+
+sphinx_html:
+  stage: test
+  image: git.mel.vin:5005/template/c/cicd/sphinx_html:1.5
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCODE:BOOL=OFF -DDOC:STRING=html -DWERROR:BOOL=ON ..
+    - make doc
+  artifacts:
+    paths:
+      - build/doc/html
+
+appimage_x86_64:
+  stage: package
+  image: git.mel.vin:5005/template/cpp/cicd/appimage_x86_64:1.1
+  only:
+    - master@template/cpp
+    - tags@template/cpp
+  dependencies: []
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_INSTALL_PREFIX=/usr ..
+    - make -j $(nproc)
+    - make DESTDIR="$PWD/tmp/appimage" install
+    - cp -aL /opt/appimage/AppRun tmp/appimage
+    - cp -a tmp/appimage/usr/share/applications/*.desktop tmp/appimage
+    - cp -a tmp/appimage/usr/share/icons/*.svg tmp/appimage
+    - appimagetool tmp/appimage
+    - mv cpp_template-x86_64.AppImage ../cpp_template-x86_64.appimage
+  artifacts:
+    paths:
+        - cpp_template-x86_64.appimage
+
+mingw_x86_64:
+  stage: package
+  image: git.mel.vin:5005/template/cpp/cicd/mingw_x86_64:1.1
+  only:
+    - master@template/cpp
+    - tags@template/cpp
+  dependencies: []
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_INSTALL_PREFIX=/
+      -DCMAKE_TOOLCHAIN_FILE=../cmake/cross/mingw_x86_64.cmake ..
+    - make -j $(nproc)
+    - make DESTDIR="$PWD/../cpp_template_mingw_x86_64" install
+    - cp /usr/lib/gcc/x86_64-w64-mingw32/*-win32/libstdc++-*.dll
+      /usr/lib/gcc/x86_64-w64-mingw32/*-win32/libgcc_s_seh-*.dll
+      ../cpp_template_mingw_x86_64/bin
+  artifacts:
+    paths:
+        - cpp_template_mingw_x86_64
+
+osxcross_x86_64:
+  stage: package
+  image: git.mel.vin:5005/template/c/cicd/osxcross_i386_x86_64:1.1
+  only:
+    - master@template/cpp
+    - tags@template/cpp
+  dependencies: []
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_INSTALL_PREFIX=/
+      -DCMAKE_TOOLCHAIN_FILE=../cmake/cross/osxcross_x86_64.cmake ..
+    - make -j $(nproc)
+    - make DESTDIR="$PWD/../cpp_template_osxcross_x86_64" install
+  artifacts:
+    paths:
+        - cpp_template_osxcross_x86_64
+
+review:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - branches@template/cpp
+  dependencies:
+    - gcc_coverage
+    - sphinx_html
+  image: git.mel.vin:5005/template/c/cicd/coreutils:1.2
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://doc.mel.vin/template/cpp/$CI_ENVIRONMENT_SLUG
+    on_stop: review_stop
+  script:
+    - mkdir -p ~/.ssh
+    - echo "$DOC_SSH_KNOWNHOSTS" > ~/.ssh/known_hosts
+    - eval $(ssh-agent)
+    - echo "$DOC_SSH_KEY" | ssh-add - > /dev/null
+    - mv build/doc/html public
+    - mv build/coverage_report public/coverage
+    - rsync -a --delete public/ doc@mel.vin:~/template/cpp/$CI_ENVIRONMENT_SLUG
+
+review_stop:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  when: manual
+  dependencies: []
+  image: git.mel.vin:5005/template/c/cicd/coreutils:1.2
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+  script:
+    - mkdir -p ~/.ssh
+    - echo "$DOC_SSH_KNOWNHOSTS" > ~/.ssh/known_hosts
+    - eval $(ssh-agent)
+    - echo "$DOC_SSH_KEY" | ssh-add - > /dev/null
+    - mkdir /tmp/empty
+    - rsync -a --delete --filter="+ $CI_ENVIRONMENT_SLUG" --filter='-,p *'
+      /tmp/empty/ doc@mel.vin:~/template/cpp
+    - rmdir /tmp/empty
+
+pages:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - tags@template/cpp
+  dependencies:
+    - gcc_coverage
+    - sphinx_html
+  image: git.mel.vin:5005/template/c/cicd/coreutils:1.2
+  script:
+    - mv build/doc/html public
+    - mv build/coverage_report public/coverage
+  artifacts:
+    paths:
+      - public
+

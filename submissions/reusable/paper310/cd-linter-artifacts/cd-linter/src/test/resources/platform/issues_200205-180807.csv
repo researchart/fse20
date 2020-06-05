@@ -1,0 +1,65 @@
+id,category,reviewTag*,title,desc,linkToRepository,linkToOpenedIssue,fixed (y/n/m),fixingCommit,cd-linter-bug,comment-labels,fix-labels,"notes (e.g., how they fix it,)",reaction,lastChecked,state,isAssigned,numUpvotes,numDownvotes,numComments,label*,monitoringTag*,monitoringComment,contributors,contributorsSinceIssue,commitsSinceIssue
+mauriciobaeza__empresa-libre__Versioning__requirementstxt__falcon__missing,Versioning,missing,GitLab config: 'requirements.txt' does not specify the exact version of all dependencies,DROPPED FOR NOW,https://gitlab.com/mauriciobaeza/empresa-libre,https://gitlab.com/mauriciobaeza/empresa-libre/issues/368,,,,,,,,200205-180809,deleted,FALSE,0,0,0,NULL,reaction:negative,NULL,-1,-1,-1
+deltares__rtc-tools__Versioning__gitlabyaml__codecov__missing,Versioning,missing,GitLab config: '.gitlab-ci.yml' does not specify the exact version of all dependencies,DROPPED FOR NOW,https://gitlab.com/deltares/rtc-tools,https://gitlab.com/deltares/rtc-tools/issues/1117,n,,pip-install,,,pip install codecov,,200205-180809,closed,FALSE,0,0,0,NULL,reaction:negative,NULL,12,4,76
+flatiron-dc__learning-git2__Job-Retry__s3-branch-deployment,Job-Retry,always,GitLab config: Job 's3-branch-deployment' is retried in case of failures,DROPPED FOR NOW,https://gitlab.com/flatiron-dc/learning-git2,https://gitlab.com/flatiron-dc/learning-git2/issues/1,,,,,,,,200205-180811,opened,FALSE,0,0,0,NULL,NULL,NULL,8,0,0
+svsamipillai__gitlab-hw__Vulnerability__--api-key-e2fbb215-565e-4274-8f2b-73f7670afa9f,Vulnerability,NULL,GitLab config: Hard-coded credentials in '.gitlab-ci.yml',DROPPED FOR NOW,https://gitlab.com/svsamipillai/gitlab-hw,https://gitlab.com/svsamipillai/gitlab-hw/issues/1,,,,,,,,200205-180813,opened,FALSE,0,0,0,NULL,NULL,NULL,17,0,0
+indybay__indybay-active__Manual-Job__build,Manual-Job,NULL,GitLab config: Job 'build' is manually triggered,DROPPED FOR NOW,https://gitlab.com/indybay/indybay-active,https://gitlab.com/indybay/indybay-active/issues/265,n,,deploy-phase,,,,,200205-180813,closed,FALSE,0,0,0,NULL,reaction:negative,NULL,5,2,22
+harbottle__puppet-mattermost__Manual-Job__push,Manual-Job,NULL,GitLab config: Job 'push' is manually triggered,DROPPED FOR NOW,https://gitlab.com/harbottle/puppet-mattermost,https://gitlab.com/harbottle/puppet-mattermost/issues/47,n,,deploy-phase,,,"in a previous commit, they voluntarely introduced the smell (https://gitlab.com/harbottle/puppet-mattermost/commit/d536063dc84e277da7798dca963bdbf8afcb7d88)",,200205-180816,closed,FALSE,0,0,0,NULL,NULL,NULL,11,3,17
+agrumery__aGrUM__Job-Retry__windows_agrum_2017,Job-Retry,always,GitLab config: Job 'windows_agrum_2017' is retried in case of failures,DROPPED FOR NOW,https://gitlab.com/agrumery/aGrUM,https://gitlab.com/agrumery/aGrUM/issues/37,y,52a4c77a6b89a755ed6f51307cd881edd01d911f,,,temporary-smell,He fixed as we said. But he introduced again the smell as temporal patch (https://gitlab.com/agrumery/aGrUM/commit/2beda8596de07539eb0c31c637216ad7acdb4cf8),,200205-180818,closed,TRUE,0,0,1,NULL,decision:pending,NULL,24,7,187
+sofreeus__aghi2gitlab__Manual-Job__dev,Manual-Job,NULL,GitLab config: Job 'dev' is manually triggered,DROPPED FOR NOW,https://gitlab.com/sofreeus/aghi2gitlab,https://gitlab.com/sofreeus/aghi2gitlab/issues/4,,,,,,,,200205-180821,opened,FALSE,0,0,0,NULL,NULL,NULL,5,0,0
+georgedorn__wonambi__Versioning__gitlabyaml__coverage__missing,Versioning,missing,GitLab config: '.gitlab-ci.yml' does not specify the exact version of all dependencies,DROPPED FOR NOW,https://gitlab.com/georgedorn/wonambi,https://gitlab.com/georgedorn/wonambi/issues/75,,,,,,,,200205-180821,opened,FALSE,0,0,0,NULL,NULL,NULL,3,0,0
+fluidattacks__asserts__Job-Retry__test,Job-Retry,always,GitLab config: Job 'test' is retried in case of failures,DROPPED FOR NOW,https://gitlab.com/fluidattacks/asserts,https://gitlab.com/fluidattacks/asserts/issues/700,y,0b9adaa3110348b9d1cdcbae05f0de7ee785573b,,"use-in-paper, remove-all",,"use-in-paper, they even removed all the other smells looking at our project repo",,200205-180831,closed,TRUE,2,0,3,NULL,use-in-paper,Ultra-positive reaction to the issue...,19,7,492
+vuedoc__parser__Job-Allow-Failure__security-scan,Job-Allow-Failure,NULL,GitLab config: Failures in job 'security scan' cannot fail the build,DROPPED FOR NOW,https://gitlab.com/vuedoc/parser,https://gitlab.com/vuedoc/parser/issues/54,,,,,,,,200205-180824,closed,TRUE,1,0,2,NULL,decision:accept,NULL,6,0,0
+postmarketOS__build-postmarketos-org__Manual-Job__test-phpcs,Manual-Job,NULL,GitLab config: Job 'test:phpcs' is manually triggered,DROPPED FOR NOW,https://gitlab.com/postmarketOS/build.postmarketos.org,https://gitlab.com/postmarketOS/build.postmarketos.org/issues/28,y,a56921a0d0bd1b1f3fec0913c416686bb1fb6722,,,job-removed,they agreed with the problem and the issue is not there. They were started from scratch but the problem was not introduced. So they learned from mistakes.I won't compute fix rate.,,200205-180841,closed,FALSE,0,0,3,NULL,long-lived-branch,The current master is not the active development branch.,3,3,315
+coala__package_manager__Versioning__requirementstxt__hg-https---bitbucket-org-jayvdb-sarge-win-reg-lookup-egg-sarge__missing,Versioning,missing,GitLab config: 'requirements.txt' does not specify the exact version of all dependencies,DROPPED FOR NOW,https://gitlab.com/coala/package_manager,https://gitlab.com/coala/package_manager/issues/275,,,,,,,,200205-180826,opened,FALSE,0,1,1,NULL,decision:reject,NULL,32,0,0
+jonocarroll__mathpix__Job-Allow-Failure__r-oldrel,Job-Allow-Failure,NULL,GitLab config: Failures in job 'r-oldrel' cannot fail the build,DROPPED FOR NOW,https://gitlab.com/jonocarroll/mathpix,https://gitlab.com/jonocarroll/mathpix/issues/7,,,,,,,,200205-180827,opened,FALSE,0,0,0,NULL,NULL,NULL,1,0,0
+kb__block__Vulnerability__-SECRET_KEY--sk_test-,Vulnerability,NULL,GitLab config: Hard-coded credentials in '.gitlab-ci.yml',DROPPED FOR NOW,https://gitlab.com/kb/block,https://gitlab.com/kb/block/issues/1,,,,,,,,200205-180828,closed,FALSE,0,1,2,NULL,reaction:negative,NULL,6,1,6
+Orange-OpenSource__gitlab-buildpkg-tools__Manual-Job__build_ubuntu_artful,Manual-Job,NULL,GitLab config: Job 'build_ubuntu_artful' is manually triggered,DROPPED FOR NOW,https://gitlab.com/Orange-OpenSource/gitlab-buildpkg-tools,https://gitlab.com/Orange-OpenSource/gitlab-buildpkg-tools/issues/14,n,,,,,,,200205-180845,closed,FALSE,1,0,0,NULL,NULL,NULL,7,7,99
+pushrocks__smartcli__Job-Allow-Failure__pages,Job-Allow-Failure,NULL,GitLab config: Failures in job 'pages' cannot fail the build,DROPPED FOR NOW,https://gitlab.com/pushrocks/smartcli,https://gitlab.com/pushrocks/smartcli/issues/3,,,,,,,,200205-180830,closed,FALSE,0,0,0,NULL,decision:ignored,NULL,8,0,0
+neachdainn__nng-rs__Job-Allow-Failure__nightly,Job-Allow-Failure,NULL,GitLab config: Failures in job 'nightly' cannot fail the build,DROPPED FOR NOW,https://gitlab.com/neachdainn/nng-rs,https://gitlab.com/neachdainn/nng-rs/issues/38,n,,,"nightly-build, no-trust, flaky-tool",,,reject,200205-180847,closed,FALSE,0,2,5,NULL,decision:reject,Maintainer has offered an interview...,5,3,35
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,

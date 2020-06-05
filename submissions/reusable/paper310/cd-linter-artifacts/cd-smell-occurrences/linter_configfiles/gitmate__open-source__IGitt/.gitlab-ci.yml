@@ -1,0 +1,50 @@
+image: python:3.5-alpine
+
+before_script:
+  - apk --update add build-base libffi-dev openssl-dev git
+  - pip install -r docs-requirements.txt
+  - pip install -r requirements.txt
+  - pip install -r test-requirements.txt
+
+.script: &script |
+  python .ci/adjust_version.py IGitt/VERSION -b `date --utc +%Y%m%d%H%M%S`
+  python setup.py sdist bdist_wheel
+  twine upload dist/* -u "$PYPIUSER" -p "$PYPIPW"
+
+run_tests:
+  script:
+  - python3 -m pytest
+  - sh .ci/no_yaml.sh
+  - python3 setup.py docs
+  except:
+  - master@gitmate/open-source/IGitt
+
+check_code:
+  script:
+  - pip install 'coala-bears[alldeps]'
+  - coala --ci
+  except:
+  - master@gitmate/open-source/IGitt
+
+cache:
+  paths:
+  - /root/.cache/pip
+
+release_master: &release_master
+  # twine 1.12 indirectly depends on cmarkgfm to render README,
+  # which requires a compiler
+  before_script:
+    - pip install 'twine<1.2'
+  script:
+    - *script
+  only:
+  - master@gitmate/open-source/IGitt
+
+release:
+  <<: *release_master
+  script:
+  - *script
+  - ./.ci/push_tags.sh
+  only:
+  - /^release\/.*$/@gitmate/open-source/IGitt
+

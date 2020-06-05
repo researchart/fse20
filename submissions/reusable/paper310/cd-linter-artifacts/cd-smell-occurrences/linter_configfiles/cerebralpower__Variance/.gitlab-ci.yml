@@ -1,0 +1,9 @@
+before_script:
+  - apt-get update -qq && apt-get install -y -qq python2.7 python-setuptools
+  - easy_install pytest
+  - easy_install pytest-runner
+
+tests:
+  script:
+    - python setup.py test
+

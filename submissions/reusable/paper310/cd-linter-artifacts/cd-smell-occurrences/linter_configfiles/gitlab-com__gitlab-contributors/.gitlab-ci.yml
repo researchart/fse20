@@ -1,0 +1,43 @@
+services:
+  - postgres:latest
+  - docker:dind
+
+variables:
+  POSTGRES_DB: rails_contributors_test
+
+# Cache gems in between builds
+cache:
+  paths:
+    - vendor/ruby
+
+stages:
+  - test
+  - deploy
+
+codequality:
+  image: docker:latest
+  stage: test
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  script:
+    - docker pull codeclimate/codeclimate
+    - docker run --env CODECLIMATE_CODE="$PWD" --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock --volume /tmp/cc:/tmp/cc codeclimate/codeclimate validate-config
+    - docker run --env CODECLIMATE_CODE="$PWD" --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock --volume /tmp/cc:/tmp/cc codeclimate/codeclimate analyze -f json > codeclimate.json
+  artifacts:
+    paths: [codeclimate.json]
+
+test:
+  image: ruby:2.4.1
+  stage: test
+  variables:
+    DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/$POSTGRES_DB"
+  script:
+    - apt-get update -qy
+    - apt-get install -y cmake nodejs
+    - git clone --mirror git://github.com/rails/rails.git
+    - bundle install --path=vendor
+    - bundle exec rails db:create:all db:schema:load
+    - bundle exec rails test
+

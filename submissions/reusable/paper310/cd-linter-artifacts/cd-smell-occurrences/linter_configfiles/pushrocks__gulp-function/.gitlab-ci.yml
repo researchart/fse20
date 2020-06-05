@@ -1,0 +1,127 @@
+# gitzone ci_default
+image: registry.gitlab.com/hosttoday/ht-docker-node:npmci
+
+cache:
+  paths:
+    - .npmci_cache/
+  key: '$CI_BUILD_STAGE'
+
+stages:
+  - security
+  - test
+  - release
+  - metadata
+
+# ====================
+# security stage
+# ====================
+mirror:
+  stage: security
+  script:
+    - npmci git mirror
+  tags:
+    - lossless
+    - docker
+    - notpriv
+
+snyk:
+  image: registry.gitlab.com/hosttoday/ht-docker-node:snyk
+  stage: security
+  script:
+    - npmci npm prepare
+    - npmci command npm install --ignore-scripts
+    - npmci command snyk test
+  tags:
+    - lossless
+    - docker
+    - notpriv
+
+# ====================
+# test stage
+# ====================
+
+testStable:
+  stage: test
+  script:
+    - npmci npm prepare
+    - npmci node install stable
+    - npmci npm install
+    - npmci npm test
+  coverage: /\d+.?\d+?\%\s*coverage/
+  tags:
+    - lossless
+    - docker
+    - priv
+
+testBuild:
+  stage: test
+  script:
+    - npmci npm prepare
+    - npmci node install stable
+    - npmci npm install
+    - npmci command npm run build
+  coverage: /\d+.?\d+?\%\s*coverage/
+  tags:
+    - lossless
+    - docker
+    - notpriv
+
+release:
+  stage: release
+  script:
+    - npmci node install stable
+    - npmci npm publish
+  only:
+    - tags
+  tags:
+    - lossless
+    - docker
+    - notpriv
+
+# ====================
+# metadata stage
+# ====================
+codequality:
+  stage: metadata
+  allow_failure: true
+  script:
+    - npmci command npm install -g tslint typescript
+    - npmci npm prepare
+    - npmci npm install
+    - npmci command "tslint -c tslint.json ./ts/**/*.ts"
+  tags:
+    - lossless
+    - docker
+    - priv
+
+trigger:
+  stage: metadata
+  script:
+    - npmci trigger
+  only:
+    - tags
+  tags:
+    - lossless
+    - docker
+    - notpriv
+
+pages:
+  stage: metadata
+  script:
+    - npmci node install lts
+    - npmci command npm install -g @gitzone/tsdoc
+    - npmci npm prepare
+    - npmci npm install
+    - npmci command tsdoc
+  tags:
+    - lossless
+    - docker
+    - notpriv
+  only:
+    - tags
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - public
+  allow_failure: true
+

@@ -1,0 +1,30 @@
+
+image: debian:latest
+
+before_script:
+  - apt update
+  - apt install luarocks -y
+  - luarocks install moonscript
+
+dlib:
+  stage: build
+  script:
+    - mkdir lua
+    - moonc -t lua moon/*
+    - cp lua_src/* lua/ -Rv
+    - cd vll
+    - sh build.sh
+  artifacts:
+    paths:
+      - lua/*
+      - vll/vll2.lua
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHA"
+
+# luacheck:
+#   allow_failure: yes
+#   script: sh luacheck.sh
+
+# moonlint:
+#   allow_failure: yes
+#   script: moonc -l moon/*
+

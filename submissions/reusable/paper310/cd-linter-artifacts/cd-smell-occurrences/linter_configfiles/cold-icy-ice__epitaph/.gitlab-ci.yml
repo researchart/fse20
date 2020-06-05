@@ -1,0 +1,16 @@
+before_script:
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - 'eval $(ssh-agent -s)'
+  - 'ssh-add <(echo "$SSH_PRIVATE_KEY")'
+  - 'mkdir -p ~/.ssh'
+  - '[[ -f /.dockerenv ]] && echo "$SSH_SERVER_HOSTKEYS" > ~/.ssh/known_hosts'
+
+deploy:
+  stage: deploy
+  only:
+    - develop
+    - master
+  script:
+    - 'ssh -p 2222 s225088@se.ifmo.ru "[[ ! -d public_html/$CI_COMMIT_REF_NAME ]] || rm -R public_html/$CI_COMMIT_REF_NAME"'
+    - 'scp -P 2222 -r public_html s225088@se.ifmo.ru:/home/s225088/public_html/$CI_COMMIT_REF_NAME'
+

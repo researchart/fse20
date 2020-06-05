@@ -1,0 +1,56 @@
+stages:
+  - prerequisites
+  - release
+
+prerequisites:
+  stage: prerequisites
+  only:
+    - master
+  script:
+    - ifconfig | awk '/inet addr/{print substr($2,6)}'
+    - pip install --upgrade sh
+    - apt-get install -y bsdmainutils
+
+release:
+  stage: release
+  only:
+    - master
+  script:
+    - env
+    - DATE_STR=`date "+%Y_%m_%d"`
+    - CI_PROJECT_OUTPUT_PATH=/mace-build-output/$CI_PROJECT_NAME/${DATE_STR}_${CI_PIPELINE_ID}
+    - rm -rf $CI_PROJECT_OUTPUT_PATH
+    - mkdir -p $CI_PROJECT_OUTPUT_PATH
+    - echo $CI_PROJECT_OUTPUT_PATH
+    - LAST_VALID_COMMIT_ID=`git log --format="%H" -n 1`
+    - LAST_VALID_COMMIT_FILE_NUM=`git diff-tree --no-commit-id --name-only -r $LAST_VALID_COMMIT_ID | wc -l`
+    - if [ "$LAST_VALID_COMMIT_FILE_NUM" -eq 0 ]; then LAST_VALID_COMMIT_ID=`git log --format="%H" -n 2 | tail -n1` ; fi
+    - MODEL_ROOT_PATH=`pwd`
+    - MACE_WORK_DIR=`mktemp -d`
+    - pushd $MACE_WORK_DIR
+    - GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no" git clone git@github.com:XiaoMi/mace.git
+    - pushd mace
+    # Build only the changed files in the last 1 or 2 commits for default
+    - if [ -z "$CI_BUILD_TRIGGERED" ]; then GET_MODEL_FILES_CMD="cd $MODEL_ROOT_PATH; git diff-tree --no-commit-id --name-only -r $LAST_VALID_COMMIT_ID | xargs -L 1 basename | { grep ".yml" || true; } |  xargs -L 1 -I {} find $MODEL_ROOT_PATH -name {}"; else GET_MODEL_FILES_CMD="find $MODEL_ROOT_PATH -name *.yml"; fi
+    - if [ -z "$TARGET_SOCS" ]; then TARGET_SOCS=all; fi
+    - CONF_FILES_STR=`sh -c "$GET_MODEL_FILES_CMD" | { grep -v ".gitlab-ci.yml" || true; } | { grep "$TARGET_FILE_PATTERN" || true; }`
+    - CONF_FILES=(${CONF_FILES_STR// / })
+    - echo $CONF_FILES
+    - >
+      if [ -n "$CONF_FILES_STR" ]; then
+        for CONF_FILE in "${CONF_FILES[@]}"; do
+          if grep -q target_socs ${CONF_FILE}; then
+            echo "python tools/converter.py convert --config=${CONF_FILE} && python tools/converter.py run --config=${CONF_FILE} --round=10 --report --report_dir=$CI_PROJECT_OUTPUT_PATH --validate" || exit 1
+          else
+            sh -c "python tools/converter.py convert --config=${CONF_FILE} --target_socs=all && python tools/converter.py run --config=${CONF_FILE} --target_socs=all --round=10 --report --report_dir=$CI_PROJECT_OUTPUT_PATH --validate" || exit 1
+          fi
+        done
+      fi
+    - popd
+    - popd
+    - if [ -f $CI_PROJECT_OUTPUT_PATH/report.csv ]; then cp $CI_PROJECT_OUTPUT_PATH/report.csv .; cat report.csv | sed 's/,/ ,/g' | column -t -s,; fi
+    - rm -rf $MACE_WORK_DIR
+  artifacts:
+    paths:
+      - report.csv
+

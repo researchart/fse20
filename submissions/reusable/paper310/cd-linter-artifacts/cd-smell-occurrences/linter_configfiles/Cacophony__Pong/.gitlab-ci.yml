@@ -1,0 +1,154 @@
+image: golang:1.10
+
+stages:
+  - build
+  - compile
+  - test
+  - stage
+  - deploy
+
+variables:
+  TF_IMAGE: hashicorp/terraform:0.11.7
+  TF_DIR: "${CI_PROJECT_DIR}/.deployment"
+  TF_PLANFILE: "${CI_PROJECT_DIR}/.deployment/${CI_PIPELINE_ID}.tfplan"
+  GO_ARTIFACT: "${CI_PROJECT_DIR}/.deployment/pong"
+  DOCKER_IMAGE: "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}"
+
+Docker Build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - >
+      docker login
+      --username "${CI_REGISTRY_USER}"
+      --password "${CI_REGISTRY_PASSWORD}"
+      "${CI_REGISTRY}"
+  script:
+    - docker pull "${DOCKER_IMAGE}" || true
+    - >
+      docker build
+      --tag "${DOCKER_IMAGE}"
+      --cache-from "${DOCKER_IMAGE}"
+      "${CI_PROJECT_DIR}"
+    - docker push "${DOCKER_IMAGE}"
+
+Go Build:
+  stage: compile
+  image: "${DOCKER_IMAGE}"
+  script:
+    - go build -v -o "${GO_ARTIFACT}"
+  artifacts:
+    paths:
+      - "${GO_ARTIFACT}"
+    expire_in: 30 days
+  retry: 1
+
+Go Tests:
+  image: "${DOCKER_IMAGE}"
+  stage: test
+  variables:
+    SRC_DIR: "gitlab.com/${CI_PROJECT_PATH}"
+  before_script:
+    - SRC_PATH="${GOPATH}/src/${SRC_DIR}"
+    - ln -s "${CI_PROJECT_DIR}" "${SRC_PATH}"
+    - cd "${SRC_PATH}"
+  script:
+    # install linters
+    - >
+      go get -v
+      golang.org/x/tools/cmd/goimports
+    - diff <(goimports -d .) <(echo -n)
+    - go test -v -race "$(go list ./... | grep -v /vendor/)"
+  except:
+    - gitlab-ci
+    - staging
+    - production
+  dependencies: []
+  retry: 1
+
+Terraform Plan:
+  stage: stage
+  image:
+    name: ${TF_IMAGE}
+    entrypoint: ["/usr/bin/env"]
+  before_script:
+    - cd .deployment
+    - >
+      [ -z ${AWS_ACCESS_KEY_ID} ] &&
+      export AWS_ACCESS_KEY_ID=${RO_AWS_ACCESS_KEY_ID} &&
+      echo "Read-only Access Key ID loaded."
+    - >
+      [ -z ${AWS_SECRET_ACCESS_KEY} ] &&
+      export AWS_SECRET_ACCESS_KEY=${RO_AWS_SECRET_ACCESS_KEY} &&
+      echo "Read-only Secret Access Key loaded."
+    - terraform init
+  script:
+    - terraform plan -out="${TF_PLANFILE}"
+  artifacts:
+    paths:
+      - "${TF_DIR}/*.zip"
+      - "${TF_DIR}/*.tfplan"
+    expire_in: 30 days
+  except:
+    - gitlab-ci
+    - staging
+    - production
+  dependencies:
+    - "Go Build"
+  retry: 1
+
+# Plan for environments
+Terraform Plan:
+  stage: stage
+  image:
+    name: ${TF_IMAGE}
+    entrypoint: ["/usr/bin/env"]
+  before_script:
+    - cd .deployment
+    - terraform init
+  script:
+    - terraform plan -out="${TF_PLANFILE}"
+  artifacts:
+    paths:
+      - "${TF_DIR}/*.zip"
+      - "${TF_DIR}/*.tfplan"
+    expire_in: 30 days
+  only:
+    - gitlab-ci
+    - staging
+    - production
+  environment:
+    name: ${CI_COMMIT_REF_SLUG}
+    url: https://console.aws.amazon.com/lambda/home?region=us-east-1#/functions/pong-${CI_COMMIT_REF_SLUG}?tab=graph
+  dependencies:
+    - "Go Build"
+  retry: 1
+
+Terraform Apply:
+  stage: deploy
+  image:
+    name: ${TF_IMAGE}
+    entrypoint: ["/usr/bin/env"]
+  before_script:
+    - cd .deployment
+    - terraform init
+  script:
+    - terraform apply "${TF_PLANFILE}"
+  dependencies:
+    - "Terraform Plan"
+  artifacts:
+    paths:
+      - .deployment
+    expire_in: 2 weeks
+    when: on_failure
+  only:
+    - gitlab-ci
+    - staging
+    - production
+  environment:
+    name: ${CI_COMMIT_REF_SLUG}
+    url: https://console.aws.amazon.com/lambda/home?region=us-east-1#/functions/pong-${CI_COMMIT_REF_SLUG}?tab=graph
+  # when: manual
+

@@ -1,0 +1,10 @@
+centos_gcc:
+  script:
+    - mkdir solver/build
+    - cd solver/build
+    - cmake -DSERIAL=ON -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ ..
+    - make tests
+    - ctest --output-on-failure
+  tags:
+    - gcc,centos
+

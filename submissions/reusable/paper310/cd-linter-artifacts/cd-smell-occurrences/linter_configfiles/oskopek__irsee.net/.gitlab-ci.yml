@@ -1,0 +1,75 @@
+image: microsoft/dotnet:1.0.1-sdk-projectjson
+
+before_script:
+  - export BUILD_DIR="$(realpath $(pwd))"
+  - export NUGET_PACKAGES="$BUILD_DIR/.nuget"
+
+cache:
+  paths:
+    - "./.nuget"
+  # keep cache across branch
+  key: "$CI_BUILD_REF_NAME"
+
+stages:
+  - build
+  - test
+  - deploy
+  - deploy-docker
+
+build-job:
+  stage: build
+  script:
+    - dotnet restore
+    - . ./build-all.sh
+  artifacts:
+    paths:
+      - "./*/*/bin"
+      - "./*/*/obj"
+      - "./*/*/project.lock.json"
+
+unittest-job:
+  stage: test
+  dependencies:
+    - build-job
+  script:
+    - dotnet restore
+    - . ./test-all.sh
+  artifacts:
+    paths:
+      - "./*/*/bin"
+      - "./*/*/obj"
+      - "./*/*/project.lock.json"
+
+#integrationtest-job:
+#  stage: test
+#  dependencies:
+#    - build-job
+#  script:
+#    - dotnet restore
+#    - dotnet test --integration
+#  artifacts:
+#    paths:
+#      - "./*/*/bin"
+#      - "./*/*/obj"
+#      - "./*/*/project.lock.json"
+
+deploy-job:
+  stage: deploy
+  script:
+    - dotnet restore
+    - . ./publish-all.sh
+  artifacts:
+    paths:
+       - "./*/*/bin/*/*.nupkg"
+
+# deploy-docker:
+#     image: docker:latest
+#     services:
+#         - docker:dind
+#     stage: deploy-docker
+#     script:
+#         - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+#         - docker build -t registry.gitlab.com/oskopek/irsee.net .
+#         - docker push registry.gitlab.com/oskopek/irsee.net
+
+

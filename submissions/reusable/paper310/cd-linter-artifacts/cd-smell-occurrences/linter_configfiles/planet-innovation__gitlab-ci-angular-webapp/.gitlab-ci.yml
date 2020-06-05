@@ -1,0 +1,38 @@
+image: pijzl/docker-node-karma-protractor-chrome
+
+before_script:
+  - npm -v
+  - node -v
+  - pwd
+  - ls -l
+
+stages:
+  - dependences
+  - gulp
+
+install:
+  stage: dependences
+  script: 
+    - npm install
+    - bower install  --allow-root
+  artifacts:
+    paths:
+      - node_modules/
+      - bower_components/
+    expire_in: 1 week
+
+gulp_test:
+  stage: gulp
+  script:
+    - gulp test
+
+gulp_build:
+  stage: gulp
+  script:
+    - gulp build
+
+gulp_e2e:
+  stage: gulp
+  script:
+    - gulp protractor
+

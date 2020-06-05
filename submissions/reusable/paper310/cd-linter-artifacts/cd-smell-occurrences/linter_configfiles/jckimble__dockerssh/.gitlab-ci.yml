@@ -1,0 +1,62 @@
+services:
+    - docker:dind
+
+variables:
+  REPO_NAME: gitlab.com/$CI_PROJECT_PATH
+  CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+  DOCKER_DRIVER: overlay2
+
+stages:
+    - test
+    - build
+    - release
+
+format:
+    image: golang:latest
+    stage: test
+    before_script:
+      - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+      - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+      - cd $GOPATH/src/$REPO_NAME
+      - go get
+    script:
+      - go fmt $(go list ./... | grep -v /vendor/)
+      - go vet $(go list ./... | grep -v /vendor/)
+      - go test -race $(go list ./... | grep -v /vendor/)
+
+dsinit-build:
+    image: golang:latest
+    stage: build
+    before_script:
+      - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+      - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+      - cd $GOPATH/src/$REPO_NAME/util/dsinit
+      - go get
+    script:
+      - GOARCH=amd64 GOOS=linux go build -a -o dsinit .
+    artifacts:
+      paths:
+        - util/dsinit/dsinit
+
+dockerssh-build:
+    image: docker:stable
+    stage: build
+    before_script:
+      - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    script:
+        - docker pull $CONTAINER_IMAGE:latest || true
+        - docker build --cache-from $CONTAINER_IMAGE:latest --tag $CONTAINER_IMAGE:$CI_BUILD_REF .
+        - docker push $CONTAINER_IMAGE:$CI_BUILD_REF
+
+dockerssh-release:
+    image: docker:stable
+    stage: release
+    before_script:
+      - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    script:
+        - docker pull $CONTAINER_IMAGE:$CI_BUILD_REF
+        - docker tag $CONTAINER_IMAGE:$CI_BUILD_REF $CONTAINER_IMAGE:latest
+        - docker push $CONTAINER_IMAGE:latest
+    only:
+        - master
+

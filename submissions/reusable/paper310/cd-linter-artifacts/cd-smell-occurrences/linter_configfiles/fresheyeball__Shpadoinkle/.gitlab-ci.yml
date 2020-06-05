@@ -1,0 +1,37 @@
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+  - nix-build --argstr compiler ghc843 --fallback
+  - NIXPKGS_ALLOW_UNFREE=1 nix-shell --argstr compiler ghc843 --command "echo works" --fallback
+  - nix-build --argstr compiler ghcjs84 --fallback
+  - NIXPKGS_ALLOW_UNFREE=1 nix-shell --argstr compiler ghcjs84 --command "echo works" --fallback
+  - rm -r result*
+  artifacts:
+    untracked: true
+
+test:
+  stage: test
+  script:
+  - NIXPKGS_ALLOW_UNFREE=1 nix-build test.nix --fallback
+  - rm -r result
+  artifacts:
+    untracked: true
+
+pages:
+  stage: build
+  script:
+  - nix-build --argstr compiler ghcjs84 -A Shpadoinkle-examples --fallback
+  - mkdir public
+  - cp -r result/bin/todomvc.jsexe/* public
+  artifacts:
+    paths:
+    - public
+
+  only:
+  - master
+
+

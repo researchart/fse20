@@ -1,0 +1,46 @@
+image: node
+
+stages:
+  - install
+  - build
+  - deploy
+
+clean:
+  stage: install
+  script:
+    - npm run clean
+  artifacts:
+    paths:
+    - public
+
+installDeps:
+  stage: install
+  script:
+    - npm i
+  artifacts:
+    paths:
+    - node_modules
+
+build:
+  stage: build
+  dependencies:
+    - clean
+    - installDeps
+  script:
+    - ls -ltar
+    - npm run build
+  artifacts:
+    paths:
+    - public
+
+pages:
+  stage: deploy
+  dependencies: 
+    - build
+  script: ls -ltarR public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

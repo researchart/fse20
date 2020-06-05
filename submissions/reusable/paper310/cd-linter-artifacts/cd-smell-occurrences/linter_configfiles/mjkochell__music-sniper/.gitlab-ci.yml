@@ -1,0 +1,48 @@
+image: "node:latest"
+stages:
+  - build
+  - deploy
+
+variables:
+  AWS_DEFAULT_REGION: us-east-1
+  BUCKET_NAME: jaam.app
+
+cache:
+  paths:
+    - node_modules
+
+build_frontend:  # A job to build the static website - replace it with your build methods
+  stage: build
+  script:
+    - yarn install --pure-lockfile
+    - yarn build
+  artifacts:
+    paths:
+      - build/  # This is what we want to publish
+
+deploys3:
+  image: "python:latest"  # We use python because there is a well-working AWS Sdk
+  stage: deploy
+  dependencies:
+    - build_frontend      # We want to specify dependencies in an explicit way, to avoid confusion if there are different build jobs
+  before_script:
+    - pip install awscli # Install the SDK
+  script:
+    - aws s3 cp build s3://${BUCKET_NAME} --recursive # Replace example-bucket with your bucket
+  environment:
+    name: ${CI_COMMIT_REF_SLUG}
+    url: http://${BUCKET_NAME}.s3-website.${AWS_DEFAULT_REGION}.amazonaws.com/${CI_COMMIT_REF_SLUG}  # This is the url of the bucket we saved before
+    on_stop: clean_s3 # When the branch is merged, we clean up after ourself
+
+clean_s3:
+  image: "python:latest"
+  stage: deploy
+  before_script:
+    - pip install awscli
+  script:
+    - aws s3 rm s3://${BUCKET_NAME}/${CI_COMMIT_REF_SLUG} --recursive # Replace example-bucket with your bucket
+  environment:
+    name: ${CI_COMMIT_REF_SLUG}
+    action: stop
+  when: manual
+

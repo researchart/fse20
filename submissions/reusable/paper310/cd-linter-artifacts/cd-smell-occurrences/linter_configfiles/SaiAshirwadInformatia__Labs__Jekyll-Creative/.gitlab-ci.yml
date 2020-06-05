@@ -1,0 +1,55 @@
+# This file is a template, and might need editing before it works on your project.
+# Full project: https://gitlab.com/pages/jekyll
+image: starefossen/ruby-node:2-5
+before_script:
+  - npm install -g bower
+  - bower install --allow-root
+  - gem install jekyll
+  - gem install bundler
+  - bundle install --path=.bundler-cache
+
+stages:
+  - test
+  - deploy
+  - release
+
+cache:
+  paths:
+    - .bower-cache
+    - .bower-registry
+    - .bundler-cache
+
+test:
+  stage: test
+  script:
+  - jekyll build -d test
+  artifacts:
+    paths:
+    - test
+  except:
+  - master
+
+pages:
+  stage: deploy
+  dependencies:
+    - test
+  script:
+  - jekyll build -d public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+publish:
+  stage: release
+  dependencies:
+    - test
+  script:
+  - gem build jekyll-creative.gemspec
+  - chmod +x prepare-publish.sh
+  - sh prepare-publish.sh $GEMS_API_KEY
+  - gem push jekyll-creative-*.gem
+  only:
+    - tags
+

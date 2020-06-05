@@ -1,0 +1,107 @@
+stages:
+    - test
+
+alpine_test_module:
+  stage: test
+  image: alpine:3.6
+  script:
+    - apk add --update bash curl git
+    - git clone https://gitlab.com/space-sh/space.git
+    - cd space && ./space /install/ && cd ..
+    - mkdir ~/.ssh
+    - printf "Host *\n StrictHostKeyChecking no" > ~/.ssh/config
+    - which bash
+    - which busybox
+    - which space
+    - bash --version
+    - space -V
+    - space -f ./Spacefile.yaml /_dep_install/ -v4
+
+arch_test_module:
+  stage: test
+  image: finalduty/archlinux:monthly
+  script:
+    - pacman -Sy --noconfirm curl git
+    - git clone https://gitlab.com/space-sh/space.git
+    - cd space && ./space /install/ && cd ..
+    - mkdir ~/.ssh
+    - printf "Host *\n StrictHostKeyChecking no" > ~/.ssh/config
+    - which bash
+    - which space
+    - bash --version
+    - space -V
+    - space -f ./Spacefile.yaml /_dep_install/ -v4
+
+centos_test_module:
+  stage: test
+  image: centos:latest
+  script:
+    - yum -y update && yum -y install curl git which
+    - git clone https://gitlab.com/space-sh/space.git
+    - cd space && ./space /install/ && cd ..
+    - mkdir ~/.ssh
+    - printf "Host *\n StrictHostKeyChecking no" > ~/.ssh/config
+    - which bash
+    - which space
+    - bash --version
+    - space -V
+    - space -f ./Spacefile.yaml /_dep_install/ -v4
+
+debianjessie_test_module:
+  stage: test
+  image: debian:jessie
+  script:
+    - apt-get update -qq && apt-get install -y -qq curl git
+    - git clone https://gitlab.com/space-sh/space.git
+    - cd space && ./space /install/ && cd ..
+    - mkdir ~/.ssh
+    - printf "Host *\n StrictHostKeyChecking no" > ~/.ssh/config
+    - which bash
+    - which space
+    - bash --version
+    - space -V
+    - space -f ./Spacefile.yaml /_dep_install/ -v4
+
+debianjessie_curl_test_module:
+  stage: test
+  image: debian:jessie
+  script:
+    - apt-get update -qq && apt-get install -y -qq curl
+    - curl -O https://gitlab.com/space-sh/space/repository/archive.tar.gz?ref=master && mkdir -p ./space_install && tar xzvf "archive.tar.gz?ref=master" -C ./space_install --strip-components=1 && cd ./space_install && ./space /install/ && cd ..
+    - mkdir ~/.ssh
+    - printf "Host *\n StrictHostKeyChecking no" > ~/.ssh/config
+    - which bash
+    - which space
+    - bash --version
+    - space -V
+    - space -f ./Spacefile.yaml /_dep_install/ -v4
+
+debianjessie_wget_test_module:
+  stage: test
+  image: debian:jessie
+  script:
+    - apt-get update -qq && apt-get install -y -qq wget
+    - wget https://gitlab.com/space-sh/space/repository/archive.tar.gz?ref=master && mkdir -p ./space_install && tar xzvf "archive.tar.gz?ref=master" -C ./space_install --strip-components=1 && cd ./space_install && ./space /install/ && cd ..
+    - mkdir ~/.ssh
+    - printf "Host *\n StrictHostKeyChecking no" > ~/.ssh/config
+    - which bash
+    - which space
+    - bash --version
+    - space -V
+    - space -f ./Spacefile.yaml /_dep_install/ -v4
+
+debianlatest_test_module:
+  stage: test
+  image: debian:latest
+  script:
+    - apt-get update -qq && apt-get install -y -qq curl git
+    - git clone https://gitlab.com/space-sh/space.git
+    - cd space && ./space /install/ && cd ..
+    - mkdir ~/.ssh
+    - printf "Host *\n StrictHostKeyChecking no" > ~/.ssh/config
+    - which bash
+    - which space
+    - bash --version
+    - space -V
+    - space -f ./Spacefile.yaml /_dep_install/ -v4
+

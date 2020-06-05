@@ -1,0 +1,22 @@
+image: microsoft/dotnet:1.1-sdk
+
+variables:
+  Solution: CityOS.sln
+  
+test:
+ script:
+  - dotnet restore
+  - dotnet test CityOS.Test/CityOS.Test.csproj
+  - dotnet publish -c Release -o out
+  
+build:
+ image: docker:latest
+ services:
+   - docker:dind
+ script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  - cd CityOS.Web
+  - ls
+  - docker build -t registry.gitlab.com/panchoaby/cityos CityOS.Web/.
+  - docker push registry.gitlab.com/panchoaby/cityos
+

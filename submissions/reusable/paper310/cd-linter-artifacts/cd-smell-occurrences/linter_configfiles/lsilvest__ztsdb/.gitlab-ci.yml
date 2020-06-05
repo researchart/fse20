@@ -1,0 +1,32 @@
+image: ubuntu:16.04
+
+build:
+  stage: build
+
+  # set-up the image for ztsdb compilation:
+  before_script: 
+    - apt update
+    - apt-get -y install make cmake libboost-filesystem-dev flex bison gcc g++ git gengetopt bzip2 libdouble-conversion-dev software-properties-common python-software-properties tzdata
+    - add-apt-repository ppa:edd/misc
+    - apt-get update
+    - apt-get -y install crpcut crpcut-dev
+    - ldconfig
+
+  # compile and test ztsdb:
+  script:
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make -j4 -O
+    - make CTEST_OUTPUT_ON_FAILURE=1 test && make rtest
+
+  # push the Dockerfile to Github to trigger a Docker image build:
+  after_script:
+    - rev=`git rev-parse HEAD`
+    - cd ../.. && git clone https://github.com/lsilvest/ztsdb_dockerfile.git && cd ztsdb_dockerfile
+    - sed -i "1s|.*|# https://gitlab.com/lsilvest/ztsdb/commit/$rev|" Dockerfile
+    - git config user.name "lsilvest"
+    - git config user.email "lsilvestri@ztsdb.org"
+    - git commit -am "automated docker build - https://gitlab.com/lsilvest/ztsdb/commit/$rev"
+    - git push https://lsilvest:$GITHUB_PWD@github.com/lsilvest/ztsdb_dockerfile.git --all --quiet
+

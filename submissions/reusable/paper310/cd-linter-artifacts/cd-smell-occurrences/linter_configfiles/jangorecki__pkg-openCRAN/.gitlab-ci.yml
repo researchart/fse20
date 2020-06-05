@@ -1,0 +1,63 @@
+variables:
+  _R_CHECK_CRAN_INCOMING_: "TRUE"
+  _R_CHECK_CRAN_INCOMING_REMOTE_: "TRUE"
+  _R_CHECK_VC_DIRS_: "TRUE"
+  _R_CHECK_TIMINGS_: "10"
+  _R_CHECK_INSTALL_DEPENDS_: "TRUE"
+  _R_CHECK_SUGGESTS_ONLY_: "TRUE"
+  _R_CHECK_NO_RECOMMENDED_: "TRUE"
+  _R_CHECK_EXECUTABLES_EXCLUSIONS_: "FALSE"
+  _R_CHECK_DOC_SIZES2_: "TRUE"
+  _R_CHECK_CODE_ASSIGN_TO_GLOBALENV_: "TRUE"
+  _R_CHECK_CODE_ATTACH_: "TRUE"
+  _R_CHECK_CODE_DATA_INTO_GLOBALENV_: "TRUE"
+  _R_CHECK_CODE_USAGE_VIA_NAMESPACES_: "TRUE"
+  _R_CHECK_DOT_FIRSTLIB_: "TRUE"
+  _R_CHECK_DEPRECATED_DEFUNCT_: "TRUE"
+  _R_CHECK_REPLACING_IMPORTS_: "TRUE"
+  _R_CHECK_SCREEN_DEVICE_: "stop"
+  _R_CHECK_TOPLEVEL_FILES_: "TRUE"
+  _R_CHECK_S3_METHODS_NOT_REGISTERED_: "TRUE"
+  _R_CHECK_OVERWRITE_REGISTERED_S3_METHODS_: "TRUE"
+  _R_CHECK_FORCE_SUGGESTS_: "FALSE"
+
+stages:
+  - test
+  - deploy
+
+linux-release:
+  stage: test
+  tags:
+    - linux
+  image: docker.io/jangorecki/r-builder
+  script:
+    # ugly but still base R, simplify after https://stat.ethz.ch/pipermail/r-devel/2016-June/072826.html
+    - Rscript -e 'dcf<-read.dcf("DESCRIPTION", c("Depends", "Imports", "LinkingTo", "Suggests")); pkgs<-setdiff(trimws(sapply(strsplit(trimws(unlist(strsplit(dcf[!is.na(dcf)], ",", fixed=TRUE))), "(", fixed=TRUE), `[[`, 1L)), c("R", rownames(installed.packages(priority="base")))); if (length(pkgs)) install.packages(pkgs, repos="https://cran.rstudio.com/", method="curl")'
+    - R CMD build .
+    - PKG_TARBALL=$(ls -1t *.tar.gz | head -n 1)
+    - R CMD check --as-cran $PKG_TARBALL
+    - mkdir -p checks/linux-release
+    - mkdir -p /tmp/library
+    - R CMD INSTALL --html --library=/tmp/library $PKG_TARBALL
+    - mv /tmp/library/$(echo $PKG_TARBALL | cut -d _ -f 1)/html checks/linux-release
+    - mv $(find . -maxdepth 1 -name '*.Rcheck' -type d) checks/linux-release
+    - mv $PKG_TARBALL checks/linux-release
+  artifacts:
+    paths:
+      - checks
+
+pages:
+  stage: deploy
+  only:
+    - master
+  tags:
+    - linux
+  image: docker.io/jangorecki/r-builder
+  script:
+    - mkdir -p public
+    - R CMD INSTALL $(ls -1t checks/linux-release/*.tar.gz | head -n 1)
+    - Rscript -e 'openCRAN::insertRelease("checks", repodir=normalizePath("public"), action="prune")'
+  artifacts:
+    paths:
+      - public
+

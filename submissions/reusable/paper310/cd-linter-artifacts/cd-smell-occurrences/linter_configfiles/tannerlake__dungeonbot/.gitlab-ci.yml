@@ -1,0 +1,27 @@
+image: jfloff/alpine-python:3.4
+
+
+services:
+  - postgres:9.3
+
+
+variables:
+  POSTGRES_DB: dungeonbot_test
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+
+
+stages:
+  - test
+
+
+test:
+  stage: test
+  script:
+    - export DB_URL=postgres://postgres:postgres@postgres
+    - apk update
+    - apk add postgresql-dev
+    - pip3 install -r pipreqs.txt
+    - cd src
+    - py.test --cov=dungeonbot -v
+

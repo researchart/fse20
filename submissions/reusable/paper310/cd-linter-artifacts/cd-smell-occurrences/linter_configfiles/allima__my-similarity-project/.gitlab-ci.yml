@@ -1,0 +1,13 @@
+image: maven:3.2.5-jdk-8
+
+stages:
+  - build
+  - deploy
+
+build_job:
+  stage: build
+  script:
+   # - cd '/builds/A6MSO/my-similarity-project/my-similarity-project'
+    - 'mvn clean install verify -B -Dgpg.skip=true'
+    - cat '/builds/allima/my-similarity-project/target/site/jacoco/index.html' 
+

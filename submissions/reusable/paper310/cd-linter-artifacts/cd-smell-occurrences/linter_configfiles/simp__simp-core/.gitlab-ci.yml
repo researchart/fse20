@@ -1,0 +1,227 @@
+---
+.cache_bundler: &cache_bundler
+  cache:
+    untracked: true
+    # A broad attempt at caching between runs (ala Travis CI)
+    key: "${CI_PROJECT_NAMESPACE}__bundler"
+    paths:
+      - '.vendor'
+      - 'vendor'
+
+.setup_bundler_env: &setup_bundler_env
+  before_script:
+    - 'echo Files in cache: $(find .vendor | wc -l) || :'
+    - 'export GEM_HOME=.vendor/gem_install'
+    - 'export BUNDLE_CACHE_PATH=.vendor/bundler'
+    - 'declare GEM_BUNDLER_VER=(-v ''~> ${BUNDLER_VERSION:-1.16.0}'')'
+    - declare GEM_INSTALL=(gem install --no-document)
+    - declare BUNDLER_INSTALL=(bundle install --no-binstubs --jobs $(nproc) --path=.vendor "${FLAGS[@]}")
+    - gem list -ie "${GEM_BUNDLE_VER[@]}" --silent bundler || "${GEM_INSTALL[@]}" --local "${GEM_BUNDLE_VER[@]}" bundler || "${GEM_INSTALL[@]}" "${GEM_BUNDLE_VER[@]}" bundler
+    - 'rm -rf pkg/ || :'
+    - bundle check || rm -f Gemfile.lock && ("${BUNDLER_INSTALL[@]}" --local || "${BUNDLER_INSTALL[@]}")
+
+stages:
+  - integration
+
+image: 'ruby:2.4'
+
+# Anchor to disable release flavored tests, and run them only when
+# the environment variable SIMP_RELEASE_TESTS is set in the GitLab repo settings
+.only_with_SIMP_RELEASE_TESTS: &only_with_SIMP_RELEASE_TESTS
+  only:
+    variables:
+      - $SIMP_RELEASE_TESTS
+
+# To avoid running a prohibitive number of tests every commit,
+# don't set this env var in your gitlab instance
+.only_with_SIMP_FULL_MATRIX: &only_with_SIMP_FULL_MATRIX
+  only:
+    variables:
+      - $SIMP_FULL_MATRIX
+
+.only_with_SIMP_FULL_MATRIX_or_SIMP_IPA_TEST: &only_with_SIMP_FULL_MATRIX_or_SIMP_IPA_TEST
+  only:
+    variables:
+      - $SIMP_FULL_MATRIX
+      - $SIMP_IPA_TEST
+
+default_el6-puppet5:
+  stage: integration
+  image: 'ruby:2.4'
+  tags:
+    - beaker
+  <<: *cache_bundler
+  <<: *setup_bundler_env
+  variables:
+    PUPPET_VERSION: '~> 5.5'
+    BEAKER_PUPPET_COLLECTION: 'puppet5'
+  script:
+    - bundle exec rake spec_clean
+    - bundle exec rake beaker:suites[default,el6_server]
+  retry: 1
+
+default_el7-puppet5:
+  stage: integration
+  image: 'ruby:2.4'
+  tags:
+    - beaker
+  <<: *cache_bundler
+  <<: *setup_bundler_env
+  variables:
+    PUPPET_VERSION: '~> 5.5'
+    BEAKER_PUPPET_COLLECTION: 'puppet5'
+  script:
+    - bundle exec rake spec_clean
+    - bundle exec rake beaker:suites[default,el7_server]
+  retry: 1
+
+
+ipa_el7-puppet5:
+  stage: integration
+  image: 'ruby:2.4'
+  tags:
+    - beaker
+  <<: *cache_bundler
+  <<: *setup_bundler_env
+  <<: *only_with_SIMP_FULL_MATRIX_or_SIMP_IPA_TEST
+  variables:
+    PUPPET_VERSION: '~> 5.5'
+    BEAKER_PUPPET_COLLECTION: 'puppet5'
+  script:
+    - bundle exec rake spec_clean
+    - bundle exec rake beaker:suites[ipa,el7_server]
+  retry: 1
+
+# # IPA server has issues on el6
+# ipa_el6-puppet5:
+#   stage: integration
+#  image: 'ruby:2.4'
+#   tags:
+#     - beaker
+#   <<: *cache_bundler
+#   <<: *setup_bundler_env
+#   <<: *only_with_SIMP_FULL_MATRIX_or_SIMP_IPA_TEST
+#   variables:
+#     PUPPET_VERSION: '~> 5.5'
+#     BEAKER_PUPPET_COLLECTION: 'puppet5'
+#   script:
+#     - bundle exec rake beaker:suites[ipa,el6_server]
+#   retry: 1
+
+
+default_oel6-puppet5:
+  stage: integration
+  image: 'ruby:2.4'
+  tags:
+    - beaker
+  <<: *cache_bundler
+  <<: *setup_bundler_env
+  <<: *only_with_SIMP_FULL_MATRIX
+  variables:
+    PUPPET_VERSION: '~> 5.5'
+    BEAKER_PUPPET_COLLECTION: 'puppet5'
+    SIMP_BEAKER_OS: 'oracle'
+  script:
+    - bundle exec rake spec_clean
+    - bundle exec rake beaker:suites[default,el6_server]
+  retry: 1
+
+default_oel7-puppet5:
+  stage: integration
+  image: 'ruby:2.4'
+  tags:
+    - beaker
+  <<: *cache_bundler
+  <<: *setup_bundler_env
+  <<: *only_with_SIMP_FULL_MATRIX
+  variables:
+    PUPPET_VERSION: '~> 5.5'
+    BEAKER_PUPPET_COLLECTION: 'puppet5'
+    SIMP_BEAKER_OS: 'oracle'
+  script:
+    - bundle exec rake spec_clean
+    - bundle exec rake beaker:suites[default,el7_server]
+  retry: 1
+
+ipa_oel7-puppet5:
+  stage: integration
+  image: 'ruby:2.4'
+  tags:
+    - beaker
+  <<: *cache_bundler
+  <<: *setup_bundler_env
+  <<: *only_with_SIMP_FULL_MATRIX_or_SIMP_IPA_TEST
+  variables:
+    PUPPET_VERSION: '~> 5.5'
+    BEAKER_PUPPET_COLLECTION: 'puppet5'
+    SIMP_BEAKER_OS: 'oracle'
+  script:
+    - bundle exec rake spec_clean
+    - bundle exec rake beaker:suites[ipa,el7_server]
+  retry: 1
+
+
+rpm_el6-puppet5:
+  stage: integration
+  image: 'ruby:2.4'
+  tags:
+    - beaker
+  <<: *cache_bundler
+  <<: *setup_bundler_env
+  <<: *only_with_SIMP_RELEASE_TESTS
+  variables:
+    PUPPET_VERSION: '~> 5.5'
+    BEAKER_PUPPET_COLLECTION: 'puppet5'
+  script:
+    - bundle exec rake spec_clean
+    - bundle exec rake beaker:suites[install_from_rpm,el6_server]
+  retry: 1
+
+rpm_el7-puppet5:
+  stage: integration
+  image: 'ruby:2.4'
+  tags:
+    - beaker
+  <<: *cache_bundler
+  <<: *setup_bundler_env
+  <<: *only_with_SIMP_RELEASE_TESTS
+  variables:
+    PUPPET_VERSION: '~> 5.5'
+    BEAKER_PUPPET_COLLECTION: 'puppet5'
+  script:
+    - bundle exec rake spec_clean
+    - bundle exec rake beaker:suites[install_from_rpm,el7_server]
+  retry: 1
+
+forge_install_el6-puppet5:
+  stage: integration
+  image: 'ruby:2.4'
+  tags:
+    - beaker
+  <<: *cache_bundler
+  <<: *setup_bundler_env
+  <<: *only_with_SIMP_RELEASE_TESTS
+  variables:
+    PUPPET_VERSION: '~> 5.5'
+    BEAKER_PUPPET_COLLECTION: 'puppet5'
+  script:
+    - bundle exec rake spec_clean
+    - bundle exec rake beaker:suites[install_from_core_module,el6_server]
+  retry: 1
+
+forge_install_el7-puppet5:
+  stage: integration
+  image: 'ruby:2.4'
+  tags:
+    - beaker
+  <<: *cache_bundler
+  <<: *setup_bundler_env
+  <<: *only_with_SIMP_RELEASE_TESTS
+  variables:
+    PUPPET_VERSION: '~> 5.5'
+    BEAKER_PUPPET_COLLECTION: 'puppet5'
+  script:
+    - bundle exec rake spec_clean
+    - bundle exec rake beaker:suites[install_from_core_module,el7_server]
+  retry: 1
+

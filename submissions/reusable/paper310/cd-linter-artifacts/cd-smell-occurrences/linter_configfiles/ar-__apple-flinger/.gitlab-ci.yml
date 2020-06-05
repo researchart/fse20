@@ -1,0 +1,102 @@
+image: openjdk:8-jdk
+
+stages:
+  - sanitychecks
+  - build
+  - test
+
+cache:
+  paths:
+  - tmp/.gradle/wrapper
+  - tmp/.gradle/caches
+
+before_script:
+  - apt-get --quiet update --yes
+  - export GRADLE_USER_HOME=`pwd`/tmp/.gradle
+  - chmod +x ./gradlew
+
+licensecheck:
+  script:
+    - apt-get --quiet install --yes licensecheck
+    - ./licensecheck.sh
+  stage: sanitychecks
+
+validateI18N:
+  script:
+    - apt-get --quiet install --yes fonttools
+    - ./validateI18N.sh
+  stage: sanitychecks
+
+validate_images:
+  script:
+    - apt-get --quiet install --yes imagemagick
+    - ./scripts/validate-images.sh
+  stage: sanitychecks
+
+build_debug:
+  script:
+    - . ./scripts/setup-android-sdk.sh
+    - ./gradlew assembleDebug
+  stage: build
+  artifacts:
+    paths:
+    - android/build/outputs/
+
+build_release:
+  script:
+    - . ./scripts/setup-android-sdk.sh
+    - ./gradlew assembleRelease
+  stage: build
+  artifacts:
+    paths:
+    - android/build/outputs/
+
+build_desktop:
+  script:
+    - ./gradlew desktop:dist
+  stage: build
+  artifacts:
+    paths:
+    - desktop/build/libs/
+
+unit_tests:
+  script:
+    - . ./scripts/setup-android-sdk.sh
+    - ./gradlew tests:test --info
+  stage: test
+  artifacts:
+    paths:
+    - tests/build/reports/
+
+fdroid_build:
+  script:
+    - . ./scripts/setup-android-sdk.sh
+    - wget https://services.gradle.org/distributions/gradle-3.3-bin.zip
+    - mkdir /opt/gradle
+    - unzip -d /opt/gradle gradle-3.3-bin.zip
+    - export PATH=$PATH:/opt/gradle/gradle-3.3/bin
+    - gradle -v
+    - apt-get --quiet install --yes fdroidserver
+    - git clone https://gitlab.com/fdroid/fdroidserver.git
+    - git clone https://gitlab.com/fdroid/fdroiddata.git -b master --single-branch
+    - git show -s --pretty=%d HEAD
+    - CB=`git show -s --pretty=%d HEAD | egrep -o '/.*)'| egrep -o '[a-zA-Z0-9_-]*' | head -n1`
+    - cd fdroiddata
+    - sed -i "s/commit=.*/commit=$CB/g" metadata/com.gitlab.ardash.appleflinger.android.yml
+    - grep commit metadata/com.gitlab.ardash.appleflinger.android.yml
+    - cp ../fdroidserver/examples/config.py ./
+    - chmod 0600 config.py
+    - echo 'sdk_path = "$PWD/../tmp/android-sdk-linux"' >> config.py
+#   - fdroid lint com.gitlab.ardash.appleflinger.android
+    - ../fdroidserver/fdroid build -v -l -t com.gitlab.ardash.appleflinger.android &> build.log
+    - cat build.log
+    - bash -c "exit `grep 'BUILD FAILED' build.log | wc -l`"
+  stage: test
+  artifacts:
+    paths:
+    - fdroiddata/build/com.gitlab.ardash.appleflinger.android/android/build/outputs/apk/android-release-unsigned.apk
+  except:
+    - google-play
+
+
+

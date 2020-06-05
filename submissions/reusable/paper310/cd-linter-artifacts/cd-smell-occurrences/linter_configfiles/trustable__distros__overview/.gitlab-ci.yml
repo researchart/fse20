@@ -1,0 +1,41 @@
+# This file is a template, and might need editing before it works on your project.
+# Official language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/ruby/tags/
+image: "ruby:2.4"
+
+variables:
+  TARGET_BRANCH: master
+  GITECT_HOST: https://gitect2.codethink.co.uk
+
+stages:
+  - validate
+  - policy
+
+lint:
+  stage: validate
+  script:
+  - gem install mdl -v 0.4.0
+  - mdl -s <(echo "rule 'MD009', :br_spaces => 4") .
+
+policy:
+  stage: policy
+  variables:
+    GIT_STRATEGY: none
+  except:
+    - master
+    - tags
+  script:
+    - |
+      (
+        # gitect: Check policy compliance
+        output=$(curl -k -H "Accept: application/json" -H "X-Gitect-Token: ${GITECT_HOST_TOKEN}" -G \
+          --data-urlencode "target-branch=${TARGET_BRANCH}" \
+          "${GITECT_HOST}/api/v1/gitlab.com/${CI_PROJECT_PATH}/~/${CI_COMMIT_REF_NAME}/${CI_COMMIT_SHA}/policy-compliance")
+        echo $output
+
+        if [[ "$output" != *"true"* ]];then
+          echo "error: Policy compliance check failed!"
+          exit 1
+        fi
+      )
+

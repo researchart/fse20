@@ -1,0 +1,31 @@
+before_script:
+  - apt-get update -yq
+  - curl -sL https://deb.nodesource.com/setup_6.x | bash -
+  - apt-get install -y nodejs
+  - apt-get install git
+  - apt-get install -y zip gzip tar
+  - npm install -g bower grunt-cli
+  - npm install
+  - bower install --allow-root --no-interactive
+
+stages:
+  - build
+  - test
+  - deploy
+  
+grunt_build:
+  stage: build
+  script:
+    - grunt
+  artifacts:
+    paths:
+    - ./*.zip
+
+marketplace_deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    - grunt
+    - curl -F "file=@./saasdm-phoenix.zip" http://marketplace.webpich.com/api/marketplace/spa/token-$MARKETPLACE_TOKEN
+

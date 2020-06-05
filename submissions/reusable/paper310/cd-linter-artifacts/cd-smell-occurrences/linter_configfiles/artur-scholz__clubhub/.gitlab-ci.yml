@@ -1,0 +1,13 @@
+
+image: python:3.4
+
+test:
+  script:
+    - cp .env_template .env
+    - export CONFIG=testing
+    - export MAIL_VIA_API=0
+    - export MAIL_VIA_SMTP=0
+    - pip install -r requirements.txt
+    - pip install pytest
+    - python -m pytest
+

@@ -1,0 +1,31 @@
+image: ruby:2.6
+
+# variables:
+#   JEKYLL_ENV: production
+
+before_script:
+  - gem update --system
+  - gem install bundler
+#  - bundle update --bundler
+  - bundle install --full-index
+
+# test:
+#   stage: test
+#   script:
+#   - bundle exec jekyll build -d test
+#   artifacts:
+#     paths:
+#     - test
+#   except:
+#   - master
+
+pages:
+  stage: deploy
+  script:
+    - bundler exec jekyll build -d public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

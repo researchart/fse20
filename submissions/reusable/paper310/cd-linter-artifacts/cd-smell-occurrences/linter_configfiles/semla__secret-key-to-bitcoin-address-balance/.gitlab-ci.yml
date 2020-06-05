@@ -1,0 +1,53 @@
+.node: &node
+  image: node:latest
+#  image: semlan/node-chrome:v2
+  before_script:
+    - npm install
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    paths:
+    - node_modules/
+
+stages:
+  - test
+  - dast
+  - deploy
+
+include:
+  - template: SAST.gitlab-ci.yml
+  - template: DAST.gitlab-ci.yml
+  - template: Dependency-Scanning.gitlab-ci.yml
+#  - template: Container-Scanning.gitlab-ci.yml
+# only for apps in docker-containers
+
+unit_testing_client:
+  stage: test
+  <<: *node
+#  before_script:
+#    - export CHROME_BIN=/usr/bin/google-chrome
+  script:
+    npm run test-ci
+    # - npm run test -- --browsers ChromeHeadless
+
+deploy_develop:
+  stage: deploy
+  environment:
+    name: develop
+  <<: *node
+  script:
+    - npm run build -- -e $CI_ENVIRONMENT_SLUG
+    - npm run deploy
+  only:
+    - develop
+
+deploy_production:
+  stage: deploy
+  environment:
+    name: production
+  <<: *node
+  script:
+    - npm run build -- --configuration=$CI_ENVIRONMENT_SLUG
+    - npm run deploy
+  only:
+    - master
+

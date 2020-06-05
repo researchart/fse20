@@ -1,0 +1,50 @@
+image: golang:1.12
+
+# Disable DIND for SAST because we need to execute a before_script in the gosec-sast job
+variables:
+  SAST_DISABLE_DIND: "true"
+
+verify:
+  script:
+  - make verify
+
+.test_template: &test_definition
+  services:
+    - name: registry.gitlab.com/gitlab-org/build/cng/gitaly:latest
+      # Disable the hooks so we don't have to stub the GitLab API
+      command: ["bash", "-c", "mkdir -p /home/git/repositories && rm -rf /srv/gitlab-shell/hooks/* && exec /usr/bin/env GITALY_TESTING_NO_GIT_HOOKS=1 /scripts/process-wrapper"]
+      alias: gitaly
+  variables:
+    GITALY_ADDRESS: "tcp://gitaly:8075"
+  script:
+  - go version
+  - apt-get update && apt-get -y install libimage-exiftool-perl
+  - make test
+
+test using go 1.12:
+  image: golang:1.12
+  <<: *test_definition
+
+test using go 1.13:
+  image: golang:1.13
+  <<: *test_definition
+
+test using go 1.14:
+  image: golang:1.14
+  <<: *test_definition
+
+test:release:
+  only:
+    - tags
+  script:
+    - git describe --exact-match
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+
+gosec-sast:
+  before_script:
+    - apk add make
+    - make install
+

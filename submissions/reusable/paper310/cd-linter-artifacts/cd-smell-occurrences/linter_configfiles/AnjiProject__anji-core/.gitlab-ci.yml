@@ -1,0 +1,27 @@
+image: "python:3.6"
+
+stages:
+  - test
+  - upload
+
+check-code:
+  before_script:
+    - pip install .
+    - pip install -r requirements-dev.txt
+  stage: test
+  script: make check
+
+# run-test:
+#   stage: test
+#  script: pytest
+
+upload-to-pypi:
+  stage: upload
+  before_script:
+    - pip install twine
+  script:
+    - python setup.py bdist_wheel
+    - twine upload dist/*
+  only:
+    - tags
+

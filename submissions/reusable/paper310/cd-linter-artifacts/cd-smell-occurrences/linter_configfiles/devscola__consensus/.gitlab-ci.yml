@@ -1,0 +1,16 @@
+image: tmaier/docker-compose:latest
+
+services:
+  - docker:dind
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - docker-compose -f docker-compose.yml up --build -d
+    - docker-compose -f docker-compose.yml run consensus npm run build
+    - docker-compose -f docker-compose.yml run consensus npm run test-all
+    - docker-compose -f docker-compose.yml down
+

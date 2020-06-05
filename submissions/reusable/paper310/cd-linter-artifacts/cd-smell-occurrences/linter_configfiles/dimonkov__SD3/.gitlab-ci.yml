@@ -1,0 +1,19 @@
+image: ruby:2.5
+
+before_script:
+ - apt-get update --yes
+ - apt-get install --yes cmake
+
+build:
+ script:
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make
+
+ artifacts:
+    paths:
+     - build/bin
+ only:
+  - master
+

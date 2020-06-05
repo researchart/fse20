@@ -1,0 +1,21 @@
+# this is a file for gitlab ci srver
+image: fedora:latest
+
+before_script:
+  - su
+  - yum install -y sudo
+  - ls
+  - ./common.sh
+
+docker:
+  script:
+    - ./docker.sh
+
+virtualbox:
+  script:
+    - ./VirtualBoxInstall.sh
+
+vagrant:
+  script:
+    - ./vagrant.sh
+

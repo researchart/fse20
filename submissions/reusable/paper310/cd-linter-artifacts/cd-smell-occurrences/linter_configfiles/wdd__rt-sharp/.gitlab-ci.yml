@@ -1,0 +1,26 @@
+stages:
+ - pluginbase
+ - core
+core:
+  stage: core
+  image: mono
+  script: 
+    - 'cd RTSharpPlugin'
+    - 'nuget install packages.config'
+    - 'cd ../RTSharp'
+    - 'nuget install packages.config'
+    - 'xbuild /t:Build /p:Configuration=Debug /p:Platform="AnyCPU" RTSharp.csproj'
+  artifacts:
+    paths:
+      - RTSharp/bin/Debug
+pluginbase:
+  stage: pluginbase
+  image: mono
+  script: 
+    - 'cd RTSharpPlugin'
+    - 'nuget install packages.config'
+    - 'xbuild /t:Build /p:Configuration=Debug /p:Platform="AnyCPU" RTSharpPlugin.csproj'
+  artifacts:
+    paths:
+      - RTSharpPlugin/bin/Debug/RTSharpPlugin.dll
+

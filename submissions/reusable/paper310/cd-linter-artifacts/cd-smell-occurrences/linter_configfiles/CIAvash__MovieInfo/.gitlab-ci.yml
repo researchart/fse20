@@ -1,0 +1,14 @@
+image: node:10.0.0
+
+pages:
+  script:
+    - npm install
+    - npx elm-package install -y
+    - npx gulp build
+    - mv dist public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

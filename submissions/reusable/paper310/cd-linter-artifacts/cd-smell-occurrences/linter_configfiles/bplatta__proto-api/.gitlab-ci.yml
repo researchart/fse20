@@ -1,0 +1,127 @@
+image: ubuntu
+
+stages:
+  - test:static         # Lint and run static code quality tools
+  - test:unit           # Run the basic unit tests
+  - test:integ          # Run the integ tests with external DB container
+  - build               # Build release candidate image
+  - deploy:staging      # Deploy release candidate to staging environment
+  - deploy:production   # Manual production deploy
+
+cache:
+  untracked: true
+  key: "$CI_BUILD_REF_NAME"
+  paths:
+    - pip-cache/
+
+variables:
+  DOCKER_DRIVER: overlay
+  IMAGE_NAME: bplatta/proto-api
+  PIP_CACHE_DIR: pip-cache
+  CACHE_API_IMAGE_TAR: ./latest_api_image.tar
+  CACHE_NGINX_IMAGE_TAR: ./latest_nginx_image.tar
+  CONTAINER_REGISTRY: registry.gitlab.com
+  API_TEST_IMAGE: $CONTAINER_REGISTRY/$IMAGE_NAME:ref-$CI_BUILD_REF
+  API_RELEASE_IMAGE: $CONTAINER_REGISTRY/$IMAGE_NAME:release
+  API_PROD_IMAGE: $CONTAINER_REGISTRY/$IMAGE_NAME:$MAJOR_VERSION.$MINOR_VERSION.$CI_BUILD_ID
+  NGINX_TEST_IMAGE: $CONTAINER_REGISTRY/$IMAGE_NAME:nginx-ref-$CI_BUILD_REF
+  NGINX_RELEASE_IMAGE: $CONTAINER_REGISTRY/$IMAGE_NAME:nginx-release
+  NGINX_PROD_IMAGE: $CONTAINER_REGISTRY/$IMAGE_NAME:nginx-$MAJOR_VERSION.$MINOR_VERSION.$CI_BUILD_ID
+
+.dind_job: &dind_job
+  image: docker:1.12
+  services:
+    - docker:1.12-dind
+
+.python_job: &python_job
+  image: python:3.5.2
+
+.django:
+  variables: &django_vars
+    POSTGRES_DB: "test"
+    POSTGRES_USER: "test_user"
+    POSTGRES_PASSWORD: ""
+    POSTGRES_PORT: "5432"
+    POSTGRES_HOST: "postgres"
+    DJANGO_SECRET_KEY: "nottherealsecretkeydontworry"
+
+pep8:
+  <<: *python_job
+  stage: test:static
+  before_script:
+    - pip install pep8
+  script:
+    - pep8 --exclude=env,__pycache__,**/migrations/* --count .
+
+django_unit:
+  <<: *python_job
+  stage: test:unit
+  variables: *django_vars
+  before_script:
+    - pip install -r requirements.txt
+  script:
+    - python3 manage.py test --testrunner=utils.testing.no_db_setup_runner.NoDbSetupTestRunner --parallel --tag=unit
+
+build_api_image:
+  <<: *dind_job  # requires Docker in Docker
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CONTAINER_REGISTRY
+  script:
+    - docker load < $CACHE_API_IMAGE_TAR || true
+    - if [[ -f "$CACHE_API_IMAGE_TAR" ]] ; then rm $CACHE_API_IMAGE_TAR; fi
+    - docker build --pull -f build/api/Dockerfile -t $API_TEST_IMAGE .
+    - docker push $API_TEST_IMAGE
+    - docker save $API_TEST_IMAGE $(docker history -q $API_TEST_IMAGE | grep -v "<missing>") > $CACHE_API_IMAGE_TAR
+  cache:
+    key: "docker-build-cache-api"
+    paths:
+      - $CACHE_API_IMAGE_TAR
+
+.build_nginx_image:
+  <<: *dind_job  # requires Docker in Docker
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CONTAINER_REGISTRY
+  script:
+    - docker load < $CACHE_NGINX_IMAGE_TAR || true
+    - if [[ -f "$CACHE_NGINX_IMAGE_TAR" ]] ; then rm $CACHE_NGINX_IMAGE_TAR; fi
+    - docker build --pull -f build/nginx/Dockerfile -t $NGINX_TEST_IMAGE .
+    - docker push $NGINX_TEST_IMAGE
+    - docker save $NGINX_TEST_IMAGE $(docker history -q $NGINX_TEST_IMAGE | grep -v "<missing>") > $CACHE_NGINX_IMAGE_TAR
+  cache:
+    key: "docker-build-cache-nginx"
+    paths:
+      - $CACHE_NGINX_IMAGE_TAR
+
+django_integ:
+  <<: *python_job
+  stage: test:integ
+  variables:
+    POSTGRES_DB: "test"
+    POSTGRES_USER: "test_user"
+    POSTGRES_PASSWORD: "test"
+    POSTGRES_PORT: "5432"
+    POSTGRES_HOST: "postgres"
+    DJANGO_SECRET_KEY: "nottherealsecretkeydontworry"
+  services:
+    - postgres:9.5.5
+  before_script:
+    - pip install -r requirements.txt
+  script:
+    - python3 manage.py test --parallel --exclude-tag=unit
+
+staging:
+  stage: deploy:staging
+  script:
+    - make deploy
+  environment: staging
+  when: manual
+
+production:
+  stage: deploy:production
+  script:
+    - make deploy
+  environment: production
+  when: manual
+

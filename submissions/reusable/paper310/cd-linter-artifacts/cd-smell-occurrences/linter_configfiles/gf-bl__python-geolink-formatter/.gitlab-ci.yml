@@ -1,0 +1,111 @@
+image: python:3.6
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+
+stages:
+- test
+- doc
+- deploy
+
+test:2.7:
+  stage: test
+  image: python:2.7
+  allow_failure: false
+  script:
+  - git --no-pager diff --check `git log --oneline | tail -1 | cut --fields=1 --delimiter=' '`
+  - python -V
+  - pip install -r requirements.txt
+  - flake8
+  - py.test -vv --cov-config .coveragerc --cov geolink_formatter tests
+
+test:3.4:
+  stage: test
+  image: python:3.4
+  allow_failure: false
+  script:
+  - git --no-pager diff --check `git log --oneline | tail -1 | cut --fields=1 --delimiter=' '`
+  - python -V
+  - pip install -r requirements.txt
+  - flake8
+  - py.test -vv --cov-config .coveragerc --cov geolink_formatter tests
+
+test:3.5:
+  stage: test
+  image: python:3.5
+  allow_failure: false
+  script:
+  - git --no-pager diff --check `git log --oneline | tail -1 | cut --fields=1 --delimiter=' '`
+  - python -V
+  - pip install -r requirements.txt
+  - flake8
+  - py.test -vv --cov-config .coveragerc --cov geolink_formatter tests
+
+test:3.6:
+  stage: test
+  image: python:3.6
+  cache:
+    key: "$CI_PIPELINE_ID"
+    paths:
+    - "$CI_PROJECT_DIR/.pip-cache"
+  allow_failure: false
+  script:
+  - git --no-pager diff --check `git log --oneline | tail -1 | cut --fields=1 --delimiter=' '`
+  - python -V
+  - pip install -r requirements.txt
+  - flake8
+  - py.test -vv --cov-config .coveragerc --cov geolink_formatter tests
+
+sphinx:
+  stage: doc
+  cache:
+    key: "$CI_PIPELINE_ID"
+    paths:
+    - "$CI_PROJECT_DIR/.pip-cache"
+  script:
+  - pip install -r requirements.txt
+  - sphinx-versioning build doc/source doc/build/html
+  artifacts:
+    paths:
+    - doc/build/html
+    expire_in: 1 day
+  only:
+  - tags
+  - master
+
+pages:
+  stage: deploy
+  cache:
+    key: "$CI_PIPELINE_ID"
+    paths:
+    - "$CI_PROJECT_DIR/.pip-cache"
+  dependencies:
+  - sphinx
+  script:
+  - mv doc/build/html/ public/
+  artifacts:
+    paths:
+    - public
+    expire_in: 1 day
+  only:
+  - tags
+  - master
+
+# Analyze code quality
+codequality:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    paths: [codeclimate.json]
+

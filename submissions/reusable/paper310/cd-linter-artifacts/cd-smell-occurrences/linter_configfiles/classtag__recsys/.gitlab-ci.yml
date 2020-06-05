@@ -1,0 +1,95 @@
+image: jhipster/jhipster:v5.6.0
+
+cache:
+    key: "$CI_COMMIT_REF_NAME"
+    paths:
+        - .gradle/
+stages:
+    - build
+    - test
+    - analyze
+    - package
+    - release
+    - deploy
+
+before_script:
+    - export GRADLE_USER_HOME=`pwd`/.gradle
+    - ./gradlew npm_install -PnodeInstall --no-daemon
+
+gradle-compile:
+    stage: build
+    script:
+        - ./gradlew compileJava -x check -PnodeInstall --no-daemon
+    artifacts:
+        paths:
+          - build/classes/
+          - build/generated/
+        expire_in: 1 day
+
+gradle-test:
+    stage: test
+    script:
+        - ./gradlew test -PnodeInstall --no-daemon
+    artifacts:
+        reports:
+            junit: build/test-results/test/TEST-*.xml
+        paths:
+            - build/test-results/
+            - build/jacoco/
+        expire_in: 1 day
+
+frontend-test:
+    stage: test
+    script:
+        - ./gradlew npm_test -PnodeInstall --no-daemon
+    artifacts:
+        reports:
+            junit: build/test-results/jest/TESTS-*.xml
+        paths:
+            - build/test-results/
+            - build/jacoco/
+        expire_in: 1 day
+
+sonar-analyze:
+    stage: analyze
+    dependencies:
+        - gradle-test
+        - frontend-test
+    variables:
+        SONAR_TOKEN: 13a792e65fd736719d21d6e7d7a04a48a518d0b4
+    script:
+        - ./gradlew sonarqube --no-daemon -Dsonar.projectKey=recsys -Dsonar.organization=recsys -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$SONAR_TOKEN
+    allow_failure: true
+
+gradle-package:
+    stage: package
+    script:
+        - ./gradlew bootWar -Pprod -x check --no-daemon
+    artifacts:
+        paths:
+            - build/libs/*.war
+        expire_in: 1 day
+
+# Uncomment the following line to use gitlabs container registry. You need to adapt the REGISTRY_URL in case you are not using gitlab.com
+#docker-push:
+#    image: docker:latest
+#    services:
+#        - docker:dind
+#    variables:
+#        REGISTRY_URL: registry.gitlab.com
+#        DOCKER_HOST: tcp://docker:2375
+#        DOCKER_DRIVER: overlay2
+#        IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+#    stage: release
+#    dependencies:
+#        - gradle-package
+#    before_script:
+#        - docker info
+#        - cp build/libs/*.war src/main/docker
+#    script:
+#        - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $REGISTRY_URL
+#        - docker build -f src/main/docker/Dockerfile -t $IMAGE_TAG src/main/docker
+#        - docker push $IMAGE_TAG
+
+
+

@@ -1,0 +1,14 @@
+image: conoria/alpine-pandoc
+
+pages:
+  stage: deploy
+  script:
+  - apk add --no-cache bash
+  - mkdir public
+  - bash ./build.sh
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

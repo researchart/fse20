@@ -1,0 +1,16 @@
+image: golang:latest
+
+stages:
+    - test
+
+before_script:
+    - mkdir -p /go/src/gitlab.com/jckimble /go/src/_/builds
+    - cp -r $CI_PROJECT_DIR /go/src/gitlab.com/jckimble/go-health
+    - ln -s /go/src/gitlab.com/go-health /go/src/_/builds/jckimble
+    - cd /go/src/gitlab.com/jckimble/go-health
+
+coverage:
+    stage: test
+    script:
+        - go test -v -coverprofile cover
+

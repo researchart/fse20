@@ -1,0 +1,36 @@
+variables:
+    REGISTRY_URL: registry.gitlab.com/palouserobosub/software/robosub-docker
+
+image: $REGISTRY_URL/robosub:latest
+
+before_script:
+    - apt-get --quiet update --yes
+    - apt-get --quiet upgrade --yes
+    - pushd ~/ros > /dev/null
+    - rsync -r /builds/PalouseRobosub/Software/robosub/* src/robosub
+    - source devel/setup.bash
+    
+lint:
+    script:
+        - catkin_make roslint
+
+build:
+    script:
+        - catkin_make -j8
+
+test:
+    image: $REGISTRY_URL/robosub_simulator:latest
+    script:
+        - catkin_make run_tests
+        - catkin_test_results
+    after_script:
+        - rsync -a ~/.ros/log/* $CI_PROJECT_DIR/log
+        - rsync -a ~/ros/build/test_results/* $CI_PROJECT_DIR/test_results
+    artifacts:
+        name: "$CI_COMMIT_REF_SLUG-artifacts"
+        paths:
+            - log/
+            - test_results/
+        expire_in: 1 week
+        when: on_failure
+

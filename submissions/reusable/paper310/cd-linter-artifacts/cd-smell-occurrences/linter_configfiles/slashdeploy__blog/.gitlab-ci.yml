@@ -1,0 +1,25 @@
+before_script:
+  - make clean
+  - make check
+
+stages:
+  - test
+  - deploy
+
+test_job:
+  tags:
+    - slashdeploy
+  stage: test
+  script:
+    - script/ci/test
+
+deploy_job:
+  tags:
+    - slashdeploy
+  only:
+    - master
+  stage: deploy
+  environment: production
+  script:
+    - script/ci/deploy
+

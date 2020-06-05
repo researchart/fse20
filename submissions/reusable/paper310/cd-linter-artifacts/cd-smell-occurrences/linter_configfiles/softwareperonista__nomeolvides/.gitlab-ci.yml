@@ -1,0 +1,16 @@
+image: base/devel
+stages:
+  - build
+before_script:
+  - echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+  - locale-gen
+  - export LANG=en_US.UTF-8
+  - sudo pacman -Syu --noconfirm git meson vala gtk3
+build-nomeolvides:
+  stage: build
+  script:
+    - mkdir build
+    - meson build
+    - ninja -C build
+    - ninja -C build test
+

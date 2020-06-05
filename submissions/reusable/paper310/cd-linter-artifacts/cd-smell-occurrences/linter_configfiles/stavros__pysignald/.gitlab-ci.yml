@@ -1,0 +1,9 @@
+image: python:3.7
+
+test:
+  before_script:
+    - pip install poetry pre-commit
+    - poetry install
+  script:
+    - poetry run pre-commit run -a
+

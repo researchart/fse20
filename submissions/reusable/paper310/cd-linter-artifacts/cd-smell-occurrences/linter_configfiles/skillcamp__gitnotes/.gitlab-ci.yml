@@ -1,0 +1,18 @@
+image: node:10.4-alpine
+
+variables:
+  NETLIFY_CLAIM_ID: "${CI_COMMIT_REF_NAME}"
+  CI: "true"
+
+netlify-preview:
+  script:
+    - npm install
+    - npm run lint
+    - npm test
+    - npm run build
+    - npm run deploy
+  except:
+    - master
+  after_script:
+    - node scripts/slack.js
+

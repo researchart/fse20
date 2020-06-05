@@ -1,0 +1,10 @@
+image: "crystallang/crystal:latest"
+
+pages:
+  script:
+    - crystal docs
+    - mv doc public
+  artifacts:
+    paths:
+      - public
+

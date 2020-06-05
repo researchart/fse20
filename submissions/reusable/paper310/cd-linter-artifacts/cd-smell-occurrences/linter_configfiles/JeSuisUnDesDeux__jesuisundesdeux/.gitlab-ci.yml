@@ -1,0 +1,14 @@
+# before_script:
+#     - apt-get update
+#     - apt-get install --yes xsltproc
+
+pages:
+  image: 
+    name: svilstrup/xsltproc
+    entrypoint: ["/bin/sh", "-c"]
+  stage: deploy  
+  script: /builds/JeSuisUnDesDeux/jesuisundesdeux/datas/velomag/convert-xml-to-csv.sh
+  artifacts:
+    paths:
+    - public  
+

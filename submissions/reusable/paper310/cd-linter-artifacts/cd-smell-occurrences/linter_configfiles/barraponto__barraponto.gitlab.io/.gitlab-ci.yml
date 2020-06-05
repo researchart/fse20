@@ -1,0 +1,19 @@
+image: ruby:2.4
+
+variables:
+  BUNDLE_DEPLOYMENT: "true"
+  JEKYLL_ENV: production
+  LC_ALL: C.UTF-8
+
+pages:
+  stage: deploy
+  script:
+    - gem install bundler
+    - bundle install
+    - bundle exec jekyll build -d public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

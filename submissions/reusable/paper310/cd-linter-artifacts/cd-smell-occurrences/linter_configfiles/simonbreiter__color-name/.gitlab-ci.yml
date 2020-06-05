@@ -1,0 +1,24 @@
+stages:
+  - test
+  - build
+  - deploy
+test:
+  image: node:7
+  script:
+    - npm install
+    - npm run test
+build:
+  image: docker:latest
+  services:
+  - docker:dind
+  stage: build
+  script:
+    - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY
+    - docker build -t $DOCKER_REGISTRY/simonbreiter/color-name .
+    - docker push $DOCKER_REGISTRY/simonbreiter/color-name
+deploy:
+  stage: deploy
+  image: cdrx/rancher-gitlab-deploy
+  script:
+   - upgrade --rancher-url $RANCHER_URL --rancher-key $RANCHER_ACCESS_KEY --rancher-secret $RANCHER_SECRET_KEY --stack color-name --service color-name --no-start-before-stopping
+

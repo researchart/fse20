@@ -1,0 +1,57 @@
+image: registry.gitlab.com/atomicrex/atomicrex:latest
+
+build_linux_python3:
+    stage: build
+    tags:
+      - linux
+    script:
+      - mkdir build
+      - cd build
+      - cmake
+            -DCMAKE_BUILD_TYPE=Debug
+            -DPYTHON_INCLUDE_DIR=/usr/include/python3.5m
+            -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.5m.so
+            -DCMAKE_INSTALL_PREFIX=../install
+            ..
+      - make -j4
+      - ctest --output-on-failure
+      - make userguide
+    artifacts:
+        paths:
+          - doc/userguide/build
+
+build_linux_python2:
+    stage: build
+    tags:
+      - linux
+    script:
+      - mkdir build
+      - cd build
+      - cmake
+            -DCMAKE_BUILD_TYPE=Debug
+            -DPYTHON_INCLUDE_DIR=/usr/include/python2.7
+            -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython2.7.so
+            -DCMAKE_INSTALL_PREFIX=../install
+            ..
+      - make -j4
+      - ctest --output-on-failure
+      - make userguide
+
+pages:
+    stage: deploy
+    dependencies:
+      - build_linux_python3
+    script:
+      - mv doc/userguide/build public/
+      - mv doc/google*.html public/
+      - fname=`awk '{split($0, s, "."); print s[1]}' doc/letsencrypt-setup.html`
+      - mkdir -p public/.well-known/acme-challenge/
+      - mv doc/letsencrypt-setup.html public/.well-known/acme-challenge/$fname
+      - ls -l public/.well-known/acme-challenge/
+      - chmod go-rwX -R public/
+    artifacts:
+        paths:
+          - public
+    only:
+      - master
+

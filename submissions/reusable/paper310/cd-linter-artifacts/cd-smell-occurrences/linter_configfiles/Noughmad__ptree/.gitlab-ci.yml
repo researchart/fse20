@@ -1,0 +1,11 @@
+image: "registry.gitlab.com/noughmad/serde_any_ci:latest"
+
+test:cargo:
+  script:
+  - rustc --version && cargo --version
+  - cargo test --all
+  - cargo doc
+  - linkchecker target/doc/ptree/
+  - cargo tarpaulin --out Xml
+  - "bash <(curl -s https://codecov.io/bash)"
+

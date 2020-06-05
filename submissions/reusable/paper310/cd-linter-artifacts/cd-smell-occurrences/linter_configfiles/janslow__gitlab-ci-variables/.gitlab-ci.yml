@@ -1,0 +1,72 @@
+# Global config
+image: node:6
+
+cache:
+  paths:
+    - node_modules/
+
+# Templates
+.template_tag-docker: &tag-docker
+  tags:
+    - docker
+
+# Test
+## Templates
+.template_npm: &npm
+  <<: *tag-docker
+  stage: test
+  variables:
+    NPM_CONFIG_LOGLEVEL: warn
+  before_script:
+    - npm config set unsafe-perm true
+    - npm prune
+    - npm update
+  script:
+    - npm run $CI_BUILD_NAME
+
+## Jobs
+pack:
+  <<: *npm
+  artifacts:
+    expire_in: '1 day'
+    paths:
+      - '*.tgz'
+  script:
+    - prerelease="-ci.$CI_BUILD_REF"
+    - if [ $CI_BUILD_REF_NAME = "develop" ]; then prerelease="-dev.$CI_PIPELINE_ID"; fi
+    - if [ -n "$CI_BUILD_TAG" ]; then prerelease=''; fi
+    - 'sed -i -r "s/\"version\": \"([0-9\.]+)-local\",/\"version\": \"\1$prerelease\",/" package.json'
+    - if grep -q -- "-local" package.json; then echo "Version wasn't changed"; exit 1; fi
+    - npm pack
+
+test:tslint: { <<: *npm }
+test:mocha: { <<: *npm }
+
+# Deploy
+## Templates
+.template_publish-npm: &publish-npm
+  <<: *tag-docker
+  stage: deploy
+  dependencies:
+    - pack
+  script:
+    - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
+    - npm publish --ignore-scripts --tag $tag ./*.tgz
+
+## Jobs
+deploy:npm-dev:
+  <<: *publish-npm
+  variables:
+    tag: dev
+  environment: dev
+  only:
+    - develop@janslow/gitlab-ci-variables
+
+deploy:npm-latest:
+  <<: *publish-npm
+  variables:
+    tag: latest
+  environment: latest
+  only:
+    - tags@janslow/gitlab-ci-variables
+

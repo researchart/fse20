@@ -1,0 +1,42 @@
+cache:
+  paths:
+    - vendor/
+
+stages:
+  - static-code-analysis
+  - phpunit
+
+# Install composer dependencies
+before_script:
+  - apt-get update && apt-get install -y libzip-dev zlib1g-dev
+  - docker-php-ext-install zip && docker-php-ext-install json
+  - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+  - php composer-setup.php
+  - php -r "unlink('composer-setup.php');"
+  - php composer.phar update --prefer-lowest
+
+code-analysis:
+  stage: static-code-analysis
+  image: php:7.2
+  script:
+    - vendor/bin/php-cs-fixer fix -v --using-cache=no --dry-run .
+    - vendor/bin/phpstan analyse --no-progress --level=max src/
+
+test-7.1:
+  stage: phpunit
+  image: php:7.1
+  script:
+    - vendor/bin/phpunit
+
+test-7.2:
+  stage: phpunit
+  image: php:7.2
+  script:
+    - vendor/bin/phpunit
+
+test-7.3:
+  stage: phpunit
+  image: php:7.3
+  script:
+    - vendor/bin/phpunit
+

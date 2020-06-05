@@ -1,0 +1,12 @@
+image: registry.gitlab.com/greysonp/gitlab-ci-shared-runner-android-example:latest
+
+before_script:
+  - chmod +x ./gradlew
+
+build:
+  script:
+    - ./gradlew assembleDebug
+  artifacts:
+    paths:
+    - app/build/outputs/
+

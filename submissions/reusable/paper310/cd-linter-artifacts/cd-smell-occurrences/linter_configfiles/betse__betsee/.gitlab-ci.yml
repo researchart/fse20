@@ -1,0 +1,236 @@
+# --------------------( LICENSE                           )--------------------
+# Copyright 2017-2020 by Alexis Pietak & Cecil Curry.
+# See "LICENSE" for further details.
+#
+# --------------------( SYNOPSIS                          )--------------------
+# Project-wide GitLab-CI configuration, integrating the in-house
+# free-as-in-beer continuous integration (CI) service exposed by GitLab with
+# this project's "py.test"-driven test suite.
+#
+# --------------------( SEE ALSO                          )--------------------
+# * "betse/.gitlab-ci.yml", from which this file largely derives.
+
+# ....................{ DOCKER                            }....................
+# Colon-delimited name and tag of the Docker image registered at the Docker Hub
+# Registery (e.g., "python:3", denoting the Docker image named "python" tagged
+# as "3"), provisioning the Python stack to be tested against.
+#
+# A name is an alphanumeric label such that:
+#
+# * For third-party Docker images, the name is prefixed by an organization name
+#   delimited by a "/" character (e.g., "continuumio/anaconda3").
+# * For official Docker images published by Docker itself, the name is a bare
+#   label prefixed by *NO* such delimiter (e.g., "python").
+#
+# A tag is an alphanumeric label unique to an image, whose name is itself an
+# alphanumeric label unique across all images registered at the Docker Hub
+# Registery. A tag typically specifies the version of that image to be used.
+#
+# Lastly, note that the test matrix defined below explicitly overrides this
+# basic image for every test environment. This is only a desperate fallback.
+image: python
+
+# ....................{ GLOBALS ~ env                     }....................
+# Dictionary mapping from the name to value of each environment variable to be
+# "globally" exported and hence accessible to *ALL* commands run below.
+variables:
+  # ...................{ GLOBALS ~ public                  }...................
+  # Public environment variables specific to third-party dependencies.
+  #
+  # Note that *ALL* pathnames to be cached below should be prefixed by
+  # "${CI_PROJECT_DIR}/", the absolute dirname of the pipeline-specific
+  # directory containing this project. See the "WARNING" below for details.
+
+  # Reduce the Advanced Package Tool (APT) package manager provided by this
+  # Debian Linux-based image to headless behaviour. To quote "man debconf":
+  #     "This is the anti-frontend. It never interacts with you at all, and
+  #      makes the default answers be used for all questions. It might mail
+  #      error messages to root, but that's it; otherwise it is completely
+  #      silent and unobtrusive, a perfect frontend for automatic installs. If
+  #      you are using this front-end, and require non-default answers to
+  #      questions, you will need to preseed the debconf database; see the
+  #      section below on Unattended Package Installation for more details."
+  # Note that the "apt --yes" option technically obsoletes this setting for
+  # most purposes, but that a little explicitness never hurt no one never.
+  DEBIAN_FRONTEND: noninteractive
+
+  # Instruct XDG-compliant packages (e.g., matplotlib) to cache metadata to the
+  # build-relative directory repeated in the "cache:" mapping below.
+  XDG_CACHE_HOME: "${CI_PROJECT_DIR}/.cache"
+
+  # ...................{ GLOBALS ~ private                 }...................
+  # Private environment variables specific to this configuration. To avoid
+  # conflict with third-party applications, the name of each such variable is
+  # intentionally prefixed by "_".
+
+  # Whitespace-delimited list of the names of all Debian-based non-Pythonic
+  # mandatory dependencies to be installed by APT below. These include:
+  #
+  # * "graphviz", required by BETSE's optional "pydot" dependency.
+  # * "libgl1-mesa-glx", implicitly required by the Linux-specific PySide2
+  #   wheel, which assumes the default Linux shared library stack. If absent,
+  #   the first attempt to import from the "PySide2" package at BETSEE
+  #   startup raises a fatal exception resembling:
+  #       Traceback (most recent call last):
+  #         File "/usr/local/lib/python3.5/runpy.py", line 193, in _run_module_as_main
+  #           "__main__", mod_spec)
+  #         File "/usr/local/lib/python3.5/runpy.py", line 85, in _run_code
+  #           exec(code, run_globals)
+  #         File "/builds/betse/betsee/.tox/py35/lib/python3.5/site-packages/betsee/__main__.py", line 243, in <module>
+  #           sys.exit(main())
+  #         File "/builds/betse/betsee/.tox/py35/lib/python3.5/site-packages/betsee/__main__.py", line 93, in main
+  #           from betsee.guiappmeta import BetseeAppMeta
+  #         File "/builds/betse/betsee/.tox/py35/lib/python3.5/site-packages/betsee/guiappmeta.py", line 24, in <module>
+  #           from betsee.lib.pyside2.cache.guipsdcache import CachePolicy
+  #         File "/builds/betse/betsee/.tox/py35/lib/python3.5/site-packages/betsee/lib/pyside2/cache/guipsdcache.py", line 22, in <module>
+  #           from betsee.gui.simconf.stack.widget.guisimconfradiobtn import (
+  #         File "/builds/betse/betsee/.tox/py35/lib/python3.5/site-packages/betsee/gui/simconf/stack/widget/guisimconfradiobtn.py", line 21, in <module>
+  #           from PySide2.QtWidgets import QButtonGroup, QRadioButton
+  #       ImportError: libGL.so.1: cannot open shared object file: No such file or directory
+  _APT_PACKAGE_NAMES: |
+    graphviz
+    libgl1-mesa-glx
+
+# ....................{ GLOBALS ~ cache                   }....................
+cache:
+  # Cache all subdirectories and files of the build directory *NOT* already
+  # tracked by Git for this repository, in addition to those paths explicitly
+  # cached below. In theory, all paths requiring caching should be explicitly
+  # cached below; in practice, this fallback ensures that paths omitted below
+  # will still be implicitly cached.
+  # untracked: true
+
+  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  # WARNING: Due to an outstanding issue, GitLab-CI currently ignores *ALL*
+  # cache paths outside the build directory. See also:
+  #     https://gitlab.com/gitlab-org/gitlab-ce/issues/4431
+  # Sadly, this implies that cache paths listed below *MUST* be both relative
+  # to and contained in the build directory. Ensure that each such path is
+  # prefixed by neither "/", "./", or "../" *NOR* by any variable expanding to
+  # such a path (e.g., "$HOME").
+  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  #
+  # List of the relative or absolute dirnames of all directories to be
+  # preserved between CI pipelines. (Note that relative dirnames are relative
+  # to the current build directory.)
+  paths:
+    # Directory to which XDG-compliant packages cache metadata (e.g., fonts).
+    - .cache/
+
+# ....................{ STAGES                            }....................
+# List of all stages to be run by this pipeline (in order).
+#
+# In Gitlab-CI parlance, a "stage" is an abstract tag to which a "job" (defined
+# below) is assigned. Each job is *ALWAYS* tagged with exactly one stage,
+# defaulting to the "test" stage. All jobs tagged with the same stage are run
+# in parallel *BEFORE* all jobs tagged with the next stage in this list are run
+# in parallel. If any job fails, the entire stage to which that job belongs
+# fails. If any stage fails, the entire pipeline fails; else, the pipeline
+# succeeds.
+#
+# Previously, this pipeline listed the following two stages:
+#
+#     stages:
+#       - build
+#       - test
+#
+# These stages were implemented by the following two jobs:
+#
+# * "betse_build", implementing the "build" stage by installing dependencies.
+# * "betse_test", implementing the "test" stage by testing this application.
+#
+# Sadly, this seemingly reasonable partition of the pipeline workflow silently
+# ceased working at some unidentifiable time in the development history. To
+# remedy this, all work previously previously performed by the "betse_build"
+# job is now performed as a global "before_script" key. While non-ideal, there
+# appears to be no remedy as yet.
+stages:
+  - test
+
+# ....................{ JOBS                              }....................
+# In Gitlab-CI parlance, a "job" is a container of all Gitlab-CI configuration
+# metadata guaranteed to be enabled for the same duration of the pipeline time.
+# This contradicts conventional *nix-oriented parlance, in which a "job" is
+# simply a subprocess owned by a parent shell process.
+#
+# Each Gitlab-CI job is uniquely identified by a top-level user-defined key of
+# this YAML file *NOT* already reserved for use as a top-level official key by
+# the ".gitlab-ci.yml" file format (e.g., "artifact", "cache", "script"). A job
+# may have any arbitrary non-reserved name and may contain any top-level
+# official key, thus confining the action of that key (e.g., artifact building,
+# caching, script commands) to that job.
+
+# ....................{ JOBS ~ test : common              }....................
+# Mapping-style anchor to be interpolated into each job's mapping below.
+.test_common: &test_common
+  # Stage to run this job under. Note that "test" is technically the default
+  # stage and hence need *NOT* be explicitly specified here. For disambiguity,
+  # we do so anyway.
+  stage: test
+
+  # List of all external commands run *BEFORE* running those listed by the
+  # "script" key of any job below. These commands build and install both this
+  # application and all third-party dependencies required by this application.
+  before_script:
+    # Update all system-wide packages installed by default with this image for
+    # the temporary duration of this job and, if a package cache has yet to be
+    # created, do so.
+    #
+    # This command *MUST* be run before attempting to install any dependencies
+    # via the system-wide package manager, as the latter requires the package
+    # cache created by the former. If omitted, the first such attempt fails
+    # with a fatal error resembling:
+    #
+    #    $ apt-get install -y graphviz
+    #    Reading package lists...
+    #    Building dependency tree...
+    #    Reading state information...
+    #    E: Unable to locate package graphviz
+    - apt-get update --quiet --quiet --yes
+
+    # Install all dependencies available via the system-wide package manager.
+    # Doing so is typically both faster and stabler than doing so via "pip"
+    # and, in any case, supports installation of non-Pythonic dependencies
+    # unavailable via "pip" (e.g., "graphviz").
+    - apt-get install --quiet --quiet --yes ${_APT_PACKAGE_NAMES}
+
+    # Install all preliminary Python dependencies with "pip". Note that the
+    # "tox.ini" file provided by this project installs:
+    #
+    # * All remaining Python dependencies (e.g., "pytest", "numpy", "scipy").
+    # * This project itself (e.g., "betse").
+    - python3 -m pip --quiet install tox
+
+# ....................{ JOBS ~ test : version             }....................
+# Note that non-slim Docker Python images are currently preferred to slim
+# variants with names suffixed by "-slim" (e.g., "python:3.8-slim"), as the
+# latter fail to include C and C++ compilers required to build and install
+# wheels for Python packages both lacking official wheels *AND* containing
+# mandatory C extensions (e.g., "psutil"). Installing compilers under slim
+# variants would circumvent this but also defeat the purpose of doing so.
+
+# Python 3.5-specific test job, exercising this project's full test suite.
+test_python35:
+  <<: *test_common
+  image: python:3.5
+  script: python3 -m tox -e py35
+
+# Python 3.6-specific test job, exercising this project's full test suite.
+test_python36:
+  <<: *test_common
+  image: python:3.6
+  script: python3 -m tox -e py36
+
+# Python 3.7-specific test job, exercising this project's full test suite.
+test_python37:
+  <<: *test_common
+  image: python:3.7
+  script: python3 -m tox -e py37
+
+#FIXME: Uncomment after upstream resolves PYSIDE-939. See "betsee.guimetadata".
+# Python 3.8-specific test job, exercising this project's full test suite.
+# test_python38:
+#   <<: *test_common
+#   image: python:3.8
+#   script: python3 -m tox -e py38
+

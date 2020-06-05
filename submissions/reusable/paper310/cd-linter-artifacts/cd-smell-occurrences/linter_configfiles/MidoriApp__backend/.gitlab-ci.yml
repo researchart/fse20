@@ -1,0 +1,35 @@
+
+image: laratools/ci:7.2
+
+variables:
+  MYSQL_DATABASE: midori
+  MYSQL_ROOT_PASSWORD: secret
+
+cache:
+  paths:
+  - vendor/
+
+before_script:
+
+test:
+  services:
+  - mysql:5.7
+  script:
+  - composer install --prefer-dist --no-interaction --no-suggest --no-progress
+  - php vendor/bin/phpunit --coverage-text --colors=never
+
+deploy to heroku:
+  type: deploy
+  image: ruby:latest
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - gem install dpl
+  - dpl --provider=heroku --app=midori-backend --api-key=$HEROKU_API_KEY
+  environment:
+    name: heroku
+    url: https://midori-backend.herokuapp.com
+  only:
+  - master
+  when: manual
+

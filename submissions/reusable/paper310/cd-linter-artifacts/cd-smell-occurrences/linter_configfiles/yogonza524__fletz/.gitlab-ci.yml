@@ -1,0 +1,57 @@
+image: docker:latest
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay
+  SPRING_PROFILES_ACTIVE: gitlab-ci
+  SPRING_PROFILES_HEROKU_ACTIVE: heroku
+  USER_GITLAB: yogonza524
+  USER_EMAIL: yogonza524@gmail.com
+  USER_NAME: Gonzalo Mendoza
+  APP_NAME: fletz
+  REPO: fletz
+
+stages:
+  - build
+  - docker
+  - deploy
+
+#maven-pmd:
+#  image: maven:3-jdk-8
+#  stage: build
+#  script:
+#    - mvn pmd:check -Dpmd.printFailingErrors=true
+
+maven-build:
+  image: maven:3-jdk-8
+  stage: build
+  script:
+    - mvn package -B
+  artifacts:
+    paths:
+      - target/*.jar
+
+container:
+  stage: docker
+  script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  - docker build -t registry.gitlab.com/yogonza524/$REPO .
+  - docker push registry.gitlab.com/yogonza524/$REPO
+  when: manual
+  only:
+    - master
+
+heroku-deploy:
+  stage: deploy
+  image: yogonza524/debian-heroku:1.2
+  script:
+    - sed -i -- 's/USER_EMAIL/$USER_EMAIL/g' ci/heroku.txt
+    - sed -i -- 's/HEROKU_API_KEY/$HEROKU_API_KEY/g' ci/heroku.txt
+    - cp ci/heroku.txt ~/.netrc
+    - git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/$APP_NAME.git
+    - git push -f heroku master
+  when: manual
+  only:
+    - master
+

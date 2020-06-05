@@ -1,0 +1,108 @@
+stages:
+  - lint
+  - test
+  - build
+  - integration
+  - release
+
+# linting
+.python-template: &python-template
+  image: python:3.5
+  before_script:
+    - pip install --editable .[dev]
+
+lint:
+  <<: *python-template
+  stage: lint
+  script:
+    - make lint
+  artifacts:
+    reports:
+      junit: build/mypy.xml
+
+# unit-style tests
+unit:
+  <<: *python-template
+  stage: test
+  script:
+    - make test/unit
+  artifacts:
+    reports:
+      junit: build/test.xml
+
+provisioners:
+  <<: *python-template
+  stage: test
+  script:
+    - make test/provisioners
+  artifacts:
+    reports:
+      junit: build/test.xml
+
+# package
+build-wheel:
+  <<: *python-template
+  stage: build
+  script:
+    - make build/wheel RELEASE_VERSION=$(echo $CI_COMMIT_TAG | sed -e s/^v//)
+  artifacts:
+    paths:
+      - dist/*.whl
+
+check-wheel:
+  <<: *python-template
+  stage: integration
+  script:
+    - make test/check-wheel
+
+# integration tests
+.docker-template: &docker-template
+  image: docker
+  services:
+    - docker:dind
+  before_script:
+    - apk add --no-cache make
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+integration:
+  <<: *docker-template
+  stage: integration
+  script:
+    - make test/integration
+  artifacts:
+    reports:
+      junit: build/test.xml
+
+integration-slow:
+  <<: *docker-template
+  stage: integration
+  script:
+    - make test/integration_slow
+  artifacts:
+    reports:
+      junit: build/test.xml
+
+# release
+.release-template: &release-template
+  <<: *python-template
+  stage: release
+  variables:
+    TWINE_USERNAME: $PYPI_USERNAME
+    TWINE_PASSWORD: $PYPI_PASSWORD
+  environment:
+    name: pypi.org
+    url: https://pypi.org/project/deploy-ostree
+  script:
+    - make release/pypi
+
+release-dev:
+  <<: *release-template
+  when: manual
+  except:
+    - /^v.+$/
+
+release:
+  <<: *release-template
+  only:
+    - /^v.+$/
+

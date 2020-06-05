@@ -1,0 +1,15 @@
+image: registry.gitlab.com/cawka/containers:latex
+
+pages:
+  stage: build
+  script:
+    - make
+    - mkdir public
+    - cp nfd-docs.pdf public/ndn-0021-nfd-guide.pdf
+    - echo "<html><p><a href='ndn-0021-nfd-guide.pdf'>See the latest version of the TR</a></p>" > public/index.html
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

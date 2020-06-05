@@ -1,0 +1,25 @@
+image: golang:1.11.2-alpine3.8
+
+variables:
+    REPO_NAME: gitlab.com/diamondburned/gobat-cli
+    ARTIFACTS_DIR: artifacts
+
+before_script:
+    - apk add --no-cache git gcc musl-dev
+    - mkdir -p ${GOPATH}/src/${REPO_NAME}
+    - mkdir -p ${CI_PROJECT_DIR}/${ARTIFACTS_DIR}
+    - cp -r ${CI_PROJECT_DIR}/* ${GOPATH}/src/${REPO_NAME}/
+    - cd ${GOPATH}/src/${REPO_NAME}
+
+stages:
+    - build
+
+compile:
+    stage: build
+    script:
+      - go get 
+      - time go build --ldflags '-linkmode external -extldflags "-static"' -o ${CI_PROJECT_DIR}/${ARTIFACTS_DIR}/gobat-cli
+    artifacts:
+      paths:
+        - ${ARTIFACTS_DIR}
+

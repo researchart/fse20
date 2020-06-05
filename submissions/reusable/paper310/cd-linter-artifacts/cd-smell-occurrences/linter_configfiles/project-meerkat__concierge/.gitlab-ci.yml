@@ -1,0 +1,43 @@
+stages:
+  - test
+  - build
+  - deploy
+
+test:
+  stage: test
+  tags:
+    - shell
+  script:
+    - docker-compose build --build-arg additional_packages=concierge_theme_pleio web
+    - docker-compose -f docker-compose.ci.yml run --rm web python manage.py test
+  
+build:
+  stage: build
+  tags:
+    - shell
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t registry.gitlab.com/project-meerkat/concierge:latest .
+    - docker build -t registry.gitlab.com/project-meerkat/concierge:${CI_COMMIT_SHA:0:8} .
+    - docker push registry.gitlab.com/project-meerkat/concierge:latest
+    - docker push registry.gitlab.com/project-meerkat/concierge:${CI_COMMIT_SHA:0:8}
+
+deploy-dev:
+  stage: deploy
+  tags:
+    - control-vps
+  only:
+    - dev
+  script:
+    - /snap/bin/kubectl --namespace=account set image deployment/account-test account-test=registry.gitlab.com/project-meerkat/concierge:${CI_COMMIT_SHA:0:8}
+
+deploy-master:
+  stage: deploy
+  tags:
+    - control-vps
+  only:
+    - master
+  when: manual
+  script:
+    - /snap/bin/kubectl --namespace=account set image deployment/account account=registry.gitlab.com/project-meerkat/concierge:${CI_COMMIT_SHA:0:8}
+

@@ -1,0 +1,48 @@
+image: docker:git
+services:
+  - docker:dind
+
+stages:
+  - build_image
+  - build_nginx
+
+.nginx_builder_kaniko:
+  stage: build_image
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    - git clone https://github.com/TinkoffCreditSystems/Nginx-builder.git
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"gitlab-ci-token\",\"password\":\"$CI_BUILD_TOKEN\"}}}" > /kaniko/.docker/config.json
+    - >
+      /kaniko/executor --context dir://${CI_PROJECT_DIR}/Nginx-builder
+      --dockerfile ${CI_PROJECT_DIR}/Nginx-builder/Dockerfile
+      --destination ${CI_REGISTRY_IMAGE}/nginx_builder:latest
+  tags:
+    - docker
+  when: manual
+
+nginx_builder:
+  stage: build_image
+  script:
+    - git clone https://github.com/vadikgo/Nginx-builder.git
+    - cd Nginx-builder
+    - docker build -t ${CI_REGISTRY_IMAGE}/nginx_builder:latest -f Dockerfile.centos .
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker push ${CI_REGISTRY_IMAGE}/nginx_builder:latest
+  tags:
+    - docker
+  when: manual
+
+centos7:
+  stage: build_nginx
+  image: ${CI_REGISTRY_IMAGE}/nginx_builder:latest
+  script:
+    - /nginx-builder/main.py build -f nginx_build_config.yml -r ${CI_COMMIT_SHORT_SHA}
+  artifacts:
+    paths:
+    - '*.rpm'
+  tags:
+    - docker
+  when: manual
+

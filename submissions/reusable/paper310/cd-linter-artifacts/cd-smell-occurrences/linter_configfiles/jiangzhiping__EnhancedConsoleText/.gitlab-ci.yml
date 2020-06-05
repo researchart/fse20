@@ -1,0 +1,15 @@
+image: ubuntu:18.04
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+before_script: 
+  - apt-get update && apt-get -y install git cmake build-essential
+
+current_version:
+    script:
+        - mkdir build
+        - cd build
+        - cmake ..
+        - make
+

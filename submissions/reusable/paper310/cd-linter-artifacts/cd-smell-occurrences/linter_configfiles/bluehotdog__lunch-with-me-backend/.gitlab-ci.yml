@@ -1,0 +1,92 @@
+
+# Pick zero or more services to be used on all builds.
+# Only needed when using a docker container to run your tests in.
+# Check out: http://docs.gitlab.com/ce/ci/docker/using_docker_images.html#what-is-a-service
+services:
+  - postgres:latest
+
+variables:
+  POSTGRES_DB: lunch_with_me_test
+  POSTGRES_HOST: postgres
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: "postgres"
+  MIX_ENV: "test"
+  REBAR_CACHE_DIR: $CI_PROJECT_DIR/.rebar3
+
+stages:
+  - deps
+  - build
+  - test
+  - coverage
+  # - docs
+
+elixir:deps:
+  stage: deps
+  image: elixir:1.7
+  tags:
+    - docker
+  before_script:
+    - apt-get update && apt-get -y install postgresql-client
+    - mix local.hex --force
+    - mix local.rebar --force
+  script:
+    - mix deps.get --only test
+  dependencies: []
+  artifacts:
+    paths:
+      - mix.lock
+      - deps
+  cache:
+    paths:
+      - ~/.hex/
+
+elixir:build:
+  stage: build
+  image: elixir:1.7
+  tags:
+    - docker
+  before_script:
+    - mix local.hex --force
+    - mix local.rebar --force
+  script:
+    - mix compile
+  dependencies:
+    - elixir:deps
+  artifacts:
+    paths:
+      - mix.lock
+      - _build
+      - deps
+
+elixir:test:credo:
+  stage: test
+  image: elixir:1.7
+  tags:
+    - docker
+    - postgres
+  before_script:
+    - mix local.hex --force
+    - mix local.rebar --force
+  script:
+    - mix credo --strict
+  dependencies:
+    - elixir:build
+
+
+elixir:coverage:coveralls:
+  stage: coverage
+  image: elixir:1.7
+  tags:
+    - docker
+    - postgres
+  before_script:
+    - mix local.hex --force
+    - mix local.rebar --force
+  script:
+    - mix coveralls.html
+  dependencies:
+    - elixir:build
+  artifacts:
+    paths:
+      - cover
+

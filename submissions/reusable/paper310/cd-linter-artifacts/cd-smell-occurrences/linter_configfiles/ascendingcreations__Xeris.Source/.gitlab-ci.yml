@@ -1,0 +1,17 @@
+stages:
+  - build
+
+job:
+  stage: build
+  script:
+  - echo "Restoring NuGet Packages..."
+  - '"c:\nuget\nuget.exe" restore "Xeris.Source.sln"'
+  - '"c:\nuget\nuget.exe" restore "Xeris.Modules.sln"'
+  - ''
+  - echo "Release build..."
+  - C:\Windows\Microsoft.NET\Framework64\v4.0.30319\msbuild.exe /consoleloggerparameters:ErrorsOnly /maxcpucount /nologo /property:Configuration=Release /verbosity:quiet "Xeris.Source.sln"
+  - C:\Windows\Microsoft.NET\Framework64\v4.0.30319\msbuild.exe /consoleloggerparameters:ErrorsOnly /maxcpucount /nologo /property:Configuration=Release /verbosity:quiet "Xeris.Modules.sln"
+  tags: 
+  except:
+  - tags
+

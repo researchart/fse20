@@ -1,0 +1,21 @@
+image: gradle:4.8.0-jdk8
+
+stages:
+    - build
+    - test
+
+job1:
+    stage: build
+    script: gradle clean assemble
+    after_script: 
+    - mv build/libs/saturnshell-0.0.5-SNAPSHOT.jar build/libs/SaturnShell.jar
+    artifacts:
+        paths:
+        - build/libs/SaturnShell.jar
+
+job2:
+    stage: test
+    script: gradle clean test
+    only:
+        - master@Redrield/SaturnShell
+

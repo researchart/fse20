@@ -1,0 +1,69 @@
+image:
+  name: registry.gitlab.com/fredriklarsen/airbrush/android
+  entrypoint: [""] # force an empty entrypoint
+
+before_script:
+  - echo "Running before script..."
+  - export GRADLE_USER_HOME=$(pwd)/gradle-cache
+  - chmod +x ./gradlew
+  - echo "" >> gradle.properties # Add empty line to the end of file
+  - echo "org.gradle.daemon=false" >> gradle.properties
+  - echo -n "$KEYSTORE" | base64 -d -w 0 > $(pwd)/android.keystore
+  - export KEYSTORE_FILE=$(pwd)/android.keystore
+  - echo "Finished running before script."
+
+cache:
+  key: ${CI_PROJECT_ID}
+  paths:
+    # The gradle wrapper itself
+    - gradle-cache/wrapper
+    # The jars (dependencies)
+    - gradle-cache/caches/modules-2/files-2.1
+
+stages:
+  - verify
+  - build
+  - deploy
+
+tests:
+  stage: verify
+  script:
+    - ./gradlew clean lintRelease testRelease
+  artifacts:
+    reports:
+      junit:
+        - "*/build/test-results/*/TEST-*.xml"
+
+library:
+  stage: build
+  only:
+    refs:
+      - tags
+  script:
+    - ./gradlew assembleRelease
+  artifacts:
+    when: on_success
+    paths:
+      - "library/build/outputs/aar/*"
+
+publish:
+  stage: deploy
+  only:
+    refs:
+      - tags
+  when: manual
+  script:
+    - ./gradlew bintrayUpload
+
+sample-app:
+  stage: build
+  only:
+    refs:
+      - tags
+  script:
+    - ./gradlew sample:assembleDebug
+  artifacts:
+    when: on_success
+    paths:
+      - "sample/build/outputs/apk/debug/*.apk"
+

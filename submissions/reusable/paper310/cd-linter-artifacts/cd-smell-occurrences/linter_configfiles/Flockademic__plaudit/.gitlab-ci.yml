@@ -1,0 +1,354 @@
+stages:
+  - scheduled
+  - prepare
+  - test
+  - provision
+  - deploy
+  - confidenceCheck
+
+export_crossref:
+  stage: scheduled
+  image: alpine
+  only:
+    - schedules
+  script:
+    - apk add --no-cache wget
+    # Display the output rather than write it to a file, even if the response is an error:
+    - wget --output-document=- --content-on-error --no-verbose https://plaudit.pub/api/export/crossref
+
+prepare:
+  stage: prepare
+  except:
+    - schedules
+  script: echo "Dummy job to preserve artifacts for the undeploy job"
+  artifacts:
+    paths:
+      - infrastructure.tf
+    expire_in: 1 month
+
+test_client:
+  stage: test
+  image: node:10
+  except:
+    refs:
+    - schedules
+    variables:
+      - $IS_HOTFIX_DEPLOYMENT == "true"
+  script:
+    - wipCommits=`git log --grep=^WIP`; if [ -n "$wipCommits" ] && [ "$CI_COMMIT_REF_NAME" != "master" ]; then echo "WIP commits detected; skipping tests."; exit 0; fi
+    - cd client
+    - yarn
+    - yarn test --ci --reporters=default --reporters=jest-junit --coverage
+  artifacts:
+    reports:
+      junit: client/junit.xml
+    paths:
+      - client/coverage/
+    when: always
+
+provision:
+  stage: provision
+  image:
+    name: hashicorp/terraform:0.11.8
+    entrypoint:
+      # These values provided by https://github.com/hashicorp/docker-hub-images/issues/37#issuecomment-356330221
+      - '/usr/bin/env'
+      - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+  except:
+    - schedules
+  script:
+    - export TF_VAR_aws_access_key_id=$AWS_ACCESS_KEY_ID;
+    - export TF_VAR_aws_account_id=$AWS_ACCOUNT_ID
+    - export TF_VAR_aws_region=$AWS_REGION
+    - export TF_VAR_heroku_email=$HEROKU_EMAIL
+    - export TF_VAR_heroku_api_key=$HEROKU_API_KEY
+    - export TF_VAR_aws_secret_access_key=$AWS_SECRET_ACCESS_KEY
+    - export TF_VAR_cloudflare_email=$CLOUDFLARE_EMAIL
+    - export TF_VAR_cloudflare_token=$CLOUDFLARE_TOKEN
+    - export TF_VAR_ga_tracking_id=$GA_TRACKING_ID
+    - if [[ $CI_COMMIT_REF_NAME == "master" ]]; then export TF_VAR_crossref_client_id=$CROSSREF_CLIENT_ID_PRODUCTION; else export TF_VAR_crossref_client_id=$CROSSREF_CLIENT_ID; fi;
+    - if [[ $CI_COMMIT_REF_NAME == "master" ]]; then export TF_VAR_crossref_client_secret=$CROSSREF_CLIENT_SECRET_PRODUCTION; else export TF_VAR_crossref_client_secret=$CROSSREF_CLIENT_SECRET; fi;
+    - if [[ $CI_COMMIT_REF_NAME == "master" ]]; then export TF_VAR_crossref_url=$CROSSREF_URL_PRODUCTION; else export TF_VAR_crossref_url=$CROSSREF_URL; fi;
+    - if [[ $CI_COMMIT_REF_NAME == "master" ]]; then export TF_VAR_orcid_client_id=$ORCID_CLIENT_ID_PRODUCTION; else export TF_VAR_orcid_client_id=$ORCID_CLIENT_ID; fi;
+    - if [[ $CI_COMMIT_REF_NAME == "master" ]]; then export TF_VAR_orcid_client_secret=$ORCID_CLIENT_SECRET_PRODUCTION; else export TF_VAR_orcid_client_secret=$ORCID_CLIENT_SECRET; fi;
+    - if [[ $CI_COMMIT_REF_NAME == "master" ]]; then export TF_VAR_orcid_url=$ORCID_URL_PRODUCTION; else export TF_VAR_orcid_url=$ORCID_URL; fi;
+    - export TF_VAR_session_secret=$SESSION_SECRET
+    # Use the branch/tag name as the TerraForm Workspace,
+    # limited to 26 chars (30 is the max length of Heroku app names, which we prepend with `p5t-`),
+    # and with a potential trailing dash stripped
+    # (Note that I'd rather name this $TF_WORKSPACE, but:
+    # https://github.com/hashicorp/terraform/issues/15874 )
+    - export WORKSPACE_NAME=`echo $CI_COMMIT_REF_SLUG | cut -c 1-26 | sed -e 's/-$//'`
+    # Deploy everything
+    - terraform version
+    - terraform init -backend-config="region=$TF_VAR_aws_region" -input=false
+    - terraform workspace select $WORKSPACE_NAME || terraform workspace new $WORKSPACE_NAME
+    - terraform get
+    - terraform graph
+    - alias cleanup="sed -e \"s|$TF_VAR_aws_access_key_id|***|g\" | sed -e \"s|$TF_VAR_aws_secret_access_key|***|g\" | sed -e \"s|$TF_VAR_heroku_email|***|g\" | sed -e \"s|$TF_VAR_heroku_api_key|***|g\" | sed -e \"s|$TF_VAR_cloudflare_email|***|g\" | sed -e \"s|$TF_VAR_cloudflare_token|***|g\" | sed -e \"s|$TF_VAR_crossref_client_id|***|g\" | sed -e \"s|$TF_VAR_crossref_client_secret|***|g\" | sed -e \"s|$TF_VAR_orcid_client_id|***|g\" | sed -e \"s|$TF_VAR_orcid_client_secret|***|g\" | sed -e \"s|$TF_VAR_session_secret|***|g\""
+    - terraform plan -out .tfplan -input=false | cleanup
+    - terraform apply -input=false .tfplan | cleanup
+    - terraform output heroku_git_url > heroku_git_url
+    - terraform output live_url > environment_url.txt
+    - LIVE_URL=`terraform output live_url`
+    - echo -e "View app at\n$LIVE_URL"
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    # This URL is not entirely correct since the slug is trimmed (see $WORKSPACE_NAME),
+    # but since we can't use our own env vars here, and this will be correct sometimes,
+    # this will have to do for now:
+    url: https://$CI_COMMIT_REF_SLUG-review-djteam.vincenttunru.com
+    on_stop: stop_terraform
+  artifacts:
+    # This is just needed for subsequent jobs, so 1 hour should be enough
+    expire_in: 1 hour
+    paths:
+     - heroku_git_url
+     - environment_url.txt
+stop_terraform:
+  stage: provision
+  image:
+    name: hashicorp/terraform:0.11.8
+    entrypoint:
+      # These values provided by https://github.com/hashicorp/docker-hub-images/issues/37#issuecomment-356330221
+      - '/usr/bin/env'
+      - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+  variables:
+    GIT_STRATEGY: none
+  dependencies:
+    - prepare
+  except:
+    - schedules
+  script:
+    - export TF_VAR_aws_access_key_id=$AWS_ACCESS_KEY_ID
+    - export TF_VAR_aws_account_id=$AWS_ACCOUNT_ID
+    - export TF_VAR_aws_region=$AWS_REGION
+    - export TF_VAR_heroku_email=$HEROKU_EMAIL
+    - export TF_VAR_heroku_api_key=$HEROKU_API_KEY
+    - export TF_VAR_aws_secret_access_key=$AWS_SECRET_ACCESS_KEY
+    - export TF_VAR_cloudflare_email=$CLOUDFLARE_EMAIL
+    - export TF_VAR_cloudflare_token=$CLOUDFLARE_TOKEN
+    - export TF_VAR_crossref_client_id="Irrelevant for undeployment"
+    - export TF_VAR_crossref_client_secret="Irrelevant for undeployment"
+    - export TF_VAR_crossref_url="Irrelevant for undeployment"
+    - export TF_VAR_orcid_client_id="Irrelevant for undeployment"
+    - export TF_VAR_orcid_client_secret="Irrelevant for undeployment"
+    - export TF_VAR_orcid_url="Irrelevant for undeployment"
+    - export TF_VAR_session_secret="Irrelevant for undeployment"
+    - export TF_VAR_ga_tracking_id="Irrelevant for undeployment"
+    # Use the branch/tag name as the TerraForm Workspace,
+    # limited to 26 chars (30 is the max length of Heroku app names, which we prepend with `fl9-`),
+    # and with a potential trailing dash stripped
+    # (Note that I'd rather name this $TF_WORKSPACE, but:
+    # https://github.com/hashicorp/terraform/issues/15874 )
+    - export WORKSPACE_NAME=`echo $CI_COMMIT_REF_SLUG | cut -c 1-26 | sed -e 's/-$//'`
+    - terraform init -backend-config="region=$TF_VAR_aws_region" -input=false
+    - terraform workspace select $WORKSPACE_NAME
+    - terraform get
+    - alias cleanup="sed -e \"s|$TF_VAR_aws_access_key_id|***|g\" | sed -e \"s|$TF_VAR_aws_secret_access_key|***|g\" | sed -e \"s|$TF_VAR_heroku_email|***|g\" | sed -e \"s|$TF_VAR_heroku_api_key|***|g\" | sed -e \"s|$TF_VAR_cloudflare_email|***|g\" | sed -e \"s|$TF_VAR_cloudflare_token|***|g\" | sed -e \"s|$TF_VAR_crossref_client_id|***|g\" | sed -e \"s|$TF_VAR_crossref_client_secret|***|g\" | sed -e \"s|$TF_VAR_orcid_client_id|***|g\" | sed -e \"s|$TF_VAR_orcid_client_secret|***|g\" | sed -e \"s|$TF_VAR_session_secret|***|g\""
+    - terraform plan -destroy -input=false | cleanup
+    - terraform destroy -input=false -force | cleanup
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+
+deploy:
+  stage: deploy
+  dependencies:
+    - provision
+  image: alpine
+  except:
+    - schedules
+  script:
+    - apk add --no-cache git
+    - git config user.email "ci@plaudit.pub"
+    - git config user.name "CI deployment"
+    - git remote add heroku `cat heroku_git_url`
+    - echo "machine git.heroku.com login \"\" password $HEROKU_API_KEY" > ~/.netrc
+    - chmod 600 ~/.netrc
+    - git checkout -b heroku_deployment
+    - date > deployment_date
+    - git add deployment_date
+    - git commit -m "Store date of deployment, force new commit"
+    # We have to increase the timeout for Yarn, because material-design-icons is a relatively large
+    # package that takes a while to download.
+    # See https://github.com/yarnpkg/yarn/issues/5540
+    - echo "network-timeout 600000" > .yarnrc
+    - git add .yarnrc
+    - git commit -m "Increase Yarn download timeout to account for a large package (material-design-icons)"
+    - git push --force heroku heroku_deployment:master
+    - export APP_URL=`cat environment_url.txt`
+    - echo -e "View app at\n$APP_URL"
+build_extension:
+  stage: deploy
+  image: node:10
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes:
+      - extension/**/*
+  except:
+    - schedules
+  script:
+    # Use the branch/tag name as the variable part of a review app,
+    # limited to 26 chars (30 is the max length of Heroku app names, which we prepend with `p5t-`),
+    # and with a potential trailing dash stripped
+    - export WORKSPACE_NAME=`echo $CI_COMMIT_REF_SLUG | cut -c 1-26 | sed -e 's/-$//'`
+    - if [[ $CI_COMMIT_REF_NAME == "master" ]]; then export SUBDOMAIN="www"; else export SUBDOMAIN="$WORKSPACE_NAME-review"; fi;
+    - export APP_URL="https://$SUBDOMAIN.plaudit.pub"
+    - cd extension
+    - yarn
+    - if [[ $CI_COMMIT_REF_NAME != "master" ]]; then node tag_prerelease_version.js; fi;
+    - yarn run build
+    # Publish stable to Mozilla Addons if on `master`, unstable otherwise
+    - if [[ $CI_COMMIT_REF_NAME == "master" ]]; then export CHANNEL="listed"; else export CHANNEL="unlisted"; fi;
+    # Signing of the extension is allowed to fail when on `master`: it might be the case that it's re-releasing an existing version. Hence the `||`:
+    - yarn run web-ext sign --artifacts-dir web-ext-artifacts --channel="$CHANNEL" --id="${WEBEXTENSION_UUID}" --api-key="$WEB_EXT_API_KEY" --api-secret="$WEB_EXT_API_SECRET" | sed -e "s|$WEB_EXT_API_KEY|***|g" | sed -e "s|$WEB_EXT_API_SECRET|***|g" || [ $CI_COMMIT_REF_NAME == "master" ]
+    # We need to unset $WEB_EXT_* environment variables because they get parsed as arguments.
+    # See https://github.com/mozilla/web-ext/issues/1557
+    - unset WEB_EXT_API_KEY; unset WEB_EXT_API_SECRET;
+    # Publish stable to the Chrome Web store if on `master`
+    - if [[ $CI_COMMIT_REF_NAME == "master" ]]; then yarn run web-ext build --artifacts-dir web-ext-artifacts; node publish_chrome.js; else echo "Not publishing to the Chrome web store as we are not on the master branch."; fi;
+  artifacts:
+    paths:
+      - extension/web-ext-artifacts/
+    expire_in: 1 month
+
+e2e:firefox:
+  stage: confidenceCheck
+  image: node:10
+  services:
+    # We start running into ECONNREFUSED 172.17.0.3:4444 without the version number:
+    # https://gitlab.com/Flockademic/Flockademic/-/jobs/116989929
+    - name: selenium/standalone-firefox:3.13
+      alias: selenium
+  except:
+    - schedules
+  dependencies:
+    - provision
+  script:
+    - wipCommits=`git log --grep=^WIP`; if [ -n "$wipCommits" ] && [ "$CI_COMMIT_REF_NAME" != "master" ]; then echo "WIP commits detected; skipping tests."; exit 0; fi
+    - export APP_URL=`cat environment_url.txt`
+    - cd e2e-tests
+    - yarn install --frozen-lockfile
+    - yarn run test --host=selenium
+  # GUI tests loading a full browser are notoriously unstable, so give it a few tries:
+  retry: 2
+  artifacts:
+    reports:
+      junit: e2e-tests/junit/*.xml
+    expire_in: 1 week
+    when: always
+e2e:chrome:
+  stage: confidenceCheck
+  image: node:10
+  services:
+    # We start running into ECONNREFUSED 172.17.0.3:4444 without the version number:
+    # https://gitlab.com/Flockademic/Flockademic/-/jobs/116989929
+    - name: selenium/standalone-chrome:3.13
+      alias: selenium
+  dependencies:
+    - provision
+  script:
+    - wipCommits=`git log --grep=^WIP`; if [ -n "$wipCommits" ] && [ "$CI_COMMIT_REF_NAME" != "master" ]; then echo "WIP commits detected; skipping tests."; exit 0; fi
+    - export APP_URL=`cat environment_url.txt`
+    - cd e2e-tests
+    - yarn install --frozen-lockfile
+    - yarn run test --host=selenium
+  # GUI tests loading a full browser are notoriously unstable, so give it a few tries:
+  retry: 2
+  artifacts:
+    reports:
+      junit: e2e-tests/junit/*.xml
+    expire_in: 1 week
+    when: always
+
+visual-regression-test:
+  stage: confidenceCheck
+  image: node:10
+  services:
+    # Unfortunately we're running into errors when using Firefox...
+    - name: selenium/standalone-chrome:3.13
+      alias: selenium
+  dependencies:
+    - provision
+  except:
+    - schedules
+  script:
+    - wipCommits=`git log --grep=^WIP`; if [ -n "$wipCommits" ] && [ "$CI_COMMIT_REF_NAME" != "master" ]; then echo "WIP commits detected; skipping tests."; exit 0; fi
+    - export APP_URL=`cat environment_url.txt`
+    - echo "Going to run visual regression tests. If it fails, view the report in this job's artifacts, where it will display what changed. If the changes look OK, download the new versions of the screenshots and check them in in the /visual-regression-tests/snapshots/ directory."
+    - cd visual-regression-tests
+    - yarn install --frozen-lockfile
+    - yarn run test
+  artifacts:
+    reports:
+      junit: visual-regression-tests/*.xml
+    paths:
+      - visual-regression-tests/gemini-report
+      - visual-regression-tests/*.xml
+    expire_in: 1 week
+    when: always
+
+reuse:
+  stage: confidenceCheck
+  except:
+    - schedules
+  image: fsfe/reuse
+  script:
+    - reuse lint
+
+include:
+  # See https://gitlab.com/help/user/project/merge_requests/sast.md
+  - template: SAST.gitlab-ci.yml
+  # See https://gitlab.com/help/user/project/merge_requests/dast.md
+  - template: DAST.gitlab-ci.yml
+  # See https://gitlab.com/help/user/project/merge_requests/code_quality.md
+  - template: Code-Quality.gitlab-ci.yml
+
+# See https://gitlab.com/help/user/project/merge_requests/sast.md
+sast:
+  stage: confidenceCheck
+  except:
+    - schedules
+
+# See https://gitlab.com/help/user/project/merge_requests/dast.md
+dast:
+  stage: confidenceCheck
+  dependencies:
+    - provision
+  allow_failure: true
+  except:
+    - schedules
+
+# See https://gitlab.com/help/user/project/merge_requests/code_quality.md
+code_quality:
+  stage: confidenceCheck
+  except:
+    - schedules
+
+# See https://gitlab.com/help/user/project/merge_requests/browser_performance_testing.md
+performance:
+  stage: confidenceCheck
+  image: docker:git
+  services:
+    - docker:stable-dind
+  dependencies:
+    - provision
+  except:
+    - schedules
+  script:
+    - export CI_ENVIRONMENT_URL=$(cat environment_url.txt)
+    - mkdir gitlab-exporter
+    - wget -O ./gitlab-exporter/index.js https://gitlab.com/gitlab-org/gl-performance/raw/master/index.js
+    - mkdir sitespeed-results
+    - docker run --shm-size=1g --rm -v "$(pwd)":/sitespeed.io sitespeedio/sitespeed.io:6.3.1 --plugins.add ./gitlab-exporter --outputFolder sitespeed-results "$CI_ENVIRONMENT_URL"
+    - mv sitespeed-results/data/performance.json performance.json
+  artifacts:
+    paths:
+      - sitespeed-results/
+    reports:
+      performance: performance.json
+

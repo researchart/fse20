@@ -1,0 +1,57 @@
+stages:
+  - docker
+  - build
+  - test
+  - clean
+
+docker:
+  stage: docker
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t img:latest .
+    - docker save img:latest -o img.tar
+  cache:
+    key: $CI_COMMIT_REF_NAME
+    paths:
+      - img.tar
+    policy: push
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  cache:
+    key: $CI_COMMIT_REF_NAME
+    paths:
+      - img.tar
+      - build/
+  script:
+    - docker load -i img.tar
+    - docker run --rm -v $(pwd):/project img:latest /bin/sh -c \
+      "cd /project && mkdir build && echo 'Hello World' > build/file.txt"
+
+test:
+  stage: test
+  image: docker:latest
+  services:
+    - docker:dind
+  cache:
+    key: $CI_COMMIT_REF_NAME
+    paths:
+      - img.tar
+      - build/
+  script:
+    - docker load -i img.tar
+    - docker run --rm -v $(pwd):/project img:latest /bin/sh -c \
+      "cat /project/build/file.txt"
+
+clean:
+  stage: clean
+  image: docker:latest
+  script:
+    - (cd /cache && rm -rf *) || true
+
+

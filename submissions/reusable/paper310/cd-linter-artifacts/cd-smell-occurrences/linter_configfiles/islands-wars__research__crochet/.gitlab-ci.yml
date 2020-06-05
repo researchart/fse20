@@ -1,0 +1,37 @@
+image: "rust:latest"
+
+stages:
+  - test
+  - build
+  - deploy
+
+test:
+  stage: test
+  script:
+    - rustc --version && cargo --version
+    - cargo test --verbose --jobs 1 --release
+  allow_failure: false
+
+build:
+  stage: build
+  script:
+    - cargo build --release
+  only:
+    - master
+    - develop
+  artifacts:
+    paths:
+      - "target/release/crochet"
+
+pages:
+  stage: deploy
+  script:
+    - cargo doc --release
+    - mv target/doc/ public/
+  only:
+    - master
+    - develop
+  artifacts:
+    paths:
+      - public
+

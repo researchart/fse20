@@ -1,0 +1,44 @@
+variables:
+  STORE_DIR: "${CI_PROJECT_DIR}/.cabal-store"
+  CASSANDRA_HOST: cassandra
+
+cache:
+  key: "$CI_JOB_NAME"
+  paths:
+    - .cabal-store
+    - dist-newstyle/cache
+
+services:
+  - cassandra:3.11.2
+
+before_script:
+  - apt -qq update
+  - cabal update
+
+test:8.6:
+  image: haskell:8.6
+  script:
+    - apt -qq -y install build-essential libssl-dev > /dev/null
+    - cabal --store-dir=$STORE_DIR new-test
+
+test:8.4:
+  image: haskell:8.4
+  script:
+    - apt -qq -y install build-essential libssl-dev > /dev/null
+    - cabal --store-dir=$STORE_DIR new-test
+
+test:8.2:
+  image: haskell:8.2
+  script:
+    - apt -qq -y install build-essential libssl-dev > /dev/null
+    - cabal --store-dir=$STORE_DIR new-test
+
+test:8.0:
+  image: haskell:8.0
+  script:
+    - apt -qq install build-essential netbase xz-utils libstdc++-4.9-dev libssl-dev > /dev/null
+    - cabal install cabal-install-2.0.0.1 && hash -d cabal
+    - cabal update
+    - cabal --store-dir=$STORE_DIR new-test
+
+

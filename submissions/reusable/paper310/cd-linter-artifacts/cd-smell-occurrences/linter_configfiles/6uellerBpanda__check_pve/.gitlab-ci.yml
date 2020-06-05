@@ -1,0 +1,16 @@
+---
+before_script:
+  - apk update
+  - apk add ruby-dev alpine-sdk
+  - gem install rubocop
+
+image: ruby:2.3.3-alpine
+
+stages:
+  - test
+
+rubocop:
+  stage: test
+  script:
+    - "rubocop"
+

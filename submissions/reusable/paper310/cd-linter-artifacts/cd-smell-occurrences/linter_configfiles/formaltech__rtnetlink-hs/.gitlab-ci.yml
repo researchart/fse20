@@ -1,0 +1,16 @@
+image: debian:stable-slim
+
+stack_test:
+    script:
+    - apt-get --quiet update
+    - apt-get --quiet --assume-yes install curl
+    - curl -sSL https://get.haskellstack.org/ | sh
+    # When run as root, stack gets installed in /usr/local/bin. No need for funny
+    # paths
+    - stack --stack-root $PWD/.gitlab-ci-stack test --only-dependencies --no-run-tests --install-ghc
+    - stack --stack-root $PWD/.gitlab-ci-stack test
+
+cache:
+    paths:
+    - .gitlab-ci-stack/
+

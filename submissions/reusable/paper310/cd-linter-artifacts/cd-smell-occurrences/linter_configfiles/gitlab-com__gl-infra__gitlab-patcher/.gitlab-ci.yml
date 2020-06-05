@@ -1,0 +1,24 @@
+image: golang:1.9
+
+before_script:
+  - export GOPATH=/builds/go
+  - export REPONAME=$(basename $CI_PROJECT_DIR)
+  - export GROUPNAME=$(basename $(dirname $CI_PROJECT_DIR))
+  - export PATH=$PATH:$GOPATH/bin
+  - mkdir -p $GOPATH/src/gitlab.com/$GROUPNAME
+  - cd $GOPATH/src/gitlab.com/$GROUPNAME
+  - ln -s $CI_PROJECT_DIR
+  - cd $CI_PROJECT_NAME
+  - pwd
+  - go get -u github.com/golang/dep/cmd/dep 
+  - dep ensure 
+
+build:
+  script:
+    - go test ./... -v -cover
+    - go build
+  artifacts:
+    paths:
+      - gitlab-patcher
+    expire_in: 1 week
+

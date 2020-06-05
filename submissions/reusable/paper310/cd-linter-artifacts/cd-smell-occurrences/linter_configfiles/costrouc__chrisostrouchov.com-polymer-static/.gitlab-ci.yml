@@ -1,0 +1,49 @@
+stages:
+  - compile-frontend
+  - build-index
+  - deploy
+
+compile:polymer:
+  image: costrouc/polymer-cli:1.6.0
+  stage: compile-frontend
+  artifacts:
+    paths:
+    - build/
+  script:
+    - bower --allow-root install
+    - polymer build
+
+build:index:
+  stage: build-index
+  image: python:3.6
+  artifacts:
+    paths:
+      - build/
+  script:
+    - python scripts/site-generator.py
+
+pages:
+  stage: deploy
+  image:
+  script:
+    - echo "building chrisostrouchov.com old polymer site"
+    - mkdir -p public
+    - cp -r build/es5-bundled/* public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+build:frontend:
+  stage: deploy
+  image: docker:git
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_TAG .
+    - docker push $CI_REGISTRY/$CI_PROJECT_PATH:$CI_COMMIT_TAG
+  only:
+    - tags
+

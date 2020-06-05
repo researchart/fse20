@@ -1,0 +1,15 @@
+pages:
+  stage: deploy
+  script:
+  - gem install ronn
+  - mv docs_src public
+  - cd public
+  - ronn -5 --style toc --manual BUILD.PY --organization Ma_124 *.ronn
+  - cp buildpy.1.html index.html
+  - ls
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

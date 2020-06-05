@@ -1,0 +1,24 @@
+image: golang:latest
+
+before_script:
+  - export CLONE_DIR=$(pwd)
+  - export GOPATH=$HOME/gopath
+  - export USERDIR=$GOPATH/src/gitlab.com/dromi
+  - export SRCDIR=$USERDIR/dromi
+  - echo $CLONE_DIR
+  - mkdir -p $USERDIR
+  - ln -s $CLONE_DIR $SRCDIR
+
+build:
+  stage: build
+  script:
+    - cd $SRCDIR
+    - go build $(go list ./... | grep -v /vendor/)
+
+test:
+  stage: test
+  script:
+    - cd $SRCDIR
+    - go test $(go list ./... | grep -v /vendor/)
+    - go vet $(go list ./... | grep -v /vendor/)
+

@@ -1,0 +1,24 @@
+stages:
+  - units
+  - functionals
+
+units:
+  image: node:0.10
+  stage: units
+  script:
+    - npm install
+    - npm test -- spec/units/**/*.coffee
+  cache:
+    paths:
+      - node_modules/
+
+functionals:
+  image: node:0.12
+  stage: functionals
+  script:
+    - npm install
+    - npm test -- spec/functionals/**/*.coffee
+  cache:
+    paths:
+      - node_modules/
+

@@ -1,0 +1,44 @@
+stages:
+  - build
+#  - test
+  - deploy
+
+variables:
+ AWS_DEFAULT_REGION: us-east-1
+
+build:
+  stage: build
+  image: haskell:8.0.2
+  artifacts:
+    name: "${CI_PROJECT_NAME}__${CI_COMMIT_TAG}__${CI_COMMIT_REF_NAME}__${CI_COMMIT_SHA}"
+    paths:
+      - _site/*
+  script:
+    - cabal update
+    - cabal install --enable-tests
+    - ./site configure
+    - ./site make
+    - ./site build
+
+# test:
+#   stage: test
+#   image: node:7.8
+#   variables:
+#     CI: "true"
+#   script:
+#     - ./site configure
+#     - ./site test
+
+deploy:
+  stage: deploy
+  image: cgswong/aws:latest
+  variables:
+    S3_BUCKET: blog-rekahsoft-s3bucket-7pigtftqm4v8
+  script:
+    - aws s3 sync _site/ s3://$S3_BUCKET
+  environment:
+    name: Rekahsoft Blog
+    url: http://blog.rekahsoft.com
+  only:
+    - master
+

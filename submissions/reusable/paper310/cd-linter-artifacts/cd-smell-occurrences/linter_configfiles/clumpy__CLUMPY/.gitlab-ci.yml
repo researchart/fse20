@@ -1,0 +1,46 @@
+stages:
+  - build
+  - test
+  - deploy
+
+pages:
+  image: paperist/alpine-texlive-ja
+  stage: build
+  script:
+  - apk --no-cache add py2-pip python-dev doxygen graphviz git
+  - apk --update add fontconfig ttf-dejavu
+  - pip install easydev
+  - pip install sphinx
+  - pip install sphinx_rtd_theme
+  - apk --no-cache add make
+  - cd doc/
+  - make clean
+  - make latex
+  - cd _build/latex/
+  - pdflatex clumpy_doc.tex
+  - pdflatex clumpy_doc.tex
+  - cd ../../
+  - make html
+  - cd ..
+  - mv doc/_build/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - doc
+
+compile_clumpy:
+  image: zimmerst85/clumpy
+  stage: build
+  script:
+  - pip install gcovr
+  - export CLUMPY=$PWD
+  - cmake . -D CMAKE_CXX_FLAGS=" -fprofile-arcs -ftest-coverage -fPIC" CMakeLists.txt -DCMAKE_CXX_OUTPUT_EXTENSION_REPLACE=ON
+  - make -j8
+  - ./bin/clumpy_tests
+  - gcovr -r .
+  coverage: '/TOTAL.*\s+(\d+\%)/'
+  except:
+  - doc
+
+

@@ -1,0 +1,40 @@
+image: registry.gitlab.com/robin-good/docker-build-image:latest
+
+variables:
+  POSTGRES_DB: sprout_tree_test
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+
+cache:
+  paths:
+    - _build
+    - deps
+  key: "$CI_JOB_NAME"
+  untracked: true
+
+stages:
+  - test
+  - deploy
+
+test:
+  variables:
+    MIX_ENV: test_gitlab
+  services:
+    - "postgres:9.3-alpine"
+  stage: test
+  variables:
+    MIX_ENV: test_gitlab
+  before_script:
+    - mix deps.get
+  script:
+    - mix test
+
+deploy:
+  image: ruby:latest
+  stage: deploy
+  only:
+    - master
+  script:
+    - gem install dpl
+    - dpl --provider=heroku --app=sprout-tree --api-key=$HEROKU_API_KEY
+

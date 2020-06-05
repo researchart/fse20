@@ -1,0 +1,40 @@
+image: openjdk:8-jdk
+
+stages:
+  - sanitychecks
+  - build
+
+cache:
+  paths:
+  - tmp/.gradle/wrapper
+  - tmp/.gradle/caches
+
+before_script:
+  - apt-get --quiet update --yes
+  - export GRADLE_USER_HOME=`pwd`/tmp/.gradle
+  - chmod +x ./gradlew
+
+licensecheck:
+  script:
+    - apt-get --quiet install --yes licensecheck
+    - ./licensecheck.sh
+  stage: sanitychecks
+
+build_debug:
+  script:
+    - . ./scripts/setup-android-sdk.sh
+    - ./gradlew assembleDebug
+  stage: build
+  artifacts:
+    paths:
+    - android/build/outputs/
+
+build_release:
+  script:
+    - . ./scripts/setup-android-sdk.sh
+    - ./gradlew assembleRelease
+  stage: build
+  artifacts:
+    paths:
+    - android/build/outputs/
+

@@ -1,0 +1,34 @@
+image: node:boron
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  script:
+  - echo 'Init'
+  - npm install grunt-cli -g
+  - npm install
+  - echo 'Build API docs'
+  - grunt
+  artifacts:
+    paths:
+    - public
+  except:
+  - master
+
+pages:
+  stage: deploy
+  script:
+  - echo 'Init'
+  - npm install grunt-cli -g
+  - npm install
+  - echo 'Deploy API docs'
+  - grunt
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

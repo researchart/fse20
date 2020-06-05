@@ -1,0 +1,39 @@
+image: golang:1.12.13-alpine3.10
+
+stages:
+- test
+- deploy
+
+format-test:
+  stage: test
+  script:
+  - export CGO_ENABLED=0
+  - go fmt
+  - go vet
+  - go test -cover -coverprofile cover.out ./...
+  - go tool cover -html=cover.out -o cover.html
+  artifacts:
+    paths:
+      - cover.html
+    expire_in: 3 days
+
+pages:
+  stage: deploy
+  script:
+  - mkdir -p public/coverage
+  - mv cover.html public/coverage/index.html
+  dependencies:
+    - format-test
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+deploy:
+  image: google/cloud-sdk:272.0.0
+  stage: deploy
+  script:
+  - gcloud app deploy --no-promote
+  when: manual
+

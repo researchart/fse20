@@ -1,0 +1,48 @@
+image: node:6
+
+before_script:
+  # needed anytime
+  - npm install --silent
+
+stages:
+  - test
+  # this is the last stage to execute
+  - deploy
+
+testing:
+  stage: test
+  script:
+    - npm run unit
+
+npm-publish:
+  stage: deploy
+  # may fail if version already exists on npm registry
+  allow_failure: true
+  script:
+    - npm run build
+    # NPM_TOKEN is set in the GitLab project Secret Variables
+    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+    # publishing will fail if package.json version is unchanged
+    - npm publish
+    # removing the token immediately, just in case...
+    - rm ~/.npmrc
+  environment:
+    name: npm package
+    url: https://www.npmjs.com/package/vue-gitlab-api
+  only:
+    - master
+
+pages:
+  stage: deploy
+  script:
+  - ./node_modules/.bin/jsdoc src/GitLabAPI.js
+  - mv out public
+  artifacts:
+    paths:
+    - public
+  environment:
+    name: JSDoc API Documentation
+    url: https://clorichel.gitlab.io/vue-gitlab-api/
+  only:
+  - master
+

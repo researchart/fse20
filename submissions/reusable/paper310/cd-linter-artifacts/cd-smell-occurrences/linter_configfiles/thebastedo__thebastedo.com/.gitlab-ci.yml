@@ -1,0 +1,47 @@
+image: node:latest
+
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  - apt-get update -qy
+  - apt-get install -y rubygems ruby-dev
+  - npm install
+
+stages:
+  - build
+  - test
+  - deploy
+
+client_build:
+  stage: build
+  script:
+    - npm run build
+
+jest:
+  stage: test
+  script:
+    - npm t
+
+lint:
+  stage: test
+  script:
+    - npm run lint
+
+staging:
+  stage: deploy
+  script:
+    - gem install dpl
+    - dpl --provider=heroku --app=staging-thebastedo --api-key=$HEROKU_KEY
+  only:
+    - master
+
+production:
+  stage: deploy
+  script:
+    - gem install dpl
+    - dpl --provider=heroku --app=thebastedo --api-key=$HEROKU_KEY
+  only:
+    - tags
+

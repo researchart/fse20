@@ -1,0 +1,40 @@
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r * .public
+  - ls -la .public/*
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+    expire_in: 30 min
+
+deploy_production:
+  stage: deploy
+  image: phusion/baseimage
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - apt-get update -y && apt-get install rsync
+    - mkdir -p ~/.ssh
+    - eval $(ssh-agent -s)
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - ssh-add <(echo "$PRODUCTION_PRIVATE_KEY")
+    - echo "$PRODUCTION_PRIVATE_KEY" > ~/.ssh/id_rsa
+  script:
+    - rsync -avuz -e 'ssh -i ~/.ssh/id_rsa' /builds/skofgar/jomis-neuralnetwork/* $PRODUCTION_SERVER
+    - mkdir .public
+    - cp -r * .public
+    - ls -la .public/*
+    - mv .public public
+  artifacts:
+    paths:
+    - public
+    expire_in: 3 week
+  environment:
+    name: production
+    url: https://mlp.skofgar.ch
+  when: manual
+  only:
+    - master
+

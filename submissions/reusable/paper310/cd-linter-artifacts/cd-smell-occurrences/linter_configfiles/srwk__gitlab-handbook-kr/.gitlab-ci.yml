@@ -1,0 +1,21 @@
+image: registry.gitlab.com/srwk/docker-middleman-builder:1.0
+
+cache:
+  paths:
+  - vendor
+
+test:
+  script:
+  - middleman build
+  except:
+    - master
+
+pages:
+  script:
+  - middleman build
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

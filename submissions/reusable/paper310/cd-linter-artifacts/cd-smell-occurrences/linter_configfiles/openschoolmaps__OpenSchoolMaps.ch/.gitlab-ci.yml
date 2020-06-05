@@ -1,0 +1,91 @@
+stages:
+- build
+- pages
+
+PDFs:
+  image: asciidoctor/docker-asciidoctor:latest
+  stage: build
+  variables:
+    LANG: de_CH.utf8
+  tags:
+  - docker
+  script:
+  - set -e
+  - apk add python3
+  - ./build.py
+  artifacts:
+    expire_in: 3 mos
+    paths:
+    - lehrmittel/**/*.pdf
+    - lehrmittel/**/**/*.pdf
+    - lehrmittel/OpenStreetMap Tagging Cheatsheet.docx
+    - lehrmittel/OpenStreetMap Tagging Cheatsheet.pdf
+
+QGIS excercise data:
+  stage: build
+  script:
+  # Dummy script,
+  # because we only need to collect some files from the Git repo as artifacts.
+  - "true"
+  artifacts:
+    name: "Daten_Leitprogramm_QGIS"
+    expire_in: 3 mos
+    paths:
+    - lehrmittel/einfuehrung_in_qgis/daten_leitprogramm_qgis/
+
+autobahn excercise data:
+  stage: build
+  script:
+  # Dummy script,
+  # because we only need to collect some files from the Git repo as artifacts.
+  - "true"
+  artifacts:
+    name: "Daten_autobahn"
+    expire_in: 3 mos
+    paths:
+    - lehrmittel/geodaten-analyse_mit_qgis/vektordaten-analyse_mit_qgis/vektordaten-analyse_mit_qgis_autobahn/
+
+gaemsen excercise data:
+  stage: build
+  script:
+  # Dummy script,
+  # because we only need to collect some files from the Git repo as artifacts.
+  - "true"
+  artifacts:
+    name: "Input-Daten_gaemsen"
+    expire_in: 3 mos
+    paths:
+    - lehrmittel/geodaten-analyse_mit_qgis/rasterdaten-analyse_mit_qgis/rasterdaten-analyse_mit_qgis_gaemsen_daten/
+    
+superset csv data:
+  stage: build
+  script:
+  # Dummy script,
+  # because we only need to collect some files from the Git repo as artifacts.
+  - "true"
+  artifacts:
+    name: "Superset-Datentabellen"
+    expire_in: 3 mos
+    paths:
+    - lehrmittel/einfuehrung_in_apache_superset/files/
+
+pages:
+  image: asciidoctor/docker-asciidoctor
+  stage: pages
+  script:
+  - cd pages/
+  - apk update
+  - apk add git py2-pip
+  - git clone --depth 1 https://github.com/getpelican/pelican-plugins
+  - git clone --depth 1 https://gitlab.com/openschoolmaps/pelican-themes.git
+  - pip install -r requirements.txt
+  - pelican -s publishconf.py
+  - mv .well-known/ public/.well-known
+  - mv public/ ..
+  only:
+    refs:
+      - master
+  artifacts:
+    paths:
+    - public/
+

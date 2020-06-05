@@ -1,0 +1,16 @@
+image: sauloal/kivy
+
+pages:
+  script:
+  - pip install sphinx
+  - pip install kivy -U
+  - cd docs
+  - make html
+  - cd ../
+  - mv docs/build/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

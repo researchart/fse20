@@ -1,0 +1,51 @@
+# This file can be used for pipeline inspiration 
+
+# defines the image to be used for container runnings 
+image: node:latest
+
+
+#defines the stages 
+stages:
+  - check
+  - test
+  - deploy 
+
+# cache the node_modules between the stages 
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+
+cache:
+  paths:
+  - node_modules/
+
+
+# job on the check stage    
+
+lint:
+  stage: check
+  script: 
+    - npm install 
+    - npm run lint 
+
+
+# job on the stage test 
+
+test:
+  stage: test
+  script:
+    - npm install
+    - npm test
+
+# job on the deploy stage  
+
+pack:
+  stage: deploy
+  script:
+    - npm install
+    - npm pack
+  artifacts:
+    paths:
+    - ./*.tgz
+
+
+
+

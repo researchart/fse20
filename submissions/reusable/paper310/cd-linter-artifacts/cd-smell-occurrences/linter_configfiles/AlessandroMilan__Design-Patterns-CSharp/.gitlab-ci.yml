@@ -1,0 +1,50 @@
+stages:
+  - build
+  - test
+  - deploy
+build:
+ image : microsoft/dotnet:latest
+ stage: build
+ before_script:
+  - 'dotnet restore'
+ script:
+  - 'dotnet build'
+ only:
+   - master
+test:
+ image : microsoft/dotnet:latest
+ stage: test
+ before_script:
+  - 'dotnet restore'
+ script:
+ - 'dotnet test test/FactoryMethodTest/FactoryMethodTest.csproj'
+ - 'dotnet test test/AbstractFactoryTest/AbstractFactoryTest.csproj'
+ - 'dotnet test test/BuilderTest/BuilderTest.csproj'
+ - 'dotnet test test/PrototypeTest/PrototypeTest.csproj'
+ only:
+   - master
+pages:
+ # requiring the environment of NodeJS 8.9.x LTS (carbon)
+ image: node:8.11.4
+ stage: deploy
+
+ # add 'node_modules' to cache for speeding up builds
+ cache:
+  paths:
+    - node_modules/ # Node modules and dependencies
+
+ before_script:
+  - npm install gitbook-cli -g # install gitbook
+  - gitbook install # add any requested plugins in book.json
+  #- gitbook fetch pre # fetch latest pre-release version
+  #- gitbook fetch 2.6.7 # fetch specific version
+
+
+ script:
+  - gitbook build . public # build to public path
+ artifacts:
+  paths:
+   - public
+ only:
+  - master # this job will affect only the 'master' branch
+

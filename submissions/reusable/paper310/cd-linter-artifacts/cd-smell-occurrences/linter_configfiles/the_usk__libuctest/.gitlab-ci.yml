@@ -1,0 +1,12 @@
+image: rsmmr/clang
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - cp -T config.mk.default config.mk
+    - make
+    - make example
+

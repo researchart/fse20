@@ -1,0 +1,14 @@
+# https://gitlab.com/pages/plain-html/blob/master/.gitlab-ci.yml
+
+image: alpine:latest
+
+pages:
+  stage: deploy
+  script:
+  - echo ''
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

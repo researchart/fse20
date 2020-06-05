@@ -1,0 +1,44 @@
+image: maven:3.5.0-jdk-8
+
+stages:
+  - build
+  - test
+  - deploy
+
+compile:
+  stage: build
+  script:
+    - mvn compile --batch-mode
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 7d  
+
+verify:
+  script:
+    - mvn verify --batch-mode
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 7d  
+
+blameMail:
+  stage: deploy
+  script:
+    - ./mailToDeveloper.sh
+  when: on_failure  
+  only:
+    - develop
+
+publish:
+  stage: deploy
+  script:
+    - mv target/*.jar
+  artifacts:
+    paths:
+      - "*.jar"
+    expire_in: 7d    
+  when: on_success  
+  only:
+    - tags
+

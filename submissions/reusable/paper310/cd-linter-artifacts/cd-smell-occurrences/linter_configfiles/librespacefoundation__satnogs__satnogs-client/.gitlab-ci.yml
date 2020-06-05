@@ -1,0 +1,111 @@
+variables:
+  GITLAB_CI_IMAGE_ALPINE: 'alpine:3.9'
+  GITLAB_CI_IMAGE_DEBIAN: 'debian:buster'
+  GITLAB_CI_IMAGE_SENTRY_CLI: 'getsentry/sentry-cli'
+  GITLAB_CI_APT_PACKAGES: >-
+    git
+    tox
+    python3-requests
+    python3-dateutil
+    python3-ephem
+    python3-tz
+    python3-matplotlib
+    python3-numpy
+    python3-decorator
+    python3-funcsigs
+    python3-libhamlib2
+# debian:buster --> tox~=3.7.0
+stages:
+  - static
+  - build
+  - test
+  - deploy
+  - sentry_release
+static:
+  stage: static
+  image: ${GITLAB_CI_IMAGE_DEBIAN}
+  before_script:
+    - apt-get -y update
+    - apt-get -y install $GITLAB_CI_APT_PACKAGES
+  script:
+    - tox -e "flake8,isort,yapf,pylint,robot-lint"
+docs:
+  stage: build
+  image: ${GITLAB_CI_IMAGE_DEBIAN}
+  before_script:
+    - apt-get -y update
+    - apt-get -y install $GITLAB_CI_APT_PACKAGES
+  script:
+    - rm -rf docs/_build
+    - tox -e "docs"
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - docs/_build/html
+build:
+  stage: build
+  image: ${GITLAB_CI_IMAGE_DEBIAN}
+  before_script:
+    - apt-get -y update
+    - apt-get -y install $GITLAB_CI_APT_PACKAGES
+  script:
+    - rm -rf dist
+    - tox -e "build"
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - dist
+test:
+  stage: test
+  image: ${GITLAB_CI_IMAGE_DEBIAN}
+  before_script:
+    - apt-get -y update
+    - apt-get -y install $GITLAB_CI_APT_PACKAGES
+  script:
+    - rm -rf robot/output
+    - tox -e "robot"
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - robot/output
+deploy:
+  stage: deploy
+  image: ${GITLAB_CI_IMAGE_DEBIAN}
+  before_script:
+    - apt-get -y update
+    - apt-get -y install $GITLAB_CI_APT_PACKAGES
+  script:
+    - rm -rf dist
+    - tox -e "upload"
+  only:
+    refs:
+      - tags
+    variables:
+      - $PYPI_USERNAME
+      - $PYPI_PASSWORD
+pages:
+  stage: deploy
+  image: ${GITLAB_CI_IMAGE_ALPINE}
+  script:
+    - mv docs/_build/html/ public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - tags
+sentry_release:
+  stage: sentry_release
+  image: ${GITLAB_CI_IMAGE_SENTRY_CLI}
+  script:
+    - sentry-cli releases new --finalize -p ${CI_PROJECT_NAME} ${CI_PROJECT_NAME}@${CI_COMMIT_TAG}
+    - sentry-cli releases set-commits --auto ${CI_PROJECT_NAME}@${CI_COMMIT_TAG}
+  only:
+    refs:
+      - tags
+    variables:
+      - $SENTRY_AUTH_TOKEN
+      - $SENTRY_ORG
+

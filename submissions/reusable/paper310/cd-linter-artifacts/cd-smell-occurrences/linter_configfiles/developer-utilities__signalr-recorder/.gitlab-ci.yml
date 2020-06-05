@@ -1,0 +1,48 @@
+image: microsoft/dotnet:2.1.302-sdk-alpine3.7
+
+stages:
+  - build
+  - release
+
+before_script:
+  - "dotnet restore SignalR-Recorder.sln"
+
+build:
+  stage: build
+  script:
+    - "dotnet build SignalR-Recorder.sln"
+
+release_latest:
+  stage: release
+  image: docker:latest
+  only:
+    - "master"
+  services:
+    - docker:dind
+  before_script:
+    - "docker version"
+    - "docker info"
+    - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
+  script:
+    - "docker build -t ${CI_REGISTRY}/${CI_PROJECT_PATH} --pull -f ./Interceptor/Dockerfile ."
+    - "docker push ${CI_REGISTRY}/${CI_PROJECT_PATH}"
+  after_script:
+    - "docker logout ${CI_REGISTRY}"
+
+relase_version:
+  stage: release
+  image: docker:latest
+  only:
+    - tags
+  services:
+    - docker:dind
+  before_script:
+    - "docker version"
+    - "docker info"
+    - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
+  script:
+    - "docker build -t ${CI_REGISTRY}/${CI_PROJECT_PATH}:${CI_COMMIT_TAG} --pull -f ./Interceptor/Dockerfile ."
+    - "docker push ${CI_REGISTRY}/${CI_PROJECT_PATH}:${CI_COMMIT_TAG}"
+  after_script:
+    - "docker logout ${CI_REGISTRY}"
+

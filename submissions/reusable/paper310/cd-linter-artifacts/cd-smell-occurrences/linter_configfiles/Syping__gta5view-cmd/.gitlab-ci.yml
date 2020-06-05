@@ -1,0 +1,25 @@
+stages:
+  - build
+
+Windows Portable:
+  stage: build
+  image: syping/qt5-static-mingw:5.9.6
+  variables:
+    QT_SELECT: "qt5-x86_64-w64-mingw32"
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    - cd gta5view
+    - rm -f main.cpp
+    - cd ..
+    - mkdir -p build
+    - cd build
+    - qmake-static ../gta5view-cmd.pro
+    - make -j4
+    - cp -Rf release/gta5view-cmd.exe ../
+    - cd ..
+    - upx --best gta5view-cmd.exe
+  artifacts:
+    name: "gta5view-cmd-$CI_COMMIT_REF_NAME-${CI_COMMIT_SHA:0:8}"
+    paths:
+      - "gta5view-cmd.exe"
+

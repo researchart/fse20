@@ -1,0 +1,48 @@
+image: ubuntu:16.04
+
+stages:
+  - build
+  - deploy
+
+before_script:
+  - apt-get update --yes
+  - apt-get install --yes --no-install-recommends build-essential cmake libtool autoconf automake git unzip wget ca-certificates
+  - apt-get clean
+ 
+job_build:
+  stage: build
+
+  cache:
+    paths:
+    - build
+
+  artifacts:
+    paths:
+    - build/liberpiko.linux.tar.xz
+
+  script:
+    - cat /etc/debian_version
+    - ./scripts/build-deps-unix.sh
+    - ./scripts/build.sh
+    - cd build
+    - make
+    - cd tests
+    - make test
+    - cd ..
+    - cp -a ../include .
+    - cp src/liberpiko.a liberpiko.a
+    - cp ../deps/libressl/crypto/.libs/libcrypto.a .
+    - cp ../deps/libressl/ssl/.libs/libssl.a .
+    - tar cJf liberpiko.linux.tar.xz include liberpiko.a libcrypto.a libssl.a
+
+      #job_deploy:
+      #  stage: deploy
+
+      #  only:
+      #    - master
+
+      #  script:
+      #    - eval $(ssh-agent -s)
+      #    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+      #    - scp -o StrictHostKeyChecking=no -P2102 build/liberpiko.linux.tar.xz deploy@202.154.58.131:repo
+

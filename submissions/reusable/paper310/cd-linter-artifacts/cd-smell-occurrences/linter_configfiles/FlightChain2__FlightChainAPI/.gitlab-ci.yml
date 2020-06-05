@@ -1,0 +1,411 @@
+### 
+#
+# Build a docker image of the nodejs API application.
+#
+#
+
+image: docker:latest
+services:
+- docker:dind
+
+# Cache modules in between jobs
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+  - node_modules/
+
+variables:
+  # see https://eu-west-1.console.aws.amazon.com/ecs/home?region=eu-west-1#/repositories/flightchain#images;tagStatus=ALL
+  AWS_CONTAINER_REGISTRY_URL: 428277080451.dkr.ecr.eu-west-1.amazonaws.com/flightchain
+  AWS_DOCKER_IMAGE: 428277080451.dkr.ecr.eu-west-1.amazonaws.com/flightchain:$CI_COMMIT_SHA
+  AWS_REGION: eu-west-1
+  AWS_EB_ENV_NAME: FlightchainAPI-BA
+
+  DOCKER_DRIVER: overlay
+  SPRING_PROFILES_ACTIVE: gitlab-ci
+  APP_NAME: flightchainapi
+  NAMESPACE: adapters
+  IMG_NAME: flightchain2/flightchainapi
+  ## value from https://gitlab.com/sita.aero/jetstream/blob/FlightChain/kube-platform/awskube/setenv
+
+  # The Angular UI will be deployed in this pod, so the IMAGE location is required.
+  UI_REGISTRY_IMAGE: registry.gitlab.com/flightchain2/flightchainui
+
+  VERSION: kosversionlabel
+
+  LISTENING_PORT: "3000" #Port of service internal to cluster. Quote integers or gitlab barfs inconveniently
+  K8S_REPLICAS: "1"  #quote integers or gitlab barfs
+  K8S_NAMESPACE: ${NAMESPACE}
+
+  #External domain name will be <SERVICE_NAME><DEPLOYMENT_DOMAIN>.<INGRESS_DOMAIN>
+  INGRESS_DOMAIN: blockchainsandbox.aero
+  # This will be "" for prod environment, or "-qa" if we want QA env.
+  DEPLOYMENT_DOMAIN: "-dev"
+  FABRIC_USE_TLS: "false"
+
+  PORT_TYPE: NodePort  #Service endpoint accessible with in cluster. Externally accessible through ingress gateway
+  HFC_STORE_PATH: /etc/hfc-key-store
+
+
+before_script:
+  - export SHORT_SHA=${CI_COMMIT_SHA:0:8}
+  - echo "\$CI_COMMIT_SHA $CI_COMMIT_SHA"
+  - echo "\$AWS_DOCKER_IMAGE $AWS_DOCKER_IMAGE"
+  - echo "\$CI_COMMIT_REF_SLUG $CI_COMMIT_REF_SLUG"
+
+
+stages:
+  - build
+  - package
+  - deploy
+
+
+docker-build:
+  stage: package
+  script:
+  - ls -al
+  - docker login -u ${CI_REGISTRY_USER} -p ${CI_BUILD_TOKEN} ${CI_REGISTRY}
+  #Build spring boot container...
+  - docker build -f Dockerfile.flightchainapi -t ${CI_REGISTRY_IMAGE} --build-arg PROJECT=${CI_PROJECT_NAME} --build-arg VERSION=${VERSION} .
+  #Tagging docker image with version and commit hash for traceability back to source code.
+  - docker tag ${CI_REGISTRY_IMAGE}:latest ${CI_REGISTRY_IMAGE}:${VERSION}.${SHORT_SHA}
+  - docker push ${CI_REGISTRY_IMAGE}
+  tags:
+  - shared
+  #when: manual
+
+k8s-deploy-ba-dev:
+  image: google/cloud-sdk
+  stage: deploy
+  variables:
+
+    # This is the user name on the Certificate Authority.
+    # These values should be taken from the ci/cd settings (https://gitlab.com/FlightChain2/FlightChainAPI/settings/ci_cd)
+    IDENTITY: $BA_USERNAME
+    CERT_DATA: $BA_CERT_DATA_DEV
+    PRIVATE_KEY: $BA_PRIVATEKEY_DEV
+    PUBLIC_KEY: $BA_PUBLICKEY_DEV
+    SIGNING_IDENTITY: $BA_SIGNING_IDENTITY_DEV
+
+    FABRIC_USE_TLS: "true"
+
+    # This will be the k8s service name used across the deployment / service / ingress files.
+    SERVICE_NAME: fchainapi-ba
+  script:
+  - cd gitlab-k8s
+  - chmod +x k8s-deploy.sh
+  - ./k8s-deploy.sh
+  - cd ..
+  #when: manual
+  tags:
+  - sandbox-k8s-aws #runner on FlightChain AWS cluster
+
+k8s-deploy-lhr-dev:
+  image: google/cloud-sdk
+  stage: deploy
+  variables:
+
+    # This is the user name on the Certificate Authority.
+    # These values should be taken from the ci/cd settings (https://gitlab.com/FlightChain2/FlightChainAPI/settings/ci_cd)
+    IDENTITY: $LHR_USERNAME
+    CERT_DATA: $LHR_CERT_DATA_DEV
+    PRIVATE_KEY: $LHR_PRIVATEKEY_DEV
+    PUBLIC_KEY: $LHR_PUBLICKEY_DEV
+    SIGNING_IDENTITY: $LHR_SIGNING_IDENTITY_DEV
+
+    # This will be the k8s service name used across the deployment / service / ingress files.
+    SERVICE_NAME: fchainapi-lhr
+
+  script:
+  - cd gitlab-k8s
+  - chmod +x k8s-deploy.sh
+  - ./k8s-deploy.sh
+  - cd ..
+  when: manual
+  tags:
+  - sandbox-k8s-aws #runner on FlightChain AWS cluster
+
+k8s-deploy-mia-dev:
+  image: google/cloud-sdk
+  stage: deploy
+  variables:
+
+    # This is the user name on the Certificate Authority.
+    # These values should be taken from the ci/cd settings (https://gitlab.com/FlightChain2/FlightChainAPI/settings/ci_cd)
+    IDENTITY: $MIA_USERNAME
+    CERT_DATA: $MIA_CERT_DATA_DEV
+    PRIVATE_KEY: $MIA_PRIVATEKEY_DEV
+    PUBLIC_KEY: $MIA_PUBLICKEY_DEV
+    SIGNING_IDENTITY: $MIA_SIGNING_IDENTITY_DEV
+
+    # This will be the k8s service name used across the deployment / service / ingress files.
+    SERVICE_NAME: fchainapi-mia
+
+  script:
+  - cd gitlab-k8s
+  - chmod +x k8s-deploy.sh
+  - ./k8s-deploy.sh
+  - cd ..
+  when: manual
+  tags:
+  - sandbox-k8s-aws #runner on FlightChain AWS cluster
+  
+k8s-deploy-swissport-dev:
+  image: google/cloud-sdk
+  stage: deploy
+  variables:
+
+    # This is the user name on the Certificate Authority.
+    # These values should be taken from the ci/cd settings (https://gitlab.com/FlightChain2/FlightChainAPI/settings/ci_cd)
+    IDENTITY: $SWISSPORT_USERNAME
+    CERT_DATA: $SWISSPORT_CERT_DATA_DEV
+    PRIVATE_KEY: $SWISSPORT_PRIVATEKEY_DEV
+    PUBLIC_KEY: $SWISSPORT_PUBLICKEY_DEV
+    SIGNING_IDENTITY: $SWISSPORT_SIGNING_IDENTITY_DEV
+
+    FABRIC_USE_TLS: "true"
+
+    # This will be the k8s service name used across the deployment / service / ingress files.
+    SERVICE_NAME: fchainapi-swissport
+  script:
+  - cd gitlab-k8s
+  - chmod +x k8s-deploy.sh
+  - ./k8s-deploy.sh
+  - cd ..
+  when: manual
+  tags:
+  - sandbox-k8s-aws #runner on FlightChain AWS cluster
+
+k8s-deploy-mk-dev:
+  image: google/cloud-sdk
+  stage: deploy
+  variables:
+
+    # This is the user name on the Certificate Authority.
+    # These values should be taken from the ci/cd settings (https://gitlab.com/FlightChain2/FlightChainAPI/settings/ci_cd)
+    IDENTITY: $MK_USERNAME
+    CERT_DATA: $MK_CERT_DATA_DEV
+    PRIVATE_KEY: $MK_PRIVATEKEY_DEV
+    PUBLIC_KEY: $MK_PUBLICKEY_DEV
+    SIGNING_IDENTITY: $MK_SIGNING_IDENTITY_DEV
+
+    FABRIC_USE_TLS: "true"
+
+    # This will be the k8s service name used across the deployment / service / ingress files.
+    SERVICE_NAME: fchainapi-mk
+  script:
+  - cd gitlab-k8s
+  - chmod +x k8s-deploy.sh
+  - ./k8s-deploy.sh
+  - cd ..
+  when: manual
+  tags:
+  - sandbox-k8s-aws #runner on FlightChain AWS cluster
+  
+k8s-deploy-mu-dev:
+  image: google/cloud-sdk
+  stage: deploy
+  variables:
+
+    # This is the user name on the Certificate Authority.
+    # These values should be taken from the ci/cd settings (https://gitlab.com/FlightChain2/FlightChainAPI/settings/ci_cd)
+    IDENTITY: $MU_USERNAME
+    CERT_DATA: $MU_CERT_DATA_DEV
+    PRIVATE_KEY: $MU_PRIVATEKEY_DEV
+    PUBLIC_KEY: $MU_PUBLICKEY_DEV
+    SIGNING_IDENTITY: $MU_SIGNING_IDENTITY_DEV
+
+    FABRIC_USE_TLS: "true"
+
+    # This will be the k8s service name used across the deployment / service / ingress files.
+    SERVICE_NAME: fchainapi-mu
+  script:
+  - cd gitlab-k8s
+  - chmod +x k8s-deploy.sh
+  - ./k8s-deploy.sh
+  - cd ..
+  when: manual
+  tags:
+  - sandbox-k8s-aws #runner on FlightChain AWS cluster
+  
+k8s-deploy-qantas-dev:
+  image: google/cloud-sdk
+  stage: deploy
+  variables:
+
+    # This is the user name on the Certificate Authority.
+    # These values should be taken from the ci/cd settings (https://gitlab.com/FlightChain2/FlightChainAPI/settings/ci_cd)
+    IDENTITY: $QANTAS_USERNAME
+    CERT_DATA: $QANTAS_CERT_DATA_DEV
+    PRIVATE_KEY: $QANTAS_PRIVATEKEY_DEV
+    PUBLIC_KEY: $QANTAS_PUBLICKEY_DEV
+    SIGNING_IDENTITY: $QANTAS_SIGNING_IDENTITY_DEV
+
+    FABRIC_USE_TLS: "true"
+
+    # This will be the k8s service name used across the deployment / service / ingress files.
+    SERVICE_NAME: fchainapi-qantas
+  script:
+  - cd gitlab-k8s
+  - chmod +x k8s-deploy.sh
+  - ./k8s-deploy.sh
+  - cd ..
+  when: manual
+  tags:
+  - sandbox-k8s-aws #runner on FlightChain AWS cluster
+
+
+
+k8s-deploy-ba-prod:
+  image: google/cloud-sdk
+  stage: deploy
+  variables:
+
+    # This is the user name on the Certificate Authority.
+    # These values should be taken from the ci/cd settings (https://gitlab.com/FlightChain2/FlightChainAPI/settings/ci_cd)
+    IDENTITY: $BA_USERNAME
+    CERT_DATA: $BA_CERT_DATA_PROD
+    PRIVATE_KEY: $BA_PRIVATEKEY_PROD
+    PUBLIC_KEY: $BA_PUBLICKEY_PROD
+    SIGNING_IDENTITY: $BA_SIGNING_IDENTITY_PROD
+    DEPLOYMENT_DOMAIN: ""
+    FABRIC_USE_TLS: "true"
+
+    # This will be the k8s service name used across the deployment / service / ingress files.
+    SERVICE_NAME: fchainapi-ba
+  script:
+  - cd gitlab-k8s
+  - chmod +x k8s-deploy.sh
+  - ./k8s-deploy.sh
+  - cd ..
+  when: manual
+  tags:
+  - sandbox-k8s-aws-prod #runner on FlightChain AWS cluster
+
+k8s-deploy-lhr-prod:
+  image: google/cloud-sdk
+  stage: deploy
+  variables:
+
+    # This is the user name on the Certificate Authority.
+    # These values should be taken from the ci/cd settings (https://gitlab.com/FlightChain2/FlightChainAPI/settings/ci_cd)
+    IDENTITY: $LHR_USERNAME
+    CERT_DATA: $LHR_CERT_DATA_PROD
+    PRIVATE_KEY: $LHR_PRIVATEKEY_PROD
+    PUBLIC_KEY: $LHR_PUBLICKEY_PROD
+    SIGNING_IDENTITY: $LHR_SIGNING_IDENTITY_PROD
+    DEPLOYMENT_DOMAIN: ""
+    FABRIC_USE_TLS: "true"
+    # This will be the k8s service name used across the deployment / service / ingress files.
+    SERVICE_NAME: fchainapi-lhr
+
+  script:
+  - cd gitlab-k8s
+  - chmod +x k8s-deploy.sh
+  - ./k8s-deploy.sh
+  - cd ..
+  when: manual
+  tags:
+  - sandbox-k8s-aws-prod #runner on FlightChain AWS cluster
+
+k8s-deploy-mia-prod:
+  image: google/cloud-sdk
+  stage: deploy
+  variables:
+
+    # This is the user name on the Certificate Authority.
+    # These values should be taken from the ci/cd settings (https://gitlab.com/FlightChain2/FlightChainAPI/settings/ci_cd)
+    IDENTITY: $MIA_USERNAME
+    CERT_DATA: $MIA_CERT_DATA_PROD
+    PRIVATE_KEY: $MIA_PRIVATEKEY_PROD
+    PUBLIC_KEY: $MIA_PUBLICKEY_PROD
+    SIGNING_IDENTITY: $MIA_SIGNING_IDENTITY_PROD
+    DEPLOYMENT_DOMAIN: ""
+    FABRIC_USE_TLS: "true"
+    # This will be the k8s service name used across the deployment / service / ingress files.
+    SERVICE_NAME: fchainapi-mia
+
+  script:
+  - cd gitlab-k8s
+  - chmod +x k8s-deploy.sh
+  - ./k8s-deploy.sh
+  - cd ..
+  when: manual
+  tags:
+  - sandbox-k8s-aws-prod #runner on FlightChain AWS cluster
+
+
+build-and-deploy-to-aws:
+# Build a docker image containg the nodejs app and push it to the AWS Container Registry.
+  stage: build
+  script:
+    - apk add --no-cache curl jq python3 py-pip
+    - pip install awscli
+    - docker info
+    - echo "\$CI_COMMIT_SHA $CI_COMMIT_SHA"
+    - echo "\$AWS_DOCKER_IMAGE $AWS_DOCKER_IMAGE"
+    - echo "\$CI_COMMIT_REF_SLUG $CI_COMMIT_REF_SLUG"
+    - $(aws ecr get-login --no-include-email --region $AWS_REGION)
+    - docker build -f Dockerfile.flightchainapi -t $AWS_CONTAINER_REGISTRY_URL:$CI_COMMIT_SHA .
+    - docker tag  $AWS_CONTAINER_REGISTRY_URL:$CI_COMMIT_SHA $AWS_CONTAINER_REGISTRY_URL:$CI_COMMIT_SHA
+    - docker tag  $AWS_CONTAINER_REGISTRY_URL:$CI_COMMIT_SHA $AWS_CONTAINER_REGISTRY_URL:latest
+    - docker push $AWS_CONTAINER_REGISTRY_URL
+  only:
+    - master
+  tags:
+    - docker
+  when: manual
+
+deploy-docs-to-elasticbeanstalk:
+  stage: deploy
+  image: coxauto/aws-ebcli
+  script:
+    # Make sure the appropriate version of urllib3 is installed
+    - echo "\$CI_COMMIT_SHA $CI_COMMIT_SHA"
+    - echo "\$AWS_DOCKER_IMAGE $AWS_DOCKER_IMAGE"
+    - echo "\$CI_COMMIT_REF_SLUG $CI_COMMIT_REF_SLUG"
+    - eb --version
+    - git rev-parse --abbrev-ref HEAD
+    - pwd
+    - ls -al
+    # Modify the file to have the specific registry image.
+    - cp Dockerrun.template.aws.json Dockerrun.aws.json
+    - sed -ri "s|\"AWS_DOCKER_CONTAINER_IMAGE_TAG\"|\"$AWS_DOCKER_IMAGE\"|" Dockerrun.aws.json
+    - git add Dockerrun.aws.json
+    - cat Dockerrun.aws.json
+    - echo "Deploying to FlightChainAPI-docs environment"
+  # The --staged param tells eb to use the local copy of git (with the above change to Dockerrun.template.aws.json)
+    - eb deploy FlightChainAPI-docs --verbose --debug --label $CI_COMMIT_SHA
+  only:
+    - master
+  tags:
+    - docker
+  when: manual
+
+
+deploy-airline-or-airport:
+  stage: deploy
+  image: coxauto/aws-ebcli
+  script:
+  # Make sure the appropriate version of urllib3 is installed
+  - echo "\$CI_COMMIT_SHA $CI_COMMIT_SHA"
+  - echo "\$AWS_DOCKER_IMAGE $AWS_DOCKER_IMAGE"
+  - echo "\$CI_COMMIT_REF_SLUG $CI_COMMIT_REF_SLUG"
+  - eb --version
+  - git rev-parse --abbrev-ref HEAD
+  - pwd
+  - ls -al
+  # Modify the file to have the specific registry image.
+  - cp Dockerrun.template.aws.json Dockerrun.aws.json
+  - sed -ri "s|\"AWS_DOCKER_CONTAINER_IMAGE_TAG\"|\"$AWS_DOCKER_IMAGE\"|" Dockerrun.aws.json
+  - git add Dockerrun.aws.json
+  - cat Dockerrun.aws.json
+  - echo "\$AWS_EB_ENV_NAME $AWS_EB_ENV_NAME"
+  # The --staged param tells eb to use the local copy of git (with the above change to Dockerrun.template.aws.json)
+  - eb deploy $AWS_EB_ENV_NAME --verbose --debug --label $CI_COMMIT_SHA
+  only:
+  - master
+  tags:
+  - docker
+  when: manual
+

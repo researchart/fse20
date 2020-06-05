@@ -1,0 +1,55 @@
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - vendor/ruby
+
+build:
+  image: docker:latest
+  services:
+    - docker:dind
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/gitlab-com/support/support-ops/gitlab-support-bot .
+    - docker push registry.gitlab.com/gitlab-com/support/support-ops/gitlab-support-bot
+  only:
+    - master
+
+rubocop:
+  image: ruby:2.6.3
+  script:
+    - gem install bundler --no-document
+    - bundle install -j $(nproc) --path vendor
+    - bundle exec rubocop
+
+rspec:
+  image: ruby:2.6.3
+  script:
+    - gem install bundler --no-document
+    - bundle install -j $(nproc) --path vendor
+    - bundle exec rspec spec
+
+deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    - apt-get update -y && apt-get install sshpass -y
+    - sshpass -p $DEPLOY_SERVER_PASSWD ssh -o StrictHostKeyChecking=no $DEPLOY_SERVER_USER@$DEPLOY_SERVER_IP "echo docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com; docker stop supportbot; docker rm supportbot; docker rmi image $(docker images -q); docker pull registry.gitlab.com/gitlab-com/support/support-ops/gitlab-support-bot; docker run -d --env SLACK_API_TOKEN=$SLACK_API_TOKEN --env ZD_TOKEN=$ZD_TOKEN --name supportbot --restart always registry.gitlab.com/gitlab-com/support/support-ops/gitlab-support-bot:latest"
+
+code_quality:
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+    - docker:dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    paths: [gl-code-quality-report.json]
+

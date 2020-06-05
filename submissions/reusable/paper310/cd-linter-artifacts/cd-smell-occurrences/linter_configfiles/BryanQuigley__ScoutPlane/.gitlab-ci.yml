@@ -1,0 +1,10 @@
+image: ubuntu:latest
+
+test:
+  script:
+  - pycodestyle sp *.py
+  - flake8 sp *.py
+  - ./lxdhelper.py
+  - ./sp -l -c 101 /home/gitlab-runner/sosreport-ACustomer.10101-20180904170335.tar.xz
+  - ./sp -l -c 102 /home/gitlab-runner/102/
+

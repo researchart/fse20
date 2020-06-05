@@ -1,0 +1,66 @@
+build_webapp:
+  image: node:8
+  stage: build
+  before_script:
+    - node -v
+    - npm -v
+  script:
+    - cd app
+    - npm install --progress=false
+    - npm run build
+    - secsepoch="$(date +'%y')$(date +%m)$(date +%d):$(date +%-H)$(date +%M)"
+    - PACKAGE_VERSION=$(node -p "require('./package.json').version")
+    - sed -i -e "s/==GLOBAPPVERSION==/$PACKAGE_VERSION.$secsepoch/g" dist/spa-mat/index.html
+  artifacts:
+    paths:
+      - app/dist/spa-mat
+
+deploy_webapp_staging:
+  image: tetraweb/php:7.1
+  stage: deploy
+  artifacts:
+    paths:
+      - app/dist/spa-mat
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - apt-get install rsync
+  script:
+    - ssh -p2022 $SSH_SRV "rm -Rf $SSH_WWW_BASE/appserver/_old_staging"
+    - ssh -p2022 $SSH_SRV "mkdir -p $SSH_WWW_BASE/appserver/_tmp_staging"
+    - scp -P2022 -r app/dist/spa-mat/* $SSH_SRV:$SSH_WWW_BASE/appserver/_tmp_staging
+    - ssh -p2022 $SSH_SRV "mv $SSH_WWW_BASE/appserver/staging $SSH_WWW_BASE/appserver/_old_staging && mv $SSH_WWW_BASE/appserver/_tmp_staging $SSH_WWW_BASE/appserver/staging"
+  environment:
+    name: staging
+    url: https://staging.kyani.eu
+ 
+deploy_webapp_production:
+  image: tetraweb/php:7.1
+  stage: deploy
+  artifacts:
+    paths:
+      - app/dist/spa-mat
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - apt-get install rsync
+  script:
+    - ssh -p2022 $SSH_SRV "rm -Rf $SSH_WWW_BASE/appserver/_old_production"
+    - ssh -p2022 $SSH_SRV "mkdir -p $SSH_WWW_BASE/appserver/_tmp_production"
+    - scp -P2022 -r app/dist/spa-mat/* $SSH_SRV:$SSH_WWW_BASE/appserver/_tmp_production
+    - ssh -p2022 $SSH_SRV "mv $SSH_WWW_BASE/appserver/production $SSH_WWW_BASE/appserver/_old_production && mv $SSH_WWW_BASE/appserver/_tmp_production $SSH_WWW_BASE/appserver/production"
+  environment:
+    name: production
+    url: https://cashflow.kyani.eu
+  when: manual
+

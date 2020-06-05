@@ -1,0 +1,65 @@
+# https://hub.docker.com/_/maven/
+image: maven:3.5.4-jdk-8
+
+# https://gitlab.com/gitlab-org/gitlab-ci-yml/blob/master/Maven.gitlab-ci.yml
+variables:
+  # This will supress any download for dependencies and plugins or upload messages which would clutter the console log.
+  # `showDateTime` will show the passed time in milliseconds. You need to specify `--batch-mode` to make this work.
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+
+  # These are for bintray_release.sh
+  # GitLab exposes revision as $CI_PIPELINE_IID: project-scoped incrementing pipeline build number
+  REVISION: "$CI_PIPELINE_IID"
+  PROJECT_BRANCH: "$CI_COMMIT_REF_NAME"
+  MVN_CLI_OPTS: "-s .m2/settings.xml"
+
+# Cache downloaded dependencies and plugins between builds.
+# To keep cache across branches add 'key: "$CI_JOB_REF_NAME"'
+
+before_script:
+  # When GitLab CI commits or pushes (particularly using a personal key), dumb it down
+  - git config user.email "builds@dietsodasoftware.com"
+  - git config user.name "Diet Soda GitLab CI"
+
+  # Install ssh-agent if not already installed, it is required by Docker.
+  # (change apt-get to yum if you use a CentOS-based image)
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+
+  # Run ssh-agent (inside the build environment)
+  - eval $(ssh-agent -s)
+
+  # Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+  - ssh-add <(echo "$SSH_PRIVATE_KEY")
+
+  # For Docker builds disable host key checking. Be aware that by adding that
+  # you are suspectible to man-in-the-middle attacks.
+  # WARNING: Use this only with the Docker executor, if you use it with shell
+  # you will overwrite your user's SSH config.
+  - mkdir -p ~/.ssh
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  # In order to properly check the server's host key, assuming you created the
+  # SSH_SERVER_HOSTKEYS variable previously, uncomment the following two lines
+  # instead.
+  # - mkdir -p ~/.ssh
+  # - '[[ -f /.dockerenv ]] && echo "$SSH_SERVER_HOSTKEYS" > ~/.ssh/known_hosts'
+
+cache:
+  paths:
+    - .m2/repository
+
+stages:
+  - deploy
+
+release_artifact:
+  stage: deploy
+  environment:
+    name: apple-sauce
+    url: apple-sauce-url
+  script:
+    - ./bintray_release.sh
+  cache:
+    paths:
+      - .m2/repository
+  only:
+    - master
+

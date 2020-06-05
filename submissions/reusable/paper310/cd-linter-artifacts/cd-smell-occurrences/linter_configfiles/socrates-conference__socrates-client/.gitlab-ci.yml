@@ -1,0 +1,248 @@
+stages:
+  - install
+  - analyze
+  - test
+  - coverage
+  - build
+  - docker
+  - staging
+  - report
+
+variables:
+  DOCKER_DRIVER: overlay
+  CI_DEV_IMAGE_NAME: registry.gitlab.com/socrates-conference/socrates-client/socrates-client-dev
+  CI_PROD_IMAGE_NAME: registry.gitlab.com/socrates-conference/socrates-client/socrates-client-prod
+
+cache:
+  paths:
+   - node_modules/
+   - yarn.lock
+
+install:
+  tags:
+    - socrates
+  stage: install
+  image: node:8
+  script:
+    - yarn
+    - mkdir coverage
+    - mkdir .nyc_output
+  artifacts:
+    paths:
+    - node_modules
+    - coverage
+    - .nyc_output
+    expire_in: 1 hour
+
+analyze:lint:
+  tags:
+    - socrates
+  stage: analyze
+  image: node:8
+  dependencies:
+    - install
+  script:
+    - yarn build-css
+    - yarn lint
+  only:
+    - develop
+
+analyze:react-lint:
+  tags:
+    - socrates
+  stage: analyze
+  image: node:8
+  dependencies:
+    - install
+  script:
+    - yarn build-css
+    - yarn react-scripts-build
+  only:
+    - develop
+
+analyze:flow:
+  tags:
+    - socrates
+  stage: analyze
+  image: node:8
+  dependencies:
+    - install
+  script:
+    - yarn build-css
+    - yarn flow
+  only:
+    - develop
+
+test:unit:
+  tags:
+    - socrates
+  stage: test
+  image: node:8
+  dependencies:
+    - install
+  script:
+    - yarn test:coverage:unit
+  artifacts:
+    paths:
+      - node_modules
+      - coverage
+      - .nyc_output
+    expire_in: 1 hour
+
+test:cucumber:
+  tags:
+    - socrates
+  stage: test
+  image: node:8
+  dependencies:
+    - install
+  script:
+    - yarn test:coverage:cucumber
+  artifacts:
+    paths:
+      - node_modules
+      - coverage
+      - .nyc_output
+    expire_in: 1 hour
+
+
+coverage:collect:
+  tags:
+    - socrates
+  stage: coverage
+  image: node:8
+  dependencies:
+    - test:unit
+    - test:cucumber
+  script:
+    - yarn test:coverage:collect
+  artifacts:
+    paths:
+      - coverage
+    expire_in: 1 day
+
+dev:build:
+  tags:
+    - socrates
+  stage: build
+  image: node:8
+  environment:
+    name: socrates-dev
+    url: http://18.197.143.144/
+  script:
+    - sed -e 's/%jwt_secret%/'"$JWT_SECRET_DEV"'/g' rancher/dev/config.js > src/config.js
+    - sed -i -e 's/%instana_key%/'"$INSTANA_API_KEY_DEV"'/g' public/index.html
+    - yarn
+    - yarn build
+  artifacts:
+    paths:
+      - build
+    expire_in: 1 day
+  only:
+    - develop
+  allow_failure: false
+
+dev:docker:
+  tags:
+    - socrates
+  stage: docker
+  services:
+    - docker:dind
+  dependencies:
+    - dev:build
+  script:
+    - mv build docker/build
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_DEV_IMAGE_NAME docker
+    - docker push $CI_DEV_IMAGE_NAME
+  only:
+    - develop
+
+dev:staging:
+  tags:
+    - socrates
+  stage: staging
+  image: wzrdtales/ci-rancher-tools:latest
+  script:
+    - cd rancher/dev
+    - export RANCHER_URL=$RANCHER_URL_DEV
+    - export RANCHER_ACCESS_KEY=$RANCHER_ACCESS_KEY_DEV
+    - export RANCHER_SECRET_KEY=$RANCHER_SECRET_KEY_DEV
+    - rancher-compose -p socrates-dev up --force-upgrade -c --batch-size 1 -d --upgrade --pull socrates-client
+  environment:
+    name: socrates-dev
+    url: http://18.197.143.144/
+  only:
+    - develop
+
+prod:build:
+  tags:
+    - socrates
+  stage: build
+  image: node:8
+  script:
+    - sed -e 's/%jwt_secret%/'"$JWT_SECRET_PROD"'/g' rancher/prod/config.js > src/config.js
+    - sed -i -e 's/%instana_key%/'"$INSTANA_API_KEY_PROD"'/' public/index.html
+    - yarn
+    - yarn build
+  environment:
+    name: socrates-prod
+    url: http://18.195.152.133/
+  artifacts:
+    paths:
+      - build
+    expire_in: 1 day
+  only:
+    - master
+  allow_failure: false
+
+prod:docker:
+  tags:
+    - socrates
+  stage: docker
+  services:
+    - docker:dind
+  dependencies:
+    - prod:build
+  script:
+    - mv build docker/build
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_PROD_IMAGE_NAME docker
+    - docker push $CI_PROD_IMAGE_NAME
+  only:
+    - master
+
+prod:staging:
+  tags:
+    - socrates
+  stage: staging
+  image: wzrdtales/ci-rancher-tools:latest
+  script:
+    - cd rancher/prod
+    - export RANCHER_URL=$RANCHER_URL_PROD
+    - export RANCHER_ACCESS_KEY=$RANCHER_ACCESS_KEY_PROD
+    - export RANCHER_SECRET_KEY=$RANCHER_SECRET_KEY_PROD
+    - rancher-compose -p socrates-prod up --force-upgrade -c --batch-size 1 -d --upgrade --pull socrates-client
+  environment:
+    name: socrates-prod
+    url: http://18.195.152.133/
+  only:
+    - master
+
+pages:
+  tags:
+    - socrates
+  stage: report
+  dependencies:
+    - coverage:collect
+  script:
+    - mv coverage/* public
+    - mv public/gitlab_page.html public/index.html
+  artifacts:
+    paths:
+      - public/
+    expire_in: 30 days
+  only:
+    - develop
+  when: always
+

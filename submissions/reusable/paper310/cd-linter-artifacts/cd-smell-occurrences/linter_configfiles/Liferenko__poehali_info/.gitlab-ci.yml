@@ -1,0 +1,44 @@
+image: docker
+
+services:
+  - docker:dind
+
+stages:
+  - test
+  - deploy
+  
+before_script:
+  - echo "Or perhaps you might print out some debugging details"
+   
+after_script:
+  - echo "After script section"
+  - echo "For example you might do some cleanup here"
+   
+install_all_needs:
+    stage: prepair
+    script:
+      - echo "Prepair processes complete!"
+
+test1:
+  stage: test
+  script: 
+    - echo "Do a test here"
+   
+test2:
+  stage: test
+  script: 
+    - echo "Do another parallel test here"
+    - echo "For example run a lint test"
+   
+deploy:
+  stage: deploy
+  only:
+    - production
+    - master
+  script:
+    - sudo apt-get install -y python-pip
+    - pip install docker-compose
+    - cd app/
+    - docker-compose up -d --build
+  environment: production
+

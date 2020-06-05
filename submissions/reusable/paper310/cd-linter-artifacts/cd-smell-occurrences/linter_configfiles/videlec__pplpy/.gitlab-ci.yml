@@ -1,0 +1,41 @@
+image: ubuntu:18.04
+before_script:
+- export DEBIAN_FRONTEND=noninteractive   # avoid tzdata interactive configuration
+- apt-get -qq update
+- apt-get install -y apt-utils git libgmp-dev libmpfr-dev libmpc-dev libppl-dev $PKGS
+# when pip supports PEP 517 / PEP 518, the dependency installation could
+# be omitted
+- $PYTHON -m pip install --upgrade pip
+- $PYTHON -m pip install -r requirements.txt
+- $PYTHON setup.py sdist
+- $PYTHON -m pip install dist/pplpy-*.tar.gz
+
+.template_script:
+  script: &test_script
+  # run tests
+  - $PYTHON setup.py test
+  # build documentation
+  - cd docs
+  - make html
+
+python2.7:
+  stage: test
+  variables:
+    PYTHON: python
+    PKGS: python-pip python-sphinx
+  script: *test_script
+
+python3.6:
+  stage: test
+  variables:
+    PYTHON: python3
+    PKGS: python3-pip python3-sphinx
+  script: *test_script
+
+python3.7:
+  stage: test
+  variables:
+    PYTHON: python3.7
+    PKGS: python3.7 python3.7-dev python3-pip python3-sphinx
+  script: *test_script
+

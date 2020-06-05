@@ -1,0 +1,65 @@
+# This is used by the python containers, which run Debian
+before_script:
+  - apt update
+  - apt install -y gobject-introspection tox dbus libdbus-1-dev libgirepository1.0-dev python3-cairo-dev pylint3 flake8 python3-dbus
+  - python -V
+
+cache:
+  paths:
+    - .tox/
+
+stages:
+  - linters
+  - tests
+
+test-archlinux-py3.7:
+  stage: tests
+  image: archlinux/base
+  before_script:
+    - pacman -Sy
+    - pacman -S --noconfirm python-tox gobject-introspection base-devel cairo
+    - python -V
+  script:
+    - TOXENV=py37 tox
+
+test-py3.4:
+  stage: tests
+  image: python:3.4
+  script:
+    - TOXENV=py34 tox
+
+test-py3.5:
+  stage: tests
+  image: python:3.5
+  script:
+    - TOXENV=py35 tox
+
+test-py3.6:
+  stage: tests
+  image: python:3.6
+  script:
+    - TOXENV=py36 tox
+
+test-no-gi:
+  stage: tests
+  image: python:3.7
+  before_script:
+    - apt update
+    - apt install -y tox dbus libdbus-1-dev libgirepository1.0-dev python3-cairo-dev pylint3 flake8 python3-dbus
+    - python -V
+  script:
+    - TOXENV=py37 tox
+
+pylint:
+  stage: linters
+  image: python:3.7
+  script:
+    - pylint3 -d C0111,C0103 networkd_dispatcher.py
+
+flake8:
+  stage: linters
+  image: python:3.7
+  script:
+    - flake8 networkd_dispatcher.py
+
+

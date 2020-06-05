@@ -1,0 +1,40 @@
+image: rtlong/docker
+
+services:
+  - docker:1.12.1-dind
+
+variables:
+  DOCKER_CACHE_DIR: /tmp/docker-cache
+
+cache:
+  paths:
+    - /tmp/docker-cache
+
+stages:
+  - test
+  - deploy
+
+# rspec:
+#   stage: test
+#   script:
+#     - docker-cache load
+#     - docker-compose build --pull
+#     - docker-compose pull
+#     - docker-cache save
+#     - docker-compose run app rake db:test:prepare
+#     - docker-compose run app rake
+#   artifacts:
+#     untracked: true
+
+deploy:
+  stage: deploy
+  environment:
+    name: staging
+    url: https://stay-woke-catalyst.herokuapp.com/
+  only:
+    - master
+  image: ruby:2.3.1
+  script:
+    - gem install dpl
+    - dpl --provider=heroku --app=$HEROKU_APP_NAME --api-key=$HEROKU_API_KEY --strategy='git ssh'
+

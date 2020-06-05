@@ -1,0 +1,22 @@
+image: registry.gitlab.com/gitlab-org/gitlab-build-images:doc-gitlab-com
+
+variables:
+  PROGRESS: "1"
+
+pages:
+  stage: deploy
+  environment:
+    name: production
+    url: "https://docs.gitlab.com"
+  script:
+  - ruby -v
+  - ruby generate.rb
+  # Symlink all README.html to index.html for backwards compatibility. The site
+  # was deployed in a VPS and served by NGINX.
+  - for i in `find public -name README.html`; do ln -sf README.html $(dirname $i)/index.html; done
+  artifacts:
+    paths:
+    - public/
+  only:
+    - master
+

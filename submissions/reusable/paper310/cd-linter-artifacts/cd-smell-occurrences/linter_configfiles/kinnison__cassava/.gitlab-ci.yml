@@ -1,0 +1,66 @@
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  DEBIAN_FRONTEND: noninteractive
+
+stages:
+  - check
+  - test
+  - doc
+
+check:
+  stage: check
+  image: "rust:latest"
+  script:
+    - cargo check
+  cache:
+    paths:
+      - .cargo
+
+test:
+  stage: test
+  image: "rust:latest"
+  script:
+    - env GO_SLOW=2000000 cargo test
+  cache:
+    paths:
+      - .cargo
+
+clippy:
+  stage: test
+  image: "rust:latest"
+  before_script:
+    - rustup component add clippy-preview
+  script:
+    - cargo clippy -- -D clippy::all
+  cache:
+    paths:
+      - .cargo
+
+pages:
+  stage: doc
+  image: "rust:latest"
+  script:
+    - cargo doc --all --no-deps
+    - mkdir -p public
+    - cp -av target/doc/* public/
+    - echo '<meta http-equiv="refresh" content="0; url=//kinnison.gitlab.io/cassava/cassava_storage/">' > public/index.html
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+smoke-docs:
+  stage: doc
+  image: "rust:latest"
+  script:
+    - cargo doc --all --no-deps
+    - mkdir -p public
+    - cp -av target/doc/* public/
+    - echo '<meta http-equiv="refresh" content="0; url=//kinnison.gitlab.io/cassava/cassava_storage/">' > public/index.html
+  artifacts:
+    paths:
+      - public
+  except:
+    - master
+

@@ -1,0 +1,38 @@
+stages:
+  - build
+  - test
+
+libchaos:linux-gcc:
+  stage: build
+  tags:
+    - linux
+  image: fedora
+  before_script:
+    - yum install -y gcc gcc-c++ cmake make openssl-devel libpng-devel libjpeg-devel libwebp-devel
+  script:
+    - mkdir build
+    - cd build
+    - cmake -D CMAKE_BUILD_TYPE="Release" ..
+    - make
+  artifacts:
+    paths:
+      - build/chaos/libchaos.a
+      - build/chaos/libchaos.so
+      - build/tests/testchaos
+
+test:linux-gcc:
+  stage: test
+  dependencies:
+    - libchaos:linux-gcc
+  variables:
+    GIT_STRATEGY: none
+  tags:
+    - linux
+  image: fedora
+  before_script:
+    - yum install -y libstdc++ openssl libpng libjpeg libwebp
+  script:
+    - cd build/tests
+    - ./testchaos
+
+

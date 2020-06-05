@@ -1,0 +1,17 @@
+variables:
+  BASE_VERSION: '0.1'
+  MAINTAINER: 'Alexander Teseyko <alexteko@gmail.com>'
+  DESC: 'Console client for ProxmoxVE'
+  VENV_PATH: 'usr/local/pmx-console/.venv'
+
+build:
+  script:
+    - rm -rf build
+    - rm -rf *.deb
+    - rm -rf $VENV_PATH
+    - virtualenv $VENV_PATH --python=python3.6
+    - $VENV_PATH/bin/pip install -r requirements.txt
+    - virtualenv $VENV_PATH --relocatable
+    - fpm -s dir -t deb -n pmx-console -v $BASE_VERSION-$CI_JOB_ID -d python3.6 -m "$MAINTAINER" --description "$DESC" etc usr
+    - ~/add_repository.sh
+

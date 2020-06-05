@@ -1,0 +1,15 @@
+.test_template: &test_definition
+  script:
+    - julia -e 'using Pkg; Pkg.activate(pwd()); Pkg.instantiate(); Pkg.test(coverage = true)'
+    - julia -e 'using Pkg; Pkg.add("Coverage"); 
+      using Coverage; cl, tl = get_summary(process_folder());
+      println("(", round(cl/tl*100; digits=1), "%) covered")'
+
+test:0.7:
+  image: julia:0.7
+  <<: *test_definition
+
+test:1.0:
+  image: julia:1.0
+  <<: *test_definition
+

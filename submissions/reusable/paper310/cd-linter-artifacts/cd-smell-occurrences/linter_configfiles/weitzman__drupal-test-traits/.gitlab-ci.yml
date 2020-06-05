@@ -1,0 +1,30 @@
+test:
+  stage: test
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay2
+    # https://github.com/docker/compose/issues/5696
+    COMPOSE_INTERACTIVE_NO_CLI: 1
+  before_script:
+    - apk add --no-cache py-pip
+      # Pin docker-compose version to stop installation error https://gitlab.com/gitlab-com/support-forum/issues/4421
+    - pip install docker-compose~=1.23.0
+    - docker-compose up -d
+  script:
+    - docker-compose exec -T drupal composer install -n --prefer-dist
+    - docker-compose exec -T drupal composer lint
+    - docker-compose exec -T drupal composer cs
+    - docker-compose exec -T drupal mkdir web/sites/simpletest
+    - docker-compose exec -T drupal composer si
+    - docker-compose exec -T drupal chown -R www-data:www-data .
+    - docker-compose exec -T drupal composer unit
+  artifacts:
+    when: on_failure
+    expire_in: 5 mos
+    reports:
+      junit: web/sites/simpletest/browser_output/junit.xml
+    paths:
+      - web/sites/simpletest/browser_output
+

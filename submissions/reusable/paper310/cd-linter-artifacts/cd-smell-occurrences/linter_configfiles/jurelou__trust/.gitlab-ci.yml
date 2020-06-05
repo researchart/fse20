@@ -1,0 +1,28 @@
+image: node:latest
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  script:
+   - npm install
+   - npm run build
+
+deploy_prod:
+  stage: deploy
+  script:
+    - npm install
+    - ./start.sh
+  environment:
+    name: production
+    url: http://argos.sh
+  only:
+  - master
+
+

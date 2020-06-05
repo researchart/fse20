@@ -1,0 +1,48 @@
+image: docker:latest
+
+variables:
+  GIT_DEPTH: "3"
+  DOCKER_DRIVER: overlay
+
+services:
+  - docker:dind
+
+before_script:
+  - echo $CI_COMMIT_REF_NAME
+
+docker-build test:
+  stage: build
+  allow_failure: false
+  script:
+    - docker build --pull -t $CI_COMMIT_REF_NAME:rootfs .
+    - mkdir -p ./plugin/rootfs
+    - docker create --name tmp $CI_COMMIT_REF_NAME:rootfs
+    - docker export tmp | tar -x -C ./plugin/rootfs
+    - cp config.json ./plugin/
+    - docker rm -vf tmp
+    - docker plugin create n0r1skcom/$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME ./plugin
+    - docker login -u $DOCKER_USER -p $DOCKER_PASSWD
+    - docker plugin push n0r1skcom/$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME
+  only:
+    - branches
+  when: manual
+
+docker-build prod:
+  stage: build
+  allow_failure: false
+  script:
+    - docker build --pull -t $CI_COMMIT_REF_NAME:rootfs .
+    - mkdir -p ./plugin/rootfs
+    - docker create --name tmp $CI_COMMIT_REF_NAME:rootfs
+    - docker export tmp | tar -x -C ./plugin/rootfs
+    - cp config.json ./plugin/
+    - docker rm -vf tmp
+    - docker plugin create n0r1skcom/$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME ./plugin
+    - docker plugin create n0r1skcom/$CI_PROJECT_NAME:latest ./plugin
+    - docker login -u $DOCKER_USER -p $DOCKER_PASSWD
+    - docker plugin push n0r1skcom/$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME
+    - docker plugin push n0r1skcom/$CI_PROJECT_NAME:latest
+  only:
+    - tags
+  when: manual
+

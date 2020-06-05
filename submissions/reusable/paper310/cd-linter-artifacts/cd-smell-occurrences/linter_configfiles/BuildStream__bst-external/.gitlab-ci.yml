@@ -1,0 +1,207 @@
+image: buildstream/buildstream:latest-master-107701851
+
+cache:
+  paths:
+    - cache/
+
+stages:
+  - prepare
+  - test
+  - coverage
+  - docs
+  - upload
+
+before_script:
+  # Diagnostics
+  - mount
+  - df -h
+
+  - adduser -m buildstream
+  - chown -R buildstream:buildstream .
+
+  - dnf install -y quilt qemu git-lfs
+
+  - pip3 install pytest
+  - pip3 install pytest-cov
+  - pip3 install pytest-datafiles
+  - pip3 install pytest-env
+  - pip3 install pytest-pep8
+  - pip3 install pytest-xdist
+  - pip3 install pytoml
+  - pip3 install coverage==4.4.0
+  - pip3 install pep8
+  - pip3 install requests
+  - pip3 install twine
+
+#####################################################
+#                  Prepare stage                    #
+#####################################################
+
+# Create a source distribution
+#
+source_dist:
+  stage: prepare
+  script:
+
+  # Generate the source distribution tarball
+  #
+  - python3 setup.py sdist
+  - tar -ztf dist/*
+  - tarball=$(cd dist && echo $(ls *))
+
+  # Create an installer script
+  - |
+    cat > dist/install.sh << EOF
+    #!/bin/sh
+    tar -zxf ${tarball}
+    cd ${tarball%.tar.gz}
+    pip3 install --no-index .
+    EOF
+
+  # unpack tarball as `dist/bst-external` directory
+  - |
+    cat > dist/unpack.sh << EOF
+    #!/bin/sh
+    tar -zxf ${tarball}
+    mv ${tarball%.tar.gz} bst-external
+    EOF
+
+  # Make our helpers executable
+  - chmod +x dist/install.sh
+  - chmod +x dist/unpack.sh
+  artifacts:
+    paths:
+    - dist/
+
+#####################################################
+#                    Test stage                     #
+#####################################################
+
+integration_linux:
+  stage: test
+  variables:
+    PYTEST_ADDOPTS: "--color=yes"
+  script:
+
+    - export INTEGRATION_CACHE="$(pwd)/cache/integration-cache"
+    
+    # Unpack and get into dist/bst-external
+    - cd dist && ./unpack.sh
+    - chown -R buildstream:buildstream bst-external
+    - cd bst-external
+    # Install bst-external at this branch as the tests need it
+    - pip3 install --no-index .
+
+    # Run the tests from the source distribution.
+    # We run as a simple user to test for permission issues.
+    - su buildstream -c 'python3 setup.py test --index-url file:///dev/null'
+
+    # Go back top level and collect our reports
+    - cd ../.. #you may only have to go back one level here...
+    - mkdir -p coverage-linux/
+    - cp dist/bst-external/.coverage coverage-linux/coverage.linux
+  artifacts:
+    paths:
+    - coverage-linux/
+  dependencies:
+  - source_dist
+
+integration_unix:
+  stage: test
+  variables:
+    BST_FORCE_BACKEND: "unix"
+    PYTEST_ADDOPTS: "--color=yes"
+  script:
+
+    - export INTEGRATION_CACHE="$(pwd)/cache/integration-cache"
+
+    # Unpack and get into dist/bst-external
+    - cd dist && ./unpack.sh && cd bst-external && pip3 install --no-index .
+
+    # Since the unix platform is required to run as root, no user change required
+    - python3 setup.py test --index-url file:///dev/null
+
+    # Go back top level and collect our reports
+    - cd ../..
+    - mkdir -p coverage-unix/
+    - cp dist/bst-external/.coverage coverage-unix/coverage.unix
+
+  artifacts:
+    paths:
+    - coverage-unix/
+    - logs-unix/
+
+  dependencies:
+  - source_dist
+
+#####################################################
+#                Coverage stage                     #
+#####################################################
+
+# Collate coverage reports
+#
+coverage:
+  stage: coverage
+  coverage: '/TOTAL +\d+ +\d+ +(\d+\.\d+)%/'
+  script:
+    - cd dist && ./unpack.sh && cd bst-external
+    - pip3 install --no-index .
+    - mkdir report
+    - cd report
+    - cp ../../../coverage-linux/coverage.linux .
+    - cp ../../../coverage-unix/coverage.unix .
+    - coverage combine --rcfile=../.coveragerc -a coverage.*
+    - coverage report --rcfile=../.coveragerc -m
+  dependencies:
+  - source_dist
+  - integration_linux
+  - integration_unix
+
+# Automatically build documentation, only for merges which land
+# on master branch.
+#
+# Note: We still do not enforce a consistent installation of python2
+#       or sphinx, as python2 will significantly grow the backing image.
+#
+
+#####################################################
+#                  Docs stage                       #
+#####################################################
+
+pages:
+  stage: docs
+  script:
+  - dnf install -y python2
+  # Pin sphinx as docs will not build at latest version
+  - pip3 install sphinx==1.8.5
+  - pip3 install sphinx-click
+  # Pin sphinx_rtd_theme because search functionality breaks
+  # at the latest version
+  - pip3 install sphinx_rtd_theme>=0.4.2
+  - pip3 install --user .
+  - make -C doc
+  - mv doc/build/html public
+  artifacts:
+    paths:
+    - public/
+  only:
+  - master
+
+
+# Automatically upload to PyPI when a release is tagged.
+
+#####################################################
+#               Upload stage                        #
+#####################################################
+
+upload:
+  stage: upload
+  script:
+  - twine upload dist/*.tar.gz
+  dependencies:
+  - source_dist
+  only:
+  - /[0-9]+\.[0-9]+\.[0-9]+/
+  except:
+  - branches
+

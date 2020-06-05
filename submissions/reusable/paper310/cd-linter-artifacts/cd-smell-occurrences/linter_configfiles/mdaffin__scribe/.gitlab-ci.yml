@@ -1,0 +1,27 @@
+stages:
+    - test
+    - build
+
+before_script:
+    - cargo --version
+cache:
+    paths:
+        - target
+
+Test:
+    stage: test
+    image: rust:slim
+    script: cargo test
+
+Build:
+    stage: build
+    image: rust:slim
+    script: 
+        - cargo build --release
+        - cp target/release/scribe .
+    artifacts:
+        paths:
+            - scribe
+    only:
+        - tags
+

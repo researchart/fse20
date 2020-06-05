@@ -1,0 +1,39 @@
+# The Nightly version of Rust is required, for the moment, due to server dependencies.
+# The Rocket framework we use requires Nightly features.
+image: rustlang/rust:nightly
+
+# Test the integrity of the data.
+meet-data:
+  before_script:
+    - apt-get update -qq && apt-get install -y python3-pip
+    - pip3 install flake8
+  script:
+    - make check
+
+# Build the data file and run server tests with the current data.
+server:
+  cache:
+    paths:
+      - target
+      - server/client/node_modules
+  before_script:
+    - curl -sL https://deb.nodesource.com/setup_10.x | bash -
+    - apt-get update -qq && apt-get install -y nodejs python3-pip
+    - pip3 install toml
+  script:
+    - make csv
+    - make -C server checkprerequisites
+    - cargo test
+
+# On success, update project documentation on GitLab Pages.
+pages:
+  stage: deploy
+  script:
+    - cargo doc --no-deps  # Builds into target/doc.
+    - mv target/doc public  # GitLab Pages always deploys from a folder named "public".
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

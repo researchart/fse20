@@ -1,0 +1,26 @@
+pages:
+  stage: deploy
+  script:
+    - apt-get install -y python
+    - wget https://bootstrap.pypa.io/get-pip.py
+    - python get-pip.py
+    - pip install Sphinx
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    # Run ssh-agent (inside the build environment)
+    - eval $(ssh-agent -s)
+    # Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - git clone git@gitlab.com:IPMsim/Virtual-IPM-documentation.git
+    - cd Virtual-IPM-documentation
+    - make html
+    - cd ..
+    - mkdir public
+    - cp -r Virtual-IPM-documentation/build/html/* public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

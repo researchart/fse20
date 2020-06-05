@@ -1,0 +1,14 @@
+image: ruby:2.3
+
+before_script:
+  - ruby -v
+  - which ruby
+  - gem install bundler --no-ri --no-rdoc
+  - bundle check || bundle install
+  - bundle exec rake db:create
+  - bundle exec rake db:migrate
+
+rspec:
+  script:
+    - bundle exec rspec
+

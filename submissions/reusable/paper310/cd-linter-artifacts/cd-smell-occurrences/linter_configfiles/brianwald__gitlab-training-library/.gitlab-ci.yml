@@ -1,0 +1,123 @@
+stages:
+  - setup
+  - build
+  - test
+  - review
+  - deploy
+  - dast
+  - performance
+
+#build a docker image to use for build/test stage jobs (runs as a weekly scheudled job)
+build_image:
+  image: docker:stable
+  services:
+   - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+    CONTAINER_BUILD_IMAGE: $CI_REGISTRY_IMAGE:latest
+  stage: setup
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CONTAINER_BUILD_IMAGE .
+    - docker push $CONTAINER_BUILD_IMAGE
+  only:
+    - schedules
+
+
+build:
+  image: registry.gitlab.com/bw-demo-instance/gitlab-training-library:latest
+  stage: build
+  variables:
+    DOCKER_DRIVER: overlay2
+  script:
+    - apk add --no-cache git
+    - yarn install
+    - yarn run build
+    - yarn cache clean
+  artifacts:
+    paths:
+      - dist
+    expire_in: 1 hour
+
+unit test:
+  image: registry.gitlab.com/bw-demo-instance/gitlab-training-library:latest
+  stage: test
+  script:
+    - apk add --no-cache git
+    - yarn install --progress=false
+    - yarn run unit
+
+review:
+  stage: review
+  script:
+    - rsync -av --delete dist/ /srv/nginx/pages/$CI_BUILD_REF_SLUG
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: http://$CI_BUILD_REF_SLUG.$REVIEW_APP_DOMAIN
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+  tags:
+    - review-app
+
+stop_review:
+  stage: review
+  script:
+    - rm -rf dist/ /srv/nginx/pages/$CI_BUILD_REF_SLUG
+  variables:
+    GIT_STRATEGY: none
+  when: manual
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+  tags:
+    - review-app
+
+deploy prod:
+  image: alpine
+  stage: deploy
+  environment:
+    name: production
+    url: $APP_DOMAIN
+  script:
+    - echo "====== Deploy to production server ======"
+    - apk update && apk upgrade
+    - apk add openssh openssh-client bash rsync
+    - echo "====== Add target servers secret key ======"
+    - mkdir -p ~/.ssh
+    - eval $(ssh-agent -s)
+    - bash -c "ssh-add <(echo '$TARGET_SERVER_SECRET_KEY_BASE64')"
+    - '[[ -f /.dockerinit ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - chmod 700 ~/.ssh
+    - echo "====== Test ssh connection ======"
+    - ssh -p22 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -T "$TARGET_SERVER_USER_HOST"
+    - echo "====== Sync local and remote directory ======"
+    - rsync -azPq -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" --delete dist/ "$TARGET_SERVER_USER_HOST:$TARGET_SERVER_PATH"
+  only:
+    - master
+      
+include:
+  - template: Jobs/Browser-Performance-Testing.gitlab-ci.yml
+  - template: Security/DAST.gitlab-ci.yml
+  - template: Security/Container-Scanning.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+  - template: Security/License-Management.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+
+# Override DAST job to exclude master branch
+dast:
+  variables:
+    DAST_WEBSITE: http://$CI_BUILD_REF_SLUG.$REVIEW_APP_DOMAIN
+  except:
+    refs:
+      - master
+
+
+

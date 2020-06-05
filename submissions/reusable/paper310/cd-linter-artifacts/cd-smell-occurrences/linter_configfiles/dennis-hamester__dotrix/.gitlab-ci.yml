@@ -1,0 +1,7 @@
+build_job:
+  stage: build
+  script:
+    - curl -sSf https://static.rust-lang.org/rustup.sh | bash -s -- --yes --disable-sudo
+    - cargo build
+    - cargo build --release
+

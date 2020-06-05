@@ -1,0 +1,82 @@
+services:
+  - postgres:alpine
+
+stages:
+- build
+- test
+- page_test
+- deploy
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+build_info_blog:
+  stage: build
+  image: node:alpine
+  script:
+  - cd info
+  - npm install
+  - npm run build
+  artifacts:
+    paths:
+    - info/public
+  only:
+  - /^release*$/
+  - master
+
+test_sql:
+  stage: test
+  image: alpine:latest
+  script:
+  - apk update
+  - apk add postgresql-client bash
+  - chmod +x ./sql/deploy.sh
+  - ./sql/deploy.sh $(pwd) postgres postgres
+  artifacts:
+    paths:
+    - dist
+
+test_js:
+  stage: test
+  image: node:alpine
+  script:
+  - cd tools
+  - npm install
+  - npm test
+  - npm run build -- --production
+  artifacts:
+    paths:
+    - dist
+
+test_pages:
+  stage: page_test
+  image: alpine:latest
+  dependencies:
+  - build_info_blog
+  - test_sql
+  - test_js
+  script:
+  - mkdir public
+  - mkdir public/info
+  - mv dist/* public/
+  - mv info/public/* public/info/
+  artifacts:
+    paths:
+    - public
+  only:
+  - /^release*$/
+  - master
+
+pages:
+  stage: deploy
+  image: alpine:latest
+  dependencies:
+  - test_pages
+  script:
+  - echo "publish done."
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

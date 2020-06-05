@@ -1,0 +1,144 @@
+stages:
+  - prepare
+  - test
+  - build
+  - review
+  - deploy
+
+.image-template: &default-image
+  image: jkarras/docker-nodemcu-build:spiffs-essential
+
+.default-template: &default-template
+  <<: *default-image
+  variables:
+    GIT_DEPTH: "3"
+  cache:
+    key: "$CI_BUILD_REF_NAME"
+    paths:
+    - builddir/nodemcu-firmware
+  artifacts:
+    name: "${CI_BUILD_NAME}_${CI_BUILD_REF_NAME}"
+    expire_in: 6 weeks
+    paths:
+    - build_artifacts
+  script:
+    - bash ci-scripts/preparelua.sh ${CI_BUILD_STAGE}
+    - bash ci-scripts/build-nodemcu-image.sh ${CI_BUILD_STAGE}
+  except:
+    - /^.*-documentation$/
+    - /^docs-.*$/
+
+.deploy-template: &deploy-template
+  <<: *default-image
+  cache:
+    key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
+  variables:
+    GIT_DEPTH: "3"
+  script:
+    - bash ci-scripts/preparelua.sh ${CI_BUILD_STAGE}
+    - bash ci-scripts/build-nodemcu-image.sh ${CI_BUILD_STAGE}
+
+prepare-environment:
+  <<: *default-template
+  stage: prepare
+  artifacts:
+    name: "${CI_BUILD_NAME}_${CI_BUILD_REF_NAME}"
+    expire_in: 1 weeks
+    paths:
+    - builddir/nodemcu-firmware
+    - build_artifacts
+
+
+test-lua-syntax:
+  <<: *default-template
+  stage: test
+  artifacts:
+  cache:
+
+build-images:
+  <<: *default-template
+  stage: build
+  artifacts:
+    name: "${CI_BUILD_NAME}_${CI_BUILD_REF_NAME}"
+    paths:
+    - build_artifacts
+  dependencies:
+    - prepare-environment
+
+start_review:
+  <<: *deploy-template
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: http://saintcon2016badge.karras.co/$CI_BUILD_REF_NAME
+    on_stop: stop_review
+  stage: review
+  artifacts:
+    expire_in: 6 weeks
+    untracked: true
+  only:
+    - branches
+  except:
+    - master
+    - dev
+
+stop_review:
+  <<: *default-image
+  stage: review
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - s3cmd del -r s3://saintcon2016badge.karras.co/$CI_BUILD_REF_NAME
+  when: manual
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+    - dev
+
+
+deploy-to-badger-dev:
+  <<: *deploy-template
+  when: manual
+  environment:
+    name: $CI_BUILD_REF_NAME
+    url: http://saintcon2016badge.karras.co/$CI_BUILD_REF_NAME
+  stage: deploy
+  artifacts:
+    untracked: true
+  only:
+    - dev@saintcon/SaintCon2016Badge
+
+deploy-to-badger-prod:
+  <<: *deploy-template
+  when: manual
+  environment:
+    name: Production
+    url: https://saintcon2016badge.karras.co/$CI_BUILD_REF_NAME
+  stage: deploy
+  artifacts:
+    untracked: true
+  only:
+    - master@saintcon/SaintCon2016Badge
+
+pages:
+  <<: *default-image
+  before_script: []
+  image: jkarras/docker-nodemcu-build:mkdocs
+  environment: documentation
+  stage: deploy
+  dependencies: []
+  when: always
+  script:
+  - export LC_ALL=C.UTF-8
+  - mkdocs build
+  artifacts:
+    name: "${CI_BUILD_NAME}_${CI_BUILD_REF_NAME}"
+    paths:
+    - public
+  only:
+  - master@saintcon/SaintCon2016Badge
+  - tags@saintcon/SaintCon2016Badge
+

@@ -1,0 +1,63 @@
+image: wengych/rpmbuild-java
+stages:
+  - build
+  - upload
+  - deploy
+
+cache:
+  untracked: true
+  key: "${CI_COMMIT_REF_NAME}"
+  paths:
+    - target/rpm/gitflow-ci-demo/RPMS/noarch/
+
+build:
+  stage: build
+  only:
+    - develop@wengych/gitflow-ci
+    - /^release\/.*$/@wengych/gitflow-ci
+    - tags@wengych/gitflow-ci
+  script:
+    - export GIT_REVISION=`git rev-list HEAD --count`
+    - mvn clean package rpm:attached-rpm -DgitRevision=${GIT_REVISION}
+
+upload_develop_rpm:
+  stage: upload
+  only: [ develop@wengych/gitflow-ci ]
+  script:
+    - echo "impl upload script to upload rpm to repository"
+    - echo "scp target/rpm/gitflow-ci-demo/RPMS/noarch/*.rpm dev_repo:"
+
+upload_prerelease_rpm:
+  stage: upload
+  only: [ /^release\/.*$/@wengych/gitflow-ci ]
+  script:
+    - echo "impl upload script to upload rpm to repository"
+    - echo "scp target/rpm/gitflow-ci-demo/RPMS/noarch/*.rpm staging_repo:"
+
+upload_release_rpm:
+  stage: upload
+  only: [ tags@wengych/gitflow-ci ]
+  script:
+    - echo "impl upload script to upload rpm to repository"
+    - echo "scp target/rpm/gitflow-ci-demo/RPMS/noarch/*.rpm release_repo:"
+  artifacts:
+    paths:
+      - target/rpm/gitflow-ci-demo/RPMS/noarch/gitflow-ci-demo-*.noarch.rpm
+
+deploy_develop:
+  stage: deploy
+  only: [ develop@wengych/gitflow-ci ]
+  environment:
+    name: develop
+  script:
+    - echo "ssh to dev test server and run yum install"
+
+deploy_prerelease:
+  stage: deploy
+  only: [ /^release\/.*$/@wengych/gitflow-ci ]
+  environment:
+    name: staging
+  script:
+    - echo "ssh to staging test server and run yum install"
+
+

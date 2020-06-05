@@ -1,0 +1,440 @@
+variables:
+    GIT_SUBMODULE_STRATEGY: "recursive"
+    ANDROID_NDK: "~/develop/android-ndk-r18b"
+
+before_script:
+    - git lfs fetch
+    - git lfs checkout
+
+after_script:
+    - echo log-after_script
+
+stages:
+    - build
+    - package
+    - deploy
+
+compile.windows:
+    stage: build
+    script:
+        - 'if exist output rmdir /s /q output'
+        - 'cd external/draco'
+        - 'if exist build rmdir /s /q build'
+        - 'mkdir build && cd build'
+        - 'call "%VS2017COMNTOOLS%VsDevCmd.bat"'
+        - 'mkdir vs2017 && cd vs2017'
+        - 'mkdir win32 && cd win32'
+        - 'cmake -G "Visual Studio 15 2017" ../../../'
+        - 'msbuild dracodec.vcxproj /t:Build /p:Configuration="Release" /p:Platform="Win32"'
+        - 'msbuild dracodec.vcxproj /t:Build /p:Configuration="Debug" /p:Platform="Win32"'
+        - 'msbuild dracoenc.vcxproj /t:Build /p:Configuration="Release" /p:Platform="Win32"'
+        - 'msbuild dracoenc.vcxproj /t:Build /p:Configuration="Debug" /p:Platform="Win32"'
+        - 'cd ../'
+        - 'mkdir win64 && cd win64'
+        - 'cmake -G "Visual Studio 15 2017 Win64" ../../../'
+        - 'msbuild dracodec.vcxproj /t:Build /p:Configuration="Release" /p:Platform="x64"'
+        - 'msbuild dracodec.vcxproj /t:Build /p:Configuration="Debug" /p:Platform="x64"'
+        - 'msbuild dracoenc.vcxproj /t:Build /p:Configuration="Release" /p:Platform="x64"'
+        - 'msbuild dracoenc.vcxproj /t:Build /p:Configuration="Debug" /p:Platform="x64"'
+        - 'cd ../'
+        - 'cd ../'
+        - 'call "%VS140COMNTOOLS%VsDevCmd.bat"'
+        - 'mkdir vs2015 && cd vs2015'
+        - 'mkdir win32 && cd win32'
+        - 'cmake -G "Visual Studio 14 2015" ../../../'
+        - 'msbuild dracodec.vcxproj /t:Build /p:Configuration="Release" /p:Platform="Win32"'
+        - 'msbuild dracodec.vcxproj /t:Build /p:Configuration="Debug" /p:Platform="Win32"'
+        - 'msbuild dracoenc.vcxproj /t:Build /p:Configuration="Release" /p:Platform="Win32"'
+        - 'msbuild dracoenc.vcxproj /t:Build /p:Configuration="Debug" /p:Platform="Win32"'
+        - 'cd ../'
+        - 'mkdir win64 && cd win64'
+        - 'cmake -G "Visual Studio 14 2015 Win64" ../../../'
+        - 'msbuild dracodec.vcxproj /t:Build /p:Configuration="Release" /p:Platform="x64"'
+        - 'msbuild dracodec.vcxproj /t:Build /p:Configuration="Debug" /p:Platform="x64"'
+        - 'msbuild dracoenc.vcxproj /t:Build /p:Configuration="Release" /p:Platform="x64"'
+        - 'msbuild dracoenc.vcxproj /t:Build /p:Configuration="Debug" /p:Platform="x64"'
+        - 'cd ../'
+        - 'cd ../'
+        - 'cd ../'
+        - 'cd ../../'
+        - 'xcopy external\draco\build\vs2015\win32\Release\*.lib output\lib\win32\vs2015\Release\ /s /r /y'
+        - 'xcopy external\draco\build\vs2015\win32\Debug\*.lib output\lib\win32\vs2015\Debug\ /s /r /y'
+        - 'xcopy external\draco\build\vs2015\win64\Release\*.lib output\lib\win64\vs2015\Release\ /s /r /y'
+        - 'xcopy external\draco\build\vs2015\win64\Debug\*.lib output\lib\win64\vs2015\Debug\ /s /r /y'
+        - 'xcopy external\draco\build\vs2017\win32\Release\*.lib output\lib\win32\vs2017\Release\ /s /r /y'
+        - 'xcopy external\draco\build\vs2017\win32\Debug\*.lib output\lib\win32\vs2017\Debug\ /s /r /y'
+        - 'xcopy external\draco\build\vs2017\win64\Release\*.lib output\lib\win64\vs2017\Release\ /s /r /y'
+        - 'xcopy external\draco\build\vs2017\win64\Debug\*.lib output\lib\win64\vs2017\Debug\ /s /r /y'
+    artifacts:
+        name: "libdraco.windows.%CI_PIPELINE_ID%.%CI_JOB_ID%"
+        expire_in: 1 month
+        paths:
+            - output\lib\*
+    tags:
+        - win32
+        - win64
+        - cmake
+        - vs2015
+        - vs2017
+
+compile.linux:
+    stage: build
+    script:
+        - 'rm -rf output'
+        - 'cd external/draco'
+        - 'rm -rf build'
+        - 'mkdir build && cd build'
+        - 'cmake -G "Unix Makefiles" ../'
+        - 'make dracodec'
+        - 'make dracoenc'
+        - 'cd ../../../'
+        - 'mkdir -p output/lib/linux'
+        - 'cp -v external/draco/build/libdraco*.a output/lib/linux/'
+    artifacts:
+        name: "libdraco.linux.$CI_PIPELINE_ID.$CI_JOB_ID"
+        expire_in: 1 month
+        paths:
+            - output/lib/*
+    tags:
+        - linux
+        - gcc
+        - cmake
+        - make
+
+compile.macos:
+    stage: build
+    script:
+        - 'rm -rf output'
+        - 'cd external/draco'
+        - 'rm -rf build'
+        - 'mkdir build && cd build'
+        - 'cmake -G "Unix Makefiles" ../'
+        - 'make dracodec'
+        - 'make dracoenc'
+        - 'cd ../../../'
+        - 'mkdir -p output/lib/macos'
+        - 'cp -v external/draco/build/libdraco*.a output/lib/macos/'
+    artifacts:
+        name: "libdraco.macos.$CI_PIPELINE_ID.$CI_JOB_ID"
+        expire_in: 1 month
+        paths:
+            - output/lib/*
+    tags:
+        - macos
+        - gcc
+        - cmake
+        - make
+
+compile.android:
+    stage: build
+    script:
+        - 'rm -rf output'
+        - 'cd external/draco'
+        - 'rm -rf build'
+        - 'mkdir build && cd build'
+        - 'mkdir armeabi-v7a && cd armeabi-v7a'
+        - 'cmake -G "Ninja" -DCMAKE_MAKE_PROGRAM=/usr/bin/ninja -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=armeabi-v7a -DANDROID_NDK=$ANDROID_NDK -DANDROID_NATIVE_API_LEVEL=19 -DANDROID_TOOLCHAIN=clang ../../'
+        - 'ninja dracodec'
+        - 'ninja dracoenc'
+        - 'cd ../'
+        - 'mkdir armeabi-v7a-with-neon && cd armeabi-v7a-with-neon'
+        - 'cmake -G "Ninja" -DCMAKE_MAKE_PROGRAM=/usr/bin/ninja -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=armeabi-v7a -DANDROID_ARM_NEON=ON -DANDROID_NDK=$ANDROID_NDK -DANDROID_NATIVE_API_LEVEL=19 -DANDROID_TOOLCHAIN=clang ../../'
+        - 'ninja dracodec'
+        - 'ninja dracoenc'
+        - 'cd ../'
+        - 'mkdir arm64-v8a && cd arm64-v8a'
+        - 'cmake -G "Ninja" -DCMAKE_MAKE_PROGRAM=/usr/bin/ninja -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_NDK=$ANDROID_NDK -DANDROID_NATIVE_API_LEVEL=19 -DANDROID_TOOLCHAIN=clang ../../'
+        - 'ninja dracodec'
+        - 'ninja dracoenc'
+        - 'cd ../'
+        - 'mkdir x86 && cd x86'
+        - 'cmake -G "Ninja" -DCMAKE_MAKE_PROGRAM=/usr/bin/ninja -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=x86 -DANDROID_NDK=$ANDROID_NDK -DANDROID_NATIVE_API_LEVEL=19 -DANDROID_TOOLCHAIN=clang ../../'
+        - 'ninja dracodec'
+        - 'ninja dracoenc'
+        - 'cd ../'
+        - 'mkdir x86_64 && cd x86_64'
+        - 'cmake -G "Ninja" -DCMAKE_MAKE_PROGRAM=/usr/bin/ninja -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=x86_64 -DANDROID_NDK=$ANDROID_NDK -DANDROID_NATIVE_API_LEVEL=19 -DANDROID_TOOLCHAIN=clang ../../'
+        - 'ninja dracodec'
+        - 'ninja dracoenc'
+        - 'cd ../'
+        - 'cd ../'
+        - 'cd ../../'
+        - 'mkdir -p output/lib/android/armeabi-v7a/'
+        - 'cp -v external/draco/build/armeabi-v7a/libdraco*.a output/lib/android/armeabi-v7a/'
+        - 'mkdir -p output/lib/android/armeabi-v7a-with-neon/'
+        - 'cp -v external/draco/build/armeabi-v7a-with-neon/libdraco*.a output/lib/android/armeabi-v7a-with-neon/'
+        - 'mkdir -p output/lib/android/arm64-v8a/'
+        - 'cp -v external/draco/build/arm64-v8a/libdraco*.a output/lib/android/arm64-v8a/'
+        - 'mkdir -p output/lib/android/x86/'
+        - 'cp -v external/draco/build/x86/libdraco*.a output/lib/android/x86/'
+        - 'mkdir -p output/lib/android/x86_64/'
+        - 'cp -v external/draco/build/x86_64/libdraco*.a output/lib/android/x86_64/'
+    artifacts:
+        name: "libdraco.android.$CI_PIPELINE_ID.$CI_JOB_ID"
+        expire_in: 1 month
+        paths:
+            - output/lib/*
+    tags:
+        - linux
+        - android
+        - cmake
+        - ninja
+
+compile.ios:
+    stage: build
+    script:
+        - 'rm -rf output'
+        - 'cd external/draco'
+        - 'rm -rf build'
+        - 'mkdir build && cd build'
+        - 'mkdir os && cd os'
+        - 'cmake -DCMAKE_TOOLCHAIN_FILE=../../../ios-cmake/toolchain/iOS.cmake -DIOS_PLATFORM=OS ../../'
+        - 'make dracodec'
+        - 'make dracoenc'
+        - 'cd ../'
+        - 'mkdir simulator && cd simulator'
+        - 'cmake -DCMAKE_TOOLCHAIN_FILE=../../../ios-cmake/toolchain/iOS.cmake -DIOS_PLATFORM=SIMULATOR ../../'
+        - 'make dracodec'
+        - 'make dracoenc'
+        - 'cd ../'
+        - 'mkdir watchos && cd watchos'
+        - 'cmake -DCMAKE_TOOLCHAIN_FILE=../../../ios-cmake/toolchain/iOS.cmake -DIOS_PLATFORM=WATCHOS ../../'
+        - 'make dracodec'
+        - 'make dracoenc'
+        - 'cd ../'
+        - 'cd ../'
+        - 'cd ../../'
+        - 'mkdir -p output/lib/ios/os/'
+        - 'cp -v external/draco/build/os/libdraco*.a output/lib/ios/os/'
+        - 'mkdir -p output/lib/ios/simulator/'
+        - 'cp -v external/draco/build/simulator/libdraco*.a output/lib/ios/simulator/'
+        - 'mkdir -p output/lib/ios/watchos/'
+        - 'cp -v external/draco/build/watchos/libdraco*.a output/lib/ios/watchos/'
+    artifacts:
+        name: "libdraco.ios.$CI_PIPELINE_ID.$CI_JOB_ID"
+        expire_in: 1 month
+        paths:
+            - output/lib/*
+    tags:
+        - macos
+        - gcc
+        - cmake
+        - make
+        - ios
+
+package_ue4.10:
+    stage: package
+    script:
+        - 'rm -rf libdraco_ue4/ && mkdir -p libdraco_ue4/'
+        - 'cp -v README.md libdraco_ue4/'
+        - 'cp -v LICENSE.md libdraco_ue4/'
+        - 'cp -v libdraco_ue4.10.Build.cs libdraco_ue4/libdraco_ue4.Build.cs'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/'
+        - 'cp -v external/draco/README.md libdraco_ue4/libdraco-1.3.4/'
+        - 'cp -v external/draco/LICENSE libdraco_ue4/libdraco-1.3.4/'
+        - 'cd external/draco'
+        - 'rm -rf build'
+        - 'mkdir build && cd build'
+        - 'cmake -G "Unix Makefiles" ../'
+        - 'cd ../../../'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/'
+        - 'cp -v external/draco/build/draco/*.h libdraco_ue4/libdraco-1.3.4/include/draco/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/core/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/core/          libdraco_ue4/libdraco-1.3.4/include/draco/core/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/metadata/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/metadata/      libdraco_ue4/libdraco-1.3.4/include/draco/metadata/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/mesh/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/mesh/          libdraco_ue4/libdraco-1.3.4/include/draco/mesh/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/point_cloud/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/point_cloud/   libdraco_ue4/libdraco-1.3.4/include/draco/point_cloud/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/animation/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/animation/          libdraco_ue4/libdraco-1.3.4/include/draco/animation/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/attributes/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/attributes/    libdraco_ue4/libdraco-1.3.4/include/draco/attributes/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/compression/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/compression/   libdraco_ue4/libdraco-1.3.4/include/draco/compression/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/io/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/io/            libdraco_ue4/libdraco-1.3.4/include/draco/io/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/lib/'
+        - 'cp -v -R output/lib/ libdraco_ue4/libdraco-1.3.4/'
+    dependencies:
+        - compile.windows
+        - compile.linux
+        - compile.macos
+        - compile.android
+        - compile.ios
+    artifacts:
+        name: "libdraco_ue4.10.$CI_PIPELINE_ID.$CI_JOB_ID"
+        expire_in: 1 month
+        paths:
+            - libdraco_ue4/*
+    tags:
+        - linux
+        - rsync
+
+libdraco_ue4.10:
+    stage: deploy
+    script:
+        - 'mkdir $CI_JOB_NAME'
+        - 'mv ./libdraco_ue4 ./$CI_JOB_NAME'
+        - 'butler login'
+        - 'butler push ./$CI_JOB_NAME c4gio/libdraco-ue4:ue4.10'
+        - 'butler logout'
+    artifacts:
+        name: "$CI_JOB_NAME.$CI_PIPELINE_ID"
+        expire_in: 1 month
+        paths:
+            - $CI_JOB_NAME/*
+    when: manual
+    dependencies:
+        - package_ue4.10
+    tags:
+        - linux
+        - python
+        - itchio
+        - butler
+
+package_ue4.16:
+    stage: package
+    script:
+        - 'rm -rf libdraco_ue4/ && mkdir -p libdraco_ue4/'
+        - 'cp -v README.md libdraco_ue4/'
+        - 'cp -v LICENSE.md libdraco_ue4/'
+        - 'cp -v libdraco_ue4.16.Build.cs libdraco_ue4/libdraco_ue4.Build.cs'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/'
+        - 'cp -v external/draco/README.md libdraco_ue4/libdraco-1.3.4/'
+        - 'cp -v external/draco/LICENSE libdraco_ue4/libdraco-1.3.4/'
+        - 'cd external/draco'
+        - 'rm -rf build'
+        - 'mkdir build && cd build'
+        - 'cmake -G "Unix Makefiles" ../'
+        - 'cd ../../../'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/'
+        - 'cp -v external/draco/build/draco/*.h libdraco_ue4/libdraco-1.3.4/include/draco/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/core/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/core/          libdraco_ue4/libdraco-1.3.4/include/draco/core/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/metadata/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/metadata/      libdraco_ue4/libdraco-1.3.4/include/draco/metadata/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/mesh/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/mesh/          libdraco_ue4/libdraco-1.3.4/include/draco/mesh/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/point_cloud/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/point_cloud/   libdraco_ue4/libdraco-1.3.4/include/draco/point_cloud/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/animation/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/animation/          libdraco_ue4/libdraco-1.3.4/include/draco/animation/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/attributes/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/attributes/    libdraco_ue4/libdraco-1.3.4/include/draco/attributes/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/compression/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/compression/   libdraco_ue4/libdraco-1.3.4/include/draco/compression/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/io/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/io/            libdraco_ue4/libdraco-1.3.4/include/draco/io/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/lib/'
+        - 'cp -v -R output/lib/ libdraco_ue4/libdraco-1.3.4/'
+    dependencies:
+        - compile.windows
+        - compile.linux
+        - compile.macos
+        - compile.android
+        - compile.ios
+    artifacts:
+        name: "libdraco_ue4.16.$CI_PIPELINE_ID.$CI_JOB_ID"
+        expire_in: 1 month
+        paths:
+            - libdraco_ue4/*
+    tags:
+        - linux
+        - rsync
+
+libdraco_ue4.16:
+    stage: deploy
+    script:
+        - 'mkdir $CI_JOB_NAME'
+        - 'mv ./libdraco_ue4 ./$CI_JOB_NAME'
+        - 'butler login'
+        - 'butler push ./$CI_JOB_NAME c4gio/libdraco-ue4:ue4.16'
+        - 'butler logout'
+    artifacts:
+        name: "$CI_JOB_NAME.$CI_PIPELINE_ID"
+        expire_in: 1 month
+        paths:
+            - $CI_JOB_NAME/*
+    when: manual
+    dependencies:
+        - package_ue4.16
+    tags:
+        - linux
+        - python
+        - itchio
+        - butler
+
+package_ue4.19:
+    stage: package
+    script:
+        - 'rm -rf libdraco_ue4/ && mkdir -p libdraco_ue4/'
+        - 'cp -v README.md libdraco_ue4/'
+        - 'cp -v LICENSE.md libdraco_ue4/'
+        - 'cp -v libdraco_ue4.19.Build.cs libdraco_ue4/libdraco_ue4.Build.cs'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/'
+        - 'cp -v external/draco/README.md libdraco_ue4/libdraco-1.3.4/'
+        - 'cp -v external/draco/LICENSE libdraco_ue4/libdraco-1.3.4/'
+        - 'cd external/draco'
+        - 'rm -rf build'
+        - 'mkdir build && cd build'
+        - 'cmake -G "Unix Makefiles" ../'
+        - 'cd ../../../'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/'
+        - 'cp -v external/draco/build/draco/*.h libdraco_ue4/libdraco-1.3.4/include/draco/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/core/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/core/          libdraco_ue4/libdraco-1.3.4/include/draco/core/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/metadata/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/metadata/      libdraco_ue4/libdraco-1.3.4/include/draco/metadata/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/mesh/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/mesh/          libdraco_ue4/libdraco-1.3.4/include/draco/mesh/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/point_cloud/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/point_cloud/   libdraco_ue4/libdraco-1.3.4/include/draco/point_cloud/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/animation/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/animation/          libdraco_ue4/libdraco-1.3.4/include/draco/animation/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/attributes/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/attributes/    libdraco_ue4/libdraco-1.3.4/include/draco/attributes/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/compression/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/compression/   libdraco_ue4/libdraco-1.3.4/include/draco/compression/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/include/draco/io/'
+        - 'rsync -zarv --include="*/" --include="*.h" --exclude="*" external/draco/src/draco/io/            libdraco_ue4/libdraco-1.3.4/include/draco/io/'
+        - 'mkdir -p libdraco_ue4/libdraco-1.3.4/lib/'
+        - 'cp -v -R output/lib/ libdraco_ue4/libdraco-1.3.4/'
+    dependencies:
+        - compile.windows
+        - compile.linux
+        - compile.macos
+        - compile.android
+        - compile.ios
+    artifacts:
+        name: "libdraco_ue4.19.$CI_PIPELINE_ID.$CI_JOB_ID"
+        expire_in: 1 month
+        paths:
+            - libdraco_ue4/*
+    tags:
+        - linux
+        - rsync
+
+libdraco_ue4.19:
+    stage: deploy
+    script:
+        - 'mkdir $CI_JOB_NAME'
+        - 'mv ./libdraco_ue4 ./$CI_JOB_NAME'
+        - 'butler login'
+        - 'butler push ./$CI_JOB_NAME c4gio/libdraco-ue4:ue4.19'
+        - 'butler logout'
+    artifacts:
+        name: "$CI_JOB_NAME.$CI_PIPELINE_ID"
+        expire_in: 1 month
+        paths:
+            - $CI_JOB_NAME/*
+    when: manual
+    dependencies:
+        - package_ue4.19
+    tags:
+        - linux
+        - python
+        - itchio
+        - butler
+

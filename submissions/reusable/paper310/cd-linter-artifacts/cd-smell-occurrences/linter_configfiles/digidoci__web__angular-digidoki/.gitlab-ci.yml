@@ -1,0 +1,26 @@
+image: node:latest
+
+cache:
+  paths:
+  - node_modules
+
+build-project:
+  image: node:8
+  script:
+    - apt-get install git
+    - npm install -g bower grunt-cli
+    - npm install
+    - bower install --allow-root
+    - grunt
+
+  artifacts:
+    paths:
+      - coverage/
+      - doc/
+      - dist/
+    expire_in: 1 days
+  only:
+    - master
+    - develop
+
+

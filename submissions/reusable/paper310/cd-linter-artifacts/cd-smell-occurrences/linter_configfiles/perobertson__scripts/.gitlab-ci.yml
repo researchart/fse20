@@ -1,0 +1,131 @@
+.ubuntu_setup:
+  before_script:
+    - whoami
+    - echo "$HOME"
+    - pwd
+    - ls -laH
+    - apt-get update
+    - apt-get install -y curl sudo
+    - "echo '%sudo  ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ci"
+    - useradd --user-group --create-home --groups=sudo --shell=/bin/bash public
+    - cat /etc/passwd
+    - cat /etc/group
+
+.fedora_setup:
+  before_script:
+    - whoami
+    - echo "$HOME"
+    - pwd
+    - ls -laH
+    - dnf install -y sudo
+    - "echo '%wheel  ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/ci"
+    - useradd --user-group --create-home --groups=wheel --shell=/bin/bash public
+    - cat /etc/passwd
+    - cat /etc/group
+
+.build:
+  stage: build
+  tags:
+    - docker
+  script:
+    - su public --command='/usr/bin/curl -sSL https://gitlab.com/perobertson/scripts/raw/${CI_COMMIT_SHA}/setup.sh | bash'
+    - su public --command='git status --short && test "$(git status --short)" = ""'
+    - su public --command='cd "$HOME/Applications/dotfiles" && git status --short && test "$(git status --short)" = ""'
+  interruptible: true
+
+lint:
+  stage: build
+  image: alpine:edge # 3.11+
+  tags:
+    - docker
+  script:
+    - apk add --upgrade shellcheck
+    - shellcheck --external-sources setup.sh $(find . -name '*.sh' -path '**/latest/**')
+
+fedora_25:
+  extends:
+    - .build
+    - .fedora_setup
+  image: fedora:25
+
+fedora_26:
+  extends:
+    - .build
+    - .fedora_setup
+  image: fedora:26
+
+fedora_27:
+  extends:
+    - .build
+    - .fedora_setup
+  image: fedora:27
+
+fedora_28:
+  extends:
+    - .build
+    - .fedora_setup
+  image: fedora:28
+
+fedora_29:
+  extends:
+    - .build
+    - .fedora_setup
+  image: fedora:29
+
+fedora_30:
+  extends:
+    - .build
+    - .fedora_setup
+  image: fedora:30
+
+fedora_31:
+  extends:
+    - .build
+    - .fedora_setup
+  image: fedora:31
+
+fedora_32:
+  extends:
+    - .build
+    - .fedora_setup
+  image: fedora:32
+  allow_failure: true
+
+fedora_rawhide:
+  extends:
+    - .build
+    - .fedora_setup
+  image: fedora:rawhide
+  allow_failure: true
+
+ubuntu_16_04:
+  extends:
+    - .build
+    - .ubuntu_setup
+  image: ubuntu:16.04
+
+ubuntu_18_04:
+  extends:
+    - .build
+    - .ubuntu_setup
+  image: ubuntu:18.04
+
+deploy_github:
+  stage: deploy
+  script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "${GITHUB_KEY}" > ~/.ssh/id_rsa
+    - echo "${GITHUB_KEY_PUB}" > ~/.ssh/id_rsa.pub
+    - chmod 700 ~/.ssh/id_rsa*
+    - ssh-keyscan 'github.com' >> ~/.ssh/known_hosts
+    - git remote add github -t master git@github.com:perobertson/scripts.git
+    - git fetch --all --verbose
+    - git checkout -B ${CI_COMMIT_REF_SLUG}
+    - git push --set-upstream github ${CI_COMMIT_REF_SLUG}
+  environment:
+    name: github
+  only:
+    refs:
+      - master
+

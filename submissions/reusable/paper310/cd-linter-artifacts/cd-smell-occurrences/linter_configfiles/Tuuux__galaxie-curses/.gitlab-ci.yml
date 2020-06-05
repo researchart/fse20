@@ -1,0 +1,13 @@
+image: python:3.5
+variables:
+  TERM: "linux"
+  TERMINFO: "/etc/terminfo"
+unit_tests:
+  script:
+  - apt-get update -qy;
+  - apt-get install -y python-dev python-pip unzip
+  - pip install --upgrade pip
+  - pip install -r requirements.txt
+  - bash ./run_test.sh
+  - codecov --token=$CODECOV_TOKEN
+

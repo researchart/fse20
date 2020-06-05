@@ -1,0 +1,26 @@
+image: php:7.1
+
+before_script:
+  - curl -sS https://getcomposer.org/installer | php
+  - curl -sL https://deb.nodesource.com/setup_6.x | bash -
+  - apt-get update -yqq
+  - apt-get install zlib1g-dev git nodejs -yqq
+  - docker-php-ext-install zip
+  - php composer.phar install
+  - npm install -g gulp && npm install
+
+cache:
+  paths:
+    - node_modules/
+    - vendor/
+
+pages:
+  script:
+    - npm run deploy
+    - mv build_production/ public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

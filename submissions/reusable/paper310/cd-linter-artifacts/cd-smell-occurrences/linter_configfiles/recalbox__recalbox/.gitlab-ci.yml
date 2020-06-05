@@ -1,0 +1,230 @@
+# GitLab CI configuration file
+#
+# To run this locally (requires `gitlab-runner`):
+#   $ gitlab-runner exec docker <job_name>
+
+image: docker:latest
+
+stages:
+  - lint
+  - build
+  - release
+  - clean
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  PROD_STACK_NAME: archive
+  REVIEW_STACK_NAME: archive-review
+  IMAGE: recalbox/archive
+
+# Lint
+
+.lint_template: &lint_definition
+  stage: lint
+  only:
+    - master
+    - branches
+  tags:
+    - lintstage
+
+lint config-files:
+  <<: *lint_definition
+  before_script:
+    - apk add --update --no-cache libxml2-utils
+  script: test/lint/config-files
+
+lint buildroot:
+  <<: *lint_definition
+  image: python:2-alpine
+  script: test/lint/buildroot
+
+lint commits:
+  <<: *lint_definition
+  image: node:8
+  before_script:
+    - npm install -g @commitlint/cli @commitlint/config-conventional
+  script: test/lint/commits
+  allow_failure: true
+
+# Build
+
+.build_template: &build_definition
+  stage: build
+  script:
+    - export RECALBOX_VERSION="${CI_COMMIT_TAG:-${CI_COMMIT_REF_SLUG:0:12} (${CI_COMMIT_SHA:0:8}) ${CI_PIPELINE_ID} ${ARCH} $(date '+%Y/%m/%d %H:%M:%S')}"
+    - docker build -t "recalbox-${ARCH}" .
+    - docker run --rm -v `pwd`:/work -v /recalbox-builds/dl:/share/dl -v "/recalbox-builds/ccaches/ccache-${ARCH}:/share/ccache" -e "ARCH=${ARCH}" -e "RECALBOX_VERSION=${RECALBOX_VERSION}" -e "RECALBOX_CCACHE_ENABLED=true" "recalbox-${ARCH}" 2>&1 | tee build.log | grep '>>>' || tac build.log | grep '>>>' -m 1 -B 9999 | tac
+    - export DIST_DIR="dist/${ARCH}"
+    - mkdir -p "${DIST_DIR}"
+    - cp output/images/recalbox/* "${DIST_DIR}"
+    - rm -rf output/
+    - echo "${RECALBOX_VERSION}" >> "${DIST_DIR}/recalbox.version"
+    - cp CHANGELOG.md "${DIST_DIR}/recalbox.changelog"
+  after_script:
+    - rm -rf buildroot
+  artifacts:
+    name: dist-${ARCH}-${CI_BUILD_ID}
+    when: always
+    paths:
+      - dist
+      - build.log
+    expire_in: 2 mos
+
+build rpi1:
+  <<: *build_definition
+  only:
+    - master
+    - tags
+  variables:
+    ARCH: 'rpi1'
+build rpi2:
+  <<: *build_definition
+  only:
+    - master
+    - tags
+  variables:
+    ARCH: 'rpi2'
+build rpi3:
+  <<: *build_definition
+  only:
+    - master
+    - tags
+  variables:
+    ARCH: 'rpi3'
+build x86_64:
+  <<: *build_definition
+  only:
+    - master
+    - tags
+  variables:
+    ARCH: 'x86_64'
+build x86:
+  <<: *build_definition
+  only:
+    - master
+    - tags
+  variables:
+    ARCH: 'x86'
+build odroidxu4:
+  <<: *build_definition
+  only:
+    - master
+    - tags
+  variables:
+    ARCH: 'odroidxu4'
+
+build rpi1 for test:
+  <<: *build_definition
+  when: manual
+  only:
+    - branches
+  except:
+    - master
+  variables:
+    ARCH: 'rpi1'
+build rpi2 for test:
+  <<: *build_definition
+  when: manual
+  only:
+    - branches
+  except:
+    - master
+  variables:
+    ARCH: 'rpi2'
+build rpi3 for test:
+  <<: *build_definition
+  when: manual
+  only:
+    - branches
+  except:
+    - master
+  variables:
+    ARCH: 'rpi3'
+build x86_64 for test:
+  <<: *build_definition
+  when: manual
+  only:
+    - branches
+  except:
+    - master
+  variables:
+    ARCH: 'x86_64'
+build x86 for test:
+  <<: *build_definition
+  when: manual
+  only:
+    - branches
+  except:
+    - master
+  variables:
+    ARCH: 'x86'
+build odroidxu4 for test:
+  <<: *build_definition
+  when: manual
+  only:
+    - branches
+  except:
+    - master
+  variables:
+    ARCH: 'odroidxu4'
+
+### Release
+
+.release_template: &release_definition
+  stage: release
+  variables:
+    DEPLOY_TYPE: type of the deployment (prod, review)
+    SKIP_IMAGES: Release or without images if true
+    BUCKET: Bucket to deploy to
+    BUCKET_PATH: path in the bucket
+  script:
+    - cd updatesv2
+    - ./prepare_assets.sh "${DEPLOY_TYPE}" "../dist" release netlify "${SKIP_IMAGES}"
+    - echo "Releasing files"
+    - ./upload_to_bucket.sh "${AWS_ACCESS_KEY_ID}" "${AWS_SECRET_ACCESS_KEY}" "${BUCKET}" "release" "${BUCKET_PATH}"
+    - if [ "${DEPLOY_TYPE}" = "prod" ]; then docker run --rm -v $(pwd):/work -w /work node:10 bash -c "./upload_to_netlify.sh '${NETLIFY_AUTH_TOKEN}' 'netlify' '${NETLIFY_PROJECT_ID}'"; fi
+
+
+release prod:
+  <<: *release_definition
+  when: manual
+  variables:
+    DEPLOY_TYPE: prod
+    SKIP_IMAGES: 'false'
+    BUCKET: recalbox-releases
+    BUCKET_PATH: 'stable'
+  only:
+    - tags
+  environment:
+    name: prod
+    url: https://recalbox-releases.s3.nl-ams.scw.cloud/stable/index.html
+
+release review:
+  <<: *release_definition
+  when: manual
+  variables:
+    DEPLOY_TYPE: review
+    SKIP_IMAGES: 'true'
+    BUCKET: recalbox-reviews
+    BUCKET_PATH: $CI_ENVIRONMENT_SLUG
+  environment:
+    name: review/${CI_COMMIT_REF_SLUG}
+    url: https://recalbox-reviews.s3.nl-ams.scw.cloud/${CI_ENVIRONMENT_SLUG}/index.html
+    on_stop: clean review
+
+### Clean
+
+clean review:
+  image: registry.gitlab.com/recalbox/ops/rancher-cli:0.6.2
+  stage: clean
+  when: manual
+  dependencies: []
+  only:
+    - branches
+  script:
+    - echo "cleaning ${ARCHIVE_IMAGE} from ${REVIEW_STACK_NAME}/${CI_ENVIRONMENT_SLUG}"
+    - rancher rm "${REVIEW_STACK_NAME}/${CI_ENVIRONMENT_SLUG}"
+  environment:
+    name: review/${CI_COMMIT_REF_SLUG}
+    action: stop
+

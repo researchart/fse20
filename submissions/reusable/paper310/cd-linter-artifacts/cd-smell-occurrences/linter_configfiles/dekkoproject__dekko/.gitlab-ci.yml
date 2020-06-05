@@ -1,0 +1,41 @@
+stages:
+  - clickbuild
+  
+variables:
+  GIT_SUBMODULE_STRATEGY: normal
+  
+click:armhf:
+  stage: clickbuild
+  image: clickable/ubuntu-sdk:16.04-armhf
+  tags:
+    - docker
+  script:
+    - sh ./scripts/ci-click-build.sh
+  cache:
+    paths:
+      - Qt/
+      - .build/
+  artifacts:
+    paths:
+      - '*.click'
+    when: on_success
+    expire_in: 1 week
+
+# click:amd64:
+#   stage: clickbuild
+#   image: clickable/ubuntu-sdk:16.04-md64
+#   tags:
+#     - docker
+#   script:
+#     - ./setup-click-env
+#     - ./build-click
+#   cache:
+#     paths:
+#       - Qt/
+#       - .build/
+#   artifacts:
+#     paths:
+#       - '*.click'
+#     when: on_success
+#     expire_in: 1 week
+

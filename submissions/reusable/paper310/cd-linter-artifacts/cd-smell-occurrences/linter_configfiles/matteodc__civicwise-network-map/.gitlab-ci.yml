@@ -1,0 +1,14 @@
+# From https://about.gitlab.com/2016/04/07/gitlab-pages-setup/#add-gitlab-ci
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

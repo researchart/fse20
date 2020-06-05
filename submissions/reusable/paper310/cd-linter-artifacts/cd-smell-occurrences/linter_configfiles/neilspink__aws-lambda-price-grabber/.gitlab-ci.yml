@@ -1,0 +1,56 @@
+variables:
+    S3_BUCKET: aws-lambda-price-grabber
+    AWS_DEFAULT_REGION: eu-central-1
+
+stages:
+  - build
+  - test
+  - package
+  - deploy
+
+build:
+  image: python:3.7.2-stretch
+  stage: build
+  script:
+    - echo "Building"
+    - pip3 install -r requirements.txt -t source/
+  artifacts:
+    paths:
+      - source/
+
+test:
+  image: python:3.7.2-stretch
+  stage: test
+  script:
+    - echo "Testing"
+    - pip3 install -r requirements_unit_test.txt
+    - cp -R source/* .
+    - nose2 -v
+
+package:
+  image: python:3.7.2-stretch
+  stage: package
+  script:
+    - apt-get update
+    - apt-get -y install zip
+    - cd source
+    - zip -r source.zip *
+  artifacts:
+    paths:
+      - source/
+
+deploy:
+  image: python:3.7.2-stretch
+  stage: deploy
+  script:
+    - pip3 install awscli
+    - aws s3 cp source/source.zip s3://$S3_BUCKET/
+    - aws s3 cp source/website-monitor-list.yml s3://$S3_BUCKET/
+    - aws cloudformation package --template-file ./deployment/aws-create-lambda.json --s3-bucket $S3_BUCKET --output-template template-export.yml
+    - aws cloudformation deploy --template-file template-export.yml --stack-name aws-lambda-price-grabber-stack --capabilities CAPABILITY_IAM --no-fail-on-empty-changeset
+    - aws lambda update-function-code --function-name grab-price --s3-bucket $S3_BUCKET --s3-key source.zip
+    - aws lambda update-function-code --function-name grab-invoke --s3-bucket $S3_BUCKET --s3-key source.zip
+  artifacts:
+    paths:
+      - ./template-export.yml
+

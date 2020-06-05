@@ -1,0 +1,33 @@
+image: golang:1.10
+
+stages:
+  - build
+  - publish
+
+before_script:
+  #- echo -e "machine gitlab.com\nlogin gitlab-ci-token\npassword ${CI_JOB_TOKEN}" > ~/.netrc
+  - mkdir -p /go/src/gitlab.com/sebidude /go/src/_/builds
+  - cp -r $CI_PROJECT_DIR /go/src/gitlab.com/sebidude/public-page
+  - ln -s /go/src/gitlab.com/sebidude /go/src/_/builds/sebidude
+
+linux-app:
+  stage: build
+  script:
+    - make build
+  artifacts:
+    paths:
+      - build/
+    expire_in: 10m
+
+pages:
+  stage: publish
+  dependencies:
+  - linux-app
+  script:
+    - make update-releasepage
+    - ls -laR public
+  artifacts:
+    paths:
+    - public
+    expire_in: 10m
+

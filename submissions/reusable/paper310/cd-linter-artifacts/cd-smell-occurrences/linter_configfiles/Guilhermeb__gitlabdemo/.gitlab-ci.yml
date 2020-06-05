@@ -1,0 +1,9 @@
+stages:
+  - build
+build_qt4_job:
+  stage: build
+  script:
+  - python build.py -p qt4
+  tags:
+  - qt4
+

@@ -1,0 +1,10 @@
+# requiring the environment of NodeJS
+image: node:latest
+
+test-develop:
+  stage: test
+  script:
+    - curl -X POST "variables[TEST]=true" -F token=$CI_TEST_TOKEN -F ref=master https://gitlab.com/api/v4/projects/11763016/trigger/pipeline
+  only:
+    - develop
+

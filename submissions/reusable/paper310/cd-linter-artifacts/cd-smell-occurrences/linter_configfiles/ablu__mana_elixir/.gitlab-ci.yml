@@ -1,0 +1,18 @@
+services:
+  - postgres:latest
+
+variables:
+  DB_URL: "postgres://postgres:postgres@postgres/mana"
+
+image: elixir:1.7
+build:
+  script:
+  - echo $DB_URL
+  - mix local.hex --force
+  - mix local.rebar --force
+  - mix deps.get
+  - mix deps.compile
+  - mix compile --warnings-as-errors
+  - mix test
+  - mix format --check-formatted
+

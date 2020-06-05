@@ -1,0 +1,15 @@
+pages:
+  stage: deploy
+  script:
+  - bash <(curl https://raw.githubusercontent.com/pallavagarwal07/NixCI/master/travis-tests/install-nix.sh)
+  - . /home/"${USER}"/.nix-profile/etc/profile.d/nix.sh
+  - nix-build -j20 .
+  - mkdir public
+  - cp -r result/* public
+  - cp -r result/.* public
+  artifacts:
+    paths:
+    - public
+  only:
+  - source
+

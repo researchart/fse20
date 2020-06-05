@@ -1,0 +1,31 @@
+stages:
+    - build
+    - deploy
+
+variables:
+    version: v0.0.1
+
+build:
+    stage: build
+    before_script:
+        - echo "deb http://deb.debian.org/debian/ testing main" > /etc/apt/sources.list.d/testing.list
+        - apt update
+        - apt install -y golang ca-certificates make git protobuf-compiler
+        - go mod tidy
+    script:
+        - unset GOPATH
+        - export GOBIN=/tmp/engine/tools
+        - mkdir -p $GOBIN
+        - export PATH=$GOBIN:$PATH
+        - go install github.com/golang/protobuf/protoc-gen-go
+        - make distclean
+        - make clean
+        - make
+    artifacts:
+        paths:
+            - build
+    tags:
+        - merge
+        - docker
+        - buster
+

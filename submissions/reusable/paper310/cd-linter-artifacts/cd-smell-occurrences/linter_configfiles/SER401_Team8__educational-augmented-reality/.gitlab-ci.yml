@@ -1,0 +1,59 @@
+image: openjdk:8-jdk
+
+variables:
+  LANG: "en_US.UTF-8"
+  ANDROID_HOME: "/opt/android-sdk"
+  ANDROID_NDK_HOME: "/opt/android-sdk/ndk-bundle"
+  ANDROID_COMPILE_SDK: "28"
+  ANDROID_BUILD_TOOLS: "28.0.0"
+  ANDROID_SDK_TOOLS: "28.0.0"
+  ANDROID_NDK_VERSION: "16-beta1"
+  TERM: "dumb"
+  GRADLE_OPTS: '-XX:+UseG1GC -XX:MaxGCPauseMillis=1000 -Dorg.gradle.jvmargs="-Xmx1536m -XX:MaxPermSize=1024m -XX:ReservedCodeCacheSize=440m -XX:+UseCompressedOops -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" -Dorg.gradle.parallel=false -Dorg.gradle.daemon=false -Dorg.gradle.configureondemand=true'
+  _JAVA_OPTIONS: "-Xms512m -Xmx1024m"
+
+before_script:
+  - apt-get --quiet clean --yes
+  - apt-get --quiet update --yes
+  - apt-get --quiet install --yes locales wget zip unzip lib32stdc++6 lib32z1
+  - wget --quiet --output-document=tools.zip https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
+  - unzip -qq tools.zip
+  - rm -fr $ANDROID_HOME tools.zip
+  - mkdir -p $ANDROID_HOME
+  - mv tools $ANDROID_HOME/tools
+  # Fix gradle 3.0 problem
+  - mkdir --parents /root/.android && touch /root/.android/repositories.cfg
+  - mkdir "$ANDROID_HOME/licenses" || true
+  - echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
+  - echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+  - echo y | $ANDROID_HOME/tools/bin/sdkmanager "platforms;android-${ANDROID_COMPILE_SDK}"
+  - echo y | $ANDROID_HOME/tools/bin/sdkmanager "platform-tools"
+  - echo y | $ANDROID_HOME/tools/bin/sdkmanager "build-tools;${ANDROID_BUILD_TOOLS}"
+  - echo y | $ANDROID_HOME/tools/bin/sdkmanager "extras;android;m2repository"
+  - echo y | $ANDROID_HOME/tools/bin/sdkmanager "extras;google;google_play_services"
+  - echo y | $ANDROID_HOME/tools/bin/sdkmanager "extras;google;m2repository"
+  - wget --quiet --output-document=android-ndk.zip http://dl.google.com/android/repository/android-ndk-r${ANDROID_NDK_VERSION}-linux-x86_64.zip
+  - unzip -qq android-ndk.zip
+  - rm -fr ANDROID_NDK_HOME android-ndk.zip
+  - mv android-ndk-r${ANDROID_NDK_VERSION} ANDROID_NDK_HOME
+  - export ANDROID_SDK_HOME=$ANDROID_HOME
+  - export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools:$ANDROID_HOME/android-ndk
+  - chmod +x ./gradlew
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - ./gradlew assemble
+  artifacts:
+    paths:
+    - app/build/outputs/
+
+unitTests:
+  stage: test
+  script:
+    - ./gradlew test
+

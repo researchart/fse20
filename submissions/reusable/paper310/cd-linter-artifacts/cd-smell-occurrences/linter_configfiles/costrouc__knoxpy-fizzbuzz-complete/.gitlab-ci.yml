@@ -1,0 +1,54 @@
+variables:
+    TWINE_USERNAME: SECURE
+    TWINE_PASSWORD: SECURE
+    TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
+    # use https://upload.pypi.org/legacy/ for actual deployment
+
+stages:
+  - test
+  - deploy
+  - docs
+
+test:
+  image: python:3.6
+  stage: test
+  script:
+    - python setup.py test --addopts="--cov=fizzbuzz"
+
+deploy_pypi:
+  image: python:3.6
+  stage: deploy
+  script:
+    - pip install -U twine setuptools
+    - python setup.py sdist bdist_wheel
+    - twine upload dist/* # credentials provided by secret variables
+  only:
+    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+
+deploy_anaconda:
+  image: continuumio/miniconda:latest
+  stage: deploy
+  script:
+    - conda create -n py36 python=3.6 conda-build anaconda-client -y
+    - source activate py36
+    - conda build --user $ANACONDA_USERNAME --token $ANACONDA_TOKEN .conda
+  only:
+    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+
+pages:
+  image: python:3.6
+  stage: docs
+  script:
+    - pip install sphinx sphinx_rtd_theme
+    - pip install -e .
+    - mkdir public
+    - cd docs
+    - make apidocs
+    - make html
+    - cp -r _build/html/* ../public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

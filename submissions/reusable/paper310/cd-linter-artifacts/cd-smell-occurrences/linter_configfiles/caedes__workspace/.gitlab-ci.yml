@@ -1,0 +1,17 @@
+image: hugomrdias/node-yarn:latest
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+before_script:
+  - node -v
+  - yarn --version
+  - yarn
+
+test:
+  stage: test
+  script:
+    - yarn test
+

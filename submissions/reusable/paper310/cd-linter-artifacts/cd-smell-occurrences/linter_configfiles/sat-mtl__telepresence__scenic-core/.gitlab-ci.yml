@@ -1,0 +1,60 @@
+stages:
+  - configure
+  - pre-build
+  - build
+  - test
+  - deploy
+
+Build and Deploy CI image:
+  stage: configure
+  image: docker:stable
+  services: ['docker:dind']
+  variables:
+    CONTAINER_TAG: ci
+  script:
+    - docker build --tag "${CI_REGISTRY_IMAGE}:${CONTAINER_TAG}" --target build .
+    - echo "${CI_DEPLOY_PASSWORD}" | docker login -u "${CI_DEPLOY_USER}" --password-stdin "${CI_REGISTRY}"
+    - docker push "${CI_REGISTRY_IMAGE}:${CONTAINER_TAG}"
+
+Lint Code:
+  stage: pre-build
+  image: registry.gitlab.com/sat-mtl/telepresence/scenic-core:ci
+  script:
+    - make build
+    - npm run lint
+
+Check Semantic Version:
+  stage: pre-build
+  image: node:lts
+  only: ['master']
+  variables:
+    GITLAB_MERGE_REQUEST_API: "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests?source_branch=${CI_COMMIT_REF_NAME}"
+  script: ['./scripts/check_semantic_versioning.sh']
+
+Run Unit Tests:
+  stage: test
+  image: registry.gitlab.com/sat-mtl/telepresence/scenic-core:ci
+  script:
+    - make build
+    - make test
+
+Build and Deploy clean image:
+  stage: deploy
+  image: docker:stable
+  services: ['docker:dind']
+  only: ['develop', 'master']
+  variables:
+    SWITCHER_TAG: "${CI_COMMIT_REF_NAME}"
+  script:
+    - docker build --tag "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME}" .
+    - echo "${CI_DEPLOY_PASSWORD}" | docker login -u "${CI_DEPLOY_USER}" --password-stdin "${CI_REGISTRY}"
+    - docker push "${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME}"
+
+Publish Package:
+  image: node:lts
+  stage: deploy
+  only: ['master']
+  script:
+    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+    - npm publish
+

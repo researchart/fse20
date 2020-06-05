@@ -1,0 +1,71 @@
+services:
+  - name: postgres:9.6.7-alpine
+#      - name: postgres:10.4-alpine
+    alias: db
+  - name: redis:alpine
+    alias: redis
+
+variables:
+  POSTGRES_USER: root1
+  POSTGRES_DB: cms42
+  POSTGRES_PASSWORD: $DB_PASS
+
+stages:
+   - tests
+   - deploy
+
+tests:
+  stage: tests
+  image: phpdockerio/php72-fpm:latest
+
+  before_script:
+    - echo $CONFIG | base64 -di > app/config/config.local.neon
+
+  script:
+    - apt-get -y update
+    - apt-get -y install curl
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - apt-get -y --no-install-recommends install php7.2-pgsql php7.2-redis
+    - apt-get clean; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+
+    - composer install --no-interaction --prefer-dist
+    - composer dump-autoload -o
+    - php bin/console migrations:migrate --no-interaction
+    - php bin/console fixtures:load --no-interaction
+
+    - php -S localhost:8085 --docroot www &>/dev/null&
+
+    - find app src plugins tests -type f \( -iname \*.php -o -iname \*.phpt \) -exec php -l {} \; | (! grep -v "No syntax errors detected" )
+    - vendor/bin/phpstan analyse -c phpstan.neon src plugins app tests/Unit tests/Mocks tests/Helpers tests/Traits --level 7
+    - php bin/console orm:validate-schema
+    - php bin/console dbal:reserved-words
+    - php vendor/nette/tester/src/tester.php -c tests/unix.ini tests/Unit
+    - vendor/bin/codecept -c tests/Codeception run
+    - vendor/bin/phpcs --standard=ruleset.xml --extensions=php,phpt --encoding=utf-8 -sp src tests/Unit tests/Helpers tests/Mocks tests/Traits app
+
+deploy-master:
+  stage: deploy
+  image: tetraweb/php:7.0
+
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo -e "$DEPLOY_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+  script:
+    - $SSH "
+      cd /var/www/cms42 &&
+      git checkout . &&
+      git checkout master &&
+      git pull git@gitlab.com:adamzelycz/cms42.git &&
+      echo $CONFIG | base64 -di > app/config/config.local.neon &&
+      make update-prod &&
+      curl https://cms42.adamzelycz.cz | grep 'Tento CMS (Content Management System) vyvíjím jen tak pro zábavu a slouží jen jako případná ukázka mé tvorby.'
+      "
+  environment:
+    name: production
+
+  only:
+    - master
+

@@ -1,0 +1,17 @@
+environment:
+  script:
+  - echo "instruksi untuk menginstall module yang dibutuhkan"
+  - echo "instruksi untuk set-up environment variable"
+test:
+  script:
+  - python manage.py test
+  - echo "instruksi untuk test UI"
+  only:
+  - master
+deploy:
+  script:
+  - echo "instruksi untuk migrasi data"
+  - echo "instruksi untuk menjalankan aplikasi/services"
+  only:
+  - master
+

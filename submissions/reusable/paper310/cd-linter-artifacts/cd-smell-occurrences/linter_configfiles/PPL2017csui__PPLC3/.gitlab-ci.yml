@@ -1,0 +1,45 @@
+before_script:
+    - apt-get update -qy
+    - apt-get install -y python3 python3-pip sudo postgresql postgresql-client
+    - service postgresql stop
+    - service postgresql start
+    - sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'password'"
+    - sudo -u postgres psql -c "CREATE DATABASE lipsy OWNER postgres"
+    - pip3 install -r req.txt
+    - python3 lipsy/manage.py makemigrations
+    - python3 lipsy/manage.py migrate
+  
+test:
+  script:
+    - cd lipsy
+    - coverage run --rcfile=.coveragerc manage.py test
+    - coverage report
+    - cd ..
+
+deploy:
+  type: deploy
+  dependencies:
+    - test
+  script:
+    - apt-get install sshpass
+    - sshpass -p "$Autodeploy" scp -r -o StrictHostKeyChecking=no lipsy root@139.59.231.183:~/lipsy
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker start lipsy'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy rm -rf /var/www/html/PPLC3/lipsy'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker cp lipsy lipsy:/var/www/html/PPLC3/'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy chown -R www-data /var/www/html/PPLC3/'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'rm -rf lipsy'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy find /var/www/html/PPLC3/lipsy/app/migrations/ -path "*/migrations/*.py" -not -name "__init__.py" -delete'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy find /var/www/html/PPLC3/lipsy/app/migrations/ -path "*/migrations/*.pyc"  -delete '
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy service postgresql restart'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy sudo -u postgres psql -c "DROP DATABASE lipsy"'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy sudo -u postgres psql -c "CREATE DATABASE lipsy OWNER postgres"'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy python3 /var/www/html/PPLC3/lipsy/manage.py makemigrations'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy python3 /var/www/html/PPLC3/lipsy/manage.py migrate'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy python3 /var/www/html/PPLC3/lipsy/manage.py loaddata /var/www/html/PPLC3/lipsy/lipsydb.json'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy rm -rf /var/www/html/PPLC3/lipsy/static'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy python3 /var/www/html/PPLC3/lipsy/manage.py collectstatic --no-input'
+    - sshpass -p "$Autodeploy" ssh root@139.59.231.183 -o StrictHostKeyChecking=no 'docker exec lipsy service apache2 restart'
+  only:
+    - develop
+
+

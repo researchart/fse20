@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>psek-fitnesse-fixtures</artifactId>
+        <groupId>nl.psek.fitnesse</groupId>
+        <version>1.2.2-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>psek-fitnesse-fixtures-general</artifactId>
+
+    <packaging>jar</packaging>
+    <version>1.2.2-SNAPSHOT</version>
+    <name>psek-fitnesse-fixtures-general</name>
+
+    <developers>
+        <developer>
+            <name>Ronald Mathies</name>
+        </developer>
+        <developer>
+            <name>Pascal Smeets</name>
+            <organization>psek.nl</organization>
+        </developer>
+    </developers>
+
+    <dependencies>
+        <dependency>
+            <groupId>nl.psek.fitnesse</groupId>
+            <artifactId>psek-fitnesse-runner</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>nl.psek.fitnesse</groupId>
+            <artifactId>psek-fitnesse-fixtures-util</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>nl.psek.fitnesse</groupId>
+            <artifactId>psek-fitnesse-fixtures-selenium</artifactId>
+        </dependency>
+
+
+        <dependency>
+            <groupId>xml-apis</groupId>
+            <artifactId>xml-apis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fitnesse</groupId>
+            <artifactId>fitnesse</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.xmlbeans</groupId>
+            <artifactId>xmlbeans</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.uuid</groupId>
+            <artifactId>java-uuid-generator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jcifs</groupId>
+            <artifactId>jcifs</artifactId>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.json/json -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+        </dependency>
+
+
+    </dependencies>
+
+</project>
+

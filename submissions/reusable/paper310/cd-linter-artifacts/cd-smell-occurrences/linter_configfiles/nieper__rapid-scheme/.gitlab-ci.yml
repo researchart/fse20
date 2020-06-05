@@ -1,0 +1,17 @@
+before_script:
+  - apt-get -y update
+  - apt-get -y install lib32z1 libc6-i386 texinfo
+  - wget http://www.cesura17.net/~larcenists/Nightly/larceny-nightly-bin-native-ia32-linux86.tgz
+  - tar xzf larceny-nightly-bin-native-ia32-linux86.tgz
+  - ln -s larceny-nightly-bin-native-ia32-linux86 larceny
+  - export PATH="$PWD/larceny:$PATH"
+  - ./bootstrap
+  - ./configure
+
+check:
+  script:
+    - make check
+  only:
+    - master
+    - autotools
+

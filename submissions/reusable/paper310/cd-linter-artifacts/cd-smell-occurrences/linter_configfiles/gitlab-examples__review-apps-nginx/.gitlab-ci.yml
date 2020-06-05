@@ -1,0 +1,80 @@
+stages:
+  - build
+  - review
+  - staging
+  - production
+
+build:
+  stage: build
+  script:
+    - echo Build my page
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 hour
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+review:
+  stage: review
+  script:
+    - rsync -av --delete public /srv/nginx/pages/$CI_BUILD_REF_SLUG
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: http://$CI_BUILD_REF_SLUG.$APPS_DOMAIN
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+stop_review:
+  stage: review
+  script:
+    - rm -rf public /srv/nginx/pages/$CI_BUILD_REF_SLUG
+  variables:
+    GIT_STRATEGY: none
+  when: manual
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    action: stop
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+staging:
+  stage: staging
+  script:
+    - rsync -av --delete public /srv/nginx/pages/staging
+  environment:
+    name: staging
+    url: http://staging.$APPS_DOMAIN
+  only:
+    - master
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+production:
+  stage: production
+  script:
+    - rsync -av --delete public /srv/nginx/pages/production
+  environment:
+    name: production
+    url: http://production.$APPS_DOMAIN
+  when: manual
+  only:
+    - master
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+

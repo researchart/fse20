@@ -1,0 +1,10 @@
+test:
+  script:
+  - apt-get update -qy
+  - apt-get install -y python-dev python-pip
+  - pip install -r requirements.txt
+  - ./unit_test_empty_destination_dir
+  - py.test --cov=./picture_video_organizer/ unit_test/
+  - flake8 --max-line-length=120 --ignore=F401 picture_video_organizer/*.py
+  - pydocstyle picture_video_organizer/*.py
+

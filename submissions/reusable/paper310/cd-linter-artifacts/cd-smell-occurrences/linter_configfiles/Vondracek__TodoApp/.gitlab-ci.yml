@@ -1,0 +1,23 @@
+image: node:7.5.0
+
+stages:
+  - test
+
+before_script:
+  - make install_packages
+
+cache:
+  paths:
+  - node_modules/
+
+test_job:
+  stage: test
+  script:
+    - make test
+
+
+after_script:
+  - echo "END CI"
+
+
+

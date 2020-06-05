@@ -1,0 +1,76 @@
+image: node:alpine
+
+stages:
+  - install
+  - build
+  - publish
+
+#
+# install with cache
+#
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  policy: pull
+  paths:
+    - node_modules/
+
+install:
+  stage: install
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    policy: pull-push
+    paths:
+      - node_modules/
+  script:
+    - yarn install
+
+#
+# build
+#
+
+build:
+  stage: build
+  script:
+    - yarn install
+    - yarn lint
+    - yarn test
+    - yarn run build
+  except:
+    - /^\d+\.\d+\.\d+$/
+    - /^\d+\.\d+\.\d+-alpha\.\d+$/
+    - /^\d+\.\d+\.\d+-beta\.\d+$/
+
+build:release:
+  stage: build
+  script:
+    - cd functions
+    - yarn install
+    - yarn run build
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - functions/dist
+  only:
+    - /^\d+\.\d+\.\d+$/
+    - /^\d+\.\d+\.\d+-alpha\.\d+$/
+    - /^\d+\.\d+\.\d+-beta\.\d+$/
+
+#
+# publish
+#
+
+deploy:
+  stage: publish
+  dependencies:
+    - build:release
+  environment: npm_publish
+  script:
+    - cp .npmrc.sample .npmrc
+    - yarn copy-package-json
+    - yarn publish dist --new-version $CI_COMMIT_TAG
+  only:
+    - /^\d+\.\d+\.\d+$/
+    - /^\d+\.\d+\.\d+-alpha\.\d+$/
+    - /^\d+\.\d+\.\d+-beta\.\d+$/
+

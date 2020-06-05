@@ -1,0 +1,57 @@
+stages:
+  - download-deps
+  - prebuild
+  - build
+  - deploy
+
+download_deps_npm:
+  stage: download-deps
+  tags:
+    - npm
+  script:
+    - npm install
+  artifacts:
+    paths:
+      - node_modules/
+
+prebuild_content:
+  stage: prebuild
+  dependencies:
+    - download_deps_npm
+  tags:
+    - npm
+  script:
+    - npm run-script prebuild
+  artifacts:
+    name: "Innehåll"
+    paths:
+      - innehall/
+
+build_deliverables:
+  stage: build
+  dependencies:
+    - download_deps_npm
+    - prebuild_content
+  tags:
+    - npm
+  script:
+    - npm run-script build
+  artifacts:
+    name: "utdata"
+    paths:
+      - utdata/
+
+pages:
+  stage: deploy
+  dependencies:
+    - build_deliverables
+  script:
+    - rm -rf public
+    - mkdir public
+    - cp -a ./utdata/dokument.html ./public/index.html
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

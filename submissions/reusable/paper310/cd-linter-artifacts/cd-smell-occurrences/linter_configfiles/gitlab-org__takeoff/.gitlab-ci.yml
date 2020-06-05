@@ -1,0 +1,119 @@
+image: "ruby:2.5-alpine"
+
+stages:
+  - test
+  - build_image
+  - warmup
+  - deploy
+  - QA
+
+rspec:
+  stage: test
+  before_script:
+    - apk add --update build-base git curl jq
+    - bundle install
+  script:
+    - bundle exec rspec --color --format documentation
+  except:
+    - triggers
+
+rubocop:
+  stage: test
+  allow_failure: yes
+  before_script:
+    - apk add --update build-base
+    - bundle install
+  script:
+    - bundle exec rubocop
+  except:
+    - triggers
+
+build_image:
+  services:
+    - docker:dind
+  stage: build_image
+  image: docker:git
+  only:
+    - master
+  script:
+    # When building the image, we want to push into the container registry of
+    # the project CI runs in, instead of a fixed one. This ensures that on
+    # GitLab.com we push into the GitLab.com registry, while on the ops instance
+    # we push into the ops instance's registry.
+    - ./bin/docker "${CI_REGISTRY_IMAGE}:latest"
+  except:
+    - triggers
+
+.takeoff_deploy:
+  image: ${CI_REGISTRY_IMAGE}:latest
+  variables:
+    GIT_STRATEGY: none
+    GIT_SUBMODULE_STRATEGY: none
+    TAKEOFF_VERBOSE: 'true'
+    ci_token: 'do not git pull the takeoff repo again'
+  script:
+    - /app/bin/ci_deploy
+  tags:
+    - release
+  only:
+    refs:
+      - triggers
+      - manual
+
+## Run takeoff warmup before deploying
+## to staging. This will
+## apt-get the package for the release
+## with the download-only option on
+## the staging and production enviornments.
+warmup:
+  extends: .takeoff_deploy
+  stage: warmup
+  variables:
+    TAKEOFF_WARMUP: 1
+  only:
+    variables:
+      - $DEPLOY_ENVIRONMENT == 'gstg'
+      - $SSH_PUBLIC_KEY
+      - $SSH_PRIVATE_KEY
+      - $SSH_USERNAME
+      - $CHEF_USERNAME
+      - $CHEF_PEM_KEY
+
+deploy:
+  extends: .takeoff_deploy
+  stage: deploy
+  only:
+    variables:
+      - $SSH_PUBLIC_KEY
+      - $SSH_PRIVATE_KEY
+      - $SSH_USERNAME
+      - $CHEF_USERNAME
+      - $CHEF_PEM_KEY
+
+QA:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:gitlab-qa-alpine
+  stage: QA
+  services:
+    - docker:1.13-dind
+  only:
+    refs:
+      - triggers
+      - manual
+    variables:
+      - $DEPLOY_ENVIRONMENT == "gstg"
+      - $GITLAB_QA_ACCESS_TOKEN
+      - $GITLAB_PASSWORD
+      - $GITLAB_QA_ACCESS_TOKEN
+      - $GITLAB_QA_DEV_ACCESS_TOKEN
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_HOST: tcp://docker:2375
+    QA_ARTIFACTS_DIR: $CI_PROJECT_DIR
+    GITLAB_USERNAME: gitlab-qa
+    GITLAB_QA_VERSION: 2.9.0
+    SIGNUP_DISABLED: 'true'
+    QA_DEBUG: 1
+  script:
+    - gem install gitlab-qa --no-document --version $GITLAB_QA_VERSION
+    - gitlab-qa Test::Instance::Staging -- --tag smoke
+

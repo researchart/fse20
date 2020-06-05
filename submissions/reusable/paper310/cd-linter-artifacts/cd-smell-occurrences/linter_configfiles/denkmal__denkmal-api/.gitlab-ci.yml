@@ -1,0 +1,50 @@
+image: docker:latest
+
+services:
+  - docker:dind
+  - postgres:latest
+
+stages:
+  - build
+  - release
+
+variables:
+  CONTAINER_REGISTRY: registry.gitlab.com
+  CONTAINER_IMAGE_BUILD: $CONTAINER_REGISTRY/$CI_PROJECT_NAMESPACE/denkmal-api:$CI_COMMIT_SHA
+  CONTAINER_IMAGE_BUILD_CACHE: $CONTAINER_REGISTRY/$CI_PROJECT_NAMESPACE/denkmal-api:cached
+
+before_script:
+  - apk add --no-cache nodejs yarn
+  - docker login --username=gitlab-ci-token --password=$CI_BUILD_TOKEN $CONTAINER_REGISTRY
+
+build:
+  stage: build
+  script:
+  - docker pull $CONTAINER_IMAGE_BUILD_CACHE || true
+  - docker build --cache-from $CONTAINER_IMAGE_BUILD_CACHE -t $CONTAINER_IMAGE_BUILD .
+  - docker tag $CONTAINER_IMAGE_BUILD $CONTAINER_IMAGE_BUILD_CACHE
+  - docker push $CONTAINER_IMAGE_BUILD
+
+test:
+  stage: build
+  image: node:10-alpine
+  variables:
+    DATABASE_HOST_TEST: postgres
+  before_script:
+  - yarn install
+  script:
+  - yarn run test
+
+deploy:
+  stage: release
+  script:
+  - yarn global add heroku
+  - docker login --username=_ --password=$HEROKU_API_KEY registry.heroku.com
+  - heroku container:push web --app denkmal-api
+  - heroku container:release web --app denkmal-api
+  only:
+    refs:
+      - master
+    variables:
+      - $HEROKU_API_KEY
+

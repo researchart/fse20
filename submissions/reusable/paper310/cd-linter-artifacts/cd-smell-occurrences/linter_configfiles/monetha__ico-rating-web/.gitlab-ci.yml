@@ -1,0 +1,34 @@
+image: monetha/nodeawscli:latest
+
+stages:
+  - build_live
+  - deploy_live
+
+build_live:
+  stage: build_live
+  artifacts:
+    paths:
+      - build/
+  script:
+    - apt-get update && apt-get install nasm
+    - echo "Running build"
+    - npm --no-progress install
+    - npm --no-progress run build
+
+deploy_mthlive:
+  stage: deploy_live
+  environment:
+    name: live
+  only:
+    - master
+  script:
+    - export AWS_ACCESS_KEY_ID=$LIVE_AWS_ACCESS_KEY_ID
+    - export AWS_SECRET_ACCESS_KEY=$LIVE_AWS_SECRET_ACCESS_KEY
+    - export AWS_DEFAULT_REGION=$LIVE_AWS_DEFAULT_REGION
+    - source <(aws sts assume-role --role-arn $LIVE_AWS_IAM_ROLE --role-session-name deploy-to-S3-$LIVE_S3_BUCKET_NAME | jq -r '.Credentials | @sh "export AWS_SESSION_TOKEN=\(.SessionToken)\nexport AWS_ACCESS_KEY_ID=\(.AccessKeyId)\nexport AWS_SECRET_ACCESS_KEY=\(.SecretAccessKey)"')
+    - echo "Deploying to AWS S3 bucket $LIVE_S3_BUCKET_NAME"
+    - aws s3 sync build s3://$LIVE_S3_BUCKET_NAME --exclude "*.html" --cache-control "public, max-age=604800" --only-show-errors
+    - aws s3 sync build s3://$LIVE_S3_BUCKET_NAME --exclude "*" --include "*.html" --cache-control "public, no-cache, must-revalidate, proxy-revalidate, max-age=0" --only-show-errors
+    - aws s3 sync build s3://$LIVE_S3_BUCKET_NAME --delete
+    - aws cloudfront create-invalidation --distribution-id $LIVE_CF_CDN_ID --paths '/*'
+

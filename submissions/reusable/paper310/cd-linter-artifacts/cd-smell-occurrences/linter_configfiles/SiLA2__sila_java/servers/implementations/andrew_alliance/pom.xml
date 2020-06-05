@@ -1,0 +1,101 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <!-- In this repository, everything is inherited from the parent pom -->
+    <parent>
+        <groupId>org.sila-standard.sila_java.servers</groupId>
+        <artifactId>implementations</artifactId>
+        <version>0.0.3-SNAPSHOT</version>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.sila-standard.sila_java.servers.implementations</groupId>
+    <artifactId>andrew_alliance</artifactId>
+    <version>0.0.3-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <!--
+            The Maven Plugin is used to generate proto files from the Feature Definitions, these should be located
+            in the resources folder of the package (by default src/main/resources). You can add as many
+            feature definitions as you want to implement.
+
+            For this example, we only implement the simplest possible Unobservable Command.
+            -->
+            <plugin>
+                <groupId>org.sila-standard.sila_java.library</groupId>
+                <artifactId>maven_plugin</artifactId>
+                <version>0.0.3-SNAPSHOT</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <protobufVersion>${protobuf.version}</protobufVersion>
+                            <grpcVersion>${grpc.version}</grpcVersion>
+                            <features>
+                                <param>${project.parent.parent.parent.basedir}/${sila_base.path}/feature_definitions/ch/unitelabs/core/ProgramController.sila.xml</param>
+                                <param>${project.parent.parent.parent.basedir}/${sila_base.path}/feature_definitions/org/silastandard/core/commands/CancelController.sila.xml</param>
+                                <param>${project.parent.parent.parent.basedir}/${sila_base.path}/feature_definitions/org/silastandard/core/commands/PauseController.sila.xml</param>
+                            </features>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- generate Andrew gateway stubs -->
+            <plugin>
+                <groupId>com.github.os72</groupId>
+                <artifactId>protoc-jar-maven-plugin</artifactId>
+                <version>${protoc.maven.version}</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <protocArtifact>com.google.protobuf:protoc:${protobuf.version}</protocArtifact>
+                            <addProtoSources>all</addProtoSources>
+                            <inputDirectories>
+                                <include>${basedir}/src/main/resources/</include>
+                            </inputDirectories>
+                            <outputTargets>
+                                <outputTarget>
+                                    <type>java</type>
+                                </outputTarget>
+                                <outputTarget>
+                                    <type>grpc-java</type>
+                                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}</pluginArtifact>
+                                </outputTarget>
+                            </outputTargets>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Wrapping a stand-alone executable for ease of distribution for testing the HelloSiLAServer -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>sila_java.servers.implementations.andrew_alliance.AndrewSiLAServer</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+

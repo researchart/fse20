@@ -1,0 +1,14 @@
+image: "ruby:2.3"
+
+before_script:
+  - apt-get -y update
+  - apt-get -y upgrade
+  - gem install bundler
+  - bundle install -j $(nproc) --path vendor/bundle
+
+spec:
+  script:
+    - bundle exec rake spec
+  tags:
+    - shared
+

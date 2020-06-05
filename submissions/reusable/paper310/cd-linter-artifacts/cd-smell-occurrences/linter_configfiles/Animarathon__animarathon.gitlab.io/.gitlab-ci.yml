@@ -1,0 +1,23 @@
+# Based on template file provided at: https://gitlab.com/pages/plain-html
+#image: "ruby:2.4"
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - mkdir .public/.well-known
+  - mkdir .public/temp
+  - mkdir .public/.well-known/acme-challenge
+  - cp -r .well-known/acme-challenge/mxb--ziMFbMPbbNHQGzGVD17_cb29dnjjoZBgPxtkQU  .public/.well-known/acme-challenge/mxb--ziMFbMPbbNHQGzGVD17_cb29dnjjoZBgPxtkQU 
+  - cp -r *.html .public/temp
+  - for file in .public/temp/*.html; do mv "$file" "${file%.*}"; done
+  - cp .public/temp/* .public
+  - rm -r .public/temp/
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

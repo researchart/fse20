@@ -1,0 +1,93 @@
+stages:
+    - test
+    - deploy
+
+.run_tox: &tox_definition
+    script:
+        - apt-get update -qq
+        - apt-get install -y -qq tree
+        - pip install tox
+        - pip install -r requirements/setup.txt
+        - tox
+
+py34:
+    <<: *tox_definition
+    stage: test
+    image: python:3.4
+    variables:
+        TOXENV: py34
+    tags:
+        - docker
+
+py35:
+    <<: *tox_definition
+    stage: test
+    image: python:3.5
+    variables:
+        TOXENV: py35
+    tags:
+        - docker
+
+py36:
+    <<: *tox_definition
+    stage: test
+    image: python:3.6
+    variables:
+        TOXENV: py36
+    tags:
+        - docker
+
+pypy3:
+    <<: *tox_definition
+    stage: test
+    image: pypy:3
+    variables:
+        TOXENV: pypy3
+    tags:
+        - docker
+
+lint:
+    <<: *tox_definition
+    stage: test
+    image: python:latest
+    variables:
+        TOXENV: lint
+    tags:
+        - docker
+    allow_failure: true
+
+docs:
+    <<: *tox_definition
+    stage: test
+    image: python:latest
+    variables:
+        TOXENV: docs
+    artifacts:
+        paths:
+            - docs/_build/html
+    tags:
+        - docker
+
+pages:
+    stage: deploy
+    only:
+        - /v([0-9]+)\.([0-9]+)\.([0-9]+)/
+    dependencies:
+        - docs
+    script:
+        - mv docs/_build/html public
+    artifacts:
+        paths:
+            - public
+
+pypi:
+    stage: deploy
+    image: python:latest
+    script:
+        - pip install -r requirements/dev.txt
+        - make release
+    only:
+        - /v([0-9]+)\.([0-9]+)\.([0-9]+)/
+    tags:
+        - docker
+

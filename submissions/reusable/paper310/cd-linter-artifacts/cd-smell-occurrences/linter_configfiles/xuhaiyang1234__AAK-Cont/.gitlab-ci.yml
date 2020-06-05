@@ -1,0 +1,15 @@
+image: node:latest
+
+pages:
+  stage: deploy
+  script:
+  - echo "cd build-scripts"
+  - echo "./BUILD.SH"
+  - echo "cd ../"
+  - echo "cp -r dist/ public/"
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

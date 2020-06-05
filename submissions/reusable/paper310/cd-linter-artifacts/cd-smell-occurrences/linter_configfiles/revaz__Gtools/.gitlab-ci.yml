@@ -1,0 +1,48 @@
+image: ubuntu:latest
+
+before_script:
+ # install required libraries
+ - apt-get update -qq
+ # deal with interactive libraries...
+ - export DEBIAN_FRONTEND=noninteractive
+ - apt-get install -y tzdata
+ - ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+ - dpkg-reconfigure --frontend noninteractive tzdata
+ # install normal libraries
+ - apt-get -qq -y install build-essential python3 python3-numpy python3-dev gsl-bin libgsl-dev libgsl23 python3-scipy python3-matplotlib python3-mpi4py python3-coverage openmpi-bin libopenmpi-dev cython python3-pkgconfig libhdf5-openmpi-100 libhdf5-openmpi-dev hdf5-tools git python3-astropy python3-pip python3-sphinx
+ - pip3 install Pillow
+ - pip3 install sphinxcontrib.programoutput
+ - pip3 install nbsphinx sphinx_rtd_theme
+ # save real home variable
+ - export LHOME=`pwd`
+ - mkdir python
+ # install h5py (hdf5 in parallel)
+ - git clone https://github.com/h5py/h5py.git
+ - cd h5py
+ - git checkout tags/2.7.0
+ - python3 setup.py configure --mpi
+ - python3 setup.py build
+ - python3 setup.py install --user
+ - cd $LHOME
+ # install pNbody
+ - git clone https://gitlab.com/revaz/pNbody.git
+ - cd pNbody
+ - python3 setup.py install --user
+ - cd $LHOME
+ # install ptools
+ - git clone https://gitlab.com/revaz/Ptools.git
+ - cd Ptools
+ - python3 setup.py install --user
+ # install gtools
+ - cd $LHOME
+ - python3 setup.py install --user
+ # force matplotlib to use Agg
+ - mkdir -p ~/.config/matplotlib/
+ - 'echo "backend: Agg" > ~/.config/matplotlib/matplotlibrc'
+ 
+build:
+  stage: build
+  script:
+    - ./coverage.sh
+    
+

@@ -1,0 +1,70 @@
+image: gradle:jdk11-slim
+
+variables:
+  DOCKER_DRIVER: overlay2
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  IMAGE_NAME: us.gcr.io/alexis/alexis
+  SERIALIZED_IMAGE: alexis.tar
+
+before_script:
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+
+stages:
+  - build-jar
+  - test
+  - build-docker
+  - deploy-docker
+  - deploy-k8s
+
+build-jar:
+  stage: build-jar
+  script: gradle --build-cache --full-stacktrace shadowJar
+
+test:
+  stage: test
+  script:
+    - gradle --build-cache --full-stacktrace check
+    - cat build/reports/jacoco/test/html/index.html
+
+# Build the Dockerfile, the image is only used when by deploy-docker if deploying.
+build-docker:
+  stage: build-docker
+  image: docker:19.03.1
+  services:
+    - docker:19.03.1-dind
+  script:
+    - docker build -t ${IMAGE_NAME}:latest .
+    - mkdir -p images
+    - docker save ${IMAGE_NAME} > images/${SERIALIZED_IMAGE}
+
+# Deploy our new Docker Image to Google Container Registry (Private)
+deploy-docker:
+  only:
+    - tags
+  stage: deploy-docker
+  image: docker:19.03.1
+  services:
+    - docker:19.03.1-dind
+  script:
+    - docker load -i images/${SERIALIZED_IMAGE}
+    - docker tag ${IMAGE_NAME}:latest ${IMAGE_NAME}:${CI_COMMIT_TAG}
+    - cat ${GCP_SA_KEY} | docker login -u _json_key --password-stdin https://us.gcr.io
+    - docker push ${IMAGE_NAME}:${CI_COMMIT_TAG}
+  cache:
+    policy: pull
+    paths:
+      - images/
+
+# Apply the current Kubernetes Configuration
+deploy-k8s:
+  only:
+    - tags
+  stage: deploy-k8s
+  image: google/cloud-sdk:257.0.0
+  script:
+    - gcloud auth activate-service-account --key-file ${GCP_SA_KEY}
+    - gcloud container clusters get-credentials ${K8S_CLUSTER} --zone ${GCP_ZONE} --project alexis
+    - sed -i 's/{{CI_COMMIT_TAG}}/'${CI_COMMIT_TAG}'/g' kubernetes.yml
+    - kubectl apply -f kubernetes.yml
+  cache: {}
+

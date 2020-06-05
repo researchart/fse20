@@ -1,0 +1,19 @@
+image: "python:3.5"
+
+services:
+  - postgres:latest
+
+variables:
+  POSTGRES_DB: smiunbtest
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: ""
+
+test:
+    script:
+        - apt-get update -qq
+        - apt-get install python3-pip -y -qq
+        - pip3 install -e .[dev]
+        - flake8 src/ --exclude migrations
+        - coverage run manage.py test smi_unb --settings=smi_unb.settings_runner
+        - coverage report
+

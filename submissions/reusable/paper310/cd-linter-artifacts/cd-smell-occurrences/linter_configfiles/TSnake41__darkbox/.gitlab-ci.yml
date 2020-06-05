@@ -1,0 +1,8 @@
+before_script:
+  - gcc -v
+
+make:
+  script:
+    - make
+    - CFLAGS="-O2 -s -DIPC_USE_TCP" make ptnio
+

@@ -1,0 +1,14 @@
+scraping_scripts:
+  image: "python:2.7"
+  before_script:
+    - apt-get update -y
+    - apt-get install python-pip -y
+    - pip install bs4
+    - pip install requests
+    - pip install html5lib
+  script:
+    - python tests_ci.py
+  artifacts:
+    paths:
+      - clipsage_test.txt
+

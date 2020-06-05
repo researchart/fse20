@@ -1,0 +1,93 @@
+stages:
+  - test
+  - deploy
+
+.default:
+  variables:
+    BUNDLE_CACHE: "vendor/bundle/"
+
+  cache:
+    key: "$CI_BUILD_NAME"
+    paths:
+      - vendor/bundle/
+
+  before_script:
+    - ./gitlab-ci/setup.sh
+
+  stage: test
+
+  except:
+    - tags
+
+ruby2.1:rspec:
+  extends: .default
+  image: ruby:2.1
+
+  script:
+    - ./gitlab-ci/rspec.sh
+
+ruby2.2:rspec:
+  extends: .default
+  image: ruby:2.2
+
+  script:
+    - ./gitlab-ci/rspec.sh
+
+ruby2.3:rspec:
+  extends: .default
+  image: ruby:2.3
+
+  script:
+    - ./gitlab-ci/rspec.sh
+
+ruby2.4:rspec:
+  extends: .default
+  image: ruby:2.4
+
+  script:
+    - ./gitlab-ci/rspec.sh
+
+ruby2.5:rspec:
+  extends: .default
+  image: ruby:2.5
+
+  script:
+    - ./gitlab-ci/rspec.sh
+
+ruby2.6:rspec:
+  extends: .default
+  image: ruby:2.6
+
+  script:
+    - ./gitlab-ci/rspec.sh
+
+ruby2.7:rspec:
+  extends: .default
+  image: ruby:2.7
+
+  script:
+    - ./gitlab-ci/rspec.sh
+
+rubocop:
+  extends: .default
+  image: ruby
+
+  script:
+    - bundle exec rubocop
+
+  allow_failure: true
+
+pages:
+  extends: .default
+  image: ruby
+
+  stage: deploy
+
+  script:
+    - bundle exec yard
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

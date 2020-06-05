@@ -1,0 +1,100 @@
+stages:
+  - install
+  - test
+  - build
+  - deploy
+
+image: node:6
+
+install:
+  stage: install
+  script:
+    - npm install --loglevel=warn
+  cache:
+    key: "$CI_BUILD_REF_NAME"
+    paths:
+    - node_modules/
+  artifacts:
+    paths:
+      - node_modules/
+
+test:
+  stage: test
+  script:
+    - npm test
+
+build:
+  stage: build
+  script:
+    - npm run production
+  artifacts:
+    paths:
+      - public/
+
+
+deploy_review:
+  stage: deploy
+  dependencies:
+    - build
+  script:
+    - apt-get update
+    - apt-get install -yy lftp
+    - lftp -e "mirror -eRv  $CI_PROJECT_DIR/public builds/$CI_BUILD_REF_SLUG; quit;" ftp://$FTP_CREDENTIALS
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: http://builds.openplaygroundmap.de/$CI_BUILD_REF_SLUG
+    on_stop: stop_review
+  except:
+  - master
+  - tags
+
+stop_review:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - apt-get update
+    - apt-get install -yy lftp
+    - lftp -e "rm -r builds/$CI_BUILD_REF_SLUG; quit;" ftp://$FTP_CREDENTIALS
+  when: manual
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    action: stop
+  except:
+  - master
+  - tags
+
+
+deploy_staging:
+  stage: deploy
+  dependencies:
+    - build
+  script:
+    - apt-get update
+    - apt-get install -yy lftp
+    - lftp -e "mirror -eRv  $CI_PROJECT_DIR/public staging; quit;" ftp://$FTP_CREDENTIALS
+  environment:
+    name: staging
+    url: http://staging.openplaygroundmap.de/
+  only:
+  - master
+  except:
+  - tags
+
+deploy_prod:
+  stage: deploy
+  dependencies:
+    - build
+  script:
+    - apt-get update
+    - apt-get install -yy lftp
+    - lftp -e "mirror -eRv  $CI_PROJECT_DIR/public production; quit;" ftp://$FTP_CREDENTIALS
+  environment:
+    name: production
+    url:  http://openplaygroundmap.de
+  only:
+    - tags
+    - triggers
+  except:
+    - branches
+

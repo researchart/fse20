@@ -1,0 +1,33 @@
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - build_frontend
+  - build_backend
+
+build_npm:
+  image: node:latest
+  stage: build_frontend
+  script:
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - public
+    expire_in: 5 sec
+  only:
+    - master
+
+buid_composer:
+  image: composer:latest
+  stage: build_backend
+  script:
+    - composer install -d public/api
+  artifacts:
+    name: public
+    paths:
+      - public
+  only:
+    - master
+

@@ -1,0 +1,99 @@
+image: node:boron-alpine
+
+cache:
+  key: "$CI_PROJECT_ID"
+  paths:
+  - node_modules
+
+before_script:
+  - npm install --ignore-scripts
+
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+lint:
+  stage: lint
+  script:
+    - npm run lint
+
+test:node:4:
+  image: node:argon-alpine
+  stage: test
+  script:
+    - npm run test
+  allow_failure: true
+
+test:node:6:
+  stage: test
+  script:
+    - npm run test
+
+test:node:7:
+  image: node:alpine
+  stage: test
+  script:
+    - npm run test
+
+test:coverage:
+  stage: test
+  script:
+    - npm run test:coverage
+  coverage: '/Statements\s+:\s(\d+(?:\.\d+)?%)/'
+  artifacts:
+      expire_in: 30 min
+      paths:
+        - coverage
+
+build:
+  stage: build
+  script:
+    - npm run build
+  only:
+    - /^v\d\.\d\.\d$/
+  artifacts:
+    expire_in: 30 min
+    paths:
+      - dist
+
+build:api:
+  stage: build
+  script:
+    - npm run build:api
+  only:
+    - /^v\d\.\d\.\d$/
+  artifacts:
+    expire_in: 30 min
+    paths:
+      - api
+
+pages:
+  stage: deploy
+  script:
+    - mkdir -p public/coverage
+    - mkdir -p public/api
+    - cp -r coverage/* public/coverage/
+    - cp -r api/* public/api/
+  artifacts:
+    paths:
+      - public
+  dependencies:
+    - build
+    - build:api
+    - test:coverage
+  only:
+    - /^v\d\.\d\.\d$/
+
+publish:
+  stage: deploy
+  script:
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+    - npm publish --access public
+  only:
+    - /^v\d\.\d\.\d$/
+  dependencies:
+    - build
+    - build:api
+

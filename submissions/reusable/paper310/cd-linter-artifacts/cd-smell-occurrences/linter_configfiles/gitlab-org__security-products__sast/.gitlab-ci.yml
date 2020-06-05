@@ -1,0 +1,220 @@
+# When using dind, it's wise to use the overlayfs driver for
+# improved performance.
+variables:
+  DOCKER_DRIVER: overlay2
+  MAJOR: 2
+
+services:
+  - docker:stable-dind
+
+stages:
+  - go
+  - test
+  - build
+  - deploy
+
+.go:
+  image: golang:1.13.7
+  stage: go
+
+go build:
+  extends: .go
+  variables:
+    CGO_ENABLED: 0
+  script:
+    - go build -o ${CI_PROJECT_DIR}/sast
+  artifacts:
+    paths:
+    - sast
+
+go test:
+  extends: .go
+  script:
+    - go test -race -cover -v ./...
+
+go lint:
+  extends: .go
+  script:
+    - go get -u golang.org/x/lint/golint
+    - golint -set_exit_status
+
+test:
+  image: docker:stable
+  stage: test
+  variables:
+    SAST_ANALYZER_IMAGE_TAG: $MAJOR
+  script:
+    - ./test.sh
+  dependencies:
+    - go build
+  artifacts:
+    paths:
+      - test/fixtures/gl-sast-report.json
+
+.build:
+  image: docker:stable
+  stage: build
+  script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - export IMAGE=$CI_REGISTRY_IMAGE:$IMAGE_TAG
+    - docker build -t $IMAGE --build-arg SAST_ANALYZER_IMAGE_TAG=$SAST_ANALYZER_IMAGE_TAG .
+    - docker push $IMAGE
+  dependencies:
+    - go build
+
+build branch:
+  extends: .build
+  variables:
+    IMAGE_TAG: $CI_COMMIT_REF_NAME
+    SAST_ANALYZER_IMAGE_TAG: $MAJOR
+  only:
+    - branches
+  except:
+    - master
+
+build edge:
+  extends: .build
+  variables:
+    IMAGE_TAG: edge
+    SAST_ANALYZER_IMAGE_TAG: edge
+  only:
+    - master
+
+build tag:
+  extends: .build
+  before_script:
+    - echo "Checking that $CI_COMMIT_TAG is last in the changelog"
+    - test "$(grep '^## v' CHANGELOG.md |head -n 1)" = "## $CI_COMMIT_TAG"
+    - export IMAGE_TAG=${CI_COMMIT_TAG/v/}
+  variables:
+    SAST_ANALYZER_IMAGE_TAG: $MAJOR
+  only:
+    - tags
+
+build major:
+  extends: .build
+  variables:
+    IMAGE_TAG: $MAJOR
+    SAST_ANALYZER_IMAGE_TAG: $MAJOR
+  only:
+    - tags
+  when: manual
+  allow_failure: false
+
+tag latest:
+  image: docker:stable
+  stage: deploy
+  before_script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - export SOURCE_IMAGE=$CI_REGISTRY_IMAGE:$MAJOR
+    - export TARGET_IMAGE=$CI_REGISTRY_IMAGE:latest
+  script:
+    - docker pull $SOURCE_IMAGE
+    - docker tag $SOURCE_IMAGE $TARGET_IMAGE
+    - docker push $TARGET_IMAGE
+  only:
+    - tags
+
+.deploy:
+  image: docker:stable
+  stage: deploy
+  before_script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - export IMAGE=$CI_REGISTRY_IMAGE:$CI_JOB_NAME
+  script:
+    - docker build -t $IMAGE -f $DOCKERFILE --build-arg SAST_ANALYZER_IMAGE_TAG=$MAJOR --build-arg SAST_DEFAULT_ANALYZERS=$SAST_DEFAULT_ANALYZERS .
+    - docker push $IMAGE
+  only:
+    - tags
+
+12-9-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow,pmd-apex,kubesec
+
+12-8-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow,pmd-apex,kubesec
+
+12-7-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow,pmd-apex,kubesec
+
+# 12.6 introduces kubesec analyzer.
+12-6-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow,pmd-apex,kubesec
+
+12-5-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow,pmd-apex
+
+12-4-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow,pmd-apex
+
+12-3-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow,pmd-apex
+
+12-2-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow,pmd-apex
+
+12-1-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow,pmd-apex
+
+12-0-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow
+
+11-11-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow
+
+# 11.10 introduces sobelow analyzer.
+11-10-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets,sobelow
+
+# 11.9 merges find-sec-bugs analyzers into spotbugs, introduces tslint and secrets.
+11-9-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,spotbugs,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint,tslint,secrets
+
+# 11.8 introduces eslint.
+11-8-stable:
+  extends: .deploy
+  variables:
+    DOCKERFILE: Dockerfile.v2
+    SAST_DEFAULT_ANALYZERS: bandit,brakeman,gosec,find-sec-bugs,find-sec-bugs-gradle,find-sec-bugs-sbt,find-sec-bugs-groovy,flawfinder,phpcs-security-audit,security-code-scan,nodejs-scan,eslint
+

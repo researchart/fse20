@@ -1,0 +1,40 @@
+# https://docs.gitlab.com/ce/ci/yaml/README.html
+
+# Testing our webscrapers work against the real websites.
+# Goal: run them periodically.
+
+# cron job:
+# 0 5 * * 1 curl --request POST --form token=<private-token> --form ref=master 'https://gitlab.com/api/v3/projects/vindarel\%2Fbookshops/trigger/builds' > /dev/null
+
+# only triggers: don't build the jobs at every push, only when triggered by an api call.
+# See also trigger variables.
+
+image: python:2.7
+
+before_script:
+  - make install
+
+french_scraper:
+  only:
+    - triggers
+  script:
+    - make librairiedeparis
+
+spanish_scraper:
+  only:
+    - triggers
+  script:
+    - make casadellibro
+
+german_scraper:
+  only:
+    - triggers
+  script:
+    - make germanscraper
+
+movies_scraper:
+  only:
+    - triggers
+  script:
+    - make movies
+

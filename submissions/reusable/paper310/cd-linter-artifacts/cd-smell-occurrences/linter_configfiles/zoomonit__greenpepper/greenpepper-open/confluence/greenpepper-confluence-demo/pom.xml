@@ -1,0 +1,110 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<!-- - Basic Information -->
+	<artifactId>greenpepper-confluence-demo</artifactId>
+	<packaging>jar</packaging>
+	<name>GreenPepper Confluence Demo</name>
+
+	<parent>
+		<groupId>com.github.strator-dev.greenpepper</groupId>
+		<artifactId>greenpepper-confluence</artifactId>
+		<version>4.2.5-SNAPSHOT</version>
+	</parent>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.github.strator-dev.greenpepper</groupId>
+			<artifactId>greenpepper-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.strator-dev.greenpepper</groupId>
+			<artifactId>greenpepper-confluence-code</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.atlassian.confluence</groupId>
+			<artifactId>confluence</artifactId>
+			<version>${atlassian.product.version}</version>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>1.9.1</version>
+				<executions>
+					<execution>
+						<id>add-fixtures-to-test-sources</id>
+						<goals>
+							<goal>add-test-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>src/fixture/java</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.github.strator-dev.greenpepper</groupId>
+				<artifactId>greenpepper-maven-plugin</artifactId>
+				<version>${project.version}</version>
+				<configuration>
+					<source>1.6</source>
+					<target>1.6</target>
+					<redirectOutputToFile>true</redirectOutputToFile>
+					<fixtureSourceDirectory>src/fixture/java</fixtureSourceDirectory>
+					<fixtureOutputDirectory>target/fixture-test-classes</fixtureOutputDirectory>
+					<systemUnderDevelopment>com.greenpepper.confluence.demo.DemoSystemUnderDevelopment</systemUnderDevelopment>
+					<reportsType>xml</reportsType>
+					<resources>
+						<resource>
+							<directory>src/fixture/resources</directory>
+							<excludes>
+								<exclude>**/*.java</exclude>
+							</excludes>
+						</resource>
+					</resources>
+					<repositories>
+						<repository>
+							<name>Demo</name>
+							<type>com.greenpepper.repository.FileSystemRepository</type>
+							<root>${basedir}/src/fixture/specs</root>
+							<suites>
+								<suite>Demo</suite>
+							</suites>
+						</repository>
+						<repository>
+							<name>DemoPhoneBook</name>
+							<type>com.greenpepper.repository.FileSystemRepository</type>
+							<root>${basedir}/src/fixture/specs</root>
+							<suites>
+								<suite>DemoPhoneBook</suite>
+							</suites>
+						</repository>
+					</repositories>
+				</configuration>
+				<executions>
+					<execution>
+						<id>greenpepper</id>
+						<goals>
+							<goal>compile</goal>
+							<goal>resources</goal>
+							<goal>fixture-jar</goal>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+		</plugins>
+	</build>
+</project>
+

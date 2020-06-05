@@ -1,0 +1,29 @@
+image: danlynn/ember-cli:2.18.0
+
+stages:
+  - deploy
+  - test
+
+before_script:
+  - npm install
+
+test:
+  stage: test
+  tags:
+    - docker
+  script:
+    - ember test
+
+deploy:
+  stage: deploy
+  tags:
+    - docker
+  only:
+    - tags
+  when: manual
+  script:
+    - echo $NPM_CREDENTIALS > ~/.npmrc
+    - npm publish
+  environment:
+    name: production
+

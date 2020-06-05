@@ -1,0 +1,92 @@
+image: node:13-buster
+
+build:
+  script:
+    - apt update -y -qq
+    - apt install zip -y -qq
+    - ./configure
+    - make
+
+lint:
+  before_script:
+    - npm install -g eslint
+  script:
+    - ./configure
+    - make eslint
+
+check:
+  script:
+    - ./configure
+    - make check
+
+test:
+  before_script:
+    - export TBPROFILE="$(pwd)/tb-test-profile"
+    - apt update -y -qq
+    - apt install thunderbird gnupg zip unzip curl libgtk-3-0 -y -qq
+    - mkdir -p $TBPROFILE/extensions tmp
+    - printf '%s/build-tb/dist/' "$(pwd)" > "$TBPROFILE/extensions/{847b3a00-7ab1-11d4-8f02-006008948af5}"
+    - printf 'user_pref("extensions.autoDisableScopes", 14);\n' > "$TBPROFILE/prefs.js"
+    - printf 'user_pref("browser.dom.window.dump.enabled", true);\n' >> "$TBPROFILE/prefs.js"
+    - printf 'user_pref("extensions.update.enabled", false);\n' >> "$TBPROFILE/prefs.js"
+    - printf 'user_pref("extensions.update.autoUpdateDefault", false);\n' >> "$TBPROFILE/prefs.js"
+    - printf 'user_pref("extensions.blocklist.enabled", false);\n' >> "$TBPROFILE/prefs.js"
+    - printf 'user_pref("app.update.enabled", false);\n' >> "$TBPROFILE/prefs.js"
+    - printf 'user_pref("app.update.auto", false);\n' >> "$TBPROFILE/prefs.js"
+    - printf 'user_pref("extensions.enigmail.logDirectory", "%s");\n' $(pwd)/tmp >> "$TBPROFILE/prefs.js"
+    - printf 'user_pref("extensions.enigmail.configuredVersion", "99.0");\n' >> "$TBPROFILE/prefs.js"
+    - printf 'user_pref("extensions.enigmail.pEpAutoDownload", false);\n' >> "$TBPROFILE/prefs.js"
+    - printf '{%s "main.js"}\n' '"mainFile":' > "$TBPROFILE/jsunit.json"
+    #- export TBDOWNLOAD=$(curl -s 'https://download.mozilla.org/?product=thunderbird-beta-latest&os=linux64&lang=en-US' | sed -E 's/(.*href=")([^"]+)(".*)/\2/')
+    - export TBDOWNLOAD=https://archive.mozilla.org/pub/thunderbird/releases/68.2.2/linux-x86_64/en-US/thunderbird-68.2.2.tar.bz2
+    - curl -s -o thunderbird.tar.bz2 $TBDOWNLOAD
+    - tar -xjvf thunderbird.tar.bz2
+    - thunderbird/thunderbird --version
+  script:
+    - export TBPROFILE="$(pwd)/tb-test-profile"
+    - export TMPDIR="$(pwd)/tmp"
+    - mkdir -p $TMPDIR
+    - export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/
+    - ./configure --enable-tests --with-tb-path=`printf '%s/thunderbird/thunderbird' "$(pwd)"` --with-tb-args="--headless --profile $TBPROFILE"
+    - make xpi
+    - cat config/autoconf.mk
+    - ls $TBPROFILE
+    - cat $TBPROFILE/prefs.js
+    - USER=root make unit
+  artifacts:
+    paths:
+      - config
+      - tmp
+      - tb-test-profile
+
+postbox_test:
+  before_script:
+    - dpkg --add-architecture i386
+    - apt update -y -qq
+    - apt install thunderbird wine wine32 perl p7zip-full zip unzip curl xvfb libgtk-3-0 -y -qq
+    - export POSTBOXDL=https://enigmail.net/unit-testing/Postbox-7.0.7.zip
+    - curl -s -o postbox.zip $POSTBOXDL
+    - unzip postbox.zip
+    - export PERLDL=https://enigmail.net/unit-testing/MiniPerl-5.30.zip
+    - curl -o perl.zip $PERLDL
+    - unzip perl.zip
+    - export GPGDL=https://enigmail.net/unit-testing/gnupg-portable-win32-2.2.17-3.7z
+    - curl -o gnupg-inst.7z $GPGDL
+    - 7z x -y gnupg-inst.7z
+    - provisioning/wine-setup.sh
+
+  script:
+    - mkdir tmp
+    - export TMPDIR="$(pwd)/tmp"
+    - export XAUTHORITY="$(pwd)/tmp/.Xauthority"
+    - export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/
+    - ./configure --enable-postbox --enable-tests --with-tb-path=$(pwd)/pbx-wrapper.sh
+    - make xpi
+    - cat config/autoconf.mk
+    - USER=root xvfb-run -a -f "$XAUTHORITY" $(which make) unit
+  artifacts:
+    paths:
+      - config
+      - tmp
+      - tb-test-profile
+

@@ -1,0 +1,22 @@
+image: node:latest
+
+stages:
+  - deploy
+
+before_script:
+  - yarn global add now
+
+cache:
+  paths:
+    - node_modules/
+
+deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    - NOW_URL=$(now --token $NOW_TOKEN --team $NOW_TEAM --name $APP_NAME -e VUE_APP_INTERCOM_ID -e VUE_APP_ANALYTICS_ID -e VUE_APP_FACEBOOK_ID -e VUE_APP_PIXEL_ID -e APP_URL -e VUE_APP_GOOGLE_SITE_VERIFICATION -e REVAS_PUBLIC_API_URL -e REVAS_ORGANIZATION_ID --force)
+    - now scale --token $NOW_TOKEN --team $NOW_TEAM $NOW_URL 1
+    - now alias --token $NOW_TOKEN --team $NOW_TEAM $NOW_URL $APP_URL
+    - now rm --token $NOW_TOKEN --team $NOW_TEAM --safe --yes $APP_NAME
+

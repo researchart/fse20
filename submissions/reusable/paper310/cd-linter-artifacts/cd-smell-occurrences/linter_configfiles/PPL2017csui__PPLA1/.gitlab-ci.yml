@@ -1,0 +1,70 @@
+test:
+  script:
+  - apt-get install -f
+  - apt-get update -qy
+  - apt-get install -y python-dev python-pip sudo postgresql postgresql-client libpq-dev libxss1 libappindicator1 libindicator7
+  - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add - 
+  - sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+  - apt-get update
+  - apt-get install -y google-chrome-stable
+  - export CHROME_BIN=/usr/bin/google-chrome
+  - curl -sL https://deb.nodesource.com/setup_4.x | sudo -E bash -
+  - sudo apt-get install -y nodejs
+  - sudo apt-get install -y build-essential
+  - npm install npm -g
+  - npm install
+  - npm run build-production
+  - service postgresql start
+  - sudo -u postgres psql -c "CREATE USER kape WITH PASSWORD 'kape' CREATEDB"
+  - sudo -u postgres psql -c "CREATE DATABASE kape OWNER kape"
+  - pip install -r requirements.txt
+  - python manage.py migrate
+  - python manage.py test
+  - npm run karma
+  artifacts:
+    paths:
+      - test/
+
+pages:
+  stage: deploy
+  dependencies:
+    - test
+  script:
+    - mv test/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+      
+staging:
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install sshpass
+  - git clone https://gitlab.com/PPL2017csui/PPLA1.git
+  - cd PPLA1
+  - git checkout develop
+  - git pull
+  - git remote add deployment ssh://kape@bot.recruit.id:8023/home/kape.git
+  - mkdir ~/.ssh
+  - echo -e "Host bot.recruit.id\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+  - sshpass -p yukcarikape git push deployment develop:master --force
+  only:
+   - develop
+
+production:
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install sshpass
+  - git clone https://gitlab.com/PPL2017csui/PPLA1.git
+  - cd PPLA1
+  - git checkout master
+  - git pull
+  - git remote add deployment ssh://kape@bot.recruit.id:8022/home/kape.git
+  - mkdir ~/.ssh
+  - echo -e "Host bot.recruit.id\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+  - sshpass -p yukcarikape git push deployment master:master --force
+  only:
+  - master
+

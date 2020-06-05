@@ -1,0 +1,95 @@
+image: jhipster/jhipster:v5.4.2
+
+cache:
+    key: "$CI_COMMIT_REF_NAME"
+    paths:
+        - .maven/
+stages:
+    - build
+    - test
+    - analyze
+    - package
+    - release
+    - deploy
+
+
+before_script:
+    - sed "s/JWT_SECRET/$JWT_TOKEN/g" -i src/main/resources/config/application-prod.yml
+    - sed "s/GMAIL_PASSWORD/$GMAIL_PASS/g" -i src/main/resources/config/application-prod.yml
+    - export MAVEN_USER_HOME=`pwd`/.maven
+    - ./mvnw com.github.eirslett:frontend-maven-plugin:install-node-and-yarn -DnodeVersion=v8.12.0 -DyarnVersion=v1.10.1 -Dmaven.repo.local=$MAVEN_USER_HOME
+    - ./mvnw com.github.eirslett:frontend-maven-plugin:yarn -Dmaven.repo.local=$MAVEN_USER_HOME
+
+maven-compile:
+    stage: build
+    script:
+        - cat src/main/resources/config/application-prod.yml
+        - ./mvnw compile -Dmaven.repo.local=$MAVEN_USER_HOME
+    artifacts:
+        paths:
+            - target/classes/
+            - target/generated-sources/
+        expire_in: 1 day
+
+maven-test:
+    stage: test
+    script:
+        - ./mvnw test -Dmaven.repo.local=$MAVEN_USER_HOME
+    artifacts:
+        reports:
+            junit: target/surefire-reports/TEST-*.xml
+        paths:
+            - target/test-results
+        expire_in: 1 day
+
+frontend-test:
+    stage: test
+    script:
+        - ./mvnw com.github.eirslett:frontend-maven-plugin:yarn -Dfrontend.yarn.arguments='test -u' -Dmaven.repo.local=$MAVEN_USER_HOME
+    artifacts:
+        reports:
+            junit: target/test-results/jest/TESTS-*.xml
+        paths:
+            - target/test-results
+        expire_in: 1 day
+sonar-analyze:
+    stage: analyze
+    dependencies:
+        - maven-test
+        - frontend-test
+    script:
+        - ./mvnw compile -Dmaven.repo.local=$MAVEN_USER_HOME
+        - ./mvnw org.jacoco:jacoco-maven-plugin:prepare-agent sonar:sonar -Dsonar.organization=timo69-github -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$SONAR_TOKEN -Dmaven.repo.local=$MAVEN_USER_HOME
+
+    allow_failure: true
+
+maven-package:
+    stage: package
+    script:
+        - ./mvnw verify -Pprod -DskipTests -Dmaven.repo.local=$MAVEN_USER_HOME
+    artifacts:
+        paths:
+            - target/*.war
+        expire_in: 1 day
+
+# Uncomment the following line to use gitlabs container registry. You need to adapt the REGISTRY_URL in case you are not using gitlab.com
+docker-push:
+    image: docker:latest
+    services:
+        - docker:dind
+    variables:
+        REGISTRY_URL: registry.gitlab.com
+        DOCKER_HOST: tcp://docker:2375
+        DOCKER_DRIVER: overlay2
+        IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+    stage: release
+    dependencies:
+        - maven-package
+    before_script:
+        - docker info
+        - cp target/*.war src/main/docker
+    script:
+        - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $REGISTRY_URL
+        - docker build -f src/main/docker/Dockerfile -t $IMAGE_TAG src/main/docker
+        - docker push $IMAGE_TAG
+

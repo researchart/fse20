@@ -1,0 +1,9 @@
+before_script:
+    - apt-get update -qq && apt-get install -y vim
+    - git clone https://github.com/syngan/vim-vimlint /tmp/vim-vimlint
+    - git clone https://github.com/ynkdir/vim-vimlparser /tmp/vim-vimlparser
+
+vimlint:
+    script:
+        - sh /tmp/vim-vimlint/bin/vimlint.sh -l /tmp/vim-vimlint -p /tmp/vim-vimlparser -v *.vim
+

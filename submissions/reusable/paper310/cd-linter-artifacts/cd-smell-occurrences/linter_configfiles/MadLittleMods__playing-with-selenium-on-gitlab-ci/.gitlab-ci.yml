@@ -1,0 +1,84 @@
+image: node:boron
+
+
+cache:
+  paths:
+  - node_modules/
+
+variables:
+  # $GITLAB_SELENIUM_SERVER_IMAGE_NAME = registry.gitlab.com/gitlab-org/gitlab-selenium-server or localhost:5063/root/gitlab-selenium-server
+
+
+stages:
+  - build
+  - test
+
+
+build:
+  stage: build
+  script:
+    - npm install
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - node_modules/
+  tags:
+    - docker
+    - shared
+
+
+test:
+  stage: test
+  script:
+    # Dependencies for chromedriver, https://gist.github.com/mikesmullin/2636776#gistcomment-1742414
+    # Otherwise we get this error: "error while loading shared libraries: libnss3.so: cannot open shared object file: No such file or directory"
+    - apt-get update -q -y
+    - apt-get --yes install libnss3
+    - apt-get --yes install libgconf-2-4
+
+    # Install chrome
+    # Based off of
+    # - https://gitlab.com/gitlab-org/gitlab-build-images/blob/9dadb28021f15913a49897126a0cd6ab0149e44f/scripts/install-chrome
+    # - https://askubuntu.com/a/510186/196148
+    #
+    # # Install chrome version from apt-get
+    # # -----------------------------------------------
+    # # Add key
+    # - curl -sS -L https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+    # # Add repo
+    # - echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list
+    # - apt-get update -q -y
+    # # TODO: Lock down the version
+    # - apt-get install -y google-chrome-stable
+    #
+    # Manually install chrome version from GitLab CDN
+    # -----------------------------------------------
+    - export CHROME_DEB="google-chrome-stable_65.0.3325.181-1_amd64.deb"
+    - export CHROME_URL="https://s3.amazonaws.com/gitlab-google-chrome-stable/${CHROME_DEB}"
+    - curl --silent --show-error --fail -O $CHROME_URL
+    - dpkg -i ./$CHROME_DEB || true
+    - apt-get install -f -y
+    - rm -f $CHROME_DEB
+
+
+    - npm install chromedriver@2.36.0 -g
+    - npm install https://gitlab.com/gitlab-org/gitlab-selenium-server.git -g
+    # The `&` at the end causes it to run in the background and not block the following commands
+    - nohup chromedriver --port=4444 --url-base=wd/hub &
+    - nohup gitlab-selenium-server &
+    # Run your tests
+    - npm test
+    # Show the logs for the GitLab Selenium Server service
+    - mkdir -p selenium/ && curl -s http://localhost:4545/logs.tar.gz | tar -xvzf - -C selenium/
+    - mkdir -p selenium/ && curl http://localhost:4545/server-log --output selenium/server-log.txt
+  artifacts:
+    when: always
+    paths:
+      - selenium/
+  variables:
+    SELENIUM_REMOTE_URL: http://localhost:4545/wd/hub
+    GITLAB_TARGET_SELENIUM_REMOTE_URL: http://localhost:4444/wd/hub
+  tags:
+    - docker
+    - shared
+

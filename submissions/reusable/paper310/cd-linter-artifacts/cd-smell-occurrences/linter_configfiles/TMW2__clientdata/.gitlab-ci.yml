@@ -1,0 +1,88 @@
+stages:
+- test
+- fail
+- ok
+
+image: debian:stable
+before_script:
+  - uname -a
+
+testxml:
+  stage: test
+  script:
+  - ./.tools/testxml.sh
+  - pwd
+
+pngcheck:
+  stage: test
+  script:
+  - ./.tools/pngcheck.sh
+
+imagemagiccheck:
+  stage: test
+  script:
+  - ./.tools/imagemagiccheck.sh
+
+manaplus:
+  stage: test
+  script:
+  - ./.tools/manaplus.sh
+  image: debian:unstable
+  artifacts:
+    paths:
+    - shared
+    when: always
+    expire_in: 3 week
+
+newlines:
+  stage: test
+  script:
+  - ./.tools/newlines.sh
+  artifacts:
+    paths:
+    - shared
+    when: always
+    expire_in: 3 week
+
+.contributors:
+  stage: test
+  script:
+  - ./.tools/contributors.sh
+  - pwd
+
+licensecheck:
+  stage: test
+  script:
+  - ./.tools/licensecheck.sh
+
+.pages:
+  stage: test
+  script:
+  - ./.tools/deploy.sh
+  - pwd
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+ok_job:
+  stage: ok
+  script:
+  - pwd
+  - echo $CI_BUILD_REF_NAME
+  when: on_success
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+
+fail_job:
+  stage: fail
+  script:
+  - pwd
+  - echo $CI_BUILD_REF_NAME
+  when: on_failure
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+

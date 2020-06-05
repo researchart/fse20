@@ -1,0 +1,50 @@
+image: node:8.15-slim
+
+stages:
+  - build
+  - lint
+  - deploy
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+cache:
+  untracked: true
+  key: "$CI_BUILD_REF_NAME"
+  paths:
+    - node_modules/
+
+build:
+  stage: build
+  before_script:
+    - wget -P /tmp https://github.com/gohugoio/hugo/releases/download/v0.53/hugo_extended_0.53_Linux-64bit.deb
+    - dpkg -i /tmp/hugo*.deb
+    - npm install
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - public
+
+staging_deploy:
+  stage: deploy
+  dependencies:
+    - build
+  before_script:
+    - npm install -g netlify-cli
+  script:
+    - netlify deploy --dir=./public
+  only:
+    - master
+
+production_deploy:
+  stage: deploy
+  dependencies:
+    - build
+  before_script:
+    - npm install -g netlify-cli
+  script:
+    - netlify deploy --dir=./public --prod
+  only:
+    - tags
+

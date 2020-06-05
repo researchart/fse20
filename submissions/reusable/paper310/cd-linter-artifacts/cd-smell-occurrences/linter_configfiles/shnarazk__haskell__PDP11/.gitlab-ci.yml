@@ -1,0 +1,21 @@
+cache:
+  paths:
+    - stack.yaml
+    - .stack-work
+
+build:
+  stage: build
+  script:
+    - cp .gitlab-stack.yaml stack.yaml
+    - stack build
+
+test:
+  stage: test
+  script:
+    - stack test
+
+haddock:
+  stage: test
+  script:
+    - stack haddock --fast
+

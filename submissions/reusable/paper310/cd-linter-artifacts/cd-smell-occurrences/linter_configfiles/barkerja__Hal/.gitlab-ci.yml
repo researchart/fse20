@@ -1,0 +1,13 @@
+build_image:
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+      - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+      - curl "http://barker.ninja:3000/webhook?channel_id=${DISCORD_CHANNEL_ID}&message=Beginning+docker+image+build+for+commit:+https://gitlab.com/barkerja/Hal/commit/${CI_BUILD_REF}"
+      - docker build -t registry.gitlab.com/barkerja/hal .
+      - docker push registry.gitlab.com/barkerja/hal
+      - curl "http://barker.ninja:3000/webhook?channel_id=${DISCORD_CHANNEL_ID}&message=Docker+image+build+complete.+Ready+for+deploy."
+  only:
+    - master
+

@@ -1,0 +1,19 @@
+image: "node:12"
+
+cache:
+  paths:
+    - node_modules
+
+stages:
+  - test
+
+variables:
+  # GCU_REPO_BRANCH: experimental
+  NPM_TOKEN: "00"
+
+
+ci_tests:
+  stage: test
+  script:
+    - sh devel/ci/alptraum install_and ci_tests
+

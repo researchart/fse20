@@ -1,0 +1,80 @@
+stages:
+- install
+- build
+- staging
+- production 
+
+image: alpine:latest
+
+install:
+  image: spaceywolfi/ukuvota-node
+  stage: install
+  script: yarn
+  artifacts:
+    paths:
+    - node_modules
+    expire_in: 20 minutes
+  cache:
+    paths:
+      - node_modules/
+
+.build: &build
+  image: spaceywolfi/ukuvota-node
+  stage: build
+
+lint:
+  <<: *build
+  script: yarn lint
+
+test:
+  <<: *build
+  script: yarn test --ci
+
+build:
+  <<: *build
+  script: yarn build
+  artifacts:
+    paths:
+    - dist
+
+build-storybook:
+  <<: *build
+  script: yarn build-storybook
+  artifacts:
+    paths:
+    - storybook-static
+
+.deploy: &deploy
+  image: mrsixw/concourse-rsync-resource
+  script:
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo "$DEPLOY_SSH_KEY")
+  - mkdir -p ~/.ssh
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  - rsync -av --delete dist/ ukuvota-deploy@yuca.yunity.org:/var/www/ukuvota/$DEPLOY_DIR/frontend/
+  - rsync -av --delete storybook-static/ ukuvota-deploy@yuca.yunity.org:/var/www/ukuvota/$DEPLOY_DIR/storybook/
+
+staging:
+  <<: *deploy
+  stage: staging
+  variables:
+    DEPLOY_DIR: staging
+  environment:
+    name: staging
+    url: https://staging.ukuvota.world
+  only:
+  - master
+
+production:
+  <<: *deploy
+  stage: production
+  when: manual
+  variables:
+    DEPLOY_DIR: production
+  environment:
+    name: production
+    url: https://ukuvota.world
+  only:
+  - master
+
+

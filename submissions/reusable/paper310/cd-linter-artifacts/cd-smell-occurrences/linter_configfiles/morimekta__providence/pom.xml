@@ -1,0 +1,1401 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <name>Providence</name>
+    <description>
+        Providence is a port of Apache thrift that has some extra tooling, and
+        different way of generating classes and serializing data.
+    </description>
+    <url>http://www.morimekta.net/providence</url>
+    <groupId>net.morimekta.providence</groupId>
+    <artifactId>providence</artifactId>
+    <version>2.6.2-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <inceptionYear>2015</inceptionYear>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <distributionManagement>
+        <!--
+        <snapshotRepository>
+            <id>sonatype</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        -->
+        <repository>
+            <id>sonatype</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
+        </repository>
+        <site>
+            <id>morimekta</id>
+            <name>Providence @ Morimekta</name>
+            <url>https://www.morimekta.net/providence</url>
+        </site>
+    </distributionManagement>
+
+    <organization>
+        <name>morimekta.net</name>
+        <url>https://www.morimekta.net/providence</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <id>morimekta</id>
+            <name>Stein Eldar Johnsen</name>
+            <email>oss@morimekta.net</email>
+            <timezone>Europe/Oslo</timezone>
+            <roles>
+                <role>Maintainer</role>
+                <role>Developer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <scm>
+        <url>https://gitlab.com/morimekta/providence</url>
+        <developerConnection>scm:git:ssh://git@gitlab.com/morimekta/providence.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+
+    <prerequisites>
+        <maven>3.5.0</maven>
+    </prerequisites>
+
+    <properties>
+        <gpg.executable>gpg2</gpg.executable>
+
+        <disable.distribution.packaging>false</disable.distribution.packaging>
+        <dependency.locations.enabled>false</dependency.locations.enabled>
+
+        <additionalparam>-Xdoclint:all</additionalparam>
+        <skipTests>false</skipTests>
+        <maven.javadoc.skip>false</maven.javadoc.skip>
+        <!-- Arg lines not specified, set by jacoco plugin -->
+        <!-- surefireArgLine -->
+        <!-- failsafeArgLine -->
+
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.javadoc.encoding>UTF-8</project.javadoc.encoding>
+        <project.reporting.inputEncoding>UTF-8</project.reporting.inputEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.sources.encoding>UTF-8</maven.sources.encoding>
+        <maven.testing.args>-Xmx1024m -XX:+UseSerialGC -XX:+OmitStackTraceInFastThrow</maven.testing.args>
+
+        <!-- test dependencies (mostly) -->
+        <junit4.version>4.13</junit4.version>
+        <hamcrest.version>2.2</hamcrest.version>
+        <mockito.version>3.2.4</mockito.version>
+        <jfairy.version>0.5.9</jfairy.version>
+        <awaitility.version>4.0.2</awaitility.version>
+
+        <!-- subsystems -->
+        <hazelcast.version>3.12.6</hazelcast.version>
+        <dropwizard.version>1.3.5</dropwizard.version>
+        <jdbi2.version>2.78</jdbi2.version>
+        <jdbi3.version>3.12.0</jdbi3.version>
+
+        <!-- RPC tools, Client -->
+        <commons.math3.version>3.6.1</commons.math3.version>
+        <!-- jetty 10.x required java 11 -->
+        <jetty.version>9.4.26.v20200117</jetty.version>
+        <thrift.version>0.12.0</thrift.version>
+        <google-http.version>1.34.1</google-http.version>
+        <google-http-apache.version>2.1.2</google-http-apache.version>
+        <httpcore.version>4.4.13</httpcore.version>
+        <httpclient.version>4.5.11</httpclient.version>
+        <jakarta.servlet-api.version>4.0.3</jakarta.servlet-api.version>
+        <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
+        <swagger.version>2.1.1</swagger.version>
+
+        <!-- compile dependencies -->
+        <jackson.version>2.10.2</jackson.version>
+        <slf4j.version>1.7.30</slf4j.version>
+
+        <!-- Morimekta Utilities -->
+        <io-util.version>3.7.1</io-util.version>
+        <console-util.version>3.1.1</console-util.version>
+        <testing-util.version>3.4.0</testing-util.version>
+
+        <guava.version>28.2-jre</guava.version>
+
+        <!-- Controlling the providence-maven-plugin -->
+        <providence.gen.generated_annotation_version>false</providence.gen.generated_annotation_version>
+        <providence.gen.generated_annotation_date>false</providence.gen.generated_annotation_date>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- internal public dependencies -->
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-core-jackson</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-core-client</artifactId>
+                <version>${project.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.google.guava</groupId>
+                        <artifactId>guava</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-core-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-config</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-reflect</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-storage</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-jdbi-v2</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-jdbi-v3</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-thrift-compat</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-thrift-protocols</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-testing</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-testing-junit4</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-logging</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-jax-rs</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-json-schema</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-graphql</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-storage-hazelcast</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- internal protected dependencies -->
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-generator</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-generator-java</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-tools-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.providence</groupId>
+                <artifactId>providence-tools-common-formats</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- MORIMEKTA UTILS -->
+            <dependency>
+                <groupId>net.morimekta.utils</groupId>
+                <artifactId>io-util</artifactId>
+                <version>${io-util.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.morimekta.utils</groupId>
+                <artifactId>console-util</artifactId>
+                <version>${console-util.version}</version>
+            </dependency>
+
+            <!-- CORE LIBRARIES DEPS -->
+            <dependency>
+                <groupId>com.google.code.findbugs</groupId>
+                <artifactId>jsr305</artifactId>
+                <version>3.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.annotation</groupId>
+                <artifactId>jsr250-api</artifactId>
+                <version>1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.annotation</groupId>
+                <artifactId>jakarta.annotation-api</artifactId>
+                <version>1.3.5</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.activation</groupId>
+                <artifactId>jakarta.activation-api</artifactId>
+                <version>1.2.1</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.xml.bind</groupId>
+                <artifactId>jakarta.xml.bind-api</artifactId>
+                <version>2.3.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>4.2.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio</artifactId>
+                <version>2.4.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.checkerframework</groupId>
+                        <artifactId>checker-qual</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.j2objc</groupId>
+                        <artifactId>j2objc-annotations</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <!-- LOGGING DEPS -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-simple</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>jcl-over-slf4j</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>log4j-over-slf4j</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+
+            <!-- SUBSYSTEM DEPS -->
+
+            <dependency>
+                <groupId>com.hazelcast</groupId>
+                <artifactId>hazelcast</artifactId>
+                <version>${hazelcast.version}</version>
+            </dependency>
+
+
+            <!-- HTTP, THRIFT, JSON -->
+            <dependency>
+                <groupId>com.google.http-client</groupId>
+                <artifactId>google-http-client</artifactId>
+                <version>${google-http.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>commons-logging</groupId>
+                        <artifactId>commons-logging</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.guava</groupId>
+                        <artifactId>guava</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>com.google.http-client</groupId>
+                <artifactId>google-http-client-apache</artifactId>
+                <version>${google-http-apache.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>commons-logging</groupId>
+                        <artifactId>commons-logging</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.google.guava</groupId>
+                        <artifactId>guava</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.thrift</groupId>
+                <artifactId>libthrift</artifactId>
+                <version>${thrift.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>commons-logging</groupId>
+                        <artifactId>commons-logging</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>javax.servlet</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>jakarta.servlet</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.httpcomponents</groupId>
+                        <artifactId>httpclient</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.httpcomponents</groupId>
+                        <artifactId>httpcore</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.servlet</groupId>
+                <artifactId>jakarta.servlet-api</artifactId>
+                <version>${jakarta.servlet-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.ws.rs</groupId>
+                <artifactId>jakarta.ws.rs-api</artifactId>
+                <version>${jakarta.ws.rs-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-core</artifactId>
+                <version>${swagger.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.module</groupId>
+                <artifactId>jackson-module-afterburner</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-yaml</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-math3</artifactId>
+                <version>${commons.math3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpcore</artifactId>
+                <version>${httpcore.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpclient</artifactId>
+                <version>${httpclient.version}</version>
+            </dependency>
+
+            <!-- USED IN TESTING -->
+            <dependency>
+                <groupId>net.morimekta.utils</groupId>
+                <artifactId>testing-util</artifactId>
+                <version>${testing-util.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jdbi</groupId>
+                <artifactId>jdbi3-core</artifactId>
+                <version>${jdbi3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jdbi</groupId>
+                <artifactId>jdbi3-sqlobject</artifactId>
+                <version>${jdbi3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jdbi</groupId>
+                <artifactId>jdbi</artifactId>
+                <version>${jdbi2.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>${junit4.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest-core</artifactId>
+                <version>${hamcrest.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest-library</artifactId>
+                <version>${hamcrest.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.codearte.jfairy</groupId>
+                <artifactId>jfairy</artifactId>
+                <version>${jfairy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.awaitility</groupId>
+                <artifactId>awaitility</artifactId>
+                <version>${awaitility.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.tngtech.java</groupId>
+                <artifactId>junit-dataprovider</artifactId>
+                <version>1.13.1</version>
+            </dependency>
+
+            <!-- USING JETTY AND DROPWIZARD FOR TESTING SERVLETS -->
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-server</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-servlet</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-servlets</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-util</artifactId>
+                <version>${jetty.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- providence plugins -->
+                <plugin>
+                    <groupId>net.morimekta.providence</groupId>
+                    <artifactId>providence-maven-plugin</artifactId>
+                    <version>${project.version}</version>
+                </plugin>
+
+                <!-- additional plugins -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>rpm-maven-plugin</artifactId>
+                    <version>2.2.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.vafer</groupId>
+                    <artifactId>jdeb</artifactId>
+                    <version>1.7</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>build-helper-maven-plugin</artifactId>
+                    <version>3.0.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>versions-maven-plugin</artifactId>
+                    <version>2.7</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonatype.plugins</groupId>
+                    <artifactId>nexus-staging-maven-plugin</artifactId>
+                    <version>1.6.8</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.5</version>
+                </plugin>
+
+                <!-- core maven plugins -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-antrun-plugin</artifactId>
+                    <version>1.8</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-clean-plugin</artifactId>
+                    <version>3.1.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.8.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>2.8.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>2.22.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>com.googlecode.maven-download-plugin</groupId>
+                    <artifactId>download-maven-plugin</artifactId>
+                    <version>1.4.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-install-plugin</artifactId>
+                    <version>2.5.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.1.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.1.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-site-plugin</artifactId>
+                    <version>3.7.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>2.22.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.0.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.0.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-release-plugin</artifactId>
+                    <version>2.5.3</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.apache.maven.scm</groupId>
+                            <artifactId>maven-scm-api</artifactId>
+                            <version>1.11.2</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>org.apache.maven.scm</groupId>
+                            <artifactId>maven-scm-provider-gitexe</artifactId>
+                            <version>1.11.2</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>1.6</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>3.2.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>3.1.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-plugin-plugin</artifactId>
+                    <version>3.6.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>3.1.11</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.0.0-M2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>1.6.0</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-maven</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>3.5.0</version>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>versions-maven-plugin</artifactId>
+                <configuration>
+                    <rulesUri>file:version-rules.xml</rulesUri>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.0</version>
+                <configuration>
+                    <forceJavacCompilerUse>true</forceJavacCompilerUse>
+                    <compilerArgs>
+                        <arg>-Xlint:all</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <configuration>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <skip>${maven.javadoc.skip}</skip>
+                    <failOnError>true</failOnError>
+                    <doclint>all</doclint>
+                    <notimestamp>true</notimestamp>
+                    <nodeprecatedlist>true</nodeprecatedlist>
+                    <quiet>true</quiet>
+                    <sourceFileIncludes>net/morimekta/providence/**/*.java</sourceFileIncludes>
+                    <excludePackageNames>:
+                        *.test.*:
+                        *.it.*:
+                        *.providence.tools:
+                        *.providence.tools.*:
+                        *.providence.generator.format.*:
+                        *.providence.graphql.introspection:
+                        *.providence.graphql.errors:
+                        *.providence.graphql.directives:</excludePackageNames>
+                    <additionalOptions>
+                        <additionalOption>-quiet -html5</additionalOption>
+                    </additionalOptions>
+                    <detectOfflineLinks>false</detectOfflineLinks>
+                    <groups>
+                        <group>
+                            <title>Providence Core</title>
+                            <packages>net.morimekta.providence:net.morimekta.providence.descriptor*:net.morimekta.providence.mio*:net.morimekta.providence.serializer*:net.morimekta.providence.streams*:net.morimekta.providence.util*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Core : Client</title>
+                            <packages>net.morimekta.providence.client*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Core : Server</title>
+                            <packages>net.morimekta.providence.server*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Core : Jackson</title>
+                            <packages>net.morimekta.providence.jackson*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Utils : Reflection</title>
+                            <packages>net.morimekta.providence.reflect*:net.morimekta.providence.model*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Utils : Config</title>
+                            <packages>net.morimekta.providence.config*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Utils : Logging</title>
+                            <packages>net.morimekta.providence.logging*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Utils : Storage</title>
+                            <packages>net.morimekta.providence.storage*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Utils : JDBI</title>
+                            <packages>net.morimekta.providence.jdbi*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Utils : Testing</title>
+                            <packages>net.morimekta.providence.testing*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Utils : Thrift Bridge</title>
+                            <packages>net.morimekta.providence.thrift*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Utils : Javax.WS.RS</title>
+                            <packages>net.morimekta.providence.jax*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Utils : GraphQL</title>
+                            <packages>net.morimekta.providence.graphql*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Tools: Code Generators</title>
+                            <packages>net.morimekta.providence.generator*</packages>
+                        </group>
+                        <group>
+                            <title>Providence Tools: Maven Plugin</title>
+                            <packages>net.morimekta.providence.maven*</packages>
+                        </group>
+                    </groups>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>default</id>
+                        <phase>process-sources</phase>
+                        <goals>
+                            <goal>javadoc-no-fork</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>attach-javadoc</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <configuration>
+                    <preparationGoals>clean install</preparationGoals>
+                    <tagNameFormat>v@{project.version}</tagNameFormat>
+                    <autoVersionSubmodules>true</autoVersionSubmodules>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-deploy</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-site-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-site</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>default-deploy</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <skip>true</skip>
+                    <skipDeploy>true</skipDeploy>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Sets the VM argument line used when unit tests are run. -->
+                    <argLine>${surefireArgLine} ${maven.testing.args}</argLine>
+                    <!-- Skips unit tests if the value of skipTests property is true -->
+                    <skip>${skipTests}</skip>
+                    <skipTests>${skipTests}</skipTests>
+                    <!-- Excludes integration tests when unit tests are run. -->
+                    <includes>
+                        <include>**/*Test.java</include>
+                    </includes>
+                    <excludes>
+                        <exclude>**/*IT.java</exclude>
+                    </excludes>
+                    <systemPropertyVariables>
+                        <org.slf4j.simpleLogger.defaultLogLevel>off</org.slf4j.simpleLogger.defaultLogLevel>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>integration-tests</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Sets the VM argument line used when unit tests are run. -->
+                            <argLine>${surefireArgLine} ${maven.testing.args}</argLine>
+                            <!-- Skips unit tests if the value of skipTests property is true -->
+                            <skip>${skipTests}</skip>
+                            <skipTests>${skipTests}</skipTests>
+                            <includes>
+                                <include>**/*IT.java</include>
+                            </includes>
+                            <excludes>
+                                <exclude>**/*Test.java</exclude>
+                            </excludes>
+                            <systemPropertyVariables>
+                                <org.slf4j.simpleLogger.defaultLogLevel>off</org.slf4j.simpleLogger.defaultLogLevel>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>net/morimekta/providence/*</include>
+                        <include>net/morimekta/providence/**/*</include>
+                    </includes>
+                    <excludes>
+                        <!-- actually only for providence-core -->
+                        <exclude>net/morimekta/providence/PApplicationException*</exclude>
+                        <exclude>net/morimekta/providence/PApplicationExceptionType*</exclude>
+                        <exclude>net/morimekta/providence/PServiceCallType*</exclude>
+                        <exclude>net/morimekta/providence/util/Any*</exclude>
+                        <exclude>net/morimekta/providence/util/Empty*</exclude>
+                        <!-- actually only for providence-reflect -->
+                        <exclude>net/morimekta/providence/model/*</exclude>
+                        <exclude>net/morimekta/providence/model/**/*</exclude>
+                        <exclude>net/morimekta/providence/graphql/introspection/*</exclude>
+                        <exclude>net/morimekta/providence/graphql/directives/*</exclude>
+                        <exclude>net/morimekta/providence/graphql/errors/*</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <!--
+                        Prepares the property pointing to the JaCoCo runtime agent which
+                        is passed as VM argument when Maven the Surefire plugin is executed.
+                    -->
+                    <execution>
+                        <id>pre-unit-test</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Sets the path to the file which contains the execution data. -->
+                            <destFile>${project.build.directory}/coverage-reports/jacoco-ut.exec</destFile>
+                            <!--
+                                Sets the name of the property containing the settings
+                                for JaCoCo runtime agent.
+                            -->
+                            <propertyName>surefireArgLine</propertyName>
+                        </configuration>
+                    </execution>
+                    <!--
+                        Ensures that the code coverage report for unit tests is created after
+                        unit tests have been run.
+                    -->
+                    <execution>
+                        <id>post-unit-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Sets the path to the file which contains the execution data. -->
+                            <dataFile>${project.build.directory}/coverage-reports/jacoco-ut.exec</dataFile>
+                            <!-- Sets the output directory for the code coverage report. -->
+                            <outputDirectory>${project.reporting.outputDirectory}/jacoco-ut</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <!--
+                        Prepares the property pointing to the JaCoCo runtime agent which
+                        is passed as VM argument when Maven the Failsafe plugin is executed.
+                    -->
+                    <execution>
+                        <id>pre-integration-test</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Sets the path to the file which contains the execution data. -->
+                            <destFile>${project.build.directory}/coverage-reports/jacoco-it.exec</destFile>
+                            <!--
+                                Sets the name of the property containing the settings
+                                for JaCoCo runtime agent.
+                            -->
+                            <propertyName>failsafeArgLine</propertyName>
+                        </configuration>
+                    </execution>
+                    <!--
+                        Ensures that the code coverage report for integration tests after
+                        integration tests have been run.
+                    -->
+                    <execution>
+                        <id>post-integration-test</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Sets the path to the file which contains the execution data. -->
+                            <dataFile>${project.build.directory}/coverage-reports/jacoco-it.exec</dataFile>
+                            <!-- Sets the output directory for the code coverage report. -->
+                            <outputDirectory>${project.reporting.outputDirectory}/jacoco-it</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/main/java-gen</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>add-test-source</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/test/java-gen</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>lib</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <modules>
+                <!-- Core Modules -->
+                <module>providence-core</module>
+                <module>providence-core-client</module>
+                <module>providence-core-server</module>
+                <module>providence-core-jackson</module>
+
+                <!-- Tooling Modules -->
+                <module>providence-reflect</module>
+                <module>providence-generator</module>
+                <module>providence-generator-java</module>
+                <module>providence-maven-plugin</module>
+
+                <!-- Utility Modules -->
+                <module>providence-testing</module>
+                <module>providence-testing-junit4</module>
+                <module>providence-logging</module>
+                <module>providence-thrift-compat</module>
+                <module>providence-thrift-protocols</module>
+                <module>providence-config</module>
+                <module>providence-storage</module>
+                <module>providence-storage-hazelcast</module>
+                <module>providence-jdbi-v2</module>
+                <module>providence-jdbi-v3</module>
+                <module>providence-jax-rs</module>
+                <module>providence-graphql</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>plugin</id>
+            <modules>
+                <!-- Core Modules -->
+                <module>providence-core</module>
+
+                <!-- Tooling Modules -->
+                <module>providence-reflect</module>
+                <module>providence-generator</module>
+                <module>providence-generator-java</module>
+                <module>providence-maven-plugin</module>
+
+                <!-- Testing -->
+                <module>providence-testing</module>
+                <module>providence-testing-junit4</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>cli</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <modules>
+                <!-- Common Libraries -->
+                <module>providence-tools-common</module>
+                <module>providence-tools-common-formats</module>
+                <!-- Generator Modules -->
+                <module>providence-generator-java</module>
+                <!-- CLI Tooling Program Jars -->
+                <module>providence-tools-generator</module>
+                <module>providence-tools-schema</module>
+                <module>providence-tools-config</module>
+                <module>providence-tools-converter</module>
+                <module>providence-tools-rpc</module>
+                <!-- The actual packaging (deb, rpm, tar.gz) -->
+                <module>providence-tools</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>reporting</id>
+            <modules>
+                <module>reporting</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>generator-java</id>
+            <modules>
+                <module>providence-generator-java</module>
+            </modules>
+        </profile>
+        <!-- one profile for each integration test module -->
+        <profile>
+            <id>it-serialization</id>
+            <modules>
+                <module>it-serialization</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>it-hazelcast</id>
+            <modules>
+                <module>it-hazelcast</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>it-generator</id>
+            <modules>
+                <module>it-generator-java</module>
+                <module>it-generator-js</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>examples</id>
+            <modules>
+                <module>examples-server-core</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>doc</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>aggregate-apidocs</id>
+                                <goals>
+                                    <goal>aggregate-jar</goal>
+                                </goals>
+                                <inherited>false</inherited>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>all</id>
+            <modules>
+                <!-- LIB -->
+
+                <!-- Core Modules -->
+                <module>providence-core</module>
+                <module>providence-core-client</module>
+                <module>providence-core-server</module>
+                <module>providence-core-jackson</module>
+
+                <!-- Tooling Modules -->
+                <module>providence-reflect</module>
+                <module>providence-generator</module>
+                <module>providence-generator-java</module>
+                <module>providence-maven-plugin</module>
+
+                <!-- Utility Modules -->
+                <module>providence-testing</module>
+                <module>providence-testing-junit4</module>
+                <module>providence-logging</module>
+                <module>providence-thrift-compat</module>
+                <module>providence-thrift-protocols</module>
+                <module>providence-config</module>
+                <module>providence-storage</module>
+                <module>providence-storage-hazelcast</module>
+                <module>providence-jdbi-v2</module>
+                <module>providence-jdbi-v3</module>
+                <module>providence-jax-rs</module>
+                <module>providence-graphql</module>
+
+                <!-- CLI -->
+
+                <!-- Common Libraries -->
+                <module>providence-tools-common</module>
+                <module>providence-tools-common-formats</module>
+                <!-- CLI Tooling Program Jars -->
+                <module>providence-tools-generator</module>
+                <module>providence-tools-schema</module>
+                <module>providence-tools-config</module>
+                <module>providence-tools-converter</module>
+                <module>providence-tools-rpc</module>
+                <!-- The actual packaging (deb, rpm, tar.gz) -->
+                <module>providence-tools</module>
+
+                <!-- IT -->
+                <module>it-generator-java</module>
+                <module>it-generator-js</module>
+                <module>it-serialization</module>
+                <module>it-hazelcast</module>
+
+                <!-- Other example code modules -->
+                <module>examples-server-core</module>
+
+                <!-- Reporting -->
+                <module>reporting</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>spotbugs</id>
+            <activation>
+                <!-- for some reason failed in CI on java 11... -->
+                <jdk>1.8</jdk>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.spotbugs</groupId>
+                        <artifactId>spotbugs-maven-plugin</artifactId>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.slf4j</groupId>
+                                <artifactId>slf4j-simple</artifactId>
+                                <version>1.8.0-beta2</version>
+                            </dependency>
+                            <!-- overwrite dependency on spotbugs if you want to specify the version of spotbugs -->
+                            <dependency>
+                                <groupId>com.github.spotbugs</groupId>
+                                <artifactId>spotbugs</artifactId>
+                                <version>3.1.11</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <failOnError>true</failOnError>
+                            <excludeFilterFile>${project.parent.basedir}/spotbugs-exclude.xml</excludeFilterFile>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>jdk8</id>
+            <activation>
+                <jdk>1.8</jdk>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <additionalOptions>
+                                <additionalOption>-quiet</additionalOption>
+                            </additionalOptions>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!-- release process modifications -->
+        <profile>
+            <id>release-sign-artifacts</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.sonatype.plugins</groupId>
+                        <artifactId>nexus-staging-maven-plugin</artifactId>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <serverId>sonatype</serverId>
+                            <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                            <autoReleaseAfterClose>false</autoReleaseAfterClose>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>aggregate-apidocs</id>
+                                <goals>
+                                    <goal>aggregate-jar</goal>
+                                </goals>
+                                <inherited>false</inherited>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <executable>${gpg.executable}</executable>
+                            <useAgent>true</useAgent>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
+

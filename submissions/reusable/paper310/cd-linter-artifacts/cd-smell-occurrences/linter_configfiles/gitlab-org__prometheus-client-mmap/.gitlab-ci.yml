@@ -1,0 +1,154 @@
+.test-job: &test-job
+  image: $CI_JOB_NAME
+  variables:
+    prometheus_multiproc_dir: tmp/
+    BUILDER_IMAGE_REVISION: "0.0.7"
+  script:
+    - bundle exec rake spec
+  artifacts:
+    paths:
+      - coverage/
+
+ruby:2.4:
+  <<: *test-job
+ruby:2.5:
+  <<: *test-job
+ruby:2.6:
+  <<: *test-job
+ruby:2.7:
+  <<: *test-job
+
+
+builder:centos_6:
+  <<: *test-job
+  image: registry.gitlab.com/gitlab-org/gitlab-omnibus-builder:centos_6-${BUILDER_IMAGE_REVISION}
+
+builder:centos_7:
+  <<: *test-job
+  image: registry.gitlab.com/gitlab-org/gitlab-omnibus-builder:centos_7-${BUILDER_IMAGE_REVISION}
+
+i386/debian:jessie:
+  <<: *test-job
+  before_script:
+    # This image doesn't have a compiler, so hand-install
+    - apt-get update
+    - apt-get install -y curl
+    - export LANG=C.UTF-8
+    - gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB
+    - curl -sSL https://rvm.io/mpapis.asc | gpg --import -
+    - curl -sSL https://get.rvm.io | bash -s stable
+    - /usr/local/rvm/bin/rvm install 2.4
+    - /usr/local/rvm/bin/rvm 2.4 do gem install bundler rake
+    - /usr/local/rvm/bin/rvm 2.4 do bundle install -j $(nproc)
+    - /usr/local/rvm/bin/rvm 2.4 do rake compile -- --fail-on-warning
+  script:
+    - /usr/local/rvm/bin/rvm 2.4 do rake spec
+
+archlinux:ruby:2.4:
+  <<: *test-job
+  image: archlinux/base
+  before_script:
+    - pacman -Sy --noconfirm gcc make which grep gawk procps-ng
+    - gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB
+    - curl -sSL https://get.rvm.io | bash -s stable
+    - /usr/local/rvm/bin/rvm install 2.4
+    - /usr/local/rvm/bin/rvm 2.4 do gem install bundler rake
+    - /usr/local/rvm/bin/rvm 2.4 do bundle install -j $(nproc)
+    - /usr/local/rvm/bin/rvm 2.4 do rake compile
+  script:
+    - /usr/local/rvm/bin/rvm 2.4 do rake spec
+  cache:
+    key: "archlinux-ruby2.4"
+    paths:
+      - vendor/ruby
+
+archlinux:ruby:2.5:
+  <<: *test-job
+  image: archlinux/base
+  before_script:
+    - pacman -Sy --noconfirm git gcc make ruby ruby-bundler ruby-rdoc ruby-rake which grep gawk procps-ng
+    - bundle install
+    - bundle exec rake compile
+  script:
+    - bundle exec rake spec
+  cache:
+    key: "archlinux-ruby2.5"
+    paths:
+      - vendor/ruby
+
+fuzzbert:
+  image: ruby:2.6
+  variables:
+    prometheus_multiproc_dir: tmp/
+  script:
+    - bundle exec fuzzbert fuzz/**/fuzz_*.rb --handler PrintAndExitHandler --limit 10000
+
+clang-format check:
+  image: debian:sid-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y clang-format git
+  script:
+    - find ext/ -name '*.[ch]' | xargs clang-format -style=file -i
+    - git diff --exit-code
+
+rspec Address-Sanitizer:
+  image: debian:sid-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y libasan4 ruby ruby-dev gem build-essential
+  allow_failure: true
+  script:
+    - gem install bundler rake
+    - bundle install
+    - rake compile -- --enable-address-sanitizer
+    - export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.4
+    - export ASAN_OPTIONS=atexit=true:verbosity=1
+    - bundle exec rspec > /dev/null
+
+parsing Address-Sanitizer:
+  image: debian:sid-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y libasan4 ruby ruby-dev gem build-essential
+  allow_failure: true
+  script:
+    - gem install bundler rake
+    - bundle install
+    - rake compile
+    - bundle exec rspec
+    - rake compile -- --enable-address-sanitizer
+    - DB_FILE=$(basename $(find tmp -name '*.db' | head -n 1))
+    - test -n $DB_FILE
+    - for ((i=1;i<=100;i++)); do cp tmp/$DB_FILE tmp/$i$DB_FILE; done
+    - export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.4
+    - export ASAN_OPTIONS=atexit=true:verbosity=1
+    - export LSAN_OPTIONS=suppressions=known-leaks-suppression.txt
+    - bundle exec bin/parse -t tmp/*.db > /dev/null
+
+cache:
+  paths:
+    - vendor/ruby
+
+before_script:
+  - ruby -v
+  - gem install bundler -v 1.17.3
+  - gem install rake
+  - bundle install -j $(nproc) --path vendor
+  - gcc --version
+  - bundle exec rake compile -- --fail-on-warning
+
+pages:
+  image: ruby:2.6
+  stage: deploy
+  dependencies:
+    - ruby:2.6
+  script:
+    - mv coverage/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+

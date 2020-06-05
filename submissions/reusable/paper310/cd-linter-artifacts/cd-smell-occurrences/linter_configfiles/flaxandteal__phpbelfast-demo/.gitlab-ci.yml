@@ -1,0 +1,79 @@
+image: docker:latest
+
+variables:
+  CONTAINER_ARTISAN_IMAGE: $CI_REGISTRY_IMAGE:artisan-$CI_BUILD_REF_NAME
+  CONTAINER_ARTISAN_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:artisan-latest
+  CONTAINER_NGINX_IMAGE: $CI_REGISTRY_IMAGE:nginx-$CI_BUILD_REF_NAME
+  CONTAINER_NGINX_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:nginx-latest
+  CONTAINER_PHPFPM_IMAGE: $CI_REGISTRY_IMAGE:phpfpm-$CI_BUILD_REF_NAME
+  CONTAINER_PHPFPM_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:phpfpm-latest
+
+services:
+- docker:dind
+
+stages:
+- build
+- test
+- release
+- deploy
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+build:
+  stage: build
+  script:
+  # First we build using an image we will have to download anyway
+  - docker run --entrypoint composer -v`pwd`:/var/www/app flaxandteal/docker-laravel-artisan install
+  - docker build -f containers/artisan/Dockerfile -t $CONTAINER_ARTISAN_IMAGE .
+  - docker build -f containers/nginx/Dockerfile -t $CONTAINER_NGINX_IMAGE .
+  - docker build -f containers/phpfpm/Dockerfile -t $CONTAINER_PHPFPM_IMAGE .
+  - docker push $CONTAINER_ARTISAN_IMAGE
+  - docker push $CONTAINER_NGINX_IMAGE
+  - docker push $CONTAINER_PHPFPM_IMAGE
+
+test:
+  stage: test
+  script:
+  - docker run --entrypoint php $CONTAINER_ARTISAN_IMAGE vendor/phpunit/phpunit/phpunit
+
+release-image:
+  stage: release
+  script:
+  # ARTISAN
+  - docker pull $CONTAINER_ARTISAN_IMAGE
+  - docker tag $CONTAINER_ARTISAN_IMAGE $CONTAINER_ARTISAN_RELEASE_IMAGE
+  - docker tag $CONTAINER_ARTISAN_RELEASE_IMAGE $AWS_ECR_URI:artisan-$CI_BUILD_REF
+  - docker push $CONTAINER_ARTISAN_RELEASE_IMAGE
+  # NGINX
+  - docker pull $CONTAINER_NGINX_IMAGE
+  - docker tag $CONTAINER_NGINX_IMAGE $CONTAINER_NGINX_RELEASE_IMAGE
+  - docker tag $CONTAINER_NGINX_RELEASE_IMAGE $AWS_ECR_URI:nginx-$CI_BUILD_REF
+  - docker push $CONTAINER_NGINX_RELEASE_IMAGE
+  # PHPFPM
+  - docker pull $CONTAINER_PHPFPM_IMAGE
+  - docker tag $CONTAINER_PHPFPM_IMAGE $CONTAINER_PHPFPM_RELEASE_IMAGE
+  - docker tag $CONTAINER_PHPFPM_RELEASE_IMAGE $AWS_ECR_URI:phpfpm-$CI_BUILD_REF
+  - docker push $CONTAINER_PHPFPM_RELEASE_IMAGE
+  - eval "$(echo $(docker run -t -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION garland/aws-cli-docker aws ecr get-login) | sed 's/\r$//')"
+  - docker push $AWS_ECR_URI:artisan-$CI_BUILD_REF
+  - docker push $AWS_ECR_URI:nginx-$CI_BUILD_REF
+  - docker push $AWS_ECR_URI:phpfpm-$CI_BUILD_REF
+  only:
+  - master
+
+deploy:
+  stage: deploy
+  image: lwolf/kubectl_deployer:latest
+  before_script:  # This gets creds from env
+  - mkdir -p ~/.kube && sed -e "s!__KUBE_SERVER_URL__!${KUBE_SERVER_URL}!g" containers/k8s/kubeconfig > ~/.kube/config
+  - echo "${KUBE_CA_PEM}" > ~/.kube/ca.pem
+  - echo "${KUBE_DEPLOY_KEY}" > ~/.kube/deploy.key
+  - echo "${KUBE_DEPLOY_PEM}" > ~/.kube/deploy.pem
+  script:
+  - kubectl set image deployment/artisan artisan=$AWS_ECR_URI:artisan-$CI_BUILD_REF
+  - kubectl set image deployment/nginx nginx=$AWS_ECR_URI:nginx-$CI_BUILD_REF
+  - kubectl set image deployment/phpfpm phpfpm=$AWS_ECR_URI:phpfpm-$CI_BUILD_REF
+  only:
+  - master
+

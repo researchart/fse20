@@ -1,0 +1,27 @@
+image: golang
+
+variables:
+  BIN_NAME: DropBoxFileSorter.Go.exe
+  ARTIFACTS_DIR: artifacts
+  GO_PROJECT: gitlab.com/DropBoxFileSorter.Go
+
+stages:
+  - build-and-unit-test
+
+before_script:
+  - mkdir -p ${GOPATH}/src/${GO_PROJECT}
+  - mkdir -p ${CI_PROJECT_DIR}/${ARTIFACTS_DIR}
+  - cp -r ${CI_PROJECT_DIR}/* ${GOPATH}/src/${GO_PROJECT}/
+  - cd ${GOPATH}/src/${GO_PROJECT}
+
+build-and-unit-test-project:
+  stage: build-and-unit-test
+  script:
+    - go build -o ${CI_PROJECT_DIR}/${ARTIFACTS_DIR}/${BIN_NAME}
+    - go test $(go list ./... | grep -v /vendor/) -v -coverprofile .testCoverage.txt
+    - GOOS=windows GOARCH=386 go build -o ${CI_PROJECT_DIR}/${ARTIFACTS_DIR}/amd64/${BIN_NAME}
+  artifacts:
+    paths:
+      - ${ARTIFACTS_DIR}
+    
+

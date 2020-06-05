@@ -1,0 +1,95 @@
+include:
+    # PyPI upload
+    - "https://gitlab.com/nobodyinperson/ci-templates/raw/master/pypi-upload.yml"
+
+image: python:3.5
+
+variables:
+    PACKAGE_NAME: meteorology
+    SPHINX_DOC_DIR: sphinx-doc
+    COVERAGE_STATIC_DIR: coverage-report
+    PAGES_DIR: public
+
+stages:
+    - test
+    - package
+    - deploy
+
+cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+
+before_script:
+    - pip3 install --only-binary=numpy numpy
+
+pip-install-local:
+    stage: test
+    script:
+        - pip3 install --prefix=~/.local .
+
+coverage:
+    stage: test
+    script:
+        - pip3 install coveralls
+        - coverage run --source=meteorology setup.py test
+        - coverage html
+        - coverage report
+        - mv htmlcov/ $COVERAGE_STATIC_DIR
+    coverage: '/TOTAL.*\s+(\d+\%)/'
+    artifacts:
+        paths:
+            - $COVERAGE_STATIC_DIR
+        expire_in: 1 week
+
+dist:
+    stage: package
+    dependencies: [] # no other artifacts needed
+    script:
+        - ./setup.py sdist
+    artifacts:
+        paths:
+            - dist/*
+        expire_in: 1 week
+
+sphinx:
+    stage: package
+    dependencies: [] # no other artifacts needed
+    script:
+        - pip3 install sphinx sphinx_rtd_theme
+        - make docs
+        - mv docs/_build/html $SPHINX_DOC_DIR
+    artifacts:
+        paths:
+            - $SPHINX_DOC_DIR
+        expire_in: 1 week
+
+pypi-upload:
+    stage: deploy
+    environment:
+        name: production
+        url: https://pypi.python.org
+    dependencies:
+        - dist
+    only:
+        - master
+    only:
+        - tags
+
+pages:
+    before_script: [] # no need to install anything for deployment
+    stage: deploy
+    dependencies:
+        - sphinx
+        - coverage
+    script:
+        - rm -rf $PAGES_DIR/ # make sure there is not pages dir
+        - mv $SPHINX_DOC_DIR $PAGES_DIR/ # sphinx doc is index page
+        - mv $COVERAGE_STATIC_DIR $PAGES_DIR/ # put coverage report inside
+    artifacts:
+        paths:
+            - $PAGES_DIR/
+    only:
+        - master
+    only:
+        - tags
+
+

@@ -1,0 +1,45 @@
+image:
+  name: docker/compose:1.23.2
+  entrypoint: ["/bin/sh", "-c"]
+
+variables:
+  # When using dind service we need to instruct docker, to talk with the
+  # daemon started inside of the service. The daemon is available with
+  # a network connection instead of the default /var/run/docker.sock socket.
+  #
+  # The 'docker' hostname is the alias of the service container as described at
+  # https://docs.gitlab.com/ee/ci/docker/using_docker_images.html#accessing-the-services
+  #
+  # Note that if you're using Kubernetes executor, the variable should be set to
+  # tcp://localhost:2375 because of how Kubernetes executor connects services
+  # to the job container
+  DOCKER_HOST: tcp://docker:2375/
+  # When using dind, it's wise to use the overlayfs driver for
+  # improved performance.
+  DOCKER_DRIVER: overlay2
+  RAILS_ENV: test
+  RUBY_IMAGE_TAG: "2.1.9"
+  BUNDLE_GEMFILE: Gemfile
+  POSTGRES_IMAGE_TAG: "9.4"
+
+services:
+  - docker:dind
+
+before_script:
+  - docker volume create --name bundler_data
+  - docker network create frontend
+  - docker network create backend
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - cd /builds/isqad/ubastation
+    - docker-compose -f docker-compose.yml -f docker-compose.development.yml up -d uba-pg
+    - docker-compose -f docker-compose.yml -f docker-compose.development.yml run --rm uba-app bundle install --without production --deployment --jobs 4
+    - until docker-compose -f docker-compose.yml -f docker-compose.development.yml run --rm uba-app nc -z uba-pg 5432; do echo 'Waiting pg...'; sleep 3; done
+    - docker-compose -f docker-compose.yml -f docker-compose.development.yml run --rm uba-app bundle exec rake db:migrate
+    - docker-compose -f docker-compose.yml -f docker-compose.development.yml run --rm uba-app bundle exec rspec
+

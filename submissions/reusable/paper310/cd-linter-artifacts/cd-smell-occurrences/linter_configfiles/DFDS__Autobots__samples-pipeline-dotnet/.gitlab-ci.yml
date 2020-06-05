@@ -1,0 +1,66 @@
+stages:
+  - build
+  - test
+  - publish
+  - builddocker
+  - push
+  - deploy
+
+build:
+  stage: build
+  image : microsoft/aspnetcore-build:2.0
+  script:
+    - 'dotnet restore src/PipelineSample.sln'
+    - dotnet build -c Release src/PipelineSample.sln
+  only:
+    - master
+
+test:unittests:
+  stage: test
+  image : microsoft/aspnetcore-build:2.0
+  script:
+    - dotnet test --logger:"trx;LogFileName=testresult.trx" --results-directory "../" src/PipelineSample.WebApi.Tests/PipelineSample.WebApi.Tests.csproj
+  dependencies:
+    - build
+
+test:integrationtests:
+  stage: test
+  image : microsoft/aspnetcore-build:2.0
+  script:
+    - dotnet test --logger:"trx;LogFileName=testresult_integration.trx" --results-directory "../" src/PipelineSample.WebApi.Tests.Integration/PipelineSample.WebApi.Tests.Integration.csproj
+  dependencies:
+    - build
+
+publish:
+  stage: publish
+  image: microsoft/aspnetcore-build:2.0
+  script:
+    - dotnet publish -c Release -o ../output src/PipelineSample.WebApi/PipelineSample.WebApi.csproj
+  dependencies:
+    - build
+  artifacts:
+    paths:
+      - src/output
+
+builddockerimage:
+  stage: builddocker
+  image: docker:latest
+  script:
+    - ls -la
+    - ls -la src/output
+    - docker --version
+  dependencies:
+    - publish 
+
+deploy_staging:
+  stage: deploy
+  script:
+    - echo "Deploy to staging server"
+  environment:
+    name: staging
+    url: https://staging.example.com
+  only:
+  - master
+
+
+

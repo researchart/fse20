@@ -1,0 +1,116 @@
+stages:
+  - build
+  - test
+  - deploy
+
+.variables_template: &variables_definition
+  variables:
+    BASE_NAME: "midi_matrix.lv2"
+    PKG_CONFIG_PATH: "/opt/lv2/lib/pkgconfig:/opt/${CI_BUILD_NAME}/lib/pkgconfig:/usr/lib/${CI_BUILD_NAME}/pkgconfig"
+
+.common_template: &common_definition
+  <<: *variables_definition
+  stage: build
+  artifacts:
+    name: "${BASE_NAME}-$(cat VERSION)-${CI_BUILD_NAME}"
+    paths:
+      - "${BASE_NAME}-$(cat VERSION)/"
+
+.build_template: &build_definition
+  <<: *common_definition
+  script:
+    - meson --prefix="/opt/${CI_BUILD_NAME}" --libdir="lib" --cross-file "${CI_BUILD_NAME}" build
+    - sed -i -e '/framework/s/-Wl,-O1//g' -e '/framework/s/-Wl,--start-group//g' -e '/framework/s/-Wl,--end-group//g' -e '/framework/s/-Wl,-soname,.*dylib//g' build/build.ninja
+    - ninja -C build
+    - ninja -C build install
+    - mkdir -p "${BASE_NAME}-$(cat VERSION)/${CI_BUILD_NAME}/${BASE_NAME}"
+    - cp -r "/opt/${CI_BUILD_NAME}/lib/lv2/${BASE_NAME}/" "${BASE_NAME}-$(cat VERSION)/${CI_BUILD_NAME}/"
+
+.universal_linux_template_stretch: &universal_linux_definition_stretch
+  image: ventosus/universal-linux-gnu:stretch
+  <<: *build_definition
+
+.universal_linux_template_buster: &universal_linux_definition_buster
+  image: ventosus/universal-linux-gnu:buster
+  <<: *build_definition
+
+.universal_linux_template_bullseye: &universal_linux_definition_bullseye
+  image: ventosus/universal-linux-gnu:bullseye
+  <<: *build_definition
+
+.arm_linux_template_stretch: &arm_linux_definition_stretch
+  image: ventosus/arm-linux-gnueabihf:stretch
+  <<: *build_definition
+
+.arm_linux_template_buster: &arm_linux_definition_buster
+  image: ventosus/arm-linux-gnueabihf:buster
+  <<: *build_definition
+
+.arm_linux_template_bullseye: &arm_linux_definition_bullseye
+  image: ventosus/arm-linux-gnueabihf:bullseye
+  <<: *build_definition
+
+.universal_w64_template: &universal_w64_definition
+  image: ventosus/universal-w64-mingw32
+  <<: *build_definition
+
+.universal_apple_template: &universal_apple_definition
+  image: ventosus/universal-apple-darwin
+  <<: *build_definition
+
+# building in docker
+x86_64-linux-gnu-stretch:
+  <<: *universal_linux_definition_stretch
+
+x86_64-linux-gnu-buster:
+  <<: *universal_linux_definition_buster
+
+x86_64-linux-gnu-bullseye:
+  <<: *universal_linux_definition_bullseye
+
+i686-linux-gnu-stretch:
+  <<: *universal_linux_definition_stretch
+
+i686-linux-gnu-buster:
+  <<: *universal_linux_definition_buster
+
+i686-linux-gnu-bullseye:
+  <<: *universal_linux_definition_bullseye
+
+arm-linux-gnueabihf-stretch:
+  <<: *arm_linux_definition_stretch
+
+arm-linux-gnueabihf-buster:
+  <<: *arm_linux_definition_buster
+
+arm-linux-gnueabihf-bullseye:
+  <<: *arm_linux_definition_bullseye
+
+aarch64-linux-gnu-stretch:
+  <<: *arm_linux_definition_stretch
+
+aarch64-linux-gnu-buster:
+  <<: *arm_linux_definition_buster
+
+aarch64-linux-gnu-bullseye:
+  <<: *arm_linux_definition_bullseye
+
+x86_64-w64-mingw32:
+  <<: *universal_w64_definition
+
+i686-w64-mingw32:
+  <<: *universal_w64_definition
+
+universal-apple-darwin:
+  <<: *universal_apple_definition
+
+pack:
+  <<: *variables_definition
+  stage: deploy
+  script:
+    - echo 'packing up...'
+  artifacts:
+    name: "${BASE_NAME}-$(cat VERSION)"
+    paths:
+      - "${BASE_NAME}-$(cat VERSION)/"
+

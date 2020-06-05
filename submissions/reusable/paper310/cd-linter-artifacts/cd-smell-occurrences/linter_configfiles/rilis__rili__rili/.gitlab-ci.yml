@@ -1,0 +1,41 @@
+image: registry.gitlab.com/rilis/docker-ci:ci-latest
+stages:
+  - docs
+  - deploy
+
+deploy:
+  stage: deploy
+  tags:
+  - deploy
+  - rilis.io
+  only:
+  - tags
+  environment:
+    name: rilis.io doxygen
+    url: https://rilis.io/doxygen
+  script:
+  - rm -rf ~/rilis.io.doxygen/
+  - cp -r doxygen/html ~/rilis.io.doxygen/
+  - chmod -R o=rx ~/rilis.io.doxygen/
+  artifacts:
+    expire_in: 100 years
+    paths:
+    - doxygen/html
+
+doxygen:
+  stage: docs
+  script:
+  - hell --install -r '=' -G 'Ninja' -i "CMAKE_CXX_STANDARD=14"
+  - mkdir build
+  - cd build
+  - cmake ../ -G 'Ninja' -DCMAKE_INSTALL_PREFIX=../.hell/install -DCMAKE_CXX_STANDARD=14
+  - ninja install
+  - cd ..
+  - rm -rf rili
+  - mv .hell/install/include/rili rili
+  - doxygen Doxyfile
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - doxygen/html
+

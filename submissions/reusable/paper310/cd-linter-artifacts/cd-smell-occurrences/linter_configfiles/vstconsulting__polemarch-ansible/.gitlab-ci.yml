@@ -1,0 +1,72 @@
+# set to local images because too long execution
+image: onegreyonewhite/tox:tox
+
+stages:
+  - code_standarts
+  - test
+  - release
+
+###########
+
+.branch_tests_template: &branch_tests
+  stage: test
+  variables:
+    TOX_ENVS: "$CI_BUILD_NAME"
+  script:
+   - tox -e $TOX_ENVS
+  except:
+    - GUI
+    - tags
+  retry: 2
+
+
+###########
+
+code_style:
+  stage: code_standarts
+  script:
+   - tox -e flake
+  only:
+    - /^.{0,}issue_.*$/
+    - developer
+    - master
+  retry: 2
+
+py36-coverage-ansible25:
+  <<: *branch_tests
+
+py36-install-ansible26:
+  <<: *branch_tests
+
+py36-install-ansible27:
+  <<: *branch_tests
+
+py37-install-ansible29:
+  <<: *branch_tests
+
+release:
+  stage: release
+  image: onegreyonewhite/tox:tox
+  only:
+    refs:
+      - master
+    variables:
+      - $GIT_ACCESS_USER
+      - $GIT_ACCESS_PASSWORD
+  before_script:
+    - url_host=`echo "${CI_REPOSITORY_URL}" | sed -e "s/https:\/\/gitlab-ci-token:.*@//g"`
+    - git config --global user.name "${GITLAB_USER_NAME}"
+    - git config --global user.email "${GITLAB_USER_EMAIL}"
+    - git remote set-url origin "https://${GIT_ACCESS_USER}:${GIT_ACCESS_PASSWORD}@${url_host}"
+  script:
+    - bash autorelease.sh
+
+publish_pypi:
+  stage: release
+  image: onegreyonewhite/tox:centos6
+  only:
+   - tags
+  script:
+  - tox -e build
+  - twine upload -u ${PYPI_UPLOAD_NAME} -p ${PYPI_UPLOAD_PASSWORD} dist/*.tar.gz dist/*.whl
+

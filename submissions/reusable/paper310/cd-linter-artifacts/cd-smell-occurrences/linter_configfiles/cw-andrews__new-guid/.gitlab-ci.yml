@@ -1,0 +1,26 @@
+stages:
+  - test_36
+  - test_35
+  - test_34
+
+build_and_test_36:
+  stage: test_36
+  image: python:3.6
+  script:
+    - sh ./build_scripts/build_py3.sh
+    - pytest -v
+
+build_and_test_35:
+  stage: test_35
+  image: python:3.5
+  script:
+    - sh ./build_scripts/build_py3.sh
+    - pytest -v
+
+build_and_test_34:
+  stage: test_34
+  image: python:3.4
+  script:
+    - sh ./build_scripts/build_py3.sh
+    - pytest -v
+

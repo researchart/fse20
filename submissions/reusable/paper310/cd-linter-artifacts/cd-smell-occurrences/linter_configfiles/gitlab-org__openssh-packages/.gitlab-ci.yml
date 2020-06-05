@@ -1,0 +1,19 @@
+stages:
+  - package
+
+.openssh_template: &openssh_build
+  stage: package
+  script:
+    - scripts/build_openssh.sh
+  artifacts:
+    paths:
+      - packages/
+
+CentOS 6:
+  image: "centos:centos6"
+  <<: *openssh_build
+
+CentOS 7:
+  image: "centos:centos7"
+  <<: *openssh_build
+

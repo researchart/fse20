@@ -1,0 +1,53 @@
+---
+stages:
+  - test
+  - publish
+
+variables:
+  ACCEPT_EULA: "Y"
+  SA_PASSWORD: "abcDEF12"
+  MSSQL_PID: "Express"
+  MYSQL_DATABASE: "db"
+  MYSQL_USER: "u"
+  MYSQL_PASSWORD: "p"
+  MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+  POSTGRES_DB: "db"
+  POSTGRES_USER: "u"
+  POSTGRES_PASSWORD: "p"
+test:
+  image: registry.gitlab.com/qosenergy/squalus/ci:2020-01-07
+  stage: test
+  services:
+    - mysql:8.0
+    - postgres:12.1
+    - name: mcr.microsoft.com/mssql/server:2019-GDR1-ubuntu-16.04
+      alias: mssql
+  script:
+    - test/test.sh --main
+  artifacts:
+    paths:
+      - coverage.out
+test-previous-db-versions:
+  image: registry.gitlab.com/qosenergy/squalus/ci:2020-01-07
+  stage: test
+  services:
+    - mysql:5.7
+    - postgres:11.6
+    - name: mcr.microsoft.com/mssql/server:2017-CU18-ubuntu-16.04
+      alias: mssql
+  script:
+    - test/test.sh
+pages:
+  image: registry.gitlab.com/qosenergy/squalus/ci:2020-01-07
+  stage: publish
+  dependencies:
+    - test
+  only:
+    - master
+  script:
+    - mkdir -p "public/coverage/$CI_COMMIT_REF_NAME"
+    - go tool cover -html=coverage.out -o=public/coverage/$CI_COMMIT_REF_NAME/index.html
+  artifacts:
+    paths:
+      - public
+

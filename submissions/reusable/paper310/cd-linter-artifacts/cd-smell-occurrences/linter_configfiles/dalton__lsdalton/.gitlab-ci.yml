@@ -1,0 +1,150 @@
+variables:
+  GIT_SSL_NO_VERIFY: "true"
+  GIT_STRATEGY: "clone"
+  GIT_SUBMODULE_STRATEGY: "recursive"
+  LSDALTON_DEVELOPER: "1"
+  DALTON_TMPDIR: "/tmp/${GITLAB_USER_ID}_${CI_COMMIT_SHA}"
+
+mpi-gcc-int64:
+  image: quay.io/dev-cafe/ubuntu18.04-conda
+  variables:
+    BUILD_NAME: "build-mpi-gcc-int64-mkl_user=${GITLAB_USER_ID}_branch=${CI_COMMIT_REF_NAME}"
+  before_script:
+    - whoami
+    - uname -a
+    - free -m
+    - df -h
+    - ulimit -a
+    - ulimit -s unlimited
+    - lscpu | egrep 'Thread|Core|Socket|^CPU\('
+    - conda --version
+    - conda create --name lsdalton python=3.7 --yes
+    - conda env update --name lsdalton --file environment.yml
+    - source activate lsdalton
+    - cmake --version
+    - type -P python
+    - python -V
+    - mpif90 --version
+    - mpicc --version
+    - mpic++ --version
+    - echo BUILD_NAME=${BUILD_NAME}
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+  script:
+    - mkdir -p ${DALTON_TMPDIR}
+    - >
+        python setup --fc=mpif90 --cc=mpicc --cxx=mpic++ --mpi --type=debug --check --int64
+        -DCMAKE_PREFIX_PATH=$CONDA_PREFIX
+        -DENABLE_DEC=ON
+        -DENABLE_TENSORS=ON
+        -DTENSORS_ENABLE_BRUTE_FORCE_FLUSH=ON
+        -DENABLE_RSP=ON
+        -DENABLE_XCFUN=ON
+        -DENABLE_PCMSOLVER=ON
+        -DENABLE_PYTHON_INTERFACE=ON
+        -DBUILDNAME="${BUILD_NAME}" ${BUILD_NAME}
+    - cd ${BUILD_NAME}
+    - echo Build step executing
+    - cmake --build . -- | tee build.log
+    - echo Test step executing
+    - env LSDALTON_LAUNCHER="mpirun -np 3 -oversubscribe" OMP_NUM_THREADS=1 ctest --output-on-failure -L ContinuousIntegration | tee full_ctest_output.log
+  artifacts:
+    paths:
+      - ${BUILD_NAME}/build.log
+      - ${BUILD_NAME}/full_ctest_output.log
+
+openmp-gcc:
+  image: quay.io/dev-cafe/ubuntu18.04-conda
+  variables:
+    BUILD_NAME: "build-openmp-gcc-mkl_user=${GITLAB_USER_ID}_branch=${CI_COMMIT_REF_NAME}"
+  before_script:
+    - whoami
+    - uname -a
+    - free -m
+    - df -h
+    - ulimit -a
+    - ulimit -s unlimited
+    - lscpu | egrep 'Thread|Core|Socket|^CPU\('
+    - conda --version
+    - conda create --name lsdalton python=3.7 --yes
+    - conda env update --name lsdalton --file environment.yml
+    - source activate lsdalton
+    - cmake --version
+    - type -P python
+    - python -V
+    - gfortran --version
+    - gcc --version
+    - g++ --version
+    - echo BUILD_NAME=${BUILD_NAME}
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+  script:
+    - mkdir -p ${DALTON_TMPDIR}
+    - >
+        python setup --fc=gfortran --cc=gcc --cxx=g++ --omp --type=debug --check
+        -DCMAKE_PREFIX_PATH=$CONDA_PREFIX
+        -DENABLE_DEC=ON
+        -DENABLE_TENSORS=ON
+        -DENABLE_RSP=ON
+        -DENABLE_XCFUN=ON
+        -DENABLE_PCMSOLVER=ON
+        -DENABLE_PYTHON_INTERFACE=ON
+        -DBUILDNAME="${BUILD_NAME}" ${BUILD_NAME}
+    - cd ${BUILD_NAME}
+    - echo Build step executing
+    - cmake --build . -- | tee build.log
+    - echo Test step executing
+    - env OMP_NUM_THREADS=6 ctest --output-on-failure -L ContinuousIntegration | tee full_ctest_output.log
+  artifacts:
+    paths:
+      - ${BUILD_NAME}/build.log
+      - ${BUILD_NAME}/full_ctest_output.log
+
+hybrid-gcc-int64:
+  image: quay.io/dev-cafe/ubuntu18.04-conda
+  variables:
+    BUILD_NAME: "build-hybrid-gcc-int64-mkl_user=${GITLAB_USER_ID}_branch=${CI_COMMIT_REF_NAME}"
+  before_script:
+    - whoami
+    - uname -a
+    - free -m
+    - df -h
+    - ulimit -a
+    - ulimit -s unlimited
+    - lscpu | egrep 'Thread|Core|Socket|^CPU\('
+    - conda --version
+    - conda create --name lsdalton python=3.7 --yes
+    - conda env update --name lsdalton --file environment.yml
+    - source activate lsdalton
+    - cmake --version
+    - type -P python
+    - python -V
+    - mpif90 --version
+    - mpicc --version
+    - mpic++ --version
+    - echo BUILD_NAME=${BUILD_NAME}
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+  script:
+    - mkdir -p ${DALTON_TMPDIR}
+    - >
+        python setup --fc=mpif90 --cc=mpicc --cxx=mpic++ --mpi --omp --type=debug --check --int64
+        -DCMAKE_PREFIX_PATH=$CONDA_PREFIX
+        -DENABLE_DEC=ON
+        -DENABLE_TENSORS=ON
+        -DTENSORS_ENABLE_BRUTE_FORCE_FLUSH=ON
+        -DENABLE_RSP=ON
+        -DENABLE_XCFUN=ON
+        -DENABLE_PCMSOLVER=ON
+        -DENABLE_PYTHON_INTERFACE=ON
+        -DBUILDNAME="${BUILD_NAME}" ${BUILD_NAME}
+    - cd ${BUILD_NAME}
+    - echo Build step executing
+    - cmake --build . -- | tee build.log
+    - echo Test step executing
+    - env LSDALTON_LAUNCHER="mpirun -np 3 -oversubscribe" OMP_NUM_THREADS=2 ctest --output-on-failure -L ContinuousIntegration | tee full_ctest_output.log
+  artifacts:
+    paths:
+      - ${BUILD_NAME}/build.log
+      - ${BUILD_NAME}/full_ctest_output.log
+

@@ -1,0 +1,25 @@
+before_script:
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+test:
+  script:
+  - echo "Test"
+
+staging:
+  type: deploy
+  script:
+  - docker-compose -f docker-compose.stg.yml build
+  - docker-compose -f docker-compose.stg.yml push
+  - docker-compose -f docker-compose.stg.yml up -d
+  only:
+  - master
+
+production:
+  type: deploy
+  script:
+  - docker-compose -f docker-compose.prod.yml build
+  - docker-compose -f docker-compose.prod.yml push
+  only:
+  - tags
+

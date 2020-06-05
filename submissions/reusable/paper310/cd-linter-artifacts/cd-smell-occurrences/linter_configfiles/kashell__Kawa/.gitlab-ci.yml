@@ -1,0 +1,16 @@
+image: fedora:latest
+
+stages:
+    - build_and_test
+
+build_script:
+    stage: build_and_test
+    script:
+        - dnf update -y
+        - dnf -y install make gcc findutils texinfo automake
+        - dnf -y install java-1.8.0-openjdk-devel
+        - ./autogen.sh
+        - ./configure
+        - make
+        - make check
+

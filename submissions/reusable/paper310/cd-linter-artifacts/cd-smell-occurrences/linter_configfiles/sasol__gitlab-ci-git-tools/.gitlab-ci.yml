@@ -1,0 +1,107 @@
+stages:
+  - build
+  - test
+  - publish
+
+build-dockers:
+  stage: build
+  image: docker:18.01.0
+  only:
+    - master
+    - tags
+  services:
+    - docker:dind
+  script:
+    - docker version
+    - docker build -t $CI_REGISTRY_IMAGE:latest .
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE:latest	
+    # push only for tags
+    - "[[ -z $CI_BUILD_TAG ]] && exit 0"
+    - docker tag $CI_REGISTRY_IMAGE:latest $CI_REGISTRY_IMAGE:$CI_BUILD_TAG
+    - docker push $CI_REGISTRY_IMAGE:$CI_BUILD_TAG
+
+test-dockers:
+  image: registry.gitlab.com/sasol/gitlab-ci-git-tools:latest
+  stage: test
+  only:
+    - master
+    - tags
+  script:
+     - echo "tests here"
+     - git-edit
+     - touch $CI_COMMIT_SHA
+     - git-commit
+     - git-push origin testbranch
+     - rm $CI_COMMIT_SHA
+     - git-pull origin testbranch
+     - ls $CI_COMMIT_SHA
+
+test-dockers-install_script:
+  image: spotify/alpine:latest
+  stage: test
+  only:
+    - master
+    - tags
+  script:
+     - curl -s https://gitlab.com/sasol/gitlab-ci-git-tools/raw/$CI_COMMIT_SHA/get-gitlab-ci-git-tools.sh | bash /dev/stdin $CI_COMMIT_SHA
+     - ls /usr/local/bin/git-push-url
+     - ls /usr/local/bin/git-push
+     - ls /usr/local/bin/git-pull
+     - ls /usr/local/bin/git-edit
+     - ls /usr/local/bin/git-commit
+     - ls /usr/local/bin/ssh-know-host
+     - ls /usr/local/bin/ssh-set-key
+     
+test-wrong-sed-version:  
+  image:
+    name: sasol/shathel:0.3.0
+    entrypoint:
+     - /bin/bash
+     - -c
+  stage: test
+  only:
+    - master
+    - tags
+  script:
+    - curl -s https://gitlab.com/sasol/gitlab-ci-git-tools/raw/$CI_COMMIT_SHA/get-gitlab-ci-git-tools.sh | bash /dev/stdin $CI_COMMIT_SHA
+    - echo "tests here"
+    - git-edit
+    - touch $CI_COMMIT_SHA
+    - git-commit
+    - git-push origin testbranch3
+    - rm $CI_COMMIT_SHA
+    - git-pull origin testbranch3
+    - ls $CI_COMMIT_SHA 
+     
+
+test-dockers-push-no-change:
+  image: registry.gitlab.com/sasol/gitlab-ci-git-tools:latest
+  stage: test
+  only:
+    - master
+    - tags
+  script:
+     - echo "tests here"
+     - git-edit
+     - git-commit
+     - git-push
+
+publish-dockers:
+  stage: publish
+  image: docker:18.01.0
+  only: 
+    - tags
+  services:
+    - docker:dind
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:latest .
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker tag $CI_REGISTRY_IMAGE:latest $CI_REGISTRY_IMAGE:$CI_BUILD_TAG
+    - docker push $CI_REGISTRY_IMAGE:$CI_BUILD_TAG
+
+
+
+
+
+

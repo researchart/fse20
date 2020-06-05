@@ -1,0 +1,48 @@
+
+stages:
+  - test
+  - package
+
+codequality:
+  stage: test
+  image: alpine:latest
+  before_script:
+    - wget -nv https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz
+    - tar xvJf shellcheck-stable.linux.x86_64.tar.xz
+    - cp shellcheck-stable/shellcheck /usr/local/bin
+  script:
+    - shellcheck bacme
+    - shellcheck test/test.sh
+
+tests:
+  stage: test
+  image: centos:latest
+  before_script:
+    - yum install -y bash openssl curl vim-common
+  script:
+    - cd test && ./test.sh
+
+pack-snapshot:
+  stage: package
+  image: alpine:latest
+  script:
+    - tar cvf bacme-snapshot.tar bacme openssl.conf README.md CHANGELOG.md EXAMPLES.md LICENSE.txt
+    - gzip bacme-snapshot.tar
+  artifacts:
+    paths: [bacme-snapshot.tar.gz]
+    expire_in: 30 days
+  except:
+    - tags
+
+pack-release:
+  stage: package
+  image: alpine:latest
+  script:
+    - tar cvf bacme-$CI_COMMIT_TAG.tar bacme openssl.conf README.md CHANGELOG.md EXAMPLES.md LICENSE.txt
+    - gzip bacme-$CI_COMMIT_TAG.tar
+  artifacts:
+    paths: [bacme-$CI_COMMIT_TAG.tar.gz]
+  only:
+    - tags
+
+

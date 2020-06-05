@@ -1,0 +1,16 @@
+# 定义 stages
+stages:
+  - build
+# 定义 job
+# first to code checkstyle,if failed exit right now
+# gradle build include junit test
+build:
+  stage: build
+  script:
+    - echo "gradle clean...."
+    - gradle clean
+    - echo "gradle checkstyleMain start"
+    - gradle checkstyleMain --info
+    - echo "gradle build start"
+    - gradle build
+

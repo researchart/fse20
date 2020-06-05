@@ -1,0 +1,69 @@
+# This file is a template, and might need editing before it works on your project.
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:latest
+
+# Pick zero or more services to be used on all builds.
+# Only needed when using a docker container to run your tests in.
+# Check out: http://docs.gitlab.com/ce/ci/docker/using_docker_images.html#what-is-service
+services:
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  key: "always"
+  paths:
+    - node_modules/
+
+stages:
+  - build
+  - release
+  - deploy
+
+job_build:
+  stage: build
+  script:
+  - npm prune
+  - npm install
+  - npm run build --production
+  artifacts:
+    paths:
+    - dist/
+    - coverage/
+
+
+job_deploy_demo:
+  stage: deploy
+  only:
+  - master
+  except:
+  - tags
+  dependencies:
+  - job_build
+  script:
+    - bash deploy-gitlab.sh
+  environment: demo
+
+job_deploy_testreport:
+  stage: deploy
+  except:
+  - tags
+  dependencies:
+  - job_build
+  script:
+  - bash <(curl -s https://codecov.io/bash)
+
+# To release just execute "npm version 1.2.3" and push the generated tag
+job_release:
+  stage: release
+  only:
+    - tags
+  # regexp for semver with leading v
+    - /\^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[\da-z\-]+(?:\.[\da-z\-]+)*)?(?:\+[\da-z\-]+(?:\.[\da-z\-]+)*)?$/i
+  dependencies:
+    - job_build
+  script:
+    - npm prune
+    - npm update
+    - npm run ci-publish
+

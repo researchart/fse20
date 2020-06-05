@@ -1,0 +1,23 @@
+image: ruby:2.4
+
+stages:
+  - triage
+
+dry-run:triage:
+  stage: triage
+  script:
+    - gem install gitlab-triage
+    - gitlab-triage --help
+    - gitlab-triage --dry-run --token $API_TOKEN --project-id $CI_PROJECT_PATH
+  when: manual
+  except:
+    - schedules
+
+run:triage:
+  stage: triage
+  script:
+    - gem install gitlab-triage
+    - gitlab-triage --token $API_TOKEN --project-id $CI_PROJECT_PATH
+  only:
+    - schedules
+

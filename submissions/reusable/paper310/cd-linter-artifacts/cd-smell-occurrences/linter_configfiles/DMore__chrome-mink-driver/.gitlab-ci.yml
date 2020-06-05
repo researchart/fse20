@@ -1,0 +1,82 @@
+variables:
+  DOCROOT: "${CI_PROJECT_DIR}/vendor/mink/driver-testsuite/web-fixtures"
+  CHROME_DEBUG_URL: http://localhost:9222
+
+stages:
+  - test
+
+.test_template: &test_template
+  stage: test
+  tags: [docker]
+  retry: 2
+  script:
+    - bin/wait-for-chrome.sh
+    - composer install -o --prefer-dist --ansi --no-progress
+    - test -z "${AUTOSTART_XVFB}" || sed -i '27s#^#//#' vendor/mink/driver-testsuite/tests/Basic/BasicAuthTest.php
+    - vendor/bin/phpunit --colors=always
+
+PHP 5.6:
+  <<: *test_template
+  image: registry.gitlab.com/dmore/docker-chrome-headless:5.6
+
+PHP 7.0:
+  <<: *test_template
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.0
+
+PHP 7.1:
+  <<: *test_template
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.1
+
+PHP 7.2:
+  <<: *test_template
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.2
+
+PHP 7.3:
+  <<: *test_template
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.3
+
+Chromium:
+  <<: *test_template
+  variables:
+    CHROME_BUILD: chromium
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.3
+
+Chrome unstable:
+  <<: *test_template
+  variables:
+    CHROME_BUILD: google-chrome-unstable
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.3
+
+Chrome beta:
+  <<: *test_template
+  variables:
+    CHROME_BUILD: google-chrome-beta
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.3
+
+Headed:
+  <<: *test_template
+  variables:
+    AUTOSTART_XVFB: "true"
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.3
+
+Headed chrome unstable:
+  <<: *test_template
+  variables:
+    AUTOSTART_XVFB: "true"
+    CHROME_BUILD: google-chrome-unstable
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.3
+
+Headed chrome beta:
+  <<: *test_template
+  variables:
+    AUTOSTART_XVFB: "true"
+    CHROME_BUILD: google-chrome-beta
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.3
+
+Headed chromium:
+  <<: *test_template
+  variables:
+    AUTOSTART_XVFB: "true"
+    CHROME_BUILD: chromium
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.3
+

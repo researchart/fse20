@@ -1,0 +1,28 @@
+image: docker:git
+services: 
+- docker:dind
+
+stages:
+        - test
+        - build
+
+test-a2x:
+        stage: test
+        script:
+        - docker container run --rm -v $(pwd):/workdir somatorio/a2x --fop --dry-run cv.txt
+
+test-spellcheck:
+        stage: test
+        script:
+        - export CORRETOR_ERROS=$(docker container run --rm -v $(pwd):/workdir somatorio/hunspell -l -d pt_BR,en_US -p .whitelist.dic infos/*.txt | sort | uniq)
+        - echo $CORRETOR_ERROS
+        - test "$CORRETOR_ERROS" == ""
+
+build:
+        stage: build
+        script: 
+        - docker container run --rm -v $(pwd):/workdir somatorio/a2x --fop cv.txt
+        artifacts:
+            paths:
+            - cv.pdf
+

@@ -1,0 +1,14 @@
+before_script:
+    - python -V
+    - which python
+    - curl -O https://bootstrap.pypa.io/get-pip.py
+    - python get-pip.py
+    - pip --version
+    - pip install --upgrade tornado flake8
+
+echo:
+    script:
+        - python -c 'print("Hello, world")'
+    only:
+        - auto
+

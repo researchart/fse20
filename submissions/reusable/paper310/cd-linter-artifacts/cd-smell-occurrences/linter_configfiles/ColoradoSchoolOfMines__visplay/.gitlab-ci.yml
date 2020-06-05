@@ -1,0 +1,155 @@
+stages:
+  - build-container
+  - build
+  - test
+  - deploy
+  - update-container
+
+# Define Global Vars
+variables:
+  containerVersion: "stable"
+
+# Compile Source Code
+#build_visplayrenderer:
+#  image: registry.gitlab.com/coloradoschoolofmines/visplay/build:$containerVersion
+#  script:
+#    - cd visplayrenderer
+#    - meson build
+#    - pushd build
+#    - ninja
+
+build_visplayrenderer_linux:
+  image: registry.gitlab.com/coloradoschoolofmines/visplay/build:$containerVersion
+  script:
+    - cd /builds/ColoradoSchoolOfMines/visplay/visplayrenderer/
+    - meson build
+    - cd build
+    - ninja
+
+build_visplayrenderer_windows:
+  image: python:alpine
+  variables:
+    AZURE_PIPELINE_ID: 2
+    AZURE_PROJECT_ID: 'aed191ba-6ec9-4bfa-a964-a579ed0562a1'
+    AZURE_ORG: 'robozman'
+  script:
+    - mkdir ./cicd/azure_forwarding/artifacts
+    - pip3 install azure-devops
+    - python3 ./cicd/azure_forwarding/azure_build.py
+  only:
+    - master
+  artifacts:
+    paths:
+      - cicd/azure_forwarding/artifacts/*
+
+# Compile visplayrenderer source code for Windows
+#build_visplayrenderer_windows:
+#  tags:
+#    - win10
+#  script:
+#    - call qtenv2.bat
+#    - call vcvarsall.bat x86_amd64 8.1 --vcvars_ver=14.16.27023
+#    - cd %CI_PROJECT_DIR%
+#    - cd visplayrenderer
+#    - build.bat
+#  artifacts:
+#    name: "visplay-%CI_COMMIT_REF_SLUG%"
+#    paths:
+#      - visplayrenderer/build/release/bin/visplayrenderer.exe
+
+# Lint the Python code
+lint_python:
+  image: python:3.7-alpine
+  allow_failure: true
+  before_script:
+    - apk add gcc musl-dev
+    - pip install -r requirements.txt
+  script:
+    - flake8 --version
+    - flake8
+
+# Lint the JS code
+lint_js:
+  image: node
+  before_script:
+    - cd visplay/frontend
+    - npm install
+  script:
+    - npm run lint
+
+# Test the Python code
+test_python:
+  image: python:3.6-alpine
+  before_script:
+    - apk add mpv make gcc musl-dev
+
+    # Requirements
+    - pip3 install -r requirements.txt
+    - pip install .
+  script:
+    # Build the site
+    - make doctest
+
+# Deploy documenation to GitLab Pages
+pages:
+  only:
+    - master
+  image: registry.gitlab.com/coloradoschoolofmines/visplay/build:$containerVersion
+  stage: deploy
+  before_script:
+    - ./cicd/pages/before_script.sh
+  script:
+    - ./cicd/pages/script.sh
+  artifacts:
+      paths:
+        - public
+
+# Create Server Image
+serverdocker:image:
+  image: docker:1.13
+  stage: deploy
+  only:
+    - master
+    - Server-Docker-CICD
+  services:
+    - docker:dind
+  script:
+    - docker version
+    - docker build -t $CI_REGISTRY_IMAGE/server:stable ./cicd/serverImage
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE/server:stable
+  
+# Test Server: Come up with server tests
+
+
+# Create New Docker Test Image
+docker:image:
+  image: docker:1.13
+  only:
+    variables:
+      - $rebuildDocker == "True"
+  services:
+    - docker:dind
+  script:
+    - docker version
+    - docker build -t $CI_REGISTRY_IMAGE/build:latest ./cicd/testImage
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE/build
+  stage: build-container
+
+# After all tests pass update the stable docker
+pushdocker:image:
+  image: docker:1.13
+  only:
+    variables:
+      - $rebuildDocker == "True"
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker pull $CI_REGISTRY_IMAGE/build:latest
+    - docker tag $CI_REGISTRY_IMAGE/build:latest $CI_REGISTRY_IMAGE/build:stable
+    - docker push $CI_REGISTRY_IMAGE/build:stable
+  stage: update-container
+
+

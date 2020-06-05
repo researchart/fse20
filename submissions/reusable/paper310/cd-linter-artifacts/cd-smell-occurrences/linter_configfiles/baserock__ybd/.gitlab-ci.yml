@@ -1,0 +1,108 @@
+image: debian:jessie
+
+variables:
+  YBD_base: "/cache/ybd_base"
+
+before_script:
+- sh ./install_dependencies.sh
+- git clone git://git.baserock.org/baserock/baserock/definitions -b morphs
+
+cache:
+  paths:
+  - "$YBD_base"
+
+stages:
+- pep8
+- cache_keys
+- release_notes
+- build
+- test
+- deploy
+
+
+
+check_pep8:
+  stage: pep8
+  script: "pycodestyle --show-source --show-pep8 --exclude definitions"
+
+
+
+cache_keys_v1:
+  stage: cache_keys
+  variables:
+    YBD_artifact_version: "1"
+    YBD_mode: "keys-only"
+  script:
+  - cd definitions
+  - git checkout baserock-14.40
+  - ../ybd.py ci x86_64
+  - echo ci.b9de86669ce182e60e3f9445e6394b478b67a2c73b4c0764491c158c5f2569e9 > expected.result
+  - diff expected.result ybd.result
+
+cache_keys_v6:
+  stage: cache_keys
+  variables:
+    YBD_artifact_version: "6"
+    YBD_mode: "keys-only"
+  script:
+  - cd definitions
+  - git checkout GENIVI-M1.0
+  - ../ybd.py ci x86_64
+  - echo ci.d9dec300a7cb2bc273dc6846e69a11b7f3ad304462f3a4c6ce8c5ab6ead11647 > expected.result
+  - diff expected.result ybd.result
+
+
+
+check_release_notes:
+  stage: release_notes
+  variables:
+    YBD_release_note: "${CI_PROJECT_DIR}/release-notes.txt"
+    YBD_mode: "keys-only"
+  script:
+    - ./ybd.py definitions/systems/minimal-system-x86_64-generic.morph x86_64
+  artifacts:
+    paths:
+    - release-notes.txt
+
+
+
+.build_template: &build_definition
+  stage: build
+  variables:
+    YBD_kbas_url: "false-url"
+    YBD_check_definitions: "exit"
+  script:
+  - ./ybd.py definitions/systems/minimal-system-x86_64-generic.morph x86_64
+  only:
+    - master
+
+check_build_debian_stretch:
+  image: debian:stretch
+  <<: *build_definition
+
+check_build_ubuntu_16.04:
+  image: ubuntu:16.04
+  <<: *build_definition
+
+check_build_ubuntu_17.10:
+  image: ubuntu:17.10
+  <<: *build_definition
+
+check_build_fedora_27:
+  image: fedora:27
+  <<: *build_definition
+
+check_build_kbas:
+  stage: build
+  variables:
+    YBD_check_definitions: "exit"
+  script:
+  - ./ybd.py definitions/systems/minimal-system-x86_64-chroot.morph x86_64
+
+
+
+check_deploy:
+  stage: deploy
+  script:
+  - ./ybd.py definitions/clusters/minimal-system-x86_64-chroot-deploy.morph x86_64
+

@@ -1,0 +1,50 @@
+stages:
+- test
+- publish
+
+test_tox_34:
+  stage: test
+  image: python:3.4-alpine
+  before_script:
+  - pip install tox
+  script:
+  - tox -e py34
+
+test_tox_35:
+  stage: test
+  image: python:3.5-alpine
+  before_script:
+  - pip install tox
+  script:
+  - tox -e py35
+
+test_tox_36:
+  stage: test
+  image: python:3.6-alpine
+  before_script:
+  - pip install tox
+  script:
+  - tox -e py36
+
+test_tox_37:
+  stage: test
+  image: python:3.7-alpine
+  before_script:
+  - pip install tox
+  script:
+  - tox -e py37
+
+publish_pypi:
+  stage: publish
+  only:
+  - tags
+  image: python:3.7-alpine
+  variables:
+    TWINE_USERNAME: $LIVE_PYPI_USERNAME
+    TWINE_PASSWORD: $LIVE_PYPI_PASSWORD
+  before_script:
+  - pip install twine
+  - python setup.py sdist
+  script:
+  - twine upload dist/*
+

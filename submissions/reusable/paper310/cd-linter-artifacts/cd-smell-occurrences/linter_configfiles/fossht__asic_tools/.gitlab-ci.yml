@@ -1,0 +1,106 @@
+stages:
+  - install
+  - test
+
+before_script:
+  - git --version
+  - ssh-add ~/.ssh/asic_tools_deploy
+
+install_job:
+  stage: install
+  only:
+    - develop
+  script:
+    - git submodule update --init --recursive
+
+      # Install the tools
+    - tests/scripts/install.sh
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - tools/
+
+test_map9v3:
+  stage: test
+  only:
+    - develop
+  script:
+    - tests/scripts/runTest.sh map9v3.v
+  dependencies:
+    - install_job
+  artifacts:
+    expire_in: 3 months
+    paths:
+      - test_designs/
+    when: always
+
+test_CIC:
+  stage: test
+  only:
+    - develop
+  script:
+    - tests/scripts/runTest.sh CIC.v
+  dependencies:
+    - install_job
+  artifacts:
+    expire_in: 3 months
+    paths:
+      - test_designs/
+    when: always
+
+test_CORDIC_serial:
+  stage: test
+  only:
+    - develop
+  script:
+    - tests/scripts/runTest.sh CORDIC_serial.v
+  dependencies:
+    - install_job
+  artifacts:
+    expire_in: 3 months
+    paths:
+      - test_designs/
+    when: always
+
+test_fftbutterfly32:
+  stage: test
+  only:
+    - develop
+  script:
+    - tests/scripts/runTest.sh fftbutterfly32.v
+  dependencies:
+    - install_job
+  artifacts:
+    expire_in: 3 months
+    paths:
+      - test_designs/
+    when: always
+
+test_fir32:
+  stage: test
+  only:
+    - develop
+  script:
+    - tests/scripts/runTest.sh fir32.v
+  dependencies:
+    - install_job
+  artifacts:
+    expire_in: 3 months
+    paths:
+      - test_designs/
+    when: always
+
+test_hetero:
+  stage: test
+  only:
+    - develop
+  script:
+    - tests/scripts/runTest.sh hetero.v
+  dependencies:
+    - install_job
+  artifacts:
+    expire_in: 3 months
+    paths:
+      - test_designs/
+    when: always
+

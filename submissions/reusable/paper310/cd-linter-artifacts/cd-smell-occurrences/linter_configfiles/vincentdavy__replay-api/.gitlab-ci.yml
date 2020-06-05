@@ -1,0 +1,65 @@
+image: golang:1.13.4
+
+.scripts: &scripts
+  before_script:
+    - ln -s /builds/$CI_PROJECT_PATH /go/src/replay-api
+    - cd /go/src/replay-api
+
+stages:
+  - lint
+  - test
+  - build
+  - docker
+
+lint:
+  <<: *scripts
+  stage: lint
+  script:
+    - make lint
+
+test:
+  <<: *scripts
+  stage: test
+  script:
+    - go get -u github.com/jstemmer/go-junit-report
+    - make test 2>&1 | go-junit-report > report.xml
+  artifacts:
+    reports:
+      junit: report.xml
+
+build:
+  <<: *scripts
+  stage: build
+  script:
+    - make release
+  artifacts:
+    paths:
+      - build/replay-api
+    expire_in: 1 week
+
+.docker: &docker
+  stage: docker
+  image: docker
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+  dependencies:
+    - build
+    
+docker:replay-api:
+  <<: *docker
+  script:
+    - docker build -t "${CI_REGISTRY_IMAGE}/replay-api:latest" -f docker/Dockerfile .
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+    - docker push "${CI_REGISTRY_IMAGE}/replay-api:latest"
+
+docker:replay-api:tags:
+  <<: *docker
+  script:
+    - docker build -t "${CI_REGISTRY_IMAGE}/replay-api:${CI_COMMIT_TAG}" -f docker/Dockerfile .
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+    - docker push "${CI_REGISTRY_IMAGE}/replay-api:${CI_COMMIT_TAG}"
+  only:
+    - tags
+

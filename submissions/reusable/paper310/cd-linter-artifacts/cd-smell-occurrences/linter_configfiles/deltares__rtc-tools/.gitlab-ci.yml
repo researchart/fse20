@@ -1,0 +1,123 @@
+image: python:3.7
+
+before_script:
+  - pip install tox
+
+stages:
+  - style
+  - build
+  - test
+  - coverage
+  - examples
+  - deploy
+
+# style
+flake8:
+  stage: style
+  script:
+    - tox -vv
+  variables:
+    TOXENV: flake8
+  tags:
+    - docker
+
+# build
+build:
+  stage: build
+  script:
+    - python setup.py sdist bdist_wheel
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+  tags:
+    - docker
+
+# test
+.job_template: &unittests
+  stage: test
+  script:
+    - tox -vv
+
+py35:linux:
+  <<: *unittests
+  image: python:3.5-jessie
+  variables:
+    TOXENV: py35
+  tags:
+    - docker
+
+py36:linux:
+  <<: *unittests
+  image: python:3.6-jessie
+  variables:
+    TOXENV: py36
+  tags:
+    - docker
+
+py37:linux:
+  <<: *unittests
+  image: python:3.7-stretch
+  variables:
+    TOXENV: py37
+  tags:
+    - docker
+
+# run examples (only for tags)
+.job_template: &examples
+  stage: examples
+  script:
+    - tox -vv
+  only:
+    - tags
+  tags:
+    - docker
+
+examples35:linux:
+  <<: *examples
+  image: python:3.5-jessie
+  variables:
+    TOXENV: examples35
+
+examples36:linux:
+  <<: *examples
+  image: python:3.6-jessie
+  variables:
+    TOXENV: examples36
+
+examples37:linux:
+  <<: *examples
+  image: python:3.7-stretch
+  variables:
+    TOXENV: examples37
+
+# coverage
+coverage:
+  stage: coverage
+  script:
+    - tox -vv
+    - pip install codecov
+    - codecov --token=$CODECOV_TOKEN
+  variables:
+    TOXENV: coverage
+  tags:
+    - docker
+
+# deploy
+deploy:
+  stage: deploy
+  dependencies:
+    - build
+  script:
+    - pip install twine
+    - twine upload -u $PYPI_USER -p $PYPI_PASSWORD dist/*
+  only:
+    # Only deploy refs that start with "2."
+    - /^2\..*$/
+  except:
+    # If a branch happens to start with "2.", skip it as we only want to
+    # deploy tags.
+    - branches
+  tags:
+    - docker
+

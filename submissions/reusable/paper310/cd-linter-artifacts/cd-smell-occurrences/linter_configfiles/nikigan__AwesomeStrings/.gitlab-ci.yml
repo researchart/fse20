@@ -1,0 +1,13 @@
+stages:
+    - build
+job:
+    stage: build
+    script:
+    - echo "Restoring NuGet Packages..."
+    - C:\Users\NIKIGAN\Desktop\NuGet\nuget.exe restore "StringsItE.sln"
+    - ''
+    - echo "Release build..."
+    - '"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe"
+    /consoleloggerparameters:ErrorsOnly /maxcpucount /nologo
+    /property:Configuration=Release /verbosity:quiet "StringsItE.sln"'
+

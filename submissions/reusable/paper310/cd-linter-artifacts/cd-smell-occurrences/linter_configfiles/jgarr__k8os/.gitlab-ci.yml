@@ -1,0 +1,14 @@
+image: fedora:latest
+
+before_script:
+  - dnf install -y wget genisoimage sudo rsync sed p7zip p7zip-plugins syslinux redhat-lsb-core gettext
+
+build:
+  script: make
+  artifacts:
+    paths:
+      - k8os.iso
+  cache:
+    paths:
+      - CentOS-7-*.iso
+

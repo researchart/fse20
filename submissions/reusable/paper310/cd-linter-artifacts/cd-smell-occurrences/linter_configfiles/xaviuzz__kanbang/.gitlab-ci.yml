@@ -1,0 +1,17 @@
+image: tmaier/docker-compose:latest
+
+services:
+  - docker:dind
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - docker-compose -f ci-composer.yml up --build -d
+    - docker-compose -f ci-composer.yml run node npm install -s
+    - docker-compose -f ci-composer.yml exec -T api bundle exec rake test
+    - docker-compose -f ci-composer.yml run node npm run test-all
+    - docker-compose -f ci-composer.yml down
+

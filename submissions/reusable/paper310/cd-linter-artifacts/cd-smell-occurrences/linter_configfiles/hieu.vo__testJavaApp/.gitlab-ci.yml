@@ -1,0 +1,76 @@
+#image: maven:3.5.2-jdk-8
+#
+#build:
+#  script: "mvn install -B"
+#
+#stages:
+#  - build
+#  - test
+#  - staging
+#
+#build:
+#  stage: build
+#  script: "mvn -U -DskipTests clean package"
+#
+#test:
+#  stage: test
+#  script: "mvn -U clean   test"
+#  environment:
+#      name: test
+#
+#
+#test:
+#  stage: test
+#  script: "mvn -U clean   test"
+#  environment:
+#      name: test
+
+
+image: docker:latest
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay
+  SPRING_PROFILES_ACTIVE: gitlab-ci
+
+
+stages:
+  - build
+  - package
+  - deploy
+
+maven-build:
+  image: maven:3-jdk-8
+  stage: build
+  script: "mvn clean package -B"
+  artifacts:
+    paths:
+      - target/*.jar
+
+docker-build:
+  stage: package
+  script:
+  - docker build -t registry.gitlab.com/hieu.vo/testjavaapp .
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  - docker push registry.gitlab.com/hieu.vo/testjavaapp
+
+k8s-deploy:
+  image: google/cloud-sdk
+  stage: deploy
+  script:
+  - echo "$GOOGLE_KEY" > key.json
+  - gcloud auth activate-service-account --key-file key.json
+  - gcloud config set compute/zone asia-southeast1-a
+  - gcloud config set project testjavaapp-210103
+#  - gcloud config set container/use_client_certificate True
+  - gcloud container clusters get-credentials test-kubernetes-cluster
+  - kubectl delete secret registry.gitlab.com 2>/dev/null || echo "secret does not exist"
+  - kubectl create secret docker-registry registry.gitlab.com --docker-server="$CI_REGISTRY" --docker-username=$CI_REGISTRY_USER --docker-password=$CI_REGISTRY_PASSWORD --docker-email="$GITLAB_USER_EMAIL"
+  - kubectl apply -f deployment.yml
+  environment:
+    name: staging
+    url: https://example.staging.com
+  only:
+  - master
+

@@ -1,0 +1,125 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<artifactId>greenpepper-extensions-selenium2</artifactId>
+	<packaging>jar</packaging>
+	<name>GreenPepper Extensions Selenium2</name>
+
+	<parent>
+		<groupId>com.github.strator-dev.greenpepper</groupId>
+		<artifactId>greenpepper-extensions-parent</artifactId>
+		<version>4.2.5-SNAPSHOT</version>
+	</parent>
+
+	<properties>
+		<selenium.version>3.8.1</selenium.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.github.strator-dev.greenpepper</groupId>
+			<artifactId>greenpepper-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.inject</groupId>
+			<artifactId>guice</artifactId>
+			<version>4.1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>24.0-jre</version>
+		</dependency>
+		<dependency>
+			<groupId>org.seleniumhq.selenium</groupId>
+			<artifactId>selenium-java</artifactId>
+			<version>${selenium.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.seleniumhq.selenium</groupId>
+			<artifactId>htmlunit-driver</artifactId>
+			<version>2.29.0</version>
+		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.github.bonigarcia</groupId>
+			<artifactId>webdrivermanager</artifactId>
+			<version>2.1.0</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>com.github.strator-dev.greenpepper</groupId>
+				<artifactId>greenpepper-maven-plugin</artifactId>
+				<version>${project.version}</version>
+				<configuration>
+					<source>1.5</source>
+					<target>1.5</target>
+					<testFailureIgnore>true</testFailureIgnore>
+					<fixtureSourceDirectory>src/fixture/java</fixtureSourceDirectory>
+					<fixtureOutputDirectory>target/fixture-test-classes</fixtureOutputDirectory>
+					<systemUnderDevelopment>com.greenpepper.extensions.selenium2.google.GoogleSearchSystemUnderDevelopment
+					</systemUnderDevelopment>
+					<systemUnderDevelopmentArgs>htmlunit</systemUnderDevelopmentArgs>
+					<resources>
+						<resource>
+							<directory>src/fixture/resources</directory>
+						</resource>
+					</resources>
+					<repositories>
+						<repository>
+							<name>greenpepper</name>
+							<type>com.greenpepper.repository.FileSystemRepository</type>
+							<root>${basedir}/src/fixture</root>
+							<suites>
+								<suite>specifications</suite>
+							</suites>
+						</repository>
+					</repositories>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<id>greenpepper</id>
+						<goals>
+							<goal>compile</goal>
+							<goal>resources</goal>
+							<goal>fixture-jar</goal>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.bsc.maven</groupId>
+				<artifactId>confluence-reporting-maven-plugin</artifactId>
+				<configuration>
+					<parentPageTitle>GreenPepper Maven Plugin</parentPageTitle>
+					<title>Selenium extension</title>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+	<reporting>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-plugin-plugin</artifactId>
+				<version>3.4</version>
+			</plugin>
+		</plugins>
+	</reporting>
+
+</project>
+

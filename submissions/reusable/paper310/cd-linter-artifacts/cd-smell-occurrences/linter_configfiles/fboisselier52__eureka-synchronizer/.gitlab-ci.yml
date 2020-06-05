@@ -1,0 +1,32 @@
+stages:
+  - build
+  - publish
+
+npm-lint:
+  image: node:10-alpine
+  stage: build
+  script:
+    - npm install
+    - npm run lint
+
+npm-build:
+  image: node:10-alpine
+  stage: build
+  artifacts:
+    expire_in: 30 mins
+    paths: 
+      - dist
+  script:
+    - npm install
+    - npm run build
+
+npm-publish:
+  image: node:10-alpine
+  stage: publish
+  only:
+    - tags
+  script:
+    - npm version --allow-same-version --no-git-tag-version ${CI_COMMIT_REF_NAME}
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+    - npm publish
+

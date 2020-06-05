@@ -1,0 +1,119 @@
+# Copyright (C) 2016  Gerald Fiedler
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+stages:
+  - build
+  - publish
+  - badge
+
+cache:
+  paths:
+    - /root/.m2/repository/
+
+build:
+  stage: build
+  image: maven:3.3.9-jdk-8
+  script:
+    - git clone https://gitlab.com/ixilon/nukkit.git
+    - cd nukkit
+    - git submodule update --init
+    - mvn clean
+    - mvn install
+    - cd -
+    - mvn -f helper-pom.xml package
+    - CLASSPATH=nukkit/target/nukkit-1.0-SNAPSHOT.jar:target/nukkit-helper-0.0.1-SNAPSHOT.jar
+    - java -cp $CLASSPATH de.ixilon.nukkit.NukkitProtocol | tee nukkit/target/PROTOCOL
+    - java -cp $CLASSPATH de.ixilon.nukkit.NukkitVersion  | tee nukkit/target/VERSION
+  artifacts:
+    expire_in: 1h
+    paths:
+      - nukkit/target/nukkit-1.0-SNAPSHOT.jar
+      - nukkit/target/VERSION
+      - nukkit/target/PROTOCOL
+
+ossrh:
+  stage: publish
+  environment: ossrh
+  image: maven:3.3.9-jdk-8
+  script:
+  - VERSION=$(cat nukkit/target/VERSION)
+  - >
+    mvn deploy:deploy-file
+    --settings deploy-settings.xml
+    -D url=https://oss.sonatype.org/content/repositories/snapshots
+    -D repositoryId=ossrh
+    -D file=nukkit/target/nukkit-1.0-SNAPSHOT.jar
+    -D groupId=de.ixilon
+    -D artifactId=nukkit
+    -D version=${VERSION}-SNAPSHOT
+    -D packaging=jar
+    -D generatePom=true
+    -D generatePom.description="Nukkit is a Nuclear-Powered Server Software For Minecraft Pocket Edition."
+    -D generatePom.url="https://nukkit.io"
+    -D uniqueVersion=false
+
+gitlab:
+  stage: publish
+  environment: gitlab
+  image: docker
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE .
+    - docker tag  $CI_REGISTRY_IMAGE $CI_REGISTRY_IMAGE:$(cat nukkit/target/VERSION)
+    - docker tag  $CI_REGISTRY_IMAGE $CI_REGISTRY_IMAGE:$(cat nukkit/target/PROTOCOL)
+    - docker push $CI_REGISTRY_IMAGE
+  only:
+    - master
+
+dockerhub:
+  stage: publish
+  environment: dockerhub
+  image: docker
+  services:
+    - docker:dind
+  script:
+    - docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD
+    - docker build -t $DOCKERHUB_IMAGE .
+    - docker tag  $DOCKERHUB_IMAGE $DOCKERHUB_IMAGE:$(cat nukkit/target/VERSION)
+    - docker tag  $DOCKERHUB_IMAGE $DOCKERHUB_IMAGE:$(cat nukkit/target/PROTOCOL)
+    - docker push $DOCKERHUB_IMAGE
+  only:
+    - master
+
+badge:
+  stage: badge
+  image: node
+  script:
+    - VERSION=$(cat nukkit/target/VERSION)
+    - PROTOCOL=$(cat nukkit/target/PROTOCOL)
+    - git clone https://gitlab.com/ixilon/nukkit-docker.git
+    - cd nukkit-docker
+    - npm install -g git-credential-envvar
+    - git config credential.helper envvar
+    - git config user.name  $GITCREDENTIALUSERNAME
+    - git config user.email $GITCREDENTIALEMAIL
+    - git checkout badges
+    - wget -O protocol.png https://img.shields.io/badge/protocol-${PROTOCOL}-blue.png
+    - git add protocol.png
+    - git commit -m "Update protocol ${PROTOCOL} [skip ci]" || echo "No changes to commit"
+    - wget -O version.png https://img.shields.io/badge/version-${VERSION}-blue.png
+    - git add version.png
+    - git commit -m "Update version ${VERSION} [skip ci]" || echo "No changes to commit"
+    - git push
+  only:
+    - master
+

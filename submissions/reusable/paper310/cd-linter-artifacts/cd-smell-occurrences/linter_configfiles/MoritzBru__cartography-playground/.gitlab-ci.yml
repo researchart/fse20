@@ -1,0 +1,21 @@
+image: ruby:2.5
+
+variables:
+  JEKYLL_ENV: production
+  LC_ALL: C.UTF-8
+
+before_script:
+  - curl -sL https://deb.nodesource.com/setup_10.x | bash
+  - apt-get install -y nodejs
+  - bundle install
+
+pages:
+  stage: deploy
+  script:
+  - bundle exec jekyll build -d public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

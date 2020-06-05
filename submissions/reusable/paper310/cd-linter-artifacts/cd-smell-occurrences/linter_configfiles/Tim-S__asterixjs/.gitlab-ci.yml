@@ -1,0 +1,47 @@
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  image: node:8.11.2-alpine
+  script:
+    - yarn install --progress=false
+    - yarn build
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - dist
+
+test:
+  stage: test
+  image: node:8.11.2-alpine
+  script:
+    - yarn install --progress=false
+    - yarn test
+
+build-example:
+  stage: test
+  image: node:8.11.2-alpine
+  script:
+    - yarn install --progress=false
+    - yarn build-example
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - example
+
+pages:
+  image: alpine
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r example .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

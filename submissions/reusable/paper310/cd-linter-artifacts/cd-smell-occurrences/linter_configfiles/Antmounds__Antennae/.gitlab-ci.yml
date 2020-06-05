@@ -1,0 +1,216 @@
+# Antennae GitLab configuration
+# 
+.job_template: &build_defaults  # Hidden key that defines an anchor named 'build_defaults'
+  image: docker:stable-git
+  services:
+    - docker:dind
+# 
+.job_template: &deploy_defaults  # Hidden key that defines an anchor named 'build_defaults'
+  image: antmounds/cd-builder
+  services:
+    - docker:dind
+
+variables:
+  # When using dind, it's wise to use the overlayfs driver for improved performance.
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+  USERNAME: antmounds
+  IMAGE_NAME: antennae
+  AWS_IMAGE_URI: 166964003196.dkr.ecr.us-east-1.amazonaws.com/${IMAGE_NAME}
+  DOCKERHUB_IMAGE_NAME: ${USERNAME}/${IMAGE_NAME}
+  QUAY_IMAGE_NAME: quay.io/${USERNAME}/${IMAGE_NAME}
+  APP_IMAGE_VERSION: 1
+  APP_RELEASE: lite
+  APP_VERSION: "1.0"
+
+stages:
+  - build
+  - push
+  - deploy
+
+build_app:
+  <<: *build_defaults
+  stage: build
+  cache:
+    paths: 
+      - image.tar
+    policy: push
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script: |
+    echo "Building image..."
+    DEV=$(echo $GITLAB_USER_NAME | tr '[:upper:]' '[:lower:]')
+    docker pull $CI_REGISTRY_IMAGE/dev:$DEV || true
+    docker build --rm -f docker/Dockerfile --cache-from ${CI_REGISTRY_IMAGE}/dev:$DEV -t $CI_REGISTRY_IMAGE -t $CI_REGISTRY_IMAGE/dev --build-arg BUILD=$CI_PIPELINE_IID --build-arg BUILD_DATE="$(date --utc +%FT%TZ)" --build-arg METEOR_SETTINGS="$(cat src/tools/settings.json)" --build-arg VCS_REF="$(git rev-parse --short HEAD)" --build-arg RELEASE=$APP_RELEASE --build-arg VERSION=$APP_VERSION .
+    docker save $CI_REGISTRY_IMAGE -o image.tar
+    docker tag $CI_REGISTRY_IMAGE $CI_REGISTRY_IMAGE:$CI_PIPELINE_IID
+    docker tag $CI_REGISTRY_IMAGE/dev $CI_REGISTRY_IMAGE/dev:$DEV
+    docker push $CI_REGISTRY_IMAGE/dev
+  only:
+    - master
+    - develop
+    - cloud
+    - lite
+
+push_aws:
+  <<: *deploy_defaults
+  stage: push
+  cache:
+    paths: 
+      - image.tar
+    policy: pull
+  variables:
+    AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+  before_script:
+    # authenticate with the AWS ECR registry
+    - $(aws ecr get-login --no-include-email --region us-east-1)
+    - docker load -i image.tar
+  script: |
+    echo "Pushing app to AWS Elastic Container Registry"
+    docker tag $CI_REGISTRY_IMAGE $AWS_IMAGE_URI
+    docker tag $AWS_IMAGE_URI $AWS_IMAGE_URI:$APP_IMAGE_VERSION
+    docker tag $AWS_IMAGE_URI $AWS_IMAGE_URI:$APP_RELEASE
+    docker tag $AWS_IMAGE_URI $AWS_IMAGE_URI:$CI_PIPELINE_IID
+    docker push $AWS_IMAGE_URI
+  only:
+    - master
+    - develop
+    - cloud
+    - lite
+
+push_gitlab:
+  <<: *build_defaults
+  stage: push
+  before_script:
+    - DEV=$(echo $GITLAB_USER_NAME | tr '[:upper:]' '[:lower:]')
+    - echo $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin registry.gitlab.com
+    - docker pull $CI_REGISTRY_IMAGE/dev:$DEV || true
+  script: |
+    echo "Pushing app to Gitlab registry"
+    docker tag $CI_REGISTRY_IMAGE/dev:$DEV $CI_REGISTRY_IMAGE
+    docker tag $CI_REGISTRY_IMAGE $CI_REGISTRY_IMAGE:$APP_IMAGE_VERSION
+    docker tag $CI_REGISTRY_IMAGE $CI_REGISTRY_IMAGE:$APP_RELEASE
+    docker tag $CI_REGISTRY_IMAGE $CI_REGISTRY_IMAGE:$CI_PIPELINE_IID
+    docker push $CI_REGISTRY_IMAGE
+  only:
+    - master
+    - cloud
+    - lite
+
+push_dockerhub:
+  <<: *build_defaults
+  stage: push
+  cache:
+    paths: 
+      - image.tar
+    policy: pull
+  before_script:
+    - echo $DOCKER_HUB_PASSWORD | docker login -u $DOCKER_HUB_USERNAME --password-stdin
+    - docker load -i image.tar || true
+  script: 
+    - echo "Pushing app to Dockerhub registry"
+    - docker tag $CI_REGISTRY_IMAGE $DOCKERHUB_IMAGE_NAME
+    - docker tag $DOCKERHUB_IMAGE_NAME $DOCKERHUB_IMAGE_NAME:$APP_IMAGE_VERSION
+    - docker tag $DOCKERHUB_IMAGE_NAME $DOCKERHUB_IMAGE_NAME:$APP_RELEASE
+    - docker push $DOCKERHUB_IMAGE_NAME
+  only:
+    - master
+    - lite
+
+push_quay:
+  <<: *build_defaults
+  stage: push
+  cache:
+    paths: 
+      - image.tar
+    policy: pull
+  before_script:
+    # - echo $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin registry.gitlab.com
+    # - docker pull $CI_REGISTRY_IMAGE || true
+    - echo $QUAY_PASSWORD | docker login -u $QUAY_USERNAME --password-stdin quay.io
+    - docker load -i image.tar || true
+  script: |
+    echo "Pushing image to Quay registry..."
+    docker tag $CI_REGISTRY_IMAGE $QUAY_IMAGE_NAME
+    docker tag $QUAY_IMAGE_NAME $QUAY_IMAGE_NAME:$APP_IMAGE_VERSION
+    docker tag $QUAY_IMAGE_NAME $QUAY_IMAGE_NAME:$APP_RELEASE
+    docker push $QUAY_IMAGE_NAME
+  only:
+    - master
+    - lite
+
+deploy_dev:
+  <<: *deploy_defaults
+  stage: deploy
+  environment:
+    name: dev
+    url: http://dev.getantennae.com
+  script: |
+    aws --version
+    docker --version
+    docker-compose --version
+    terraform --version
+    cd infrastructure/aws-ecs
+    terraform init -backend=true -input=false -lock=true -upgrade=true
+    terraform plan -input=false -lock=true -refresh=true
+    terraform apply -input=false -lock=true -refresh=true -auto-approve -target=aws_ecs_service.app_service_dev -var app_version_dev=${CI_PIPELINE_IID}
+  only:
+    - develop
+
+deploy_new:
+  <<: *deploy_defaults
+  stage: deploy
+  environment:
+    name: staging
+    url: http://new.getantennae.com
+  script: |
+    aws --version
+    docker --version
+    docker-compose --version
+    terraform --version
+    cd infrastructure/aws-ecs
+    terraform init -backend=true -input=false -lock=true -upgrade=true
+    terraform plan -input=false -lock=true -refresh=true
+    terraform apply -input=false -lock=true -refresh=true -auto-approve -target=aws_ecs_service.app_service_warm -var app_version_warm=${CI_PIPELINE_IID}
+  only:
+    - cloud
+
+deploy_app:
+  <<: *deploy_defaults
+  stage: deploy
+  environment:
+    name: production
+    url: http://app.getantennae.com
+  script: |
+    aws --version
+    docker --version
+    docker-compose --version
+    terraform --version
+    cd infrastructure/aws-ecs
+    terraform init -backend=true -input=false -lock=true -upgrade=true
+    terraform plan -input=false -lock=true -refresh=true
+    terraform apply -input=false -lock=true -refresh=true -auto-approve -target=aws_ecs_service.app_service_hot -var app_version_hot=${CI_PIPELINE_IID}
+  when: manual
+  only:
+    - cloud
+
+deploy_infrastructure:
+  <<: *deploy_defaults
+  stage: deploy
+  variables:
+    AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+    AWS_DEFAULT_REGION: us-east-1
+  script: |
+    cd infrastructure/aws-ecs
+    terraform init -backend=true -input=false -lock=true -upgrade=true
+    terraform plan -input=false -lock=true -refresh=true
+    #terraform apply -input=false -lock=true -refresh=true -auto-approve -target=resource -var app_version_warm=${CI_PIPELINE_IID}
+  environment:
+    name: terraform
+  when: manual
+  only:
+    changes:
+      - infrastructure/*
+

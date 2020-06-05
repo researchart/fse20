@@ -1,0 +1,63 @@
+image: node:9.3.0
+
+before_script:
+  - npm install --progress=false
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  script:
+    - npm run clear
+    - npm run build -- --production
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - dist
+
+lint:
+  stage: test
+  script:
+    - npm run lint
+
+test:
+  stage: test
+  script:
+    - npm run test
+
+deploy:
+  stage: deploy
+  dependencies:
+    - build
+  only:
+    - tags
+  script:
+    - cp @types/i18next-tui.d.ts index.d.ts
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+    - npm publish
+
+pages:
+  stage: deploy
+  dependencies:
+    - build
+  only:
+    - master
+    - tags
+  script:
+    - cp -R demo public
+    - cp -R dist public/dist
+    - mkdir -p ./public/node_modules/react/umd/
+    - mkdir -p ./public/node_modules/react-dom/umd/
+    - cp ./node_modules/react/umd/react.development.js ./public/node_modules/react/umd/react.development.js
+    - cp ./node_modules/react-dom/umd/react-dom.development.js ./public/node_modules/react-dom/umd/react-dom.development.js
+  artifacts:
+    paths:
+      - public
+

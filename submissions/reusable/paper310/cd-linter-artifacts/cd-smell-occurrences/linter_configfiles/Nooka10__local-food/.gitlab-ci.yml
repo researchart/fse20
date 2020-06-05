@@ -1,0 +1,156 @@
+stages:
+- build
+- test
+- release
+- deploy
+
+variables:
+  # We build and run test directly after the build of the test image
+  CONTAINER_TEST_IMAGE_API: gcr.io/${GC_PROJECT_ID}/api:$CI_COMMIT_REF_SLUG
+  CONTAINER_RELEASE_IMAGE_API: gcr.io/${GC_PROJECT_ID}/api:latest
+  CONTAINER_TEST_IMAGE_FRONTEND: gcr.io/${GC_PROJECT_ID}/frontend:$CI_COMMIT_REF_SLUG
+  CONTAINER_RELEASE_IMAGE_FRONTEND: gcr.io/${GC_PROJECT_ID}/frontend:latest
+
+###########
+###BUILD###
+###########
+build-api:
+  stage: build
+  image: docker:stable
+  services:
+  - docker:dind
+
+  script:
+  - docker login -u _json_key -p "${GC_KEY}" https://gcr.io
+  - docker build --pull -t $CONTAINER_TEST_IMAGE_API ./API/
+  - docker push $CONTAINER_TEST_IMAGE_API
+  only:
+  - prod
+  - master
+  - API
+
+build-frontend:
+  stage: build
+  image: docker:stable
+  services:
+  - docker:dind
+  script:
+  - docker login -u _json_key -p "${GC_KEY}" https://gcr.io
+  - docker build --pull -t $CONTAINER_TEST_IMAGE_FRONTEND ./FrontEnd
+  - docker push $CONTAINER_TEST_IMAGE_FRONTEND
+  only:
+  - 10-site-web-creation-des-pages-principales-carte
+  - prod
+  - master
+
+##########
+###TEST###
+##########
+test-api:
+  stage: test
+  image: node:8.15.0-jessie
+  script:
+  - cd ./API
+  - npm i npm@latest -g
+  - npm config set python /usr/bin/python
+  - npm install
+  - npm install run-rs
+  - npm rebuild bcrypt --build-from-source
+  - node ./node_modules/run-rs/ -v 4.0.0 -h 127.0.0.1 -q &
+  - sleep 30 && npm test
+  only:
+  - prod
+  - master
+  - API
+
+## Test quality
+code_quality-api:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - cd ./API
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    reports:
+      codequality: [gl-code-quality-report.json]
+  only:
+    - prod
+
+
+## container_scanning
+# https://docs.gitlab.com/ee/ci/examples/container_scanning.html
+
+## dependency_scanning
+# https://docs.gitlab.com/ee/ci/examples/dependency_scanning.html
+
+## DAST
+#https://docs.gitlab.com/ee/ci/examples/dast.html
+
+###############
+### RELEASE ###
+###############
+release-image-api:
+  stage: release
+  image: docker:stable
+  services:
+  - docker:dind
+  script:
+  - docker login -u _json_key -p "${GC_KEY}" https://gcr.io
+  - docker pull $CONTAINER_TEST_IMAGE_API
+  - docker tag $CONTAINER_TEST_IMAGE_API $CONTAINER_RELEASE_IMAGE_API
+  - docker push $CONTAINER_RELEASE_IMAGE_API
+  only:
+  - prod
+
+# Need probably 2 docker file (test and prod)
+release-image-frontend:
+  stage: release
+  image: docker:stable
+  services:
+  - docker:dind
+  script:
+  - docker login -u _json_key -p "${GC_KEY}" https://gcr.io
+  - docker pull $CONTAINER_TEST_IMAGE_FRONTEND
+  - docker tag $CONTAINER_TEST_IMAGE_FRONTEND $CONTAINER_RELEASE_IMAGE_FRONTEND
+  - docker push $CONTAINER_RELEASE_IMAGE_FRONTEND
+  only:
+  - prod
+
+##############
+### DEPLOY ###
+##############
+deploy-api:
+  stage: deploy
+  image: google/cloud-sdk:alpine
+  script:
+  - gcloud components install kubectl
+  - gcloud auth activate-service-account --key-file=<(echo "${GC_KEY}")
+  - gcloud container clusters get-credentials ${GC_CLUSTER_ID} --zone ${GC_ZONE} --project ${GC_PROJECT_ID}
+  - kubectl delete deployment/api-deployment --ignore-not-found=true
+  - kubectl apply -f ./Deployment/API/api-service.yml
+  - kubectl apply -f ./Deployment/API/api-deployment.yml
+  only:
+  - prod
+
+deploy-frontend:
+  stage: deploy
+  image: google/cloud-sdk:alpine
+  script:
+  - gcloud components install kubectl
+  - gcloud auth activate-service-account --key-file=<(echo "${GC_KEY}")
+  - gcloud container clusters get-credentials ${GC_CLUSTER_ID} --zone ${GC_ZONE} --project ${GC_PROJECT_ID}
+  - kubectl delete deployment/frontend-deploy --ignore-not-found=true
+  - kubectl apply -f ./Deployment/Frontend/frontend-service.yml
+  - kubectl apply -f ./Deployment/Frontend/frontend-deploy.yml
+  only:
+  - prod
+

@@ -1,0 +1,70 @@
+stages:
+  - upgrade
+  - build
+  - deploy
+
+image: docker:stable
+
+services:
+  - docker:dind
+
+variables:
+  CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+  DOCKER_DRIVER: overlay2
+  GIT_SUBMODULE_STRATEGY: recursive
+
+upgrade:
+  stage: upgrade
+  before_script:
+    - apk update && apk add git python3 python3-dev npm
+    - pip3 install --upgrade pip && pip3 install boto3
+    - npm i json2md
+  script:
+    # download docs project
+    - git clone -b $CI_COMMIT_REF_NAME --single-branch $CI_PROJECT_URL
+    # update latest images page
+    - python3 scripts/populate-json.py $AWS_ACCESS_KEY $AWS_SECRET_KEY
+    - node scripts/json2md.js download-images.json > docs/content/download-images.md
+    - node scripts/json2md.js pantavisor-ci-table.json > docs/content/pantavisor-ci-table.md
+    # push lates images page to gitlab exit when nothing changes
+    - cd docs
+    - git config --global user.name "Aníbal Portero Hermida"
+    - git config --global user.email "anibal.portero@pantacor.com"
+    - git add content/download-images.md
+    - git add content/pantavisor-ci-table.md
+    - git commit -m "auto commit of download-images.md and pantavisor-ci-table.md" || exit 0
+    - git push http://anibalportero:${PERSONAL_ACCESS_TOKEN}@$CI_SERVER_HOST/$CI_PROJECT_PATH HEAD:$CI_COMMIT_REF_NAME
+  only:
+    - triggers
+
+build:
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker run --rm --privileged multiarch/qemu-user-static:register || true
+  script:
+    - docker pull $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG || true
+    - docker build --build-arg AWS_ACCESS_KEY=$AWS_ACCESS_KEY --build-arg AWS_SECRET_KEY=$AWS_SECRET_KEY -f Dockerfile --no-cache --tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF --tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG .
+    - test -n "$CI_BUILD_TAG" && docker tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF $CONTAINER_IMAGE:$CI_BUILD_TAG || true
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG
+    - test -n "$CI_BUILD_TAG" && docker push $CONTAINER_IMAGE:$CI_BUILD_TAG || true
+  only:
+    - pushes
+    - tags
+
+deploy-prod:
+  stage: deploy
+  image: alpine:3.7
+  script:
+    - if [ "$CI_COMMIT_REF_NAME" != "master" ]; then exit 0; fi
+    - apk update  && apk add --no-cache curl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl && mv ./kubectl /usr/local/bin/kubectl
+    - mkdir -p $HOME/.kube
+    - echo -n $KUBE_CONFIG_PROD | base64 -d > $HOME/.kube/config
+    - kubectl -n docs set image deploy/pantahub-docs pantahub-docs=$CONTAINER_IMAGE:$CI_BUILD_REF_SLUG-$CI_BUILD_REF
+  only:
+    - pushes
+    - tags
+

@@ -1,0 +1,59 @@
+image: openjdk:8-jdk
+
+stages:
+  - setup
+  - build
+  - deploy
+
+prepare:
+  stage: setup
+  cache:
+    key: androidsdk
+    paths:
+      - android-sdk-linux
+    policy: pull
+  artifacts:
+    paths:
+      - android-sdk-linux
+  script:
+    - apt-get --quiet update --yes
+    - apt-get --quiet install --yes wget tar unzip lib32stdc++6 lib32z1 unzip
+    - wget --quiet --output-document=android-sdk.zip https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip
+    - unzip -q android-sdk.zip -d android-sdk-linux
+    - echo 'y' | android-sdk-linux/tools/bin/sdkmanager "build-tools;27.0.3"
+    - echo 'y' | android-sdk-linux/tools/bin/sdkmanager "build-tools;26.0.2"
+    - echo 'y' | android-sdk-linux/tools/bin/sdkmanager "extras;android;m2repository"
+    - echo 'y' | android-sdk-linux/tools/bin/sdkmanager "extras;google;m2repository"
+    - echo 'y' | android-sdk-linux/tools/bin/sdkmanager "extras;google;google_play_services"
+    - echo 'y' | android-sdk-linux/tools/bin/sdkmanager "platform-tools"
+    - echo 'y' | android-sdk-linux/tools/bin/sdkmanager "platforms;android-27"
+
+build:
+  stage: build
+  artifacts:
+    paths:
+      - NavigateAR/app/build/outputs/apk/debug
+  script:
+    - export ANDROID_HOME=$PWD/android-sdk-linux
+    - export PATH=$PATH:$PWD/android-sdk-linux/platform-tools/
+    - cd $CI_PROJECT_DIR/NavigateAR
+    # Prevent Gradle from downloading the Android SDK since we've already downloaded it
+    - echo "android.builder.sdkDownload=false" >> gradle.properties
+    - chmod +x ./gradlew
+    - ./gradlew assembleDebug
+
+deploy:
+  stage: deploy
+  only:
+    - master@asu-capstone-team-6/ar-navigator
+  script:
+    - apt-get --quiet install --yes wget
+    # Download gdrive
+    - wget --quiet --output-document=gdrive "https://docs.google.com/uc?id=0B3X9GlR6EmbnQ0FtZmJJUXEyRTA&export=download"
+    - chmod +x gdrive
+    # Create the key file to give gdrive access to Google Drive
+    - mkdir $HOME/.gdrive
+    - echo $GDRIVE_ACCESS_CREDS > $HOME/.gdrive/token_v2.json
+    - ./gdrive update --name NavigateAR.apk 1YAQsiFWQ4aNq1oL095VeJu2zjyvhef7u NavigateAR/app/build/outputs/apk/debug/app-debug.apk
+
+

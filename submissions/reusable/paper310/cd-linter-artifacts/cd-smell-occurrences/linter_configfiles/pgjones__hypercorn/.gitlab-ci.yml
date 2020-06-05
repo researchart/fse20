@@ -1,0 +1,69 @@
+py37:
+  image: python:3.7
+  script:
+  - pip install tox
+  - tox -e docs,format,mypy,py37,pep8,setuppy,manifest
+
+py38:
+  image: python:3.8
+  script:
+  - pip install tox
+  - tox -e py38
+
+pages:
+  image: python:3.7
+  script:
+  - pip install sphinx solar_theme
+  - python setup.py install
+  - rm -rf docs/source && sphinx-apidoc -e -f -o docs/source/ src/hypercorn/
+  - cd docs/ && make html && cd ../
+  - mv docs/_build/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+.h2spec-script: &h2spec-script
+  image: python:3.7
+  script:
+  - python3 -m pip install trio .
+  - cd compliance/h2spec && nohup hypercorn --keyfile key.pem --certfile cert.pem -k $WORKER_CLASS server:App &
+  - wget https://github.com/summerwind/h2spec/releases/download/v2.2.0/h2spec_linux_amd64.tar.gz
+  - tar -xvf h2spec_linux_amd64.tar.gz
+  - sleep 10
+  - ./h2spec -tk -h 127.0.0.1 -p 8000 -o 10
+
+h2spec:
+  <<: *h2spec-script
+  variables:
+    WORKER_CLASS: "asyncio"
+
+h2spec-trio:
+  <<: *h2spec-script
+  variables:
+    WORKER_CLASS: "trio"
+
+.autobahn-script: &autobahn-script
+  image: python:2.7.16-alpine3.10
+  script:
+  - apk --update add build-base libressl libressl-dev ca-certificates libffi-dev python3 python3-dev
+  - pip install cryptography==2.3.1 autobahntestsuite
+  - python3 -m pip install trio .
+  - cd compliance/autobahn && nohup hypercorn -k $WORKER_CLASS server:App &
+  - while ! netstat -l -t | grep -q 8000; do sleep 1; done
+  - cd compliance/autobahn && wstest -m fuzzingclient && python summarise.py
+  artifacts:
+    paths:
+    - compliance/autobahn/reports/servers/
+
+autobahn:
+  <<: *autobahn-script
+  variables:
+    WORKER_CLASS: "asyncio"
+
+autobahn-trio:
+  <<: *autobahn-script
+  variables:
+    WORKER_CLASS: "trio"
+

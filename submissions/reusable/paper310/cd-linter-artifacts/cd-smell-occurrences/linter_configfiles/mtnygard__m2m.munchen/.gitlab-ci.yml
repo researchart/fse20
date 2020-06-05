@@ -1,0 +1,62 @@
+image: golang:latest
+services:
+  - docker:dind
+
+stages:
+  - build
+  - deploy
+  - restart
+
+variables:
+  S3_BUCKET_NAME: "_your_bucket_name_here_"
+  REPO_NAME: gitlab.com/_your_gitlab_userid_here_/m2m.munchen
+  STUDENT_ID: "_your_student_id_here_"
+
+lobster-build:
+  image: ruby:latest
+  stage: build
+  script: 
+    - cd lobsters
+    - bundle package
+    - cd .. 
+    - tar cvzf lobsters.tgz lobsters
+  artifacts:
+    paths:
+      - lobsters.tgz
+
+request-build:
+  image: maven:3.5.3-jdk-8-alpine
+  stage: build
+  script: "cd m2m.request && mvn package"
+  artifacts:
+    paths:
+      - m2m.request/target/*.jar
+
+router-build:
+  image: node:8.11.2-alpine
+  stage: build
+  script:
+    - cd m2m.router
+    - npm install
+    - tar czvf ../router.tgz *
+  artifacts:
+    paths:
+        - router.tgz
+deploy:
+  image: python:3.6-slim
+  stage: deploy
+  script:
+    - pip install awscli
+    - aws s3 cp ./lobsters.tgz             s3://$S3_BUCKET_NAME/
+    - aws s3 cp ./router.tgz               s3://$S3_BUCKET_NAME/
+    - aws s3 cp ./m2m.request/target/*.jar s3://$S3_BUCKET_NAME/
+
+restart:
+  image: python:3.6-slim
+  stage: restart
+  script:
+    - pip install awscli
+    - sh ./infrastructure/aws/bin/recycle-asg.sh eu-central-1 asg-lobsters-$STUDENT_ID
+    - sh ./infrastructure/aws/bin/recycle-asg.sh eu-central-1 asg-request-$STUDENT_ID
+    - sh ./infrastructure/aws/bin/recycle-asg.sh eu-central-1 asg-router-$STUDENT_ID
+

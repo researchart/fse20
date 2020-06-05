@@ -1,0 +1,36 @@
+image: node:alpine
+
+stages:
+  - test
+  - deploy
+
+
+.testing: &testing
+  stage: test
+  before_script:
+    - npm install
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+
+unit test:
+  <<: *testing
+  script:
+    - npm run test -- --color
+
+lint:
+  <<: *testing
+  script:
+    - npm run lint
+
+deploy version:
+  stage: deploy
+  before_script:
+    - echo $NPMRC > ./.npmrc
+  script:
+    - 'sed -ie "s/\"version\": \"[0-9]\{1,10\}\.[0-9]\{1,10\}\.[0-9]\{1,10\}\(-\(alpha\|beta\)\{1\}\)\{0,1\}\"/\"version\": \"$CI_COMMIT_TAG\"/g" package.json'
+    - npm publish
+  only:
+    - tags
+

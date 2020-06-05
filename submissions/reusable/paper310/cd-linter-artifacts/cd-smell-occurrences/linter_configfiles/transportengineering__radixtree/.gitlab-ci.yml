@@ -1,0 +1,11 @@
+tests:
+  image: nixos/nix
+  before_script:
+    - nix-env -u
+    - nix-env -i git
+    - nix-env -i wget
+    - nix-env -i bash
+  script:
+    - nix-env -i cabal-install
+    - nix-shell -A env --command 'cabal v1-test --show-details=direct'
+

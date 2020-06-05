@@ -1,0 +1,32 @@
+image: debian:stretch
+
+before_script:
+- apt-get update -yqq
+
+# Run our tests
+# 5.5/5.6 suffer from https://github.com/composer/composer/issues/6538
+#test:5.5:
+#  image: ubuntu:trusty
+#  script:
+#  - apt-get install -yqq php5 curl
+#  - curl "https://getcomposer.org/composer.phar" -o /usr/bin/composer --insecure
+#  - chmod +x /usr/bin/composer
+#  - composer install
+#  - composer test
+
+#test:5.6:
+#  image: debian:jessie
+#  script:
+#  - apt-get install -yqq php5 curl
+#  - curl "https://getcomposer.org/composer.phar" -o /usr/bin/composer
+#  - chmod +x /usr/bin/composer
+#  - composer install
+#  - composer test
+
+test:7.0:
+  image: debian:stretch
+  script:
+  - apt-get install -yqq php php-zip php-xml composer
+  - composer install
+  - composer test
+

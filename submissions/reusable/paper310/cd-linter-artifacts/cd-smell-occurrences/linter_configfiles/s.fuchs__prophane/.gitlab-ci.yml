@@ -1,0 +1,24 @@
+image: continuumio/miniconda3:latest
+
+stages:
+  - resolve_env
+  - test
+
+before_script:
+  - conda update -q -y -n base conda
+
+resolve_env:
+  stage: resolve_env
+  script:
+    - conda env create --name prophane --file environment.yaml
+
+test:
+  stage: test
+  script:
+    - ./test.sh
+  artifacts:
+    when: on_failure
+    paths:
+      - /tmp/prophane_test-
+ 
+

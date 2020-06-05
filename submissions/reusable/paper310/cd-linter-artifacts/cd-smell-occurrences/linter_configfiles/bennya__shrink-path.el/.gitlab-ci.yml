@@ -1,0 +1,38 @@
+image: bandresen/alpine-emacs
+
+before_script:
+  - cask list
+  - make cask
+  
+after_script:
+  - emacs --version | head -n 1
+
+make_build:
+ stage: build
+ # upload to later stages to save time in latter stages
+ artifacts:
+   paths:
+     - .cask/
+     - build.log
+   expire_in: 5 minutes
+ script:
+   - make build 2>&1 | tee build.log
+   - "[ $(grep ':Error:' build.log | wc -l) -eq 0 ]"
+
+make_build_warnings:
+ stage: test
+ script:
+   - cat build.log
+   - "[ $(grep ':Warning:' build.log | wc -l) -eq 0 ]"
+
+make_checkdoc:
+  stage: test
+  script:
+    - make checkdoc 2>&1 | tee checkdoc.log
+    - "[ $(grep 'Warning' checkdoc.log | wc -l) -eq 0 ]"
+
+make_test:
+ stage: test
+ script:
+   - make test
+

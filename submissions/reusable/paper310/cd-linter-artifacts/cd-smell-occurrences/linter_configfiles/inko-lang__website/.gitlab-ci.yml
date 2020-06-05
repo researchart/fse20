@@ -1,0 +1,89 @@
+---
+
+stages:
+  - docker
+  - lint
+  - automation
+  - deploy
+
+.docker: &docker
+  stage: docker
+  services:
+    - docker:dind
+  image: docker:git
+  script:
+    - ./docker/build "${CI_REGISTRY_IMAGE}:${IMAGE}" docker/${IMAGE}/Dockerfile
+
+docker:vale:
+  <<: *docker
+  variables:
+    IMAGE: vale
+  except:
+    - schedules
+  only:
+    refs:
+      - master
+    changes:
+      - docker/vale/Dockerfile
+
+lint:vale:
+  image: registry.gitlab.com/inko-lang/website:vale
+  stage: lint
+  before_script:
+    - vale --version
+  script:
+    - vale --no-wrap --sort source/
+  except:
+    - schedules
+  only:
+    changes:
+      - source/**/*.html.md
+
+deploy:
+  image: ruby:2.5-alpine
+  stage: deploy
+  variables:
+    DISTRIBUTION_ID: E2461OP4YFCUOQ
+  before_script:
+    - apk add --update build-base nodejs tzdata python3 python3-dev
+    - pip3 install awscli
+    - gem install bundler --no-doc
+    - ruby --version
+    - gem --version
+    - bundle --version
+    - bundle install --path vendor --retry=3
+  script:
+    - rake deploy
+  cache:
+    paths:
+      - vendor/ruby
+  only:
+    - master@inko-lang/website
+  environment:
+    name: production
+    url: https://inko-lang.org
+
+sponsors:
+  image: ruby:2.5-alpine
+  stage: automation
+  before_script:
+    - apk add --update build-base bash openssh imagemagick git
+    - gem install bundler --no-doc
+    - ruby --version
+    - gem --version
+    - bundle --version
+    - bundle install --path vendor --retry=3
+  cache:
+    paths:
+      - vendor/ruby
+  script:
+    - ./scripts/sponsors.sh
+  only:
+    refs:
+      - schedules
+    variables:
+      - $UPDATE_SPONSORS
+  environment:
+    name: production
+    url: https://inko-lang.org
+

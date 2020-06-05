@@ -1,0 +1,16 @@
+# important to use the slim docker image, otherwise maven resource plugin cant find the certs
+image: maven:3.5.0-jdk-9-slim
+
+stages:
+  - test
+
+test:
+  stage: test
+  # execute this job only for the master and develop branch
+  only:
+    - master
+    - develop
+  script:
+    - mvn test --batch-mode
+    - cat target/site/jacoco/index.html
+

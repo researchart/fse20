@@ -1,0 +1,34 @@
+image: node:12-alpine
+
+shellcheck:
+  stage: build
+  image: koalaman/shellcheck-alpine
+  script:
+    - shellcheck ./analysis.sh
+
+generate_stats:
+  stage: build
+  variables:
+    NODE_OPTIONS: --max_old_space_size=3584
+  script:
+    - apk add --update-cache --no-cache git jq bash gzip curl tree coreutils
+    - apk add cloc perl-moo --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/
+    - bash ./analysis.sh
+    - mv dist public
+  artifacts:
+    when: always
+    paths:
+      - public
+      - results
+      - tmp
+
+pages:
+  stage: deploy
+  script:
+    - ls public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

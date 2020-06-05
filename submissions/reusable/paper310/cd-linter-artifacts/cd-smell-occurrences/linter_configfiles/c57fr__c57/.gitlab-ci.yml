@@ -1,0 +1,9 @@
+deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    - apt-get update -qq && apt-get install -y -qq lftp
+    - chmod -R 777 ../c57/storage/*
+    - lftp -c "set ftp:passive-mode on; set ftp:auto-passive-mode no; set ftp:ssl-allow no; open -u $USERNAME,$PASSWORD $HOST; mirror -Rpnev ./ ./public_html --only-newer --ignore-time --parallel=10 --exclude-glob .git* --exclude .htaccess --exclude .git/ --exclude vendor/ --exclude .env --exclude storage/framework/ --exclude storage/logs/ --exclude storage/cms/ --exclude a/vsc"
+

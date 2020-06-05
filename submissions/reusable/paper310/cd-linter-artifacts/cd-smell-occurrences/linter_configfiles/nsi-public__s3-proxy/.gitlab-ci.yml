@@ -1,0 +1,83 @@
+build:
+  except:
+    - tags
+  image: docker:latest
+  services:
+  - docker:dind
+  stage: build
+  variables:
+    CI_APPLICATION_REPOSITORY: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG
+    CI_APPLICATION_TAG: $CI_COMMIT_SHA
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG} .
+    - docker push     ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}
+
+container_testing:
+  except:
+    - tags
+  image: docker:stable
+  stage: test
+  variables:
+    CI_APPLICATION_REPOSITORY: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG
+    CI_APPLICATION_TAG: $CI_COMMIT_SHA
+  services:
+    - docker:stable-dind
+  script:
+    - apk add npm py-pip
+    - pip install awscli
+    - npm install -g newman
+    - export AWS_ACCESS_KEY_ID=${AWS_ACCESS}
+    - export AWS_SECRET_ACCESS_KEY=${AWS_SECRET}
+    - export AWS_DEFAULT_REGION=${AWS_REGION}
+    - aws s3 sync bucket s3://${BUCKET}
+    - docker pull ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}
+    - docker run -d -p 8080:8080 -e AWS_ACCESS -e AWS_SECRET -e BUCKET -e AWS_REGION -e PATH_EXT="" -e PATH_INT="/dir1" -e DEBUG='true' ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}
+    - docker run -d -p 8081:8080 -e AWS_ACCESS -e AWS_SECRET -e BUCKET -e AWS_REGION -e PATH_EXT="/test" -e PATH_INT="/dir1" -e DEBUG='true' ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}
+    - docker run -d -p 8082:8080 -e AWS_ACCESS -e AWS_SECRET -e BUCKET -e AWS_REGION -e PATH_EXT="/test-weird/char-handling" -e PATH_INT="/dir1" -e DEBUG='true' ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}
+    - docker run -d -p 8083:8080 -e AWS_ACCESS -e AWS_SECRET -e BUCKET -e AWS_REGION -e PATH_EXT="/test-weird/char-handling" -e PATH_INT="/dir1" -e INDEX_HTML='file.txt' -e DEBUG='true' ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}
+    - echo "$(hostname -i) docker" >> /etc/hosts  # create docker dns entry for the current machine ip
+    - sleep 20 # give the containers time to start
+    - newman run tests/s3-proxy.postman_collection.json ; STATUS=$? ; for container in $(docker ps | grep -ve 'CONTAINER ID' | awk '{print $1}') ; do docker logs $container ; done ; (exit $STATUS) # display logs and exit with origional exit code
+
+push_container:
+  only:
+    refs:
+      - master
+  image: docker:latest
+  services:
+  - docker:dind
+  stage: deploy
+  variables:
+    CI_APPLICATION_REPOSITORY: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG
+    CI_APPLICATION_TAG: $CI_COMMIT_SHA
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker pull ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG}
+    - docker tag ${CI_APPLICATION_REPOSITORY}:${CI_APPLICATION_TAG} registry.gitlab.com/nsi-public/s3-proxy:latest
+    - docker push registry.gitlab.com/nsi-public/s3-proxy:latest
+
+push_tagged_container:
+  only:
+    - tags
+  except:
+    - branches
+  image: docker:latest
+  services:
+  - docker:dind
+  stage: deploy
+  script:
+    - apk add git
+    # gitlab registry
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker pull registry.gitlab.com/nsi-public/s3-proxy/master:${CI_COMMIT_SHA}
+    - docker tag registry.gitlab.com/nsi-public/s3-proxy/master:${CI_COMMIT_SHA} registry.gitlab.com/nsi-public/s3-proxy:${CI_COMMIT_TAG}
+    - docker push registry.gitlab.com/nsi-public/s3-proxy:${CI_COMMIT_TAG}
+    # Dockerhub
+    - docker login -u ${DOCKERHUB_USER} -p ${DOCKERHUB_PASS}
+    - docker tag registry.gitlab.com/nsi-public/s3-proxy/master:${CI_COMMIT_SHA} nsint/s3-proxy:${CI_COMMIT_TAG}
+    - docker tag registry.gitlab.com/nsi-public/s3-proxy/master:${CI_COMMIT_SHA} nsint/s3-proxy:latest
+    - docker push nsint/s3-proxy:${CI_COMMIT_TAG}
+    - docker push nsint/s3-proxy:latest
+    
+

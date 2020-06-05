@@ -1,0 +1,23 @@
+image: node
+
+pages:
+  variables:
+    TIDDLYWIKI_PLUGIN_PATH: plugins
+  script:
+    - npm install -g tiddlywiki
+    # Generate as index.html: single HTML demo page
+    - tiddlywiki editions/asciidoctordemo --build index
+    # Generate as .json file: drag-n-drop installer
+    - tiddlywiki editions/asciidoctordemo --render '$:/plugins/bimlas/asciidoctor' tw5-asciidoctor.json text/plain '$:/core/templates/json-tiddler'
+    # Serve a compressed version to speed up the loading
+    # https://gitlab.com/gitlab-org/gitlab-pages/merge_requests/25
+    - gzip --recursive --keep editions/asciidoctordemo
+    # GitLab needs 'public' dirname for deploy
+    # https://gitlab.com/gitlab-org/gitlab-ee/issues/1719
+    - mv editions/asciidoctordemo/output public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

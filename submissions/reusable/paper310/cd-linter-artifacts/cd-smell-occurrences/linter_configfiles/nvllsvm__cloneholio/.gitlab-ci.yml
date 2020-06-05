@@ -1,0 +1,19 @@
+stages:
+  - test
+
+image: python:alpine
+
+lint:
+  stage: test
+  script:
+    - pip install flake8
+    - flake8
+    - python setup.py check
+
+test:
+  stage: test
+  script:
+    - apk add git g++
+    - pip install '.[test]'
+    - pytest
+

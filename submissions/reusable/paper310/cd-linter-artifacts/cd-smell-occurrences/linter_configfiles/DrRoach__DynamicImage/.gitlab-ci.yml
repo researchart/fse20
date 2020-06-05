@@ -1,0 +1,9 @@
+before_script:
+- bash ci/install.sh > /dev/null
+
+test:7.0:
+  image: php:7.0
+  
+  script:
+  - vendor/bin/codecept run
+

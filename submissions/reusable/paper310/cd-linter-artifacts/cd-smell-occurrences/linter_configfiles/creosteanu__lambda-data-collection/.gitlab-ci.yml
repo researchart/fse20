@@ -1,0 +1,21 @@
+image: node:6.11.0
+
+cache:
+    paths:
+      - node_modules/
+
+build:
+    script:
+        - npm prune
+        - npm install
+        - npm run build
+        - npm prune --production
+        - npm install archiver
+        - node ci/zip $CI_COMMIT_REF_SLUG
+        - node ci/s3 lambda-data-collection $CI_COMMIT_REF_SLUG
+        - node ci/lambda lambda-data-collection $CI_COMMIT_REF_SLUG
+        - node ci/gateway lambda-data-collection $CI_COMMIT_REF_SLUG $CI_COMMIT_SHA
+    artifacts:
+        paths:
+        - ./$CI_COMMIT_REF_SLUG.zip
+

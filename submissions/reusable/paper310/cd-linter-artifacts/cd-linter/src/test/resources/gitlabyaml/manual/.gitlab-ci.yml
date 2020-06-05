@@ -1,0 +1,56 @@
+image: maven:latest
+
+build:
+  stage: build
+  before_script:
+    - mvn clean
+  script:
+    - mvn compile
+
+test:
+  stage: test
+  script:
+    - test
+  when: manual
+
+deploy-to-production:
+  stage: deploy
+  script:
+    - push production
+  when: manual
+
+foo:
+  stage: publish
+  script:
+    - push production
+  when: manual
+  
+hole:
+  stage: triage
+  script:
+    - push production
+  when: manual
+
+code-review:
+  stage: hole
+  script:
+    - push production
+  when: manual
+
+review_app:
+  stage: deploy
+  script: make deploy-app
+  environment:
+    name: review
+    on_stop: shut_env
+
+shut_env:
+  stage: random
+  variables:
+    GIT_STRATEGY: none
+  script: make delete-app
+  when: manual
+  environment:
+    name: review
+    action: stop
+

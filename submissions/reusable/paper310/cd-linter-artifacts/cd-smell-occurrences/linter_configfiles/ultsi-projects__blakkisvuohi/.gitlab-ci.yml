@@ -1,0 +1,21 @@
+image: node:10.14.1-jessie
+
+services:
+  - postgres:9.6.5-alpine
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - test
+
+mocha:
+  stage: test
+  script:
+    - npm install
+    - npm rebuild
+    - export $(cat .env_tests)
+    - node setup_test_db.js
+    - ./node_modules/mocha/bin/mocha test/*
+

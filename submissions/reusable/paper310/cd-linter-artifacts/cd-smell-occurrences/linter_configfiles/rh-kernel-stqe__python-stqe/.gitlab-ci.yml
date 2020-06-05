@@ -1,0 +1,55 @@
+---
+image: fedora:latest
+
+stages:
+    - test
+    - deploy
+
+# Jobs follow
+# NOTE: Each job requires tags: docker to assign docker runner and not get stuck
+
+linting:
+    stage: test
+    tags:
+        - docker
+    script:
+        # Need to install PIP first and some dependencies for libsan
+        - dnf install -y python3-pip python3-netifaces augeas-libs
+        # Install python syntax check tools + dependencies including libsan
+        - pip3 install flake8 pylint pexpect fmf https://gitlab.com/rh-kernel-stqe/python-libsan/repository/archive.zip?ref=master#egg=libsan
+        # We should enable Errors, Warnings and Flake errors once they are fixed
+        - flake8 --exclude .git --max-line-length=120 --ignore E,W .
+        # disabling E1120,I1101,E0611 because of some weird libsan errors
+        # a workaround is using PYTHONPATH=../python-libsan to point pylint to libsan source
+        - pylint --disable C,R,W,E1120,I1101,E0611 --max-line-length=120 --msg-template "{path} {line} \[{msg_id}({symbol}), {obj}\] {msg}" stqe tests bin/stqe-test bin/fc_tool bin/stqe-tool
+        - pylint --py3k --max-line-length=120 --msg-template "{path} {line} \[{msg_id}({symbol}), {obj}\] {msg}" stqe tests bin/stqe-test bin/fc_tool bin/stqe-tool
+
+regression:
+    stage: test
+    tags:
+        - docker
+    script:
+        - dnf install -y gcc libffi-devel python-devel openssl-devel python2-augeas pexpect findutils tox which python-setuptools rpm-build
+        # Install stqe so all required dependencies are installed
+        - python3 setup.py install
+        # Remove installation files
+        - rm -rf build/ dist/ stqe.egg-info .egg
+        # Run tox tests
+        - tox
+    artifacts:
+        paths:
+            - htmlcov/
+
+# Moves pytest-cov html artifacts created in test stage to public pages
+pages:
+    stage: deploy
+    tags:
+        - docker
+    only:
+       - master
+    script:
+        - mv htmlcov/ public/
+    artifacts:
+        paths:
+            - public
+

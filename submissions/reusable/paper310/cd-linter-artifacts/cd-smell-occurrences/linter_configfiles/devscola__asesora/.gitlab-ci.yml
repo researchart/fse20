@@ -1,0 +1,30 @@
+image: tmaier/docker-compose:latest
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+services:
+  - docker:dind
+
+stages:
+  - test
+
+test_api:
+  stage: test
+  script:
+    - docker-compose -f ci-composer.yml up --build -d
+    - docker-compose -f ci-composer.yml exec -T api bundle exec rake test
+
+test_app:
+  stage: test
+  script:
+    - docker-compose -f ci-composer.yml up --build -d
+    - docker-compose -f ci-composer.yml exec -T app npm run test-all
+
+test_e2e:
+  stage: test
+  script:
+    - docker-compose -f ci-composer.yml up --build -d
+    - docker-compose -f ci-composer.yml exec -T app npm run build-e2e
+    - docker-compose -f ci-composer.yml exec -T e2e npm run test
+

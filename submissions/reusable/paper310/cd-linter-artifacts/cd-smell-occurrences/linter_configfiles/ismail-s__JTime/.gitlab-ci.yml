@@ -1,0 +1,210 @@
+image: openjdk:8-jdk
+
+stages:
+  - lint
+  - build
+  - test
+  - docs
+  - build-prod
+  - deploy
+
+.android-base: &android
+  variables:
+    GRADLE_USER_HOME: /builds/ismail-s/JTime/gradle-user-home/.gradle
+  cache:
+    key: "$CI_BUILD_REF_NAME-android"
+    paths:
+      - gradle-user-home/
+  before_script:
+    - mkdir -p gradle-user-home/.gradle
+    # Install Android deps
+    - apt-get --quiet update
+    - apt-get --quiet install --yes wget unzip lib32stdc++6 lib32z1
+    - wget --quiet --output-document=android-sdk.zip https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip
+    - unzip -q android-sdk.zip -d android-sdk-linux
+    - export ANDROID_HOME=$PWD/android-sdk-linux
+    - export PATH=$PATH:$PWD/android-sdk-linux/tools/
+    - export PATH=$PATH:$PWD/android-sdk-linux/platform-tools/
+    - mkdir android-sdk-linux/licenses
+    - echo -e "\nd56f5187479451eabf01fb78af6dfcb131a6481e" > "$ANDROID_HOME/licenses/android-sdk-license"
+    - echo -e "\n504667f4c0de7af1a06de9f4b1727b84351f2910" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+    - chmod +x ./gradlew
+
+android-assembleDebug:
+  <<: *android
+  stage: build
+  script:
+    - ./gradlew assembleDebug --console=plain
+
+android-unittest:
+  <<: *android
+  stage: test
+  script:
+    - sed -i '6 i <item name="selectableItemBackground">@color/colorPrimaryLight</item>' JTime-android/src/main/res/values/styles.xml
+    - ./gradlew test --console=plain
+  allow_failure: true # TODO-figure out why this fails in CI
+
+android-dokka:
+  stage: docs
+  before_script:
+    - apt-get --quiet update
+    - apt-get --quiet install --yes wget
+  script:
+    - wget -qO dokka-fatjar.jar https://github.com/Kotlin/dokka/releases/download/0.9.15/dokka-fatjar.jar
+    - java -jar dokka-fatjar.jar JTime-android/src/main/kotlin -links https://developer.android.com/reference/ -output dokka -format html
+  artifacts:
+    name: dokka
+    paths:
+      - dokka
+    expire_in: 2 months
+
+android-deploy:
+  <<: *android
+  stage: deploy
+  script:
+    - cd JTime-android
+    - echo "$GOOGLE_PLAY_JSON_PUBLISHER_FILE" > google-play-publisher-keys.json
+    - echo "$ANDROID_KEY_FILE" | base64 -di > android.jks
+    - (cd .. && ./gradlew publishRelease --console=plain)
+    - rm google-play-publisher-keys.json android.jks
+  artifacts:
+    paths:
+      - JTime-android/build/outputs
+  environment:
+    name: android-beta
+  only:
+    - production@ismail-s/JTime
+
+.website-base: &website
+  image: node:6.11-alpine
+  variables:
+    NPM_CONFIG_LOGLEVEL: warn
+  before_script:
+    - cd JTime-rest/client/jtime-website
+    - yarn install
+  cache:
+    key: "$CI_BUILD_REF_NAME-website"
+    paths:
+      - JTime-rest/client/jtime-website/node_modules/
+
+website-build:
+  <<: *website
+  stage: build
+  script:
+    - yarn run build
+  artifacts:
+    paths:
+      - JTime-rest/client/jtime-website/dist
+
+website-unittest:
+  <<: *website
+  stage: test
+  image: node:6.11 # alpine linux not used due to tests using Google Chrome
+  script:
+    - apt-get -q update && apt-get -yq install wget
+    - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+    - echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
+    - apt-get -q update && apt-get -yq install google-chrome-stable
+    - yarn test
+
+website-lint:
+  <<: *website
+  stage: lint
+  script:
+    - yarn run lint
+
+.rest-api-base: &rest-api
+  image: node:6.11-alpine
+  variables:
+    NPM_CONFIG_LOGLEVEL: warn
+  before_script:
+    - cd JTime-rest/
+    - yarn install
+  cache:
+    key: "$CI_BUILD_REF_NAME-rest-api"
+    paths:
+      - JTime-rest/node_modules/
+
+rest-api-unittest:
+  <<: *rest-api
+  stage: test
+  script:
+    - apk add --update jq
+    - "jq '.postgres = {name: \"postgres\", connector: \"memory\"}' server/datasources.json > /tmp/temp.json"
+    - mv /tmp/temp.json server/datasources.json
+    - yarn test
+
+rest-api-lint:
+  <<: *rest-api
+  stage: lint
+  script:
+    - yarn run lint
+
+servant-rest-api-test:
+  image: haskell:8.0.2
+  stage: test
+  script:
+    - cd JTime-servant
+    - stack --verbosity warn test
+
+servant-rest-api-lint:
+  image: debian:jessie
+  stage: lint
+  script:
+    - apt-get update && apt-get install -yq curl
+    - cd JTime-servant
+    - curl -sL https://raw.github.com/ndmitchell/hlint/master/misc/travis.sh | sh -s .
+
+servant-rest-api-build:
+  image: ubuntu:xenial
+  stage: build-prod
+  before_script:
+    - apt-get -q update && apt-get install -yq software-properties-common
+    - add-apt-repository -y ppa:hvr/ghc && apt-get -q update
+    - apt-get install -yq wget ghc-8.0.2 cabal-install-1.24 make git zlib1g-dev
+    - wget -nv -O stack.tar.gz https://github.com/commercialhaskell/stack/releases/download/v1.4.0/stack-1.4.0-linux-x86_64-static.tar.gz
+    - tar -xf stack.tar.gz -C /usr/local/bin --strip-components=1
+  script:
+    - cd JTime-servant
+    - stack setup
+    - stack build
+    - cp $(stack path --local-install-root)/bin/jtime-servant-exe ../jtime-servant-exe
+  artifacts:
+    paths:
+      - jtime-servant-exe
+  only:
+    - master@ismail-s/JTime
+    - production@ismail-s/JTime
+
+rest-api-and-website-deploy:
+  image: alpine:3.6
+  stage: deploy
+  dependencies:
+    - servant-rest-api-build
+    - website-build
+  before_script:
+    - apk update && apk add openssh-client bash tar jq rsync
+  script:
+    # Construct keter bundle
+    - mv jtime-servant-exe JTime-servant/bundle/
+    - cd JTime-servant/bundle
+    - jq ".clientId = \"$GOOGLE_CLIENT_ID\" | .googleMapsKey = \"$GOOGLE_MAPS_KEY\"" settings.json > /tmp/temp.json
+    - mv /tmp/temp.json settings.json
+    - tar czfv restapi.keter config settings.json jtime-servant-exe
+
+    # Setup ssh
+    - eval $(ssh-agent -s)
+    # add ssh key stored in SSH_PRIVATE_KEY variable to the agent store
+    - bash -c 'ssh-add <(echo "$SSH_PRIVATE_KEY")'
+    - mkdir -p ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+    # Deploy website and rest api
+    - rsync -zrt --stats --human-readable ../../JTime-rest/client/jtime-website/dist/ $REST_API_HOST_STRING:staticRoot
+    - scp restapi.keter $REST_API_HOST_STRING:keter-dir/incoming
+  environment:
+    name: website
+    url: https://jtime.ismail-s.com
+  only:
+    - production@ismail-s/JTime
+

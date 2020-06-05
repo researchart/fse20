@@ -1,0 +1,17 @@
+image: paddyhack/nikola
+
+test:
+  script:
+  - nikola build
+  except:
+  - master
+
+pages:
+  script:
+    - nikola build
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

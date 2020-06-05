@@ -1,0 +1,17 @@
+variables:
+  USER: gitlab
+  PKGS: make gcc musl-dev ocaml python3 py3-pip
+
+stages:
+  - test
+
+test:alpine:
+    stage: test
+    image: alpine
+    before_script:
+        - uname -a
+        - apk add --no-cache $PKGS
+        - python3 -m pip install --user fs sh green pygments
+    script:
+        - python3 -m green
+

@@ -1,0 +1,28 @@
+image: jkosgei/chrome
+
+before_script:
+  - npm -v
+  - node -v
+  - pwd
+  - ls -l
+
+stages:
+  - dependences
+  - tests
+
+install:
+  stage: dependences
+  script:
+    - npm install
+  artifacts:
+    paths:
+      - node_modules/
+    expire_in: 1 week
+
+tests:
+  stage: tests
+  script:
+    - npm install chromedriver
+    - npm run test
+    - npm run e2e
+

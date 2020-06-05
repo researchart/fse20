@@ -1,0 +1,36 @@
+# All available Hugo versions are listed here: https://gitlab.com/pages/hugo/container_registry
+image: node
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+.install: &install
+  before_script:
+  - curl -L https://github.com/gohugoio/hugo/releases/download/v0.55.1/hugo_0.55.1_Linux-64bit.tar.gz > hugo.tar.gz
+  - tar -xzf hugo.tar.gz
+  - npm install -g netlify-cli@2.9.1
+
+build and review:
+  <<: *install
+  only:
+  - branches
+  except:
+  - master
+  stage: build
+  script:
+  - ./hugo
+  - netlify deploy -d public -s "${NETLIFY_PROJECT_ID}" -a "${NETLIFY_AUTH_TOKEN}"
+  tags:
+  - wwwbuild
+
+build and prod:
+  <<: *install
+  only:
+  - master
+  stage: build
+  script:
+  - ./hugo -b "https://www.recalbox.com/"
+  - netlify deploy -d public -s "${NETLIFY_PROJECT_ID}" -a "${NETLIFY_AUTH_TOKEN}" --prod
+  tags:
+  - wwwbuild
+

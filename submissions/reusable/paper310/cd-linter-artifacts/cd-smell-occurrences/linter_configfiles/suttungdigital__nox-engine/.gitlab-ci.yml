@@ -1,0 +1,46 @@
+before_script:
+  - git submodule sync --recursive
+  - git submodule update --init --recursive
+
+build_gcc:
+  tags:
+    - gcc
+  script:
+    - cmake -Bbuild -H. -DNOX_WERROR=ON
+    - make -C build
+    - pushd build/test/unittest && ctest -V && popd
+
+build_clang:
+  tags:
+    - clang
+  script:
+    - CC=clang CXX=clang++ cmake -Bbuild -H. -DNOX_WERROR=ON
+    - make -C build
+    - pushd build/test/unittest && ctest -V && popd
+
+build_android:
+  tags:
+    - android
+  script:
+    - cmake -Bbuild -H. -DCMAKE_SYSTEM_NAME=Android -DCMAKE_ANDROID_NDK_TOOLCHAIN_VERSION=clang -DCMAKE_SYSTEM_VERSION=14 -DCMAKE_ANDROID_ARCH_ABI=armeabi-v7a -DCMAKE_ANDROID_STL_TYPE=c++_static -DCMAKE_ANDROID_NDK=/nox/android-ndk -DBOOST_INCLUDEDIR=/nox/boost
+    - make -C build
+    - ./test/android/test_build.sh build
+
+build_msvc:
+  tags:
+    - msvc
+  script:
+    - cmake -Bbuild -H. -G"Visual Studio 14 2015"
+    # This hardcoded MSBuild path should maybe not be hardcoded
+    - "\"C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\msbuild\" build\\ALL_BUILD.vcxproj /p:Configuration=Release"
+    - cd build\test\unittest && ctest -V -C Release
+
+build_msvc64:
+  tags:
+    - msvc
+  script:
+    - cmake -Bbuild -H. -G"Visual Studio 14 2015 Win64"
+    # This hardcoded MSBuild path should maybe not be hardcoded
+    - "\"C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\msbuild\" build\\ALL_BUILD.vcxproj /p:Configuration=Release"
+    - cd build\test\unittest && ctest -V -C Release
+

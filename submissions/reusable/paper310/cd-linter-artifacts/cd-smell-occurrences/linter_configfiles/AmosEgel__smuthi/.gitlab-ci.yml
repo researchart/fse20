@@ -1,0 +1,23 @@
+image: python:3.7
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  script:
+    - echo "Testing"
+    - apt-get update
+    - apt-get install -y gfortran
+    - pip3 install .
+    - pip3 install nose2
+    - nose2 -v
+
+production:
+  stage: deploy
+  script:
+    - echo "Production"
+  only:
+    - tags
+

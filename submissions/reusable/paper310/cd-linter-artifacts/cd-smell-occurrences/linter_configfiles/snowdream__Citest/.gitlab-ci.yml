@@ -1,0 +1,9 @@
+image: snowdream/android:1.0
+
+build:
+  script:
+    - gradle assembleRelease
+  artifacts:
+    paths:
+    - app/build/outputs/
+

@@ -1,0 +1,58 @@
+image: c33s/php:7.1
+
+stages:
+    - test
+
+variables:
+    COMPOSER_ALLOW_SUPERUSER:       '1'
+    COMPOSER_HOME:                  'var/composer'
+    COMPOSER_NO_INTERACTION:        '1'
+    SYMFONY_DEPRECATIONS_HELPER:    'weak'
+    TIMEZONE:                       'Europe/Vienna'
+    DEBIAN_FRONTEND:                'noninteractive'
+    PHP_XDEBUG_EXTENSION_PATH:      'xdebug.so'
+
+cache:
+    #key: "$CI_BUILD_NAME___$CI_BUILD_REF_NAME"
+    paths:
+        - $COMPOSER_HOME
+        - vendor/
+        - .ci/bin
+        - .ci/cache
+        - .ci/vendor
+
+before_script:
+    - pwd
+    - ls -lsa
+
+####################################################################################################
+# _____         _
+#|_   _|__  ___| |_
+#  | |/ _ \/ __| __|
+#  | |  __/\__ \ |_
+#  |_|\___||___/\__|
+####################################################################################################
+test:
+    stage: test
+    script:
+        #- rm -rf $CI_PROJECT_DIR/.ci
+        - robo init
+        - robo test
+    artifacts:
+        paths:
+            - tests/_output/
+
+####################################################################################################
+#  ____ _               _
+# / ___| |__   ___  ___| | __
+#| |   | '_ \ / _ \/ __| |/ /
+#| |___| | | |  __/ (__|   <
+# \____|_| |_|\___|\___|_|\_\
+####################################################################################################
+check:
+    stage: test
+    script:
+        #- rm -rf $CI_PROJECT_DIR/.ci
+        - robo init
+        - robo check
+

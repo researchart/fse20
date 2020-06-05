@@ -1,0 +1,85 @@
+stages:
+    - prepare
+    - build
+
+variables:
+    IMAGE_ANDROID: docker.arsouyes.org/$CI_PROJECT_PATH/android:$CI_COMMIT_REF_NAME
+    GIT_SUBMODULE_STRATEGY: recursive
+    VERSION_NAME: $CI_COMMIT_REF_NAME-$CI_COMMIT_SHA
+    VERSION_CODE: $CI_PIPELINE_ID
+
+docker-android:
+    stage: prepare
+    tags:
+    - docker-build
+    script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN docker.arsouyes.org
+    - docker pull $IMAGE_ANDROID || true
+    - docker build --cache-from $IMAGE_ANDROID --tag $IMAGE_ANDROID docker/android
+    - docker push $IMAGE_ANDROID
+    
+build-android8-debug:
+    stage: build
+    artifacts:
+        expire_in: 1 day
+        paths:
+        - build
+    image: $IMAGE_ANDROID
+    script:
+    - sed -i
+        -e      "s/\(android:versionName\)=\"[^\"]*\"/\1=\"$VERSION_NAME\"/"
+        -e      "s/\(android:versionCode\)=\"[^\"]*\"/\1=\"$VERSION_CODE\"/"
+        -e    "s/\(android:minSdkVersion\)=\"[^\"]*\"/\1=\"26\"/"
+        -e "s/\(android:targetSdkVersion\)=\"[^\"]*\"/\1=\"26\"/"
+        src/android/AndroidManifest.xml
+    - mkdir -p build/android && cd build/android
+    - qmake ../../src && make -j$(nproc)
+    - mkdir install && make install INSTALL_ROOT=install
+    - androiddeployqt
+        --verbose
+        --output install
+        --input ./android-libbyte-overflow.so-deployment-settings.json
+        --deployment bundled
+        --gradle
+
+build-android8-release:
+    stage: build
+    artifacts:
+        expire_in: 1 day
+        paths:
+        - build
+    image: $IMAGE_ANDROID
+    script:
+    - sed -i
+        -e      "s/\(android:versionName\)=\"[^\"]*\"/\1=\"$VERSION_NAME\"/"
+        -e      "s/\(android:versionCode\)=\"[^\"]*\"/\1=\"$VERSION_CODE\"/"
+        -e    "s/\(android:minSdkVersion\)=\"[^\"]*\"/\1=\"26\"/"
+        -e "s/\(android:targetSdkVersion\)=\"[^\"]*\"/\1=\"26\"/"
+        src/android/AndroidManifest.xml
+    - mkdir -p build/android && cd build/android
+    - qmake ../../src && make -j$(nproc)
+    - mkdir install && make install INSTALL_ROOT=install
+    - echo $ANDROID_KEYSTORE_PKCS12 | base64 -d > byte-overflow.p12
+    - androiddeployqt
+        --verbose
+        --output install
+        --input ./android-libbyte-overflow.so-deployment-settings.json
+        --deployment bundled
+        --gradle
+        --release
+            --sign byte-overflow.p12 "byte overflow"
+            --storepass "byte-overflow"
+            --storetype PKCS12
+        
+build-linux:
+    stage: build
+    artifacts:
+        expire_in: 1 day
+        paths:
+        - build
+    image: rabits/qt:5.11-desktop
+    script:
+    - mkdir -p build/linux && cd build/linux
+    - qmake ../../src && make -j$(nproc)
+    
+

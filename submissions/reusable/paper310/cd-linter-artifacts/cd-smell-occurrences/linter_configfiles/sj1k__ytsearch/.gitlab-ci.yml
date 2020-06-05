@@ -1,0 +1,23 @@
+image: python:3
+
+
+stages:
+    - test
+    - deploy
+
+
+test:
+    stage: test
+    script:
+        - pip install pytest
+        - pip3 install .
+        - python3 -m pytest tests/main.py
+
+deploy:
+    stage: deploy
+    only:
+        - release
+    script:
+        - printf "[distutils]\nindex-servers=pypi\n[pypi]\nrepository=https://pypi.python.org/pypi\nusername=sj1k\npassword=$PIP_PASSWORD" > ~/.pypirc
+        - python3 setup.py sdist upload -r pypi
+

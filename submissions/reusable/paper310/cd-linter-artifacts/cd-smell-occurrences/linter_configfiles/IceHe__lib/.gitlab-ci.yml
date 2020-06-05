@@ -1,0 +1,25 @@
+stages:
+    - parallel
+
+mdl:
+    stage: parallel
+    image: icehe/markdownlint
+    script:
+        - mdl --style snips/markdown/lint/style.rb --list-rules
+        - mdl --style snips/markdown/lint/style.rb . --git-recurse && echo 'All is well.'
+
+pages:
+    # Deploy @ GitLab Pages
+    stage: parallel
+    script:
+        # Build：temporary directory `.public/`
+        - mkdir .public
+        - cp -r * .public
+        # Release：formal directory `public/`
+        - mv .public public
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+

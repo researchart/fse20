@@ -1,0 +1,22 @@
+image: python:3
+
+stages:
+#  - test
+  - deploy
+
+#test:
+#  stage: test
+#  script:
+#  - pip install -U pytest pytest-runner
+#  - pip install --editable .
+#  - python setup.py test
+
+deploy:
+  stage: deploy
+  script:
+  - pip install -U twine setuptools wheel
+  - python setup.py bdist_wheel
+  - twine upload -u $PYPI_USER -p $PYPI_PASS dist/*
+  only:
+  - tags
+

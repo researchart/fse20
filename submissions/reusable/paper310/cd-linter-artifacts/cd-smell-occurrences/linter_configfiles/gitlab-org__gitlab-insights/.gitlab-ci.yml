@@ -1,0 +1,292 @@
+stages:
+  - test
+  - build
+  - deploy
+  - populate
+
+.clean: &clean
+  before_script: []
+  cache: {}
+  dependencies: []
+
+.insights_script: &insights_script
+  image: ruby:2.6
+  tags:
+    - gitlab-org
+  before_script:
+    - mkdir ./data
+  artifacts:
+    expire_in: 31d
+    paths:
+      - ./data
+
+.review: &review
+  only:
+    refs:
+      - branches
+  except:
+    refs:
+      - master
+
+.production: &production
+  only:
+    refs:
+      - master
+  except:
+    refs:
+      - schedules
+
+community_mrs:
+  <<: *clean
+  <<: *insights_script
+  stage: build
+  script:
+    - gem install httparty --no-document
+    - bin/community-mrs --token $API_TOKEN --dev-token $DEV_API_TOKEN --format csv
+  only:
+    refs:
+      - schedules
+    variables:
+      - $COMMUNITY_MRS
+
+failed_flaky_checks:
+  <<: *clean
+  <<: *insights_script
+  stage: build
+  script:
+    - gem install httparty --no-document
+    - bin/failed-flaky-checks --token $API_TOKEN --format csv --start-date $(date -d "-1 day" "+%Y-%m-%d")
+  only:
+    refs:
+      - schedules
+    variables:
+      - $FAILED_FLAKY_CHECKS
+
+maintainers-gitlab:
+  <<: *clean
+  <<: *insights_script
+  only:
+    refs:
+      - schedules
+    variables:
+      - $MAINTAINERS
+  stage: build
+  variables:
+    PROJECT: "gitlab-org/gitlab"
+  script:
+    - gem install httparty --no-document
+    - bin/maintainers --token $API_TOKEN --project $PROJECT
+
+# latest_flaky_report:
+#   <<: *clean
+#   <<: *insights_script
+#   stage: build
+#   script:
+#     - apt-get update && apt-get install -y jq
+#     - last_master_pipeline_id="$(curl https://gitlab.com/api/v4/projects/278964/pipelines\?ref\=master\&status\=success\&private_token\=$API_TOKEN | jq '.[0] | .id')"
+#     - echo $last_master_pipeline_id
+#     - update_tests_metadata_job_id="$(curl https://gitlab.com/api/v4/projects/278964/pipelines/$last_master_pipeline_id/jobs\?per_page\=100\&page\=2\&private_token\=$API_TOKEN | jq '.[] | select(.name == "update-tests-metadata") | .id')"
+#     - echo $update_tests_metadata_job_id
+#     - wget --quiet --output-document=data/report-suite.json https://gitlab.com/api/v4/projects/278964/jobs/$update_tests_metadata_job_id/artifacts/rspec_flaky/report-suite.json\?private_token\=$API_TOKEN
+#     - bin/flaky-report --report-file data/report-suite.json --group-by file > data/grouped-by-file.txt
+#     - bin/flaky-report --report-file data/report-suite.json --group-by type > data/grouped-by-type.txt
+#     - bin/flaky-report --report-file data/report-suite.json --group-by date > data/grouped-by-date.txt
+#     - bin/flaky-report --report-file data/report-suite.json --group-by reports > data/grouped-by-reports.txt
+#   only:
+#     refs:
+#       - schedules
+#     variables:
+#       - $FLAKY_REPORT
+
+pipelines_duration:
+  <<: *clean
+  <<: *insights_script
+  stage: build
+  script:
+    - gem install httparty --no-document
+    - bin/pipelines-duration --token $API_TOKEN --format csv --start-date $(date -d "-1 day" "+%Y-%m-%d")
+  only:
+    refs:
+      - schedules
+    variables:
+      - $PIPELINES_DURATION
+
+.jobs_success_rate: &jobs_success_rate
+  <<: *clean
+  <<: *insights_script
+  stage: build
+  script:
+    - gem install gitlab --no-document
+    - export START_DATE=$(date -d "-1 day" "+%Y-%m-%d")
+    - export END_DATE=$(date "+%Y-%m-%d")
+    - bin/jobs-success-rate --token "${API_TOKEN}" --job "${JOB_NAME}" --start-date "${START_DATE}" --end-date "${END_DATE}" --format csv
+  only:
+    refs:
+      - schedules
+    variables:
+      - $JOBS_SUCCESS_RATE
+
+jobs_success_rate-review-deploy:
+  <<: *jobs_success_rate
+  variables:
+    JOB_NAME: "review-deploy"
+
+jobs_success_rate-review-qa-smoke:
+  <<: *jobs_success_rate
+  variables:
+    JOB_NAME: "review-qa-smoke"
+
+manual:jobs_success_rate-review-deploy:
+  <<: *jobs_success_rate
+  variables:
+    JOB_NAME: "review-deploy"
+  when: manual
+  only:
+    refs:
+      - branches
+  except:
+    refs:
+      - schedules
+
+populate_review_db:
+  <<: *clean
+  <<: *review
+  tags:
+    - gitlab-insights-docker
+  stage: populate
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker stop insights-review-db-populate || true
+    - docker rm insights-review-db-populate || true
+    - docker run -i -P -e "RAILS_ENV=review" -e "DATABASE_USERNAME=$DATABASE_USERNAME" -e "DATABASE_PASSWORD=$DATABASE_PASSWORD" --name insights-review-db-populate --network insights-net --link postgresql:postgresql $CI_REGISTRY_IMAGE/gitlab-insights-review:latest /bin/bash -c "bundle exec rake 'gitlab_insights:populate[$API_TOKEN, $API_TOKEN_DEV]'"
+    - docker rm insights-review-db-populate
+  retry: 2
+  when: manual
+
+populate_prod_db:
+  <<: *clean
+  tags:
+    - gitlab-insights-docker
+  stage: populate
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker stop insights-production-db-populate || true
+    - docker rm insights-production-db-populate || true
+    - docker run -i -P -e "RAILS_ENV=production" -e "DATABASE_USERNAME=$DATABASE_USERNAME" -e "DATABASE_PASSWORD=$DATABASE_PASSWORD" --name insights-production-db-populate --network insights-net --link postgresql:postgresql $CI_REGISTRY_IMAGE/gitlab-insights-production:latest /bin/bash -c "bundle exec rake 'gitlab_insights:populate[$API_TOKEN, $API_TOKEN_DEV]'"
+    - docker rm insights-production-db-populate
+  retry: 2
+  only:
+    refs:
+      - schedules
+    variables:
+      - $POPULATE_PROD_DB
+
+rspec:
+  image: "registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6.3-git-2.22-chrome-73.0-node-12.x-yarn-1.21-graphicsmagick-1.3.34-docker-19.03.1"
+  stage: test
+  tags:
+    - gitlab-org
+  services:
+    - postgres:9.6.17
+  variables:
+    DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/$POSTGRES_DB"
+    POSTGRES_HOST_AUTH_METHOD: trust
+  before_script:
+    - bundle install --clean --without=production --jobs=$(nproc) --path=vendor --retry=3 --quiet
+    - bin/rake db:test:prepare
+  script:
+    - bundle exec rspec --color --format documentation --format RspecJunitFormatter --out junit_rspec.xml
+  artifacts:
+    expire_in: 31d
+    when: always
+    reports:
+      junit: junit_rspec.xml
+  cache:
+    key:
+      files:
+        - Gemfile.lock
+      prefix: ${CI_JOB_NAME}
+    paths:
+      - vendor/ruby
+
+build_review_image:
+  <<: *clean
+  <<: *review
+  tags:
+    - gitlab-insights-docker
+  stage: build
+  before_script: []
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/gitlab-insights-review:$CI_COMMIT_REF_NAME -t $CI_REGISTRY_IMAGE/gitlab-insights-review:latest .
+
+build_production_image:
+  <<: *clean
+  <<: *production
+  tags:
+    - gitlab-insights-docker
+  stage: build
+  before_script: []
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/gitlab-insights-production:$CI_COMMIT_REF_NAME -t $CI_REGISTRY_IMAGE/gitlab-insights-production:latest .
+
+review:
+  <<: *clean
+  tags:
+    - gitlab-insights-docker
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker stop insights-$CI_COMMIT_REF_NAME || true
+    - docker rm insights-$CI_COMMIT_REF_NAME || true
+    - docker run -d -P -e "VIRTUAL_HOST=$CI_COMMIT_REF_SLUG-review.quality-dashboard.gitlap.com" -e "LETSENCRYPT_HOST=$CI_COMMIT_REF_SLUG-review.quality-dashboard.gitlap.com" -e "LETSENCRYPT_EMAIL=$LE_EMAIL" -e "RAILS_ENV=review" -e "SECRET_KEY_BASE=$SECRET_KEY_BASE_REVIEW" -e "SECRET_TOKEN=$SECRET_TOKEN_REVIEW" -e "DATABASE_USERNAME=$DATABASE_USERNAME" -e "DATABASE_PASSWORD=$DATABASE_PASSWORD" --name insights-$CI_COMMIT_REF_NAME --network insights-net --link postgresql:postgresql $CI_REGISTRY_IMAGE/gitlab-insights-review:$CI_COMMIT_REF_NAME
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: https://$CI_COMMIT_REF_SLUG-review.quality-dashboard.gitlap.com
+    on_stop: review_stop
+  only:
+    - branches
+  except:
+    - master
+
+review_stop:
+  <<: *clean
+  tags:
+    - gitlab-insights-docker
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker stop insights-$CI_COMMIT_REF_NAME || true
+    - docker rm insights-$CI_COMMIT_REF_NAME || true
+    - docker rmi $CI_REGISTRY_IMAGE/gitlab-insights-review:$CI_COMMIT_REF_NAME || true
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+
+deploy:
+  <<: *clean
+  tags:
+    - gitlab-insights-docker
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker stop insights-production || true
+    - docker rm insights-production || true
+    - docker run -d -P -e "VIRTUAL_HOST=quality-dashboard.gitlap.com" -e "LETSENCRYPT_HOST=quality-dashboard.gitlap.com" -e "LETSENCRYPT_EMAIL=$LE_EMAIL" -e "RAILS_ENV=production" -e "SECRET_KEY_BASE=$SECRET_KEY_BASE_PROD" -e "SECRET_TOKEN=$SECRET_TOKEN_PROD" -e "DATABASE_USERNAME=$DATABASE_USERNAME" -e "DATABASE_PASSWORD=$DATABASE_PASSWORD" --name insights-production --network insights-net --link postgresql:postgresql $CI_REGISTRY_IMAGE/gitlab-insights-production:$CI_COMMIT_REF_NAME
+  environment:
+    name: production
+    url: https://quality-dashboard.gitlap.com
+  only:
+    - master
+  except:
+    - schedules
+

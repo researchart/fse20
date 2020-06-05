@@ -1,0 +1,60 @@
+---
+image: fedora:latest
+#packaging:
+#    script:
+#        - dnf install -y python-devel python-pip python-setuptools rpm-build
+#        # Make sure we can create src rpm
+#        - python setup.py bdist_rpm
+#        - mv dist/libsan-*.src.rpm libsan.src.rpm
+#    artifacts:
+#        paths:
+#            - libsan.src.rpm
+
+stages:
+  - test
+  - deploy
+
+linting:
+    stage: test
+    script:
+      # Need to install PIP first
+      - dnf install -y python3-pip python3-netifaces augeas-libs
+      # Install python syntax check tools plus dependencies
+      - pip3 install flake8 pylint ssh2-python ipaddress distro six future python-augeas
+      # We should enable Errors, Warnings and Flake errors once they are fixed
+      - flake8 --exclude .git --max-line-length=120 .
+      # Run pylint for general errors in code
+      # W0105(pointless-string-statement) is disabled because we are using it for documentation
+      # W0511(fixme) spots all fixme and todo comments
+      # W0603(global-statement) disabled for now as we are using this for paths, move to some immutable config in the future
+      # W0703(broad-except) sometimes we are catching general exception, because we are lazy. Lets stay lazy :)
+      - pylint --disable C,R,W0105,W0511,W0603,W0703,W0705 --max-line-length=120 --msg-template "{path} {line} \[{msg_id}({symbol}), {obj}\] {msg}" libsan tests bin/sancli
+      # Run pylint for python 2/3 compatibility errors (--py3k disables all other checkers)
+      - pylint --py3k --max-line-length=120 --msg-template "{path} {line} \[{msg_id}({symbol}), {obj}\] {msg}" libsan tests bin/sancli
+
+regression:
+    stage: test
+    script:
+        - dnf install -y gcc openssl-devel python3-augeas findutils tox which python3-setuptools rpm-build
+        # Install libsan so all required dependencies are installed
+        - python3 setup.py install
+        - cp sample_san_top.conf /etc/san_top.conf
+        # Remove installation files
+        - rm -rf build/ dist/ libsan.egg-info .eggs
+        # Run tox tests
+        - tox
+    artifacts:
+        paths:
+            - htmlcov/
+
+# Moves pytest-cov html artifacts created in test stage to public pages
+pages:
+    stage: deploy
+    only:
+       - master
+    script:
+        - mv htmlcov/ public/
+    artifacts:
+        paths:
+            - public
+

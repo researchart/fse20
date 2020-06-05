@@ -1,0 +1,29 @@
+image: "registry.gitlab.com/sklavedaniel/scalasbtjavafxdocker"
+
+variables:
+  SBT_VERSION: "1.2.8"
+  SBT_OPTS: "-Dsbt.global.base=sbt-cache/.sbtboot -Dsbt.boot.directory=sbt-cache/.boot -Dsbt.ivy.home=sbt-cache/.ivy"
+
+cache:
+  key: "$CI_BUILD_REF_NAME" # contains either the branch or the tag, so it's caching per branch
+  untracked: true
+  paths:
+    - "sbt-cache/.ivy"
+    - "sbt-cache/.boot"
+    - "sbt-cache/.sbtboot"
+    - "target"
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - git submodule init
+    - git submodule update
+    - sbt packageMSI
+  artifacts:
+    paths:
+      - "target/scala-2.12/beatmeter-generator.jar"
+      - "target/msiPackage/beatmeter-generator-x64.msi" 
+

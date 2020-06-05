@@ -1,0 +1,30 @@
+stages:
+  - test
+
+include:
+  - project: thelabnyc/gitlab-ci-templates
+    file: /ci/sast.gitlab-ci.yml
+
+test_python37:
+  stage: test
+  tags:
+    - docker-compose
+  before_script:
+    - rm docker-compose.override.yml
+    - export COMPOSE_PROJECT_NAME="vaulthelpers${CI_JOB_ID}"
+    - docker-compose pull
+    - docker-compose build --pull
+  script:
+    - |
+      function run_tox_tests() {
+        docker-compose up postgres vault &
+        sleep 10;
+        docker-compose run --rm test tox -e "$1";
+        docker-compose stop || true;
+        docker-compose down -v || true;
+      }
+
+    - run_tox_tests 'py37-django111'
+    - run_tox_tests 'py37-django220'
+    - run_tox_tests 'py37-django300'
+

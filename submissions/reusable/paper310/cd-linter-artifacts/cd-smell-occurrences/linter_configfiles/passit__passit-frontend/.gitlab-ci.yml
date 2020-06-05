@@ -1,0 +1,225 @@
+image: node:12
+
+variables:
+  DOCKER_DRIVER: overlay2
+  CHROME_BIN: chromium-browser
+  npm_config_cache: $CI_PROJECT_DIR/.npm
+  CONTAINER_IMAGE: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}
+
+stages:
+  - test
+  - docker
+  - deploy
+  - pages
+
+test:
+  stage: test
+  image: registry.gitlab.com/dasch8/angular-ci:latest
+  cache:
+    paths:
+      - .npm/
+  script:
+    - apk add git python make g++
+    - npm ci
+    - npm run lint
+    - npm run test -- --progress false --watch=false --browsers=Chromium_CI
+
+build-web-assets:
+  stage: test
+  cache:
+    paths:
+      - .npm/
+  script:
+    - npm ci
+    - node --max_old_space_size=6000 node_modules/@angular/cli/bin/ng build --prod --progress false
+  artifacts:
+    paths:
+      - dist/
+
+build-ext-assets:
+  stage: test
+  cache:
+    paths:
+      - .npm/
+  script:
+    - npm ci
+    - ./set_version.sh
+    - npm run build:ext -- --prod --progress false
+    - bin/remove_eval.sh
+    - npm run ext:lint
+    - npm run ext:build
+    - mv web-ext-artifacts/*.zip web-ext-artifacts/passit.zip
+    - mv dist dist-ext
+  artifacts:
+    paths:
+      - web-ext-artifacts/
+      - dist-ext/
+
+build_android:
+  image: runmymind/docker-android-sdk:ubuntu-standalone
+  variables:
+    NODE_VERSION: 12.13.1
+  stage: test
+  only:
+    - master
+    - staging
+  script:
+    - wget -q http://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz
+    - tar -xzf node-v${NODE_VERSION}-linux-x64.tar.gz
+    - mv node-v${NODE_VERSION}-linux-x64 /opt/node
+    - rm node-v${NODE_VERSION}-linux-x64.tar.gz
+    - PATH=/opt/node/bin:${PATH}
+    - npm install -g nativescript --unsafe-perm
+    - $ANDROID_HOME/tools/bin/sdkmanager "tools" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "extras;android;m2repository" "extras;google;m2repository" > /dev/null
+    - npm i --unsafe-perm node-sass karma-webdriver-launcher
+    - npm i
+    - echo "build version code $CI_PIPELINE_IID"
+    - sed -i '/versionCode/c\	android:versionCode="'"$CI_PIPELINE_IID"'"' App_Resources/Android/src/main/AndroidManifest.xml
+    - if [[ -v CI_COMMIT_TAG ]]; then sed -i '/versionName/c\	android:versionName="'"$CI_COMMIT_TAG"'">' App_Resources/Android/src/main/AndroidManifest.xml; fi;
+    - echo $ANDROID_KEY_BASE64 | base64 -d > bsc-release-key.jks
+    - tns build android --release --env.snapshot --env.aot --env.uglify --aab --key-store-path bsc-release-key.jks --key-store-password $ANDROID_KEY_PASSWORD --key-store-alias-password $ANDROID_KEY_PASSWORD --key-store-alias bsc
+    - mkdir aab
+    - mv platforms/android/app/build/outputs/bundle/release/app-release.aab aab/passit.aab
+  artifacts:
+    paths:
+      - aab/
+  cache:
+    paths:
+      - .npm/
+
+build_android_apk:
+  image: runmymind/docker-android-sdk:ubuntu-standalone
+  variables:
+    NODE_VERSION: 12.13.1
+  stage: test
+  only:
+    - master
+    - tags
+  script:
+    - wget -q http://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz
+    - tar -xzf node-v${NODE_VERSION}-linux-x64.tar.gz
+    - mv node-v${NODE_VERSION}-linux-x64 /opt/node
+    - rm node-v${NODE_VERSION}-linux-x64.tar.gz
+    - PATH=/opt/node/bin:${PATH}
+    - npm install -g nativescript --unsafe-perm
+    - $ANDROID_HOME/tools/bin/sdkmanager "tools" "platform-tools" "platforms;android-28" "build-tools;28.0.3" "extras;android;m2repository" "extras;google;m2repository" > /dev/null
+    - npm i --unsafe-perm node-sass karma-webdriver-launcher
+    - npm i
+    - echo "build version code $CI_PIPELINE_IID"
+    - sed -i '/versionCode/c\	android:versionCode="'"$CI_PIPELINE_IID"'"' App_Resources/Android/src/main/AndroidManifest.xml
+    - if [[ -v CI_COMMIT_TAG ]]; then sed -i '/versionName/c\	android:versionName="'"$CI_COMMIT_TAG"'">' App_Resources/Android/src/main/AndroidManifest.xml; fi;
+    - echo $ANDROID_KEY_BASE64 | base64 -d > bsc-release-key.jks
+    - tns build android --release --env.snapshot --env.aot --env.uglify --key-store-path bsc-release-key.jks --key-store-password $ANDROID_KEY_PASSWORD --key-store-alias-password $ANDROID_KEY_PASSWORD --key-store-alias bsc
+  artifacts:
+    paths:
+      - platforms/android/app/build/outputs/
+  cache:
+    paths:
+      - .npm/
+
+build-push-docker:
+  stage: docker
+  image: docker:stable
+  services:
+    - docker:dind
+  dependencies:
+    - build-web-assets
+  only:
+    - master
+    - staging
+    - dev
+  script:
+    - echo "Start build docker step $CI_REGISTRY_IMAGE commit ref $CI_COMMIT_REF_NAME"
+    - trap '' PIPE
+    - VERSION=$(awk '/version/{gsub(/("|",)/,"",$2);print $2};' package.json | head -n 1)
+    - echo "Build version $VERSION ci registry image $CI_REGISTRY_IMAGE commit ref $CI_COMMIT_REF_NAME"
+    - docker build -f Dockerfile.prod -t ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME} -t ${CONTAINER_IMAGE} --build-arg PASSIT_VERSION=$VERSION .
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME}
+    - docker push ${CONTAINER_IMAGE}
+
+deploy-staging:
+  stage: deploy
+  image: lwolf/helm-kubectl-docker:v1.15.10-v3.1.0
+  script:
+    - helm upgrade passit-staging ./chart -f ./chart/values-ci.yaml --set image.tag=${CI_COMMIT_SHORT_SHA} --reuse-values
+  environment:
+    name: staging
+    url: https://staging.passit.io
+  only:
+    - staging
+
+deploy-prod:
+  stage: deploy
+  image: docker:stable
+  services:
+    - docker:dind
+  only:
+    - master
+  when: manual
+  environment:
+    name: production
+    url: https://app.passit.io
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker pull ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME}
+    - docker login -u ${OPENSHIFT_USER} -p ${OPENSHIFT_PROD_KEY} https://${OPENSHIFT_REGISTRY}
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME} ${OPENSHIFT_REGISTRY}/passit-prod/passit-frontend:master
+    - docker push ${OPENSHIFT_REGISTRY}/passit-prod/passit-frontend:master
+
+deploy-dockerhub:
+  stage: deploy
+  image: docker:stable
+  services:
+    - docker:dind
+  only:
+    - master
+  environment:
+    name: production
+    url: https://app.passit.io
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker pull ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME}
+    - docker login -u ${DOCKER_CI_REGISTRY_USER} -p ${DOCKER_CI_REGISTRY_PASSWORD}
+    - echo tag image ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME} as ${DOCKER_CI_REGISTRY_IMAGE}
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME} ${DOCKER_CI_REGISTRY_IMAGE}
+    - docker push ${DOCKER_CI_REGISTRY_IMAGE}
+
+deploy-chrome-ext:
+  stage: deploy
+  image: debian:jessie
+  dependencies:
+    - build-ext-assets
+  only:
+    - master
+  when: manual
+  script:
+    - apt-get update
+    - apt-get -y install curl jq zip unzip
+    - bin/deploy_chrome.sh
+
+deploy-firefox-ext:
+  stage: deploy
+  dependencies:
+    - build-ext-assets
+  only:
+    - master
+  when: manual
+  script:
+    - npm install @wext/shipit
+    - npm run ext:publish_firefox
+
+pages:
+  stage: pages
+  cache:
+    paths:
+      - .npm/
+  script:
+    - npm ci
+    - npm run build-storybook -- -o public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

@@ -1,0 +1,5 @@
+image: registry.gitlab.com/gitlab-com/runbooks
+test:
+  script:
+    - /prometheus/promtool check-rules alerts/*.rules
+

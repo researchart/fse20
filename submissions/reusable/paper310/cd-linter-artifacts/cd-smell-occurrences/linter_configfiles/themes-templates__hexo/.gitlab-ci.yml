@@ -1,0 +1,52 @@
+# requiring the environment of NodeJS 4.2.2
+image: node:4.2.2
+
+# add cache to 'node_modules' for speeding up builds
+cache:
+  paths: 
+    - node_modules/ # Node modules and dependencies
+
+before_script:
+  - npm install -g hexo-cli # Hexo itself
+  - npm install # Install Hexo project
+
+# add a job called 'test' -> non-required
+test:
+  stage: test
+  script:
+    - hexo generate # Hexo generate Static Site
+  except:
+    - master # the 'test' job will affect all branches expect 'master'
+
+# the 'pages' job will deploy and build your site to the 'public' path
+pages:
+  stage: deploy
+  script:
+    - hexo generate # Hexo generate Static Site
+  artifacts:
+    paths:
+      - public 
+  only:
+    - master # this job will affect only the 'master' branch
+
+#######
+# Minimal configuration:
+######
+
+#image: node:4.2.2
+
+#pages:
+#  cache:
+#    paths:
+#    - node_modules/
+
+#  script:
+#  - npm install hexo-cli -g
+#  - npm install
+#  - hexo deploy
+#  artifacts:
+#    paths:
+#    - public
+#  only:
+#    - master
+

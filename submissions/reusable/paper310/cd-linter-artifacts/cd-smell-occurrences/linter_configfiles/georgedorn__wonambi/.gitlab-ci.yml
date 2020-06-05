@@ -1,0 +1,10 @@
+py36_tests:
+  image: python:3.6
+  script:
+    - apt-get update -q -y
+    - pip install -r requirements.txt
+    - pip install coverage
+    - ./manage.py makemigrations --check  # will fail if models and migrations don't match
+    - coverage run --branch manage.py test  
+    - coverage report --omit=.virt/* --fail-under=97
+

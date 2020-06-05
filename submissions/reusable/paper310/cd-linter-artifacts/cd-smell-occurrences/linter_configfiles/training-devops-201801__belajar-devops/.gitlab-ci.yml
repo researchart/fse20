@@ -1,0 +1,58 @@
+image: maven:3-jdk-8
+
+cache:
+    paths:
+        - /root/.m2/repository
+
+variables:
+    SPRING_PROFILES_ACTIVE: docker
+    SPRING_DATASOURCE_URL: jdbc:mysql://mysql/belajardockerdb?useSSL=false
+    MYSQL_ROOT_PASSWORD: mysqldockerpasswd12321
+    MYSQL_DATABASE: belajardockerdb
+    MYSQL_USER: appdocker
+    MYSQL_PASSWORD: appdocker123
+
+stages:
+    - build-test
+    - code-review
+    - deploy
+
+before_script:
+- 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+- eval $(ssh-agent -s)
+- ssh-add <(echo "$SSH_PRIVATE_KEY")
+- mkdir -p ~/.ssh
+- '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+- '[[ -f /.dockerenv ]] && ssh-keyscan -H "$SSH_HOSTNAME_PRODUCTION" > ~/.ssh/known_hosts'
+
+maven-build-test:
+  stage: build-test
+  image: maven:3-jdk-8
+  services:
+    - mysql:5
+  script: mvn clean package
+  artifacts:
+    paths:
+      - target/*.jar
+
+deploy-heroku:
+    stage: deploy
+    image: openjdk:8
+    variables:
+        HEROKU_API_KEY: $HEROKU_API_KEY
+    script:
+        - apt -y update
+        - apt install wget curl -y
+        - wget -qO- https://cli-assets.heroku.com/install-ubuntu.sh | sh
+        - heroku plugins:install heroku-cli-deploy
+        - heroku deploy:jar target/*.jar --app $CI_PROJECT_NAME
+
+deploy-production:
+    stage: deploy
+    image: debian:latest
+    only:
+    - /-RELEASE$/
+    script:
+    - scp target/*.jar root@$SSH_HOSTNAME_PRODUCTION:/var/lib/$CI_PROJECT_NAME/
+    - ssh root@$SSH_HOSTNAME_PRODUCTION /var/lib/$CI_PROJECT_NAME/deploy.sh $CI_PROJECT_NAME-$CI_COMMIT_TAG.jar
+

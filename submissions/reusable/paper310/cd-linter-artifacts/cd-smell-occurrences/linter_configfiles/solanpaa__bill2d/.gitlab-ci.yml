@@ -1,0 +1,40 @@
+stages:
+  - testing
+  - deploy
+
+test:
+  image: registry.gitlab.com/qcad.fi/docker/minimal:latest
+  stage: testing
+  script:
+    - mkdir build && cd build
+    - cmake .. 
+    - make -j4
+    - make check
+  only:
+    - master
+    - tags
+
+before_script:
+        - export GIT_SSH_URL=`echo $CI_PROJECT_URL | sed 's|http[s]*://[w]*[w]*[w]*[.]*||g' | sed '1s|/|:|;t'`.git
+
+# Trigger deployment of lastest commit in the master branch
+master-deploy-user:
+  stage: deploy
+  image: appropriate/curl:latest
+
+  script:
+    - curl -X POST -F token=$DEPLOYMENT_PIPELINE_TRIGGER_TOKEN -F ref=master -F "variables[TRIGGER_REPO_URL]=$GIT_SSH_URL" -F "variables[TRIGGER_PACKAGE_NAME]=$CI_PROJECT_NAME" -F "variables[TRIGGER_COMMIT_SHA]=$CI_COMMIT_SHA" $DEPLOYMENT_PIPELINE_TRIGGER_URL 
+  
+  only:
+    - master
+
+# Trigger deployment of a tagged commit
+tag-deploy-user:
+  stage: deploy
+  image: appropriate/curl:latest
+
+  script:
+    - curl -X POST -F token=$DEPLOYMENT_PIPELINE_TRIGGER_TOKEN -F ref=master -F "variables[TRIGGER_REPO_URL]=$GIT_SSH_URL" -F "variables[TRIGGER_PACKAGE_NAME]=$CI_PROJECT_NAME" -F "variables[TRIGGER_COMMIT_SHA]=$CI_COMMIT_SHA" -F "variables[TRIGGER_COMMIT_TAG]=$CI_COMMIT_TAG" $DEPLOYMENT_PIPELINE_TRIGGER_URL
+  only:
+    - tags
+

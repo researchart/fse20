@@ -1,0 +1,59 @@
+variables:
+  JEKYLL_ENV: "production"
+  NOKOGIRI_USE_SYSTEM_LIBRARIES: "true"
+  LC_ALL: "C.UTF-8"
+  DOMAIN: "www.ummels.de"
+
+stages:
+  - build
+  - update
+
+build:
+  image: ruby:2.3
+  stage: build
+  script:
+    - bundle install
+    - bundle exec jekyll build -d test
+    - bundle exec htmlproofer --internal-domains $DOMAIN --external_only test
+  artifacts:
+    paths:
+      - test
+  except:
+    - master
+    - schedules
+
+pages:
+  image: ruby:2.3
+  stage: build
+  script:
+    - bundle install
+    - bundle exec jekyll build -d public
+    - bundle exec htmlproofer --internal-domains $DOMAIN --external_only public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+  except:
+    - schedules
+
+update_cert:
+  image:
+    name: ummels/certbot-dns-inwx
+    entrypoint: [""]
+  variables:
+    CERT_FILE: "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
+    KEY_FILE: "/etc/letsencrypt/live/$DOMAIN/privkey.pem"
+  stage: update
+  before_script:
+    - echo "certbot_dns_inwx:dns_inwx_url = https://api.domrobot.com/xmlrpc/" > /etc/letsencrypt/inwx.cfg
+    - chmod 600 /etc/letsencrypt/inwx.cfg
+    - echo "certbot_dns_inwx:dns_inwx_username = $INWX_USER" >> /etc/letsencrypt/inwx.cfg
+    - echo "certbot_dns_inwx:dns_inwx_password = $INWX_PASSWORD" >> /etc/letsencrypt/inwx.cfg
+    - echo "certbot_dns_inwx:dns_inwx_shared_secret = optional" >> /etc/letsencrypt/inwx.cfg
+  script:
+    - certbot certonly -n --agree-tos -a certbot-dns-inwx:dns-inwx -d $DOMAIN -m $GITLAB_USER_EMAIL
+    - "curl --silent --fail --show-error --request PUT --header \"Private-Token: $GITLAB_TOKEN\" --form \"certificate=@$CERT_FILE\" --form \"key=@$KEY_FILE\" https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/pages/domains/$DOMAIN"
+  only:
+    - schedules
+

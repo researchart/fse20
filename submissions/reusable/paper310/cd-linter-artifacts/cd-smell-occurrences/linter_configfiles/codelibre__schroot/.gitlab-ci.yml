@@ -1,0 +1,32 @@
+image: ubuntu:18.04
+
+stages:
+  - build
+
+.build: &build
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq cmake debhelper pkg-config libpam0g-dev libboost-all-dev gettext libgtest-dev groff-base po4a doxygen graphviz fakeroot wget git
+  script:
+    - ./scripts/ci-build
+
+ubuntu:18.04:
+  image: ubuntu:18.04
+  stage: build
+  <<: *build
+
+debian:stable:
+  image: debian:stable
+  stage: build
+  <<: *build
+
+debian:testing:
+  image: debian:stable
+  stage: build
+  <<: *build
+
+debian:unstable:
+  image: debian:unstable
+  stage: build
+  allow_failure: true
+  <<: *build
+

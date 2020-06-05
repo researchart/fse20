@@ -1,0 +1,166 @@
+# This file is a template, and might need editing before it works on your project.
+# Official docker image.
+image: docker:latest
+
+variables:
+  NO_PROXY: "127.0.0.1, localhost, docker, registry, *.gotfix.com"
+  DOCKER_HUB_BASE: gotfix/gitlab
+  GITHUB_REPO_URL: https://phpb-com:${GITHUB_TOKEN}@github.com/gotfix/gitlab.git
+  GITHUB_REPO_URL2: https://phpb-com:${GITHUB_TOKEN}@github.com/gotfix/docker-gitlab.git
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_DEPTH: "5"
+  GET_SOURCES_ATTEMPTS: "3"
+
+services:
+  - docker:dind
+
+stages:
+ - lint
+ - build
+ - test
+ - release
+ - mirror
+
+before_script:
+  - export VCS_REF=${CI_COMMIT_SHA:0:8}
+  - export VCS_BRANCH=${CI_COMMIT_REF_NAME}
+  - export IMAGE_TAG=$(echo -en $CI_BUILD_REF_NAME | tr -c '[:alnum:]_.-' '-')
+  - export IMAGE_TAG_SHA=${VCS_REF}
+  - export REGISTRY_IMAGE_BASE=${DOCKER_HUB_BASE}
+  - export REGISTRY_IMAGE="${REGISTRY_IMAGE_BASE}:${IMAGE_TAG_SHA}"
+  - docker login -u "${DOCKER_USER}" -p "${DOCKER_PASS}"
+
+lint:
+  stage: lint
+  script:
+    - docker pull koalaman/shellcheck
+    - docker run --rm -v $(pwd):/mnt koalaman/shellcheck entrypoint.sh
+    - docker run --rm -v $(pwd):/mnt koalaman/shellcheck assets/build/install.sh
+    - docker run --rm -v $(pwd):/mnt koalaman/shellcheck assets/runtime/functions
+  allow_failure: true
+  only:
+    - /^never$/
+  tags:
+    - baremetal
+
+build:
+  stage: build
+  script:
+    - docker build 
+        --compress
+        --build-arg=http_proxy=${HTTP_PROXY}
+        --build-arg=HTTP_PROXY=${HTTP_PROXY}
+        --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        --build-arg VCS_REF=${VCS_REF}
+        --build-arg VCS_BRANCH=${VCS_BRANCH}
+        --build-arg VERSION=$(cat VERSION)
+        --pull -t "${REGISTRY_IMAGE}" .
+    - docker push "${REGISTRY_IMAGE}"
+  except:
+    - latest
+  tags:
+    - cloud
+    - 4gb
+
+image-test-mysql:
+  stage: test
+  artifacts:
+    name: "${CI_JOB_STAGE}_${CI_COMMIT_REF_NAME}"
+    when: always
+    expire_in: 1 week
+    paths:
+      - logs/
+  script:
+    - apk update && apk add --no-cache bash
+    - tests/run-start-stop.sh "${REGISTRY_IMAGE}" "$(pwd)" "mysql"
+  except:
+    - latest
+  tags:
+    - cloud
+    - 2gb
+
+image-test-pgsql:
+  stage: test
+  artifacts:
+    name: "${CI_JOB_STAGE}_${CI_COMMIT_REF_NAME}"
+    when: always
+    expire_in: 1 week
+    paths:
+      - logs/
+  script:
+    - apk update && apk add --no-cache bash
+    - tests/run-start-stop.sh "${REGISTRY_IMAGE}" "$(pwd)" "pgsql"
+  except:
+    - latest
+  tags:
+    - cloud
+    - 2gb
+
+image-test-pgsql-redis-pass:
+  stage: test
+  artifacts:
+    name: "${CI_JOB_STAGE}_${CI_COMMIT_REF_NAME}"
+    when: always
+    expire_in: 1 week
+    paths:
+      - logs/
+  script:
+    - apk update && apk add --no-cache bash
+    - tests/run-start-stop.sh "${REGISTRY_IMAGE}" "$(pwd)" "pgsql" "JC8MjTkbTMWgkdRz"
+  except:
+    - latest
+  tags:
+    - cloud
+    - 2gb
+
+tag-latest:
+  image: docker:git
+  stage: release
+  script:
+    - git config --global user.email "ci@gotfix.com"
+    - git config --global user.name "CI Build"
+    - git tag -fa latest -m "CI Build auto-tagged, latest master branch ref"
+    - git push --force https://${ACCESS_USER}:${ACCESS_TOKEN}@gotfix.com/docker/gitlab.git refs/tags/latest
+  only:
+    - /^[0-9-.]+$/
+  tags:
+    - self
+    - baremetal
+
+release:
+  stage: release
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - echo "Automatic build configured, no need to push our build"
+    - docker pull "${REGISTRY_IMAGE}"
+    - docker tag "${REGISTRY_IMAGE}" "${REGISTRY_IMAGE_BASE}"
+    - docker tag "${REGISTRY_IMAGE}" "${REGISTRY_IMAGE_BASE}:${IMAGE_TAG}"
+    - docker tag "${REGISTRY_IMAGE}" "${REGISTRY_IMAGE_BASE}:latest"
+    - docker push "${REGISTRY_IMAGE_BASE}"
+    - docker push "${REGISTRY_IMAGE_BASE}:${IMAGE_TAG}"
+    - docker push "${REGISTRY_IMAGE_BASE}:latest"
+  only:
+    - /^[0-9.-]+-stable$/
+    - /^[0-9.-]+$/
+    - /^[0-9.]+-rc[0-9]+$/
+  tags:
+    - self
+    - baremetal
+
+github_mirror:
+  type: mirror
+  image: docker:git
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - mkdir -p "${WORK_DIR}/mirror" && cd "${WORK_DIR}/mirror"
+    - git clone -q --mirror "${CI_REPOSITORY_URL}"
+    - cd "${CI_PROJECT_NAME}.git"
+    - git push -q --mirror "${GITHUB_REPO_URL}"
+    - git push -q --mirror "${GITHUB_REPO_URL2}"
+  when: always
+  tags:
+    - self
+    - baremetal
+

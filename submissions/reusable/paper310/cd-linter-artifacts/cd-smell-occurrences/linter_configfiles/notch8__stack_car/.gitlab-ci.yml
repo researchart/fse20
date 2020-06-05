@@ -1,0 +1,18 @@
+image: ruby:2.3
+
+before_script:
+  bundle
+
+pages:
+  script:
+  - bundle exec yardoc --plugin yard-thor -o public - templates/.* templates/* 
+  artifacts:
+    paths:
+    - public
+  only:
+  - master 
+
+test:
+  script:
+    bundle exec rake
+

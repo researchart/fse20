@@ -1,0 +1,43 @@
+image: mono
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+  - apt-get update && apt-get -y install doxygen
+  - nuget restore -NonInteractive
+
+pages:
+  script:
+  - chmod +x build_docs.sh && ./build_docs.sh
+  - mv Documentation/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+
+release:
+  stage: deploy
+  only:
+    - master
+    - develop
+  artifacts:
+    paths:
+      - bin/release/
+  script:
+    # The output path is relative to the position of the csproj-file
+    - msbuild /p:Configuration="Release" /p:Platform="Any CPU" "narupa.sln"
+
+debug:
+  stage: test
+  script:
+    # The output path is relative to the position of the csproj-file
+    - msbuild /p:Configuration="Debug" /p:Platform="Any CPU" "narupa.sln"
+    - mono packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/tests/debug/Narupa.TrajectoryTests.dll
+    - mono packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/tests/debug/Nano.Science.Simulation.Tests.dll
+    - mono packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/tests/debug/Nano.Science.Tests.dll
+    - mono packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/tests/debug/Nano.Tests.dll
+    - mono packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/tests/debug/Narupa.MD.Tests.dll
+

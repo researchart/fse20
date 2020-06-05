@@ -1,0 +1,29 @@
+
+stages:
+  - build
+  - test
+
+variables:
+  project: "search-ux-4-selenium-tests-chrome-headless"
+
+before_script:
+  - "dotnet restore"
+
+# build:
+#   stage: build
+#   image: microsoft/dotnet
+#   variables:
+#     build_path: "$project"
+#   script:
+#     - "cd $build_path"
+#     - "dotnet build"
+
+test:
+  stage: test
+  image: ksheerasagar17/dotnet-selenium-chrome
+  variables:
+    test_path: "$project"
+  script:
+    - "cd $test_path"
+    - "dotnet test"
+

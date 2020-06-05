@@ -1,0 +1,8 @@
+image: debian
+shellcheck:
+  script:
+    - ./bin/ci-shellcheck
+test_buildpack:
+  script:
+    - ./bin/ci-test-buildpack
+

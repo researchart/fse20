@@ -1,0 +1,13 @@
+image: python:2.7
+variables:
+  TERM: "linux"
+  TERMINFO: "/etc/terminfo"
+unittest:
+  script:
+  - apt-get update -qy;
+  - apt-get install -y python-dev python-pip unzip
+  - apt-get install -y mediainfo mkvtoolnix task-spooler
+  - pip install --upgrade pip
+  - pip install -r requirements.txt
+  - bash ./run_test.sh
+

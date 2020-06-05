@@ -1,0 +1,11 @@
+image: node:10-stretch
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq firefox-esr
+  - npm install
+  - npm install ember-cli -g
+
+ember_test:
+  script:
+    - ember test
+

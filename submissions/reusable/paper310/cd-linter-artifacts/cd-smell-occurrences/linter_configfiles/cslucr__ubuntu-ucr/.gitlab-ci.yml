@@ -1,0 +1,42 @@
+image: ubuntu
+# Se requiere definir las siguientes varibles para el pipeline
+# SSH_PRIVATE_KEY: Llave privada de SSH, generada con keygen
+# SSH_USER: usuario de SSH en el servidor remoto
+# SSH_SERVER: IP o nombre del servidor remoto
+# SSH_RPATH: Ruta remota donde se almacenara el artefacto
+before_script:
+  - apt-get update -qq && apt-get install -y -qq zip wget sudo rsync squashfs-tools xorriso openssh-client
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo "$SSH_PRIVATE_KEY")
+  
+  # disable host key checking (NOTE: makes you susceptible to man-in-the-middle attacks)
+  # WARNING: use only in docker container, if you use it with shell you will overwrite your user's ssh config
+  - mkdir -p ~/.ssh
+  - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+after_script:
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo "$SSH_PRIVATE_KEY")
+  - 'find ubuntu-iso-customization/ -name *ucr*.iso || exit 1'
+  - 'scp $(find ubuntu-iso-customization/ -name *ucr*.iso) $SSH_USER@$SSH_SERVER:$SSH_RPATH'
+  - 'rm -r ubuntu-iso-customization/ '
+
+cache:
+  paths:
+  - cache/
+
+job_ubuntu:
+  script:
+    - mkdir -p cache/apt/ 
+    - test -f  cache/ubuntu-18.04.3-desktop-amd64.iso || wget -q -O cache/ubuntu-18.04.3-desktop-amd64.iso http://espejos.ucr.ac.cr/ubuntu-cd/18.04/ubuntu-18.04.3-desktop-amd64.iso
+    - bash ./ubuntu-iso-customization.sh -d -c cache/apt/ cache/ubuntu-18.04.3-desktop-amd64.iso
+  only:
+    - estable
+
+job_mate:
+  script:
+    - mkdir -p cache/apt/
+    - test -f  cache/ubuntu-18.04.3-desktop-amd64.iso || wget -q -O cache/ubuntu-mate-18.04-desktop-amd64.iso http://cdimage.ubuntu.com/ubuntu-mate/releases/18.04/release/ubuntu-mate-18.04-desktop-amd64.iso
+    - bash ./ubuntu-iso-customization.sh -d -c cache/apt/ cache/ubuntu-mate-18.04-desktop-amd64.iso
+  only:
+    - estable
+

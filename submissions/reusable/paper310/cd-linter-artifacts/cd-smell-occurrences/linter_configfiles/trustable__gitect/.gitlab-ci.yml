@@ -1,0 +1,332 @@
+stages:
+  - build
+  - validate
+  - check-policy-compliance
+
+variables:
+  TARGET_BRANCH: master
+  CHANGE_VALIDATIONS_PATH: "change_validations/"
+  GITECT_HOST: https://gitect2.codethink.co.uk
+  GITECT_EVIDENCE_ENDPOINT: "${GITECT_HOST}/api/v1/gitlab.com/${CI_PROJECT_PATH}/~/${CI_COMMIT_REF_NAME}/${CI_COMMIT_SHA}/evidence"
+  GITECT_CHANGE_VALID_EVIDENCE: "{\"elements\":
+                                  [{\"schema-version\": \"1\",
+                                  \"feature\": \"${CI_COMMIT_REF_NAME}\",
+                                  \"id\": \"!!CHANGE_VALIDATION_ID!!\",
+                                  \"validation-results-list\": !!VALIDATION_RESULTS!!,
+                                  \"test-id-list\": !!TESTS_IDS!!,
+                                  \"change-validation-type\": \"!!CHANGE_VALIDATION_TYPE!!\",
+                                  \"change-validator-id\": \"!!CHANGE_VALIDATOR_ID!!\",
+                                  \"environment-id\": \"!!ENVRT_ID!!\",
+                                  \"result\": !!GLOBAL_RESULT!!,
+                                  \"date-time\": \"!!DATE_TIME!!\",
+                                  \"comment\": \"!!COMMENT!!\"}]}"
+  GITECT_ENVRT_CONSTR_EVIDENCE_LIST: "[{\"schema-version\": \"1\",
+                                  \"feature\": \"${CI_COMMIT_REF_NAME}\",
+                                  \"id\": \"!!ENVRT_ID!!\",
+                                  \"orchestrator-id\": \"!!ORCHESTRATOR_ID!!\",
+                                  \"environment-type\": \"!!ENVRT_TYPE!!\",
+                                  \"date-time\": \"!!DATE_TIME!!\",
+                                  \"comment\": \"!!COMMENT!!\"}]"
+  GITECT_ENVRT_CONSTR_EVIDENCE: "{\"elements\":$GITECT_ENVRT_CONSTR_EVIDENCE_LIST}"
+
+build:
+  stage: build
+  image: "python:latest"
+  before_script:
+    # install gitect for serverless usage
+    - git clone https://gitlab.com/Trustable/gitect.git
+    - cd gitect
+    # to resolve self instrumentation errors checkout the feature branch
+    - git checkout ${CI_COMMIT_SHA}
+    - pip3 install -r requirements.txt
+  script:
+    - export BUILD_ENVRT_CONSTR_ID="${CI_PIPELINE_ID}_build"
+    # gitect: Generate environment construction evidence
+    - 'json_data="$(echo "${GITECT_ENVRT_CONSTR_EVIDENCE_LIST}"
+      | sed "s/!!ENVRT_ID!!/${BUILD_ENVRT_CONSTR_ID}/;
+             s/!!ORCHESTRATOR_ID!!/gitlab-ci:${CI_RUNNER_VERSION}/;
+             s/!!ENVRT_TYPE!!/docker:/;
+             s/!!DATE_TIME!!/$(date -Iseconds)/;
+             s/!!COMMENT!!/Build environment for gitect/")"'
+    - EVIDENCE_TYPE="environment-construction"
+    - GITLAB_URL="${CI_PROJECT_URL%%/${CI_PROJECT_PATH}}"
+    - GITLAB_SERVER="${GITLAB_URL#*://}"
+    # demonstrate serverless usage of gitect to write evidence
+    - python -c "import engine; engine.write_evidence(\"$GITLAB_SERVER\", \"$CI_PROJECT_PATH\", \"$GITECT_SERVICE_ACCOUNT\", \"$GITECT_SERVICE_ACCOUNT_TOKEN\", \"$CI_COMMIT_REF_NAME\", \"$CI_COMMIT_SHA\", \"$EVIDENCE_TYPE\", $json_data)"
+    - echo 'This is the build step. It does not do much yet.'
+  except:
+    - master
+    - tags
+
+lint_markdown:
+  stage: validate
+  image: "ruby:2.4"
+  script:
+    - export MD_LINT_ENVRT_CONSTR_ID="${CI_PIPELINE_ID}_lint_markdown"
+    # gitect: Generate environment construction evidence
+    - 'json_data="$(echo "${GITECT_ENVRT_CONSTR_EVIDENCE}"
+      | sed "s/!!ENVRT_ID!!/${MD_LINT_ENVRT_CONSTR_ID}/;
+             s/!!ORCHESTRATOR_ID!!/gitlab-ci:${CI_RUNNER_VERSION}/;
+             s/!!ENVRT_TYPE!!/docker:/;
+             s/!!DATE_TIME!!/$(date -Iseconds)/;
+             s/!!COMMENT!!/Linting environment for gitect Markdown documentation/")"'
+    - 'curl -k -H "Content-Type: application/json" -H "X-Gitect-Token: ${GITECT_HOST_TOKEN}" -d
+      "$json_data" ${GITECT_EVIDENCE_ENDPOINT}/environment-construction'
+    - gem install mdl
+    # run markdown lint, store the result until after the evidence is written
+    - set +e
+    - output=$(mdl -s <(echo "rule 'MD009', :br_spaces => 4") .); result=$?
+    - set -e
+    # gitect Generate change validation evidence including linting results
+    - comment="$output"
+    - change_validation_id=${CI_PROJECT_PATH_SLUG}_lint_markdown_$(date +%s%N)
+    - mkdir -p "${CHANGE_VALIDATIONS_PATH}"
+    - echo "export LINT_MARKDOWN_CHANGE_VALIDATION_ID=$change_validation_id" >> "${CHANGE_VALIDATIONS_PATH}/lint_markdown.env"
+    - global_result=false
+    - if [[ $result -eq 0 ]]; then
+    -   global_result=true
+    -   comment='No linting error detected'
+    - fi
+
+    # replace newlines with literal \n
+    - comment=$(echo "${comment}" | sed ':a;N;$!ba;s/\n/\\n/g')
+
+    - 'json_data="$(echo "${GITECT_CHANGE_VALID_EVIDENCE}"
+      | sed "s/!!CHANGE_VALIDATION_ID!!/$change_validation_id/;
+             s%!!VALIDATION_RESULTS!!%[]%;
+             s%!!TESTS_IDS!!%[]%;
+             s/!!CHANGE_VALIDATION_TYPE!!/Markdown documentation linting/;
+             s/!!CHANGE_VALIDATOR_ID!!/markdownlint:$(gem -v mdl)/;
+             s/!!ENVRT_ID!!/${MD_LINT_ENVRT_CONSTR_ID}/;
+             s/!!GLOBAL_RESULT!!/${global_result}/;
+             s/!!DATE_TIME!!/$(date -Iseconds)/;
+             s%!!COMMENT!!%$comment%")"'
+    - 'curl -k -H "Content-Type: application/json" -H "X-Gitect-Token: ${GITECT_HOST_TOKEN}" -d
+      "$json_data" ${GITECT_EVIDENCE_ENDPOINT}/change-validation'
+    - exit $result
+  artifacts:
+    paths:
+      - "${CHANGE_VALIDATIONS_PATH}"
+  except:
+    - master
+    - tags
+
+lint_python:
+  stage: validate
+  image: "debian:testing"
+  script:
+    - export PYTHON_LINT_ENVRT_CONSTR_ID="${CI_PIPELINE_ID}_lint_python"
+    - apt update
+    # pytest is installed to prevent irrelevant import errors, despite not
+    # being used in this build stage
+    - apt install -y curl python3-venv python3-pip python3-pytest
+
+    # gitect: Generate environment construction evidence
+    - 'json_data="$(echo "${GITECT_ENVRT_CONSTR_EVIDENCE}"
+      | sed "s/!!ENVRT_ID!!/${PYTHON_LINT_ENVRT_CONSTR_ID}/;
+             s/!!ORCHESTRATOR_ID!!/gitlab-ci:${CI_RUNNER_VERSION}/;
+             s/!!ENVRT_TYPE!!/docker:/;
+             s/!!DATE_TIME!!/$(date -Iseconds)/;
+             s/!!COMMENT!!/Linting environment for gitect Python sources/")"'
+    - 'curl -k -H "Content-Type: application/json" -H "X-Gitect-Token: ${GITECT_HOST_TOKEN}" -d
+      "$json_data" ${GITECT_EVIDENCE_ENDPOINT}/environment-construction'
+
+    # System pip is used in the venv as ensurepip is disabled in Debian testing
+    # see https://askubuntu.com/a/897004
+    - python3 -m venv venv --without-pip --system-site-packages
+    - source venv/bin/activate
+    - pip3 install pylint
+    - pip3 install -r requirements.txt
+    - echo "[MESSAGES CONTROL]" > .pylintrc
+    - echo "disable=missing-docstring,too-many-locals,too-many-arguments,too-many-branches,line-too-long,duplicate-code,fixme" >> .pylintrc
+    - echo "generated-members=app.logger" >> .pylintrc
+    # run pylint, store the result until after the evidence is written
+    - set +e
+    - pylint app/ app/routes/ engine/ tests/engine/ tests/app/ tests/config/ tests/mock_instance tests/utils | tee pylint.log; result=$?
+    - set -e
+    # gitect Generate change validation evidence including linting results
+    - if [[ $result -eq 0 ]]; then
+    -   global_result=true
+    -   comment='No linting error detected'
+    - else
+    -   global_result=false
+    -   if [ -r pylint.log ]; then
+    -     comment=$(<pylint.log)
+    -     comment=${comment//\"/\\\"}
+    -   else
+    -     comment='Error trying to run Pylint'
+    -   fi
+    - fi
+    - change_validation_id=${CI_PROJECT_PATH_SLUG}_lint_python_$(date +%s%N)
+    - mkdir -p "${CHANGE_VALIDATIONS_PATH}"
+    - echo "export LINT_PYTHON_CHANGE_VALIDATION_ID=$change_validation_id" >> "${CHANGE_VALIDATIONS_PATH}/lint_python.env"
+
+    # replace newlines with literal \n
+    - comment=$(echo "${comment}" | sed ':a;N;$!ba;s/\n/\\n/g')
+
+    - pylint_version=$(pylint --version 2>/dev/null | grep pylint | cut -d' ' -f2 | sed 's/,$//')
+    - 'json_data="$(echo "${GITECT_CHANGE_VALID_EVIDENCE}"
+      | sed "s/!!CHANGE_VALIDATION_ID!!/$change_validation_id/;
+             s%!!VALIDATION_RESULTS!!%[]%;
+             s%!!TESTS_IDS!!%[]%;
+             s/!!CHANGE_VALIDATION_TYPE!!/Python linting/;
+             s/!!CHANGE_VALIDATOR_ID!!/pylint:$pylint_version/;
+             s/!!ENVRT_ID!!/${PYTHON_LINT_ENVRT_CONSTR_ID}/;
+             s/!!GLOBAL_RESULT!!/${global_result}/;
+             s/!!DATE_TIME!!/$(date -Iseconds)/")"'
+    - json_data=${json_data/!!COMMENT!!/$comment}
+
+    - 'curl -k -H "Content-Type: application/json" -H "X-Gitect-Token: ${GITECT_HOST_TOKEN}" -d
+      "$json_data" ${GITECT_EVIDENCE_ENDPOINT}/change-validation'
+    # fail the CI stage on any pylint error
+    - exit $result
+  artifacts:
+    paths:
+      - "${CHANGE_VALIDATIONS_PATH}"
+  except:
+    - master
+    - tags
+
+lint_bash:
+  stage: validate
+  image: "debian:testing"
+  script:
+    - export BASH_LINT_ENVRT_CONSTR_ID="${CI_PIPELINE_ID}_lint_bash"
+    - apt update
+    - apt install -y curl shellcheck
+    # gitect: Generate environment construction evidence
+    - 'json_data="$(echo "${GITECT_ENVRT_CONSTR_EVIDENCE}"
+      | sed "s/!!ENVRT_ID!!/${BASH_LINT_ENVRT_CONSTR_ID}/;
+             s/!!ORCHESTRATOR_ID!!/gitlab-ci:${CI_RUNNER_VERSION}/;
+             s/!!ENVRT_TYPE!!/docker:/;
+             s/!!DATE_TIME!!/$(date -Iseconds)/;
+             s/!!COMMENT!!/Linting environment for gitect Bash sources/")"'
+    - 'curl -k -H "Content-Type: application/json" -H "X-Gitect-Token: ${GITECT_HOST_TOKEN}" -d
+      "$json_data" ${GITECT_EVIDENCE_ENDPOINT}/environment-construction'
+
+    - egrep -RIl '^#!\/bin\/(ba)?sh' --exclude-dir=.git | xargs -I{} shellcheck {} | tee bash_lint.log
+    - result=${PIPESTATUS[1]}
+
+    # gitect Generate change validation evidence including linting results
+    - if [[ $result -eq 0 ]]; then
+    -   global_result=true
+    -   comment='No linting error detected'
+    - else
+    -   global_result=false
+    -   if [ -r bash_lint.log ]; then
+    -     sed -i 's/"/\\\\"/g;s/\*/\\*/g' bash_lint.log
+    -     comment=$(<bash_lint.log)
+    -   else
+    -     comment='Error trying to run Shellcheck'
+    -   fi
+    - fi
+
+    - change_validation_id=${CI_PROJECT_PATH_SLUG}_lint_bash_$(date +%s%N)
+    - mkdir -p "${CHANGE_VALIDATIONS_PATH}"
+    - echo "export LINT_BASH_CHANGE_VALIDATION_ID=$change_validation_id" >> "${CHANGE_VALIDATIONS_PATH}/lint_bash.env"
+
+    # replace newlines with literal \n
+    - comment=$(echo "${comment}" | sed ':a;N;$!ba;s/\n/\\n/g')
+
+    - shellcheck_version=$(shellcheck -V | head -n 2 | tail -n 1 | cut -d' ' -f2)
+    - 'json_data="$(echo "${GITECT_CHANGE_VALID_EVIDENCE}"
+      | sed "s/!!CHANGE_VALIDATION_ID!!/$change_validation_id/;
+             s%!!VALIDATION_RESULTS!!%[]%;
+             s%!!TESTS_IDS!!%[]%;
+             s/!!CHANGE_VALIDATION_TYPE!!/Bash linting/;
+             s/!!CHANGE_VALIDATOR_ID!!/shellcheck:$shellcheck_version/;
+             s/!!ENVRT_ID!!/${BASH_LINT_ENVRT_CONSTR_ID}/;
+             s/!!GLOBAL_RESULT!!/${global_result}/;
+             s/!!DATE_TIME!!/$(date -Iseconds)/;
+             s%!!COMMENT!!%$comment%")"'
+    - 'curl -k -H "Content-Type: application/json" -H "X-Gitect-Token: ${GITECT_HOST_TOKEN}" -d
+      "$json_data" ${GITECT_EVIDENCE_ENDPOINT}/change-validation'
+    - exit $result
+  artifacts:
+    paths:
+      - "${CHANGE_VALIDATIONS_PATH}"
+  except:
+    - master
+    - tags
+
+test_attestation_interface:
+  stage: validate
+  image: "debian:testing"
+  script:
+    - ./tests/client/docker/install_dependencies.sh
+    - ./tests/client/docker/entrypoint.sh
+    # if the tests have run successfully, that file should exist
+    - if [ ! -e success ]; then
+    -   echo "Artefact attestation tests failed!"
+    -   exit 1
+    - fi
+  artifacts:
+    paths:
+      - "${CHANGE_VALIDATIONS_PATH}"
+  except:
+    - master
+    - tags
+
+test_evidence_collection_app:
+  stage: validate
+  image: "debian:testing"
+  script:
+    - ./tests/app/docker/install_dependencies.sh
+    - ./tests/app/docker/entrypoint.sh
+    # if the tests have run successfully, that file should exist
+    - if [ ! -e success ]; then
+    -   echo "Evidence collection tests failed!"
+    -   exit 1
+    - fi
+  artifacts:
+    paths:
+      - "${CHANGE_VALIDATIONS_PATH}"
+  except:
+    - master
+    - tags
+
+test_evidence_collection_engine:
+  stage: validate
+  image: "debian:testing"
+  script:
+    - ./tests/engine/docker/install_dependencies.sh
+    - ./tests/engine/docker/entrypoint.sh
+    # if the tests have run successfully, that file should exist
+    - if [ ! -e success ]; then
+    -   echo "Evidence collection tests failed!"
+    -   exit 1
+    - fi
+  artifacts:
+    paths:
+      - "${CHANGE_VALIDATIONS_PATH}"
+  except:
+    - master
+    - tags
+
+check-policy-compliance:
+  stage: check-policy-compliance
+  variables:
+    GIT_STRATEGY: none
+  except:
+    - master
+    - tags
+  script:
+    - for f in $(ls -1 "${CHANGE_VALIDATIONS_PATH}"); do
+    -   source "${CHANGE_VALIDATIONS_PATH}/$f"
+    - done
+    # gitect: Check policy compliance
+    - 'output=$(curl -k -H "Accept: application/json" -H "X-Gitect-Token: ${GITECT_HOST_TOKEN}" -G
+      --data-urlencode "validation-id=${LINT_MARKDOWN_CHANGE_VALIDATION_ID}"
+      --data-urlencode "validation-id=${LINT_PYTHON_CHANGE_VALIDATION_ID}"
+      --data-urlencode "validation-id=${LINT_BASH_CHANGE_VALIDATION_ID}"
+      --data-urlencode "validation-id=${TEST_ATTESTATION_INTERFACE_CHANGE_VALIDATION_ID}"
+      --data-urlencode "validation-id=${TEST_EVIDENCE_COLLECTION_ENGINE_CHANGE_VALIDATION_ID}"
+      --data-urlencode "validation-id=${TEST_EVIDENCE_COLLECTION_APP_CHANGE_VALIDATION_ID}"
+      --data-urlencode "target-branch=${TARGET_BRANCH}"
+      "${GITECT_HOST}/api/v1/gitlab.com/${CI_PROJECT_PATH}/~/${CI_COMMIT_REF_NAME}/${CI_COMMIT_SHA}/policy-compliance")'
+    - echo $output
+    - if [[ "$output" != *"true"* ]];then
+    -   echo "Policy compliance check failed"
+    -   exit 1
+    - fi
+

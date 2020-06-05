@@ -1,0 +1,86 @@
+image: registry.gitlab.com/rilis/docker-ci:ci-latest
+stages:
+  - test
+  - stats
+  - docs
+
+clang-format:
+  stage: stats
+  script:
+  - find * -iname '*.hpp' -o -iname '*.cpp' | xargs clang-format -i -style=file
+  - git status --porcelain > ../status.log
+  - git diff
+  - test ! -s ../status.log
+
+cppcheck:
+  stage: stats
+  script:
+  - find * -iname '*.cpp' -o -iname '*.hpp' | cppcheck --quiet --std=c++11 --enable=warning --enable=style --enable=performance --enable=portability --enable=information --enable=missingInclude --suppress=missingIncludeSystem --inline-suppr --file-list=- &> cppcheck.log
+  - cat cppcheck.log
+  - test ! -s cppcheck.log
+
+cpplint:
+  stage: stats
+  script:
+  - find * -iname '*.cpp' -o -iname '*.hpp' | xargs cpplint.py --linelength=120 --extensions=hpp,cpp --filter=-legal/copyright,-build/include_order,-build/c++11,+build/c++14,-runtime/references
+
+doxygen:
+  stage: docs
+  script:
+    - doxygen Doxyfile
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - doxygen/html
+
+test:
+  stage: test
+  script:
+  - hell --install -r '=' -i "CMAKE_CXX_STANDARD=11" -G 'Ninja'
+  - mkdir build
+  - cd build
+  - cmake ../ -G"Ninja" -DCMAKE_INSTALL_PREFIX=../.hell/install -DCMAKE_CXX_STANDARD=11
+  - ninja install
+
+coverage:
+  stage: stats
+  script:
+  - hell --install -r '=' -r "RILI_TEST_COVERAGE=ON" -r "RILI_TEST_EXAMPLES=ON" -i "CMAKE_CXX_STANDARD=11" -G 'Ninja'
+  - mkdir build
+  - cd build
+  - cmake ../ -G"Ninja" -DRILI_TEST_COVERAGE=ON -DRILI_TEST_EXAMPLES=ON -DCMAKE_INSTALL_PREFIX=../.hell/install -DCMAKE_CXX_STANDARD=11
+  - ninja install
+  - ./rili-test_examples
+  - cd ..
+  - lcov --directory ./build/ --capture --output-file coverage.info
+  - lcov --remove coverage.info '/usr/include/*' '*/examples/*' '*/.hell/*' -o coverage.info
+  - genhtml coverage.info --output-directory coverage
+  - lcov --list coverage.info
+  artifacts:
+    when: always
+    expire_in: 1 day
+    name: "$CI_JOB_NAME"
+    paths:
+      - coverage
+
+
+valgrind:
+  stage: stats
+  script:
+  - hell --install -i "CMAKE_BUILD_TYPE=Debug" -r '=' -r "RILI_TEST_EXAMPLES=ON" -i "CMAKE_CXX_STANDARD=11" -G 'Ninja'
+  - mkdir build
+  - cd build
+  - cmake ../ -G"Ninja" -DCMAKE_BUILD_TYPE=Debug -DRILI_TEST_EXAMPLES=ON -DCMAKE_INSTALL_PREFIX=../.hell/install -DCMAKE_CXX_STANDARD=11
+  - ninja install
+  - valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=123 ./rili-test_examples
+
+valgrind-noexceptions:
+  stage: stats
+  script:
+  - hell --install -i "CMAKE_BUILD_TYPE=Debug" -r '=' -r "RILI_TEST_EXAMPLES=ON" -i "CMAKE_CXX_STANDARD=11" -G 'Ninja'
+  - mkdir build
+  - cd build
+  - cmake ../ -G"Ninja" -DCMAKE_BUILD_TYPE=Debug -DRILI_TEST_WITH_EXCEPTIONS=OFF -DRILI_TEST_EXAMPLES=ON -DCMAKE_INSTALL_PREFIX=../.hell/install -DCMAKE_CXX_STANDARD=11
+  - ninja install
+  - valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=123 ./rili-test_examples
+

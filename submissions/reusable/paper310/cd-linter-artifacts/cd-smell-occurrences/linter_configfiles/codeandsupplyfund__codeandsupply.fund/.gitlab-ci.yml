@@ -1,0 +1,35 @@
+variables:
+  S3_BUCKET_NAME: "codeandsupply.fund"
+  HUGO_VERSION: "0.40.2"
+  HUGO_BITS: "32"
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache make curl
+    - echo "Retrieving Hugo ${HUGO_VERSION} for ${HUGO_BITS}-bit Linux..."
+    - curl -L https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_Linux-${HUGO_BITS}bit.tar.gz -o hugo.tar.gz
+    - tar -v -x -f hugo.tar.gz
+  script:
+    - HUGO_BIN=./hugo make all
+  artifacts:
+    paths:
+      - build
+
+deploy:
+  stage: deploy
+  image: node:11
+  script:
+    - npm install -g s3-cli aws-cloudfront-invalidate
+    - s3-cli sync --delete-removed ./build/ s3://$S3_BUCKET_NAME/
+    -  AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY} AWS_SECRET_ACCESS_KEY=${AWS_SECRET_KEY} aws-cloudfront-invalidate ${CLOUDFRONT_DISTRIBUTION_ID}
+  only:
+    - master
+
+

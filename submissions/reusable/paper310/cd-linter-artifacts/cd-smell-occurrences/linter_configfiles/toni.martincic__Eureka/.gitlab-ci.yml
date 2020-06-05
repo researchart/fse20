@@ -1,0 +1,15 @@
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2"
+
+stages:
+  - build
+
+maven-build:
+  image: maven:3-jdk-8
+  stage: build
+  script: "mvn package -B"
+  artifacts:
+    expire_in: 15 mins
+    paths:
+      - backend/target/*.jar
+

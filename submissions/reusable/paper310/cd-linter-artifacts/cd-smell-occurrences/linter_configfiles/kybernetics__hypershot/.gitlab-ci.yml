@@ -1,0 +1,76 @@
+---
+
+# Look for the different tagged releases at:
+# https://hub.docker.com/r/library/python
+image: python:3.4
+
+##image: ubuntu:xenial
+## apt-get install -y python3.5 python3.5-venv python3-pip
+
+# Pick zero or more services to be used on all builds.
+# Only needed when using a docker container to run your tests in.
+# Check out:
+#   http://docs.gitlab.com/ce/ci/docker/using_docker_images.html#what-is-service
+##services:
+##  - mysql:latest
+##  - postgres:latest
+
+# Environment
+variables:
+  LANG: "en_US.UTF-8"
+  PYTHONIOENCODING: "utf-8"
+  HYPERSHOT_DEBUG: "1"
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+    - /root/.cache/pip/
+
+# Install dependencies etc.
+before_script:
+  - python3 -V  # Print out python version for debugging
+
+.apt_setup: &apt_setup |
+  apt-get -qq update && apt-get -q install -y locales mediainfo
+  locale-gen "$LANG"
+  locale
+
+# Jobs
+tox:
+  stage: test
+  script:
+    - *apt_setup
+    - python3 setup.py --version
+    - pip3 install -r requirements-dev.txt
+    - tox -e lint -- --reports=y
+    - tox -e py34
+    - hypershot --config-dir=docs/examples templates
+  artifacts:
+    paths:
+      - build/cov_html
+    expire_in: 3 days
+
+docs:
+  # Run this in 'deploy', so Sphinx errors do not prevent
+  # publishing of coverage reports
+  stage: deploy
+  script:
+    - pip3 install tox
+    - tox -e docs
+
+pages:
+  stage: deploy
+  dependencies:
+    - tox
+  script:
+    - mv build/cov_html/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+
+...
+

@@ -1,0 +1,104 @@
+---
+image: python:3.6.2
+
+variables:
+  PCF_API_URL: "https://api.run.pivotal.io"
+  PCF_DOMAIN: "cfapps.io"
+  GITLAB_ORIGIN: "https://gitlab.com"
+
+cache:
+  paths:
+    - ~/.cache/pip/
+
+stages:
+  - test
+  - schedule
+  - deploy
+
+unit:
+  stage: test
+  script:
+  - echo 'Currently disabling unit testing...'
+#   - pip install -r requirements.txt
+#   - python manage.py test
+  except:
+  - triggers
+
+build:
+  stage: test
+  script:
+  - mkdir -p binaries
+  - cp -R splash templates www Procfile manage.py manifest.yml requirements.txt runtime.txt uwsgi.ini binaries/
+  artifacts:
+    paths:
+    - binaries/
+  except:
+  - triggers
+
+app:
+  when: manual
+  stage: deploy
+  image: poffey21/cfcli:6.32.0
+  variables:
+    PCF_APP_HOSTNAME: "$CI_PROJECT_PATH_SLUG"
+    PCF_APP_NAME: "$CI_PROJECT_NAME"
+  script:
+    - echo ${PCF_APP_HOSTNAME}.${PCF_DOMAIN}
+    - cf login -a $PCF_API_URL -o $PCF_ORG -s $PCF_SPACE -u $PCF_USER -p $PCF_PASS
+    - cf push $PCF_APP_NAME --hostname $PCF_APP_HOSTNAME --no-start
+    - cf set-env $PCF_APP_NAME DJANGO_SECRET_KEY $DJANGO_SECRET_KEY > /dev/null
+    - cf start $PCF_APP_NAME
+
+trigger:
+  when: manual
+  stage: schedule
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - curl -X POST -F token=$TRIGGER_TOKEN -F "ref=$CI_COMMIT_REF_NAME" -F "variables[TRIGGER_VARIABLE]=setcurrently" $GITLAB_ORIGIN/api/v4/projects/$CI_PROJECT_ID/trigger/pipeline
+  except:
+  - triggers
+
+trigger_without_sample:
+  when: manual
+  stage: schedule
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - curl -X POST -F token=$TRIGGER_TOKEN -F "ref=$CI_COMMIT_REF_NAME" $GITLAB_ORIGIN/api/v4/projects/$CI_PROJECT_ID/trigger/pipeline
+  except:
+  - triggers
+
+trigger_sample:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  script:
+  - if [[ ! -z "$TRIGGER_VARIABLE" ]]; then echo "We will show this to be true only if TRIGGER_VARIABLE is set!"; fi
+  only:
+  - triggers
+
+trigger_always:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  script:
+  - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" "$GITLAB_ORIGIN/api/v4/projects/$CI_PROJECT_ID/jobs/artifacts/master/download?job=build"  --output build.zip --silent'
+  - ls -l
+  - apt-get -qqy update && apt-get -qqy install unzip
+  - 'unzip build.zip'
+  - 'ls binaries'
+  only:
+  - triggers
+
+.pages:
+  stage: deploy
+  image: poffey21/nikola:7.8.10
+  script:
+    - cd pages && nikola build
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

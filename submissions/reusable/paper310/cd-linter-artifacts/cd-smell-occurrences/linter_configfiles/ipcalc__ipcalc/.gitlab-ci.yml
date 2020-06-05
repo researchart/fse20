@@ -1,0 +1,96 @@
+stages:
+ - generate
+ - deploy
+
+.fedora.latest.template: &fedora_template
+  image: fedora:latest
+  before_script:
+    - dnf install -y GeoIP-devel libmaxminddb-devel make meson ninja-build gcc libasan geolite2-{city,country}
+
+fedora.nogeo:
+  stage: generate
+  <<: *fedora_template
+  script:
+    - meson setup build -Duse_maxminddb=disabled -Duse_geoip=disabled --buildtype=plain -Dc_args="-O2 -g -Werror"
+    - ninja -C build
+    - ninja -C build test
+    - USE_MAXMIND=no USE_GEOIP=no USE_RUNTIME_LINKING=no CFLAGS="-O2 -g -Werror" make
+
+fedora.geoip:
+  stage: generate
+  <<: *fedora_template
+  script:
+    - meson setup build -Duse_maxminddb=disabled -Duse_geoip=enabled -Duse_runtime_linking=disabled --buildtype=plain -Dc_args="-O2 -g -Werror"
+    - ninja -C build
+    - ninja -C build test
+    - USE_GEOIP=yes USE_RUNTIME_LINKING=no USE_MAXMIND=no CFLAGS="-O2 -g -Werror" make
+
+fedora.dyn_geoip:
+  stage: generate
+  <<: *fedora_template
+  script:
+    - meson setup build -Duse_maxminddb=disabled -Duse_geoip=enabled -Duse_runtime_linking=enabled --buildtype=plain -Dc_args="-O2 -g -Werror"
+    - ninja -C build
+    - ninja -C build test
+    - USE_GEOIP=yes USE_RUNTIME_LINKING=yes USE_MAXMIND=no CFLAGS="-O2 -g -Werror" make
+
+fedora.maxmind:
+  stage: generate
+  <<: *fedora_template
+  script:
+    - meson setup build -Duse_maxminddb=enabled -Duse_geoip=disabled -Duse_runtime_linking=disabled --buildtype=plain -Dc_args="-O2 -g -Werror"
+    - ninja -C build
+    - ninja -C build test
+    - USE_GEOIP=no USE_RUNTIME_LINKING=no USE_MAXMIND=yes CFLAGS="-O2 -g -Werror" make
+
+fedora.dyn_maxmind:
+  stage: generate
+  <<: *fedora_template
+  script:
+    - meson setup build -Duse_maxminddb=enabled -Duse_geoip=disabled -Duse_runtime_linking=enabled --buildtype=plain -Dc_args="-O2 -g -Werror"
+    - ninja -C build
+    - ninja -C build test
+    - USE_GEOIP=no USE_RUNTIME_LINKING=yes USE_MAXMIND=yes CFLAGS="-O2 -g -Werror" make
+
+fedora.dyn_maxmind_with_asan:
+  stage: generate
+  <<: *fedora_template
+  script:
+    - export ASAN_OPTIONS="detect_leaks=0"
+    - meson setup build -Db_sanitize=address -Dwerror=true
+    - ninja -C build test
+    - ./build/ipcalc -g 217.31.205.50
+
+# Generates coverage report
+pages-test:
+  stage: deploy
+  <<: *fedora_template
+  script:
+    - dnf install -y lcov
+    - meson setup build -Db_coverage=true -Duse_maxminddb=enabled -Duse_geoip=disabled -Duse_runtime_linking=enabled --buildtype=plain -Dc_args="-Og -g -Werror"
+    - ninja -C build
+    - ninja -C build test
+    - ninja -C build coverage-html && mv build/meson-logs/coveragereport public
+  tags:
+  - shared
+  except:
+    - master
+
+pages:
+  stage: deploy
+  <<: *fedora_template
+  script:
+    - dnf install -y lcov
+    - meson setup build -Db_coverage=true -Duse_maxminddb=enabled -Duse_geoip=disabled -Duse_runtime_linking=enabled --buildtype=plain -Dc_args="-Og -g -Werror"
+    - ninja -C build
+    - ninja -C build test
+    - ninja -C build coverage-html && mv build/meson-logs/coveragereport public
+  tags:
+  - shared
+  artifacts:
+    when: on_success
+    paths:
+    - public
+  only:
+    - master
+

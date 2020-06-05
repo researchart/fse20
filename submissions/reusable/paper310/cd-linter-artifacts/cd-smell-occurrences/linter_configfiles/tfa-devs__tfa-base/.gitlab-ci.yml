@@ -1,0 +1,21 @@
+image: python:2.7
+
+cache:
+  paths:
+    - $HOME/env
+
+gluacheck:
+  before_script:
+    - apt-get update -qy
+    - apt-get install -y unzip
+    - pip install hererocks
+    - hererocks $HOME/env --luajit 2.0.4 --luarocks latest
+    - source $HOME/env/bin/activate
+    - git clone https://github.com/impulsh/gluacheck $HOME/gluacheck
+
+  script:
+    - cd $HOME/gluacheck
+    - luarocks make
+    - cd $CI_PROJECT_DIR
+    - luacheck .
+

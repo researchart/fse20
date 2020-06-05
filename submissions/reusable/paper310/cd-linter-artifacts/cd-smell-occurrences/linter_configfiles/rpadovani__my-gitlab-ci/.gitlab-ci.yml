@@ -1,0 +1,87 @@
+image: node:latest
+
+.functions: &functions |
+  # Variables and functions
+  function setup_docker() {
+    if ! docker info &>/dev/null; then
+      if [ -z "$DOCKER_HOST" -a "$KUBERNETES_PORT" ]; then
+        export DOCKER_HOST='tcp://localhost:2375'
+      fi
+    fi
+  }
+
+  function sast() {
+    case "$CI_SERVER_VERSION" in
+      *-ee)
+        # Extract "MAJOR.MINOR" from CI_SERVER_VERSION and generate "MAJOR-MINOR-stable"
+        SAST_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+
+        docker run --env SAST_CONFIDENCE_LEVEL="${SAST_CONFIDENCE_LEVEL:-3}" \
+                   --env SAST_DISABLE_REMOTE_CHECKS="${SAST_DISABLE_REMOTE_CHECKS:-false}" \
+                   --volume "$PWD:/code" \
+                   --volume /var/run/docker.sock:/var/run/docker.sock \
+                   "registry.gitlab.com/gitlab-org/security-products/sast:$SAST_VERSION" /app/bin/run /code
+        ;;
+      *)
+        echo "GitLab Enterprise Edition is required"
+        ;;
+    esac
+  }
+
+stages:
+  - test
+  - deploy
+
+eslint:
+  stage: test
+  script:
+    - npm install
+    - npm run lint
+
+codequality:
+  image: docker:latest
+  stage: test
+  variables:
+    DOCKER_DRIVER: overlay2
+  tags:
+    - dind
+  services:
+    - docker:dind
+  script:
+    - docker pull codeclimate/codeclimate
+    - docker run --env CODECLIMATE_CODE="$PWD" --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock --volume /tmp/cc:/tmp/cc codeclimate/codeclimate:0.69.0 init
+    - docker run --env CODECLIMATE_CODE="$PWD" --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock --volume /tmp/cc:/tmp/cc codeclimate/codeclimate:0.69.0 analyze -f json > codeclimate.json || true
+  artifacts:
+    paths: [codeclimate.json]
+
+sast:
+  image: docker:latest
+  stage: test
+  variables:
+    DOCKER_DRIVER: overlay2
+  tags:
+    - dind
+  allow_failure: true
+  services:
+    - docker:dind
+  before_script:
+    - *functions
+  script:
+    - setup_docker
+    - sast
+  artifacts:
+    paths: [gl-sast-report.json]
+
+pages:
+  stage: deploy
+  script:
+  - npm install
+  - npm run build
+  - mv dist public
+  artifacts:
+    paths:
+    - public/
+  only:
+  - master
+
+

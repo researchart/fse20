@@ -1,0 +1,15 @@
+stages:
+    - test
+
+test:
+    only:
+        - merge_requests
+    script:
+        - apt-get update
+        - apt-get -y install clang
+        - apt-get -y install valgrind
+        - curl https://notabug.org/VictorSCushman/EMU/raw/master/EMUtest.h > deps/EMU/EMUtest.h
+        - make
+        - make install
+        - make test
+

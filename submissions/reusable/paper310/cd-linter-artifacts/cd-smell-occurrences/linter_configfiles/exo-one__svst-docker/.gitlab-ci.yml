@@ -1,0 +1,27 @@
+image: docker:latest
+
+cache:
+  untracked: true
+
+variables:
+  DOCKER_DRIVER: overlay
+
+services:
+  - docker:dind
+
+before_script:
+  - apk add --update python py-pip python-dev python3 bash git &&
+      pip install docker-compose &&
+      pip3 install PyYAML
+
+stages:
+  - run-tests
+
+compose-run-tests:
+  stage: run-tests
+  script:
+    - ./_reset_tests.sh && ./_run_test.sh
+  tags:
+    - docker
+    - runner1
+

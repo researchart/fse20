@@ -1,0 +1,50 @@
+image: node:latest
+
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+before_script:
+  - npm install --silent
+
+cache:
+  paths:
+    - node_modules/
+
+lint:
+  stage: lint
+  script:
+    - echo "Running Linter"
+    - npm run lint
+
+test:
+  stage: test
+  script:
+    - echo "Running Tests"
+    - npm test
+
+build:
+  stage: build
+  script:
+    - echo "Building the App"
+    - npm run build
+
+deploy:
+  image: ruby:latest
+  stage: deploy
+  before_script:
+    - apt-get -qq update
+  script:
+    # - rm -rf public
+    # - mv build public
+    - apt-get install -yqq ruby ruby-dev --silent
+    - gem install dpl
+    - dpl --provider=heroku --app=$HEROKU_APP_NAME --api-key=$HEROKU_API_KEY
+  artifacts:
+    paths:
+      - public
+  only:
+    - deploy
+

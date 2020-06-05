@@ -1,0 +1,29 @@
+stages:
+ - build
+ - deploy
+ 
+pages:
+  stage: build
+  script:
+  - ls
+  
+  stage: deploy
+  script:
+  - mkdir -p public/.well-known/acme-challenge/
+  - cp -R acme-challenge public/.well-known/
+  # - rm -rf ./images/*
+  # - find ./images_fullsize -type f -exec convert {} -sharpen -x1.0 -contrast 2 -quality 95 -strip -resize 600x -set filename:area "%t" ./images/%[filename:area].jpg \; 
+  # - find ./images_fullsize -type f -exec convert {} -sharpen -x1.0 -contrast 2 -quality 95 -strip -resize 355.98x -set filename:area "%t_med" ./images/%[filename:area].jpg \;  
+  - cp *.html public/  
+  - cp robots.txt public/robots.txt
+  - cp favicon.ico  public/favicon.ico
+  - cp -r images/* public/images/
+  - cp -r css public/css
+  - gzip -k -6 -r public
+
+  artifacts:
+    paths:
+    - public
+  only:
+  - master    
+

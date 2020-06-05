@@ -1,0 +1,26 @@
+image: python:3.8-alpine
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  POSTGRES_HOST_AUTH_METHOD: 'trust'
+
+services:
+  - postgres:alpine
+
+cache:
+  paths:
+    - .cache/pip
+
+tests:
+  before_script:
+    - python -V
+    - apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev gifsicle
+    - pip3 install pipenv wheel tox
+    - pipenv install --dev
+  script:
+    - ls
+    - cp config.ci.py config.py
+    - pipenv run ./manage.py migrate
+    - pipenv run pyflakes run.py litecord/
+    - pipenv run pytest tests
+

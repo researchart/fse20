@@ -1,0 +1,25 @@
+stages:
+  - create_package
+  - upload_package
+
+package:
+  stage: create_package
+  image: ruby:alpine
+  script:
+    - apk --no-cache add bash curl
+    - $CI_PROJECT_DIR/.gitlab-ci/package.sh
+  artifacts:
+    paths:
+    - $CI_PROJECT_DIR/*.deb
+  only:
+    - tags
+
+upload_packages:
+  stage: upload_package
+  image: docker:git
+  script:
+  - apk --no-cache add bash
+  - $CI_PROJECT_DIR/.gitlab-ci/upload.sh
+  only:
+    - tags
+

@@ -1,0 +1,21 @@
+image: ruby
+
+
+pages:
+  stage: deploy
+  before_script:
+  - bundle install --binstubs
+  script:
+  - bundle exec asciidoctor-revealjs README.adoc -D public
+  after_script:
+  - cp -R ./css ./public ||true
+  - cp -R ./demos ./public ||true
+  - cp -R ./Images ./public ||true
+  - mv public/README.html public/index.html
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+

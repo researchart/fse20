@@ -1,0 +1,13 @@
+image: ubuntu
+
+before_script:
+  - apt-get update -qq
+  - apt-get install build-essential bison openssl libreadline6 libreadline6-dev curl git-core zlib1g zlib1g-dev libssl-dev libyaml-dev libxml2-dev autoconf libc6-dev ncurses-dev automake libtool ruby ruby-dev ruby-bundler -y -qq
+  - ruby -v
+  - bundle install
+
+rspec:
+  script:
+    - bundle exec rspec
+
+

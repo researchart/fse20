@@ -1,0 +1,47 @@
+stages:
+  - test
+  - deploy
+
+test:python35:
+  stage: test
+  image: python:3.5-alpine
+  script:
+    - apk add build-base libffi-dev libcrypto1.0
+    - ln -s /usr/lib/libcrypto.so.1.0.0 /usr/lib/libcrypto.so
+    - pip install -r requirements/development.txt
+    - coverage run --source=rundeck_resources -m unittest discover -b tests/
+
+test:python36:
+  stage: test
+  image: python:3.6-alpine
+  script:
+    - apk add build-base libffi-dev libcrypto1.0
+    - ln -s /usr/lib/libcrypto.so.1.0.0 /usr/lib/libcrypto.so
+    - pip install -r requirements/development.txt
+    - coverage run --source=rundeck_resources -m unittest discover -b tests/
+
+test:python37:
+  stage: test
+  except:
+    - master
+  image: python:3.7-alpine
+  script:
+    - apk add build-base libffi-dev libcrypto1.0
+    - ln -s /usr/lib/libcrypto.so.1.0.0 /usr/lib/libcrypto.so
+    - pip install -r requirements/development.txt
+    - coverage run --source=rundeck_resources -m unittest discover -b tests/
+
+test:codecov:
+  stage: test
+  only:
+    - master@elazkani/rundeck-resources
+  image: python:3.7-alpine
+  script:
+    - apk add build-base libffi-dev libcrypto1.0
+    - ln -s /usr/lib/libcrypto.so.1.0.0 /usr/lib/libcrypto.so
+    - pip install -r requirements/development.txt
+    - pip install codecov
+    - coverage run --source=rundeck_resources -m unittest discover -b tests/
+    - coverage xml
+    - codecov --token=$CODECOV_TOKEN
+

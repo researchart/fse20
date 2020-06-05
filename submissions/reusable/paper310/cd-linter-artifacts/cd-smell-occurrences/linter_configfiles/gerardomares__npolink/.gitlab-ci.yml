@@ -1,0 +1,45 @@
+image: docker:stable
+
+variables:
+   DOCKER_HOST: tcp://docker:2375/
+   DOCKER_DRIVER: overlay2
+
+services:
+   - docker:dind
+
+before_script:
+   - docker info
+   - apk add --no-cache py-pip
+   - apk add --no-cache make
+   - pip install docker-compose
+
+stages:
+  - build
+  - test
+  - cleanup
+
+build:all:
+   stage: build
+   script:
+      - make build
+
+test:backend:
+   stage: test
+   script:
+      - make test_backend
+   dependencies:
+      - build:all
+
+test:frontend:
+   stage: test
+   script:
+      - make test_frontend
+   dependencies:
+      - build:all
+
+cleanup_job:
+  stage: cleanup
+  script:
+    - make down
+  when: always
+

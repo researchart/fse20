@@ -1,0 +1,15 @@
+image: maven:latest
+
+variables:
+  MAVEN_CLI_OPTS: "-f backend/pom.xml "
+
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS compile
+    
+test:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS test
+

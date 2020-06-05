@@ -1,0 +1,21 @@
+stages:
+- build
+
+image: gcc
+
+before_script:
+- apt-get update -y
+- apt-get install cmake -y
+
+build:
+  stage: build
+  script:
+    - ./build.sh
+  artifacts:
+    paths:
+    - prime_sieve_linear.run
+    - kuhn_matching.run
+    - fenwick_tree.run
+    - dijkstra_shortest_path.run
+    - convex_hull_graham.run
+

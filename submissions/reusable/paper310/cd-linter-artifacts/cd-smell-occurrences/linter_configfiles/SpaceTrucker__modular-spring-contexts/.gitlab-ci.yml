@@ -1,0 +1,9 @@
+image: maven:3.6-slim
+
+build-modular-spring-contexts:
+  script: "mvn package --batch-mode"
+  artifacts:
+    paths:
+      - "target/*.jar"
+      - "*/target/*.jar"
+

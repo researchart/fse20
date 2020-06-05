@@ -1,0 +1,20 @@
+image: gcc
+
+stages:
+  - build
+
+build:
+  stage: build
+  except:
+   - schedules
+  script: 
+   - make test
+
+build:on-schedule:
+   stage: build
+   only: 
+    - schedules
+   script: 
+    - make future
+
+

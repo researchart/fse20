@@ -1,0 +1,62 @@
+image: docker:latest
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay2
+  IMAGE_TAG: $CI_REGISTRY_IMAGE/demo:$CI_COMMIT_REF_NAME
+  IMAGE_PHP_PROD: $CI_REGISTRY_IMAGE/demo:$CI_COMMIT_SHA
+  IMAGE_NGINX_PROD: $CI_REGISTRY_IMAGE/demo-nginx:latest
+  VERSION: $CI_COMMIT_SHA
+
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t $IMAGE_TAG deploy
+    - docker push $IMAGE_TAG
+
+production images:
+  stage: build
+  script:
+    - docker build . -f deploy/Dockerfile-prod -t $IMAGE_PHP_PROD
+    - docker push $IMAGE_PHP_PROD
+    - docker build . -f deploy/Dockerfile-nginx-prod -t $IMAGE_NGINX_PROD
+    - docker push $IMAGE_NGINX_PROD
+
+
+test suite:
+  stage: test
+  script:
+    - docker pull $IMAGE_TAG
+    - docker run -d --name demo -v $(pwd):/var/www/html $IMAGE_TAG
+    - docker exec demo composer install
+    - docker exec demo ./vendor/bin/simple-phpunit
+    - docker stop demo; docker rm demo
+
+functional tests:
+  stage: test
+  script:
+    - apk add --update py-pip && pip install docker-compose
+    - docker pull $IMAGE_TAG
+    - docker-compose -f deploy/docker-compose.yml up -d
+    - docker-compose -f deploy/docker-compose.yml exec -T php composer install
+    - docker-compose -f deploy/docker-compose.yml exec -T php ./vendor/bin/codecept run
+
+pull:
+  stage: deploy
+  tags: [prod]
+  script:
+    - docker pull $IMAGE_PHP_PROD
+    - docker pull $IMAGE_NGINX_PROD
+
+production:
+  stage: deploy
+  when: manual
+  tags: [prod]
+  script:
+    - docker-compose -f deploy/docker-stack.yml up -d
+

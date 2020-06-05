@@ -1,0 +1,13 @@
+test:
+  image: python:3.5
+  script:
+    - export GITLAB_CI=1
+    - apt-get update -qy
+    - apt-get install -y mysql-server mysql-client
+    - service mysql start
+    - mysql -u root -e "CREATE USER 'milolab_eqbtr'@'localhost' IDENTIFIED BY 'password';"
+    - mysql -u root -e "GRANT ALL PRIVILEGES ON * . * TO 'milolab_eqbtr'@'localhost'"
+    - pip install -r requirements.txt
+    - python init_db.py
+    - python -m unittest discover tests
+

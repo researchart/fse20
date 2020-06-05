@@ -1,0 +1,25 @@
+image: debian
+
+stages:
+  - build
+
+build:
+  before_script:
+    - apt-get update -y
+    - apt-get install -y git make python
+    - apt-get install -y libreadline-dev libconfig-dev libssl-dev lua5.2 liblua5.2-dev libevent-dev libjansson-dev libpython-dev 
+    - git clone --recursive https://github.com/vysheng/tg.git tg
+
+  script:
+    - cd tg/
+    - ./configure && make
+
+  artifacts:
+    paths:
+      - tg/bin/
+      - tg/server.pub
+
+  when: manual
+
+  stage: build
+

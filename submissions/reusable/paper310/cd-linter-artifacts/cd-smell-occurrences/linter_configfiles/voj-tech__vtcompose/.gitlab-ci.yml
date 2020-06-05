@@ -1,0 +1,27 @@
+variables:
+  ARCHIVE_BASENAME: "vtcompose-"
+  ARCHIVE_EXTENSION: ".zip"
+  DISTDIR: "dist"
+
+archive:
+  stage: build
+  only:
+    - tags
+  script:
+    - ARCHDIR_BASENAME="${ARCHIVE_BASENAME}${CI_COMMIT_REF_NAME:1}"
+    - ARCHDIR="${DISTDIR}/${ARCHDIR_BASENAME}"
+    - mkdir -p "$ARCHDIR"
+    - cp -R php sql CHANGELOG.md LICENSE README.md "$ARCHDIR"
+    - (cd "$DISTDIR" && zip -FSrMM9 "${ARCHDIR_BASENAME}${ARCHIVE_EXTENSION}" "$ARCHDIR_BASENAME")
+  before_script:
+    - apt-get -y update
+    - apt-get -y install zip
+  artifacts:
+    paths:
+      - "${DISTDIR}/${ARCHIVE_BASENAME}*${ARCHIVE_EXTENSION}"
+
+cache:
+  key: "$CI_COMMIT_REF_NAME"
+  paths:
+    - "$DISTDIR"
+

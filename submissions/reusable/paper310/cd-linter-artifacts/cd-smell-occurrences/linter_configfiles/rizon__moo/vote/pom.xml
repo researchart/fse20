@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>net.rizon</groupId>
+		<artifactId>moo</artifactId>
+		<version>3.0</version>
+	</parent>
+
+	<name>Vote</name>
+
+	<groupId>net.rizon.moo</groupId>
+	<artifactId>vote</artifactId>
+
+	<dependencies>
+		<dependency>
+			<groupId>net.rizon.moo</groupId>
+			<artifactId>moo</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+	</dependencies>
+	
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifest>
+							<mainClass>net.rizon.moo.plugin.vote.vote</mainClass>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>
+

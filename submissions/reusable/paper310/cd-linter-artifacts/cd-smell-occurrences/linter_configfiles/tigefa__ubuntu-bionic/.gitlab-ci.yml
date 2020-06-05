@@ -1,0 +1,19 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+variables:
+  CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+  DOCKER_DRIVER: overlay2
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  - apk update && apk add make
+
+build:
+  stage: build
+  script:
+    - make build NAME=$CONTAINER_IMAGE
+    - docker push $CONTAINER_IMAGE
+

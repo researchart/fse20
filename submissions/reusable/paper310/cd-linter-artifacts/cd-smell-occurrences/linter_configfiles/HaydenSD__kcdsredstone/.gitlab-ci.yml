@@ -1,0 +1,14 @@
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - shopt -s extglob
+  - cp -r !(world_*) .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+

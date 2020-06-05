@@ -1,0 +1,25 @@
+image: "scorpil/rust:stable"
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  script:
+    - cargo build
+
+test:
+  stage: test
+  script:
+    - cargo test
+
+pages:
+  stage: deploy
+  script:
+    - cargo doc
+    - cp -r target/doc public
+  artifacts:
+    paths:
+    - public
+

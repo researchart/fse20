@@ -1,0 +1,29 @@
+# Cache between builds
+cache:
+  paths:
+  - vendor/
+
+before_script:
+- apt-get update -yqq
+- apt-get install -yqq git
+
+# Install & enable Xdebug for code coverage reports
+- pecl install xdebug
+- docker-php-ext-enable xdebug
+
+# Install and run Composer
+- curl -sS https://getcomposer.org/installer | php
+- php composer.phar update --no-interaction --prefer-source --prefer-stable
+
+# Run tests
+test:7.1:
+  image: php:7.1
+  script:
+  - vendor/bin/phpunit --configuration phpunit.xml.dist --coverage-text --colors=never
+
+# Run tests
+test:7.2:
+  image: php:7.2
+  script:
+  - vendor/bin/phpunit --configuration phpunit.xml.dist --coverage-text --colors=never
+

@@ -1,0 +1,87 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<artifactId>greenpepper-extensions-guice</artifactId>
+	<packaging>jar</packaging>
+	<name>GreenPepper Extensions Guice</name>
+
+	<parent>
+		<groupId>com.github.strator-dev.greenpepper</groupId>
+		<artifactId>greenpepper-extensions-parent</artifactId>
+		<version>4.2.5-SNAPSHOT</version>
+	</parent>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.github.strator-dev.greenpepper</groupId>
+			<artifactId>greenpepper-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.strator-dev.greenpepper</groupId>
+			<artifactId>greenpepper-core</artifactId>
+			<type>test-jar</type>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.code.guice</groupId>
+			<artifactId>guice</artifactId>
+			<version>2.0</version>
+		</dependency>
+		<dependency>
+			<groupId>aopalliance</groupId>
+			<artifactId>aopalliance</artifactId>
+			<version>1.0</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>com.github.strator-dev.greenpepper</groupId>
+				<artifactId>greenpepper-maven-plugin</artifactId>
+				<version>${project.version}</version>
+				<configuration>
+					<source>1.5</source>
+					<target>1.5</target>
+					<redirectOutputToFile>true</redirectOutputToFile>
+					<fixtureSourceDirectory>src/fixture/java</fixtureSourceDirectory>
+					<fixtureOutputDirectory>target/fixture-test-classes</fixtureOutputDirectory>
+					<systemUnderDevelopment>com.greenpepper.extensions.guice.GuiceSystemUnderDevelopment</systemUnderDevelopment>
+					<resources>
+						<resource>
+							<directory>src/fixture/resources</directory>
+							<excludes>
+								<exclude>**/*.java</exclude>
+							</excludes>
+						</resource>
+					</resources>
+					<repositories>
+						<repository>
+							<name>greenpepper</name>
+							<type>com.greenpepper.repository.FileSystemRepository</type>
+							<root>${basedir}/src/fixture</root>
+							<suites>
+								<suite>specifications</suite>
+							</suites>
+						</repository>
+					</repositories>
+				</configuration>
+				<executions>
+					<execution>
+						<id>greenpepper</id>
+						<goals>
+							<goal>compile</goal>
+							<goal>resources</goal>
+							<goal>fixture-jar</goal>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
+

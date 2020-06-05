@@ -1,0 +1,11 @@
+python:
+  script:
+    - apt-get update -qy
+    - apt-get install -y python-dev python-pip
+    # - pip install pep8
+    # - pep8 $(git ls-files '*.py') --max-line-length=125 --ignore=E402
+    # - pip install pyflakes
+    # - pyflakes $(git ls-files '*.py')
+    - pip install rstcheck
+    - rstcheck $(git ls-files '*.rst')
+

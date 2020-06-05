@@ -1,0 +1,27 @@
+image: openjdk
+
+cache:
+  key: "$CI_BUILD_REF_NAME"
+  untracked: true
+  paths:
+    - .gradle/*
+
+variables:
+    GRADLE_USER_HOME: .gradle
+
+
+compile-waiter:
+  stage: build
+  script:
+    - ./gradlew beer-waiter:clean beer-waiter:compileJava -x check --no-daemon
+
+compile-billing:
+  stage: build
+  script:
+    - ./gradlew beer-billing:clean beer-billing:compileJava -x check --no-daemon
+
+test-billing:
+  stage: test
+  script:
+    - ./gradlew beer-billing:test --no-daemon
+

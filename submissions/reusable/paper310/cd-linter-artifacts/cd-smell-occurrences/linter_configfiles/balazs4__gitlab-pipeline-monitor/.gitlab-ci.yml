@@ -1,0 +1,36 @@
+image: node:latest
+
+stages:
+  - test
+  - release
+
+test:
+  stage: test
+  script:
+    - yarn install
+    - yarn test
+
+version:
+  stage: release
+  only:
+    - branches
+  except:
+    - master
+    - tags
+  script:
+    - export VERSION=$(node -p "require('./package.json').version")
+    - echo "Check ${VERSION}..."
+    - curl -f -s -H "PRIVATE-TOKEN:${GITLAB_AUTH_TOKEN}" -XGET "https://gitlab.com/api/v4/projects/balazs4%2Fgitlab-pipeline-monitor/repository/tags/${VERSION}" && exit -1 || exit 0
+
+release:
+  stage: release
+  only:
+    - master
+  except:
+    - tags
+  script:
+    - yarn install
+    - export VERSION=$(node -p "require('./package.json').version")
+    - curl -s -H "PRIVATE-TOKEN:${GITLAB_AUTH_TOKEN}" -XPOST "https://gitlab.com/api/v4/projects/balazs4%2Fgitlab-pipeline-monitor/repository/tags?tag_name=${VERSION}&ref=master"
+    - yarn run publish:vsce
+

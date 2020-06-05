@@ -1,0 +1,23 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+job1:
+  tags:
+    - docker
+  stage: build
+  script:
+    - docker build -f ./Dockerfile.ubuntu -t taisun/vdi_ubuntu:$CI_BUILD_REF .
+    - docker build -f ./Dockerfile.debian -t taisun/vdi_debian:$CI_BUILD_REF .
+    - docker tag taisun/vdi_debian:$CI_BUILD_REF taisun/vdi_debian:latest
+    - docker tag taisun/vdi_ubuntu:$CI_BUILD_REF taisun/vdi_ubuntu:latest
+    - echo $DOCKERPASS | docker login -u taisun --password-stdin
+    - docker push taisun/vdi_ubuntu:$CI_BUILD_REF
+    - docker push taisun/vdi_debian:$CI_BUILD_REF
+    - docker push taisun/vdi_ubuntu:latest
+    - docker push taisun/vdi_debian:latest
+

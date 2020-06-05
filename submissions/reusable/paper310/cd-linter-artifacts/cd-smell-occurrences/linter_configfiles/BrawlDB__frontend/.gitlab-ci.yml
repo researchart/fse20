@@ -1,0 +1,28 @@
+stages:
+- build
+- deploy
+
+build:
+  stage: build
+  image: node:10.13.0
+  script:
+  - rm package-lock.json
+  - npm install
+  - npm run build-prod
+  artifacts:
+    paths:
+      - dist
+    expire_in: 30 minutes
+
+
+deploy:
+  stage: deploy
+  image: python:latest
+  script:
+  - pip install awscli
+  - aws s3 cp ./dist/BrawlDB-Frontend/ s3://brawldb-beta/ --recursive --include "*"
+  - aws cloudfront create-invalidation --distribution-id E17VAWVQQ0YUPI --paths /*
+  only:
+  - master
+  when: manual
+

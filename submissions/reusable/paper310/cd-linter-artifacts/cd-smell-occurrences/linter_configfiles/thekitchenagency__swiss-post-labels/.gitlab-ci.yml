@@ -1,0 +1,18 @@
+image: tmaier/docker-compose:18.02
+
+services:
+- docker:dind
+
+stages:
+  - test
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+test:
+  stage: test
+  script:
+  - docker-compose build
+  - docker-compose up -d
+  - docker-compose exec -T wordpress ./docker/setup-wordpress.sh
+

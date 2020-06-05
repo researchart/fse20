@@ -1,0 +1,45 @@
+image: ruby:2.3.1
+
+services:
+  - mysql 
+
+variables:
+  MYSQL_ROOT_PASSWORD: thisisanunsecurepassword
+
+before_script:
+  - cp config/env/test .env 
+  - cp config/env/db .env.db
+  - apt-get update -qq && apt-get install -y -qq nodejs
+  - bundle install --jobs=4
+
+services:
+  - mysql:5.7
+variables:
+  MYSQL_ROOT_PASSWORD: thisisanunsecurepassword
+
+test:
+  stage: test
+  script:
+    - bundle exec rake db:setup RAILS_ENV=test
+    - bundle exec rspec
+  tags:
+    - ruby
+    - mysql
+    - docker
+
+stage:
+  type: deploy
+  script:
+  - gem install dpl
+  - dpl --provider=heroku --app=ticketbuster-stage --api-key=$HEROKU_STAGING_API_KEY
+  only:
+  - master
+
+production:
+  type: deploy
+  script:
+  - gem install dpl
+  - dpl --provider=heroku --app=ticketbuster--api-key=$HEROKU_PRODUCTION_API_KEY
+  only:
+  - tags 
+

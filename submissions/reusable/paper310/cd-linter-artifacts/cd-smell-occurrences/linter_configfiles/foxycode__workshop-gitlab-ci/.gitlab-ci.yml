@@ -1,0 +1,59 @@
+variables:
+    GIT_DEPTH: "1"
+    GIT_STRATEGY: fetch
+    # Configure mysql environment variables (https://hub.docker.com/r/_/mysql/)
+    MYSQL_DATABASE: test
+    MYSQL_ROOT_PASSWORD: aaa123
+
+stages:
+    - download
+    - test
+    - deploy
+
+download:
+    stage: download
+    image: composer:latest
+    script:
+        - "composer create-project --no-interaction --no-progress --prefer-dist jakub-onderka/php-parallel-lint temp/php-parallel-lint ~0.9"
+    artifacts:
+        paths:
+            - temp/php-parallel-lint
+        expire_in: 1 hour
+
+.test_template: &test_template
+    stage: test
+    services:
+        - mysql:latest
+    before_script:
+        - "composer install --no-interaction --no-progress --no-suggest --optimize-autoloader"
+        - "cp app/config/config.test.neon app/config/config.local.neon"
+    script:
+        - "php temp/php-parallel-lint/parallel-lint.php -e php,phpt -j $(nproc) app tests"
+        - "vendor/bin/tester -s -p php -c tests/php.ini tests"
+    artifacts:
+        paths:
+            - tests
+        expire_in: 1 hour
+        when: on_failure
+
+test:7.0:
+    image: sunfoxcz/docker-php-build:7.0
+    <<: *test_template
+
+test:7.1:
+    image: sunfoxcz/docker-php-build:7.1
+    <<: *test_template
+
+deploy to production:
+    stage: deploy
+    environment: production
+    image: sunfoxcz/docker-php-build:7.1
+    script:
+        - "curl -s -X POST https://deployer.sunfox.cz/deploy/$DEPLOYER_KEY"
+    only:
+        - master
+
+cache:
+    paths:
+        - vendor
+

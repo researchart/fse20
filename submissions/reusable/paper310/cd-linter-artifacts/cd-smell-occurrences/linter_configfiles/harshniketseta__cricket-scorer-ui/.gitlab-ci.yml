@@ -1,0 +1,27 @@
+image: node:10
+test:
+  cache:
+    paths:
+    - node_modules/
+  stage: test
+  script:
+    - yarn install
+    - yarn test -- --coverage
+    - yarn run eslint src
+
+pages:
+  cache:
+    paths:
+    - node_modules/
+  stage: deploy
+  only:
+    - master
+  script:
+    - yarn install
+    - yarn build
+    - rm -rf public
+    - mv build public
+  artifacts:
+    paths:
+    - public # mandatory, other folder won't work
+

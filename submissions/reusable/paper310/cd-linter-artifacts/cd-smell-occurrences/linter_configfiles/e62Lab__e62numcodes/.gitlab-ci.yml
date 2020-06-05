@@ -1,0 +1,45 @@
+configuration:
+    script:
+        - apt-get update -qq && apt-get install -y cmake doxygen graphviz libboost-dev libsfml-dev libhdf5-serial-dev
+        - ./run_tests.sh -c
+
+tests:
+    script:
+        - apt-get update -qq && apt-get install -y cmake libboost-dev libsfml-dev libhdf5-serial-dev
+        - apt-get install -y lsb-release
+        - lsb_release -a
+        - uname -mrs
+        - g++ -v
+        - ls -R /usr/lib/x86_64-linux-gnu/hdf5/serial/
+        - ./run_tests.sh -t
+
+style:
+    script:
+        - ./run_tests.sh -s
+
+docs:
+    script:
+        - apt-get update -qq && apt-get install -y doxygen graphviz cmake
+        - ./run_tests.sh -d
+
+#  full:
+#      script:
+#          - apt-get update -qq && apt-get install -y cmake doxygen graphviz libboost-dev libsfml-dev libhdf5-serial-dev
+#          - ./run_tests.sh
+
+#  examples:
+#      script:
+#          - apt-get update -qq && apt-get install -y cmake libboost-dev libsfml-dev libhdf5-serial-dev
+#          - cd examples/diffusion
+#          - mkdir -p build && cd build
+#          - cmake .. && make
+#          - cd ../../phase_field
+#          - mkdir -p build && cd build
+#          - cmake .. && make
+#          - cd ../../fluid_flow
+#          - mkdir -p build && cd build
+#          - cmake .. && make
+#          - cd ../../linear_elasticity
+#          - mkdir -p build && cd build
+#          - cmake .. && make
+

@@ -1,0 +1,65 @@
+stages:
+  - css
+  - web
+  - final
+  - deploy
+
+css:
+  image: node:alpine
+  stage: css
+  script:
+    - apk add --update make
+    - yarn add sass
+    - ln -s `yarn bin sass` /usr/local/bin/sass
+    - make css
+  artifacts:
+    untracked: true
+    paths:
+      - www/
+
+web:
+  image: python:alpine
+  stage: web
+  script:
+    - apk add --update make
+    - pip3 install -r requirement.txt
+    - touch www/assets/css/cv.css
+    - make web
+  artifacts:
+    untracked: true
+    paths:
+      - www/
+
+check:
+  image: python:alpine
+  stage: final
+  script:
+    - apk add --update make openjdk8-jre
+    - pip3 install html5validator
+    - touch www/cv.html www/cv.fr.html www/assets/css/cv.css
+    - make check
+
+pdf:
+  image: node:alpine
+  stage: final
+  script:
+    - apk add --update make chromium
+    - ln -s /usr/bin/chromium-browser /usr/bin/chromium
+    - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true yarn add puppeteer@1.17.0
+    - touch www/cv.html www/cv.fr.html www/assets/css/cv.css
+    - make pdf
+  artifacts:
+    untracked: true
+    paths:
+      - www/
+
+pages:
+  stage: deploy
+  script:
+    - mv www public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

@@ -1,0 +1,63 @@
+image: ocaml/opam2
+
+before_script:
+  - sudo apt-get -y update
+  - sudo apt-get -y install m4 pkg-config libpcre3-dev
+
+# Build testers for different supported compiler versions
+
+rotor-build-4.04:
+  stage: build
+  script:
+    - opam switch 4.04
+    - eval $(opam env)
+    - opam install -y cppo cppo_ocamlbuild containers ocamlgraph logs pcre mparser visitors cmdliner
+    - make all
+    - opam pin -y --kind=path add rotor .
+  only:
+    - master
+
+rotor-build-4.05:
+  stage: build
+  script:
+    - opam switch 4.05
+    - eval $(opam env)
+    - opam install -y cppo cppo_ocamlbuild containers ocamlgraph logs pcre mparser visitors cmdliner
+    - make all
+    - opam pin -y --kind=path add rotor .
+  only:
+    - master
+
+rotor-build-4.06:
+  stage: build
+  script:
+    - opam switch 4.06
+    - eval $(opam env)
+    - opam install -y cppo cppo_ocamlbuild containers ocamlgraph logs pcre mparser visitors cmdliner
+    - make all
+    - opam pin -y --kind=path add rotor .
+  only:
+    - master
+
+rotor-build-4.07:
+  stage: build
+  script:
+    - opam switch 4.07
+    - eval $(opam env)
+    - opam install -y cppo cppo_ocamlbuild containers ocamlgraph logs pcre mparser visitors cmdliner
+    - make all
+    - opam pin -y --kind=path add rotor .
+  only:
+    - master
+
+rotor-build-4.08:
+  stage: build
+  script:
+    - opam switch 4.08
+    - eval $(opam env)
+    - opam install -y cppo cppo_ocamlbuild containers ocamlgraph logs pcre mparser visitors cmdliner
+    - make all
+    - opam pin -y --kind=path add rotor .
+  only:
+    - master
+

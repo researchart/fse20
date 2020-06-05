@@ -1,0 +1,131 @@
+#=================== Initial Configs ===============#
+stages:
+  - build
+  - test
+  - deploy
+
+#=================== BUILD - Package ===============#
+build_package:
+    image: node:latest
+    stage: build
+    only:
+      - tags
+      - develop
+      - merge_requests
+    cache:
+      paths:
+      - node_modules/
+    script:
+      - npm install --unsafe-perm -g vsce
+      - npm install --unsafe-perm
+      - vsce package -o $CI_PROJECT_NAME-$CI_JOB_ID-$CI_PIPELINE_SOURCE.vsix --baseContentUrl $BASE_CONTENT_URL
+    artifacts:
+      name: "artifacts-$CI_PROJECT_NAME-$CI_JOB_ID"
+      expire_in: 2 weeks
+      paths:
+        - "*.vsix"
+
+build_package_release:
+    image: node:latest
+    stage: build
+    only:
+      - tags
+      - /^v.*$/
+    except:
+      - branches
+      - merge_requests
+    cache:
+      paths:
+      - node_modules/
+    script:
+      - npm install --unsafe-perm -g vsce
+      - npm install --unsafe-perm
+      - vsce package -o $CI_PROJECT_NAME-$CI_COMMIT_TAG.vsix --baseContentUrl $BASE_CONTENT_URL
+    artifacts:
+      name: "artifacts-$CI_PROJECT_NAME-$CI_COMMIT_TAG"
+      paths:
+        - "*.vsix"
+
+
+#=================== DEPLOY - Package ==============#
+deploy_package:
+    image: node:latest
+    stage: deploy
+    only:
+      - tags
+      - /^v.*$/
+    except:
+      - branches
+      - merge_requests
+    variables:
+      GIT_STRATEGY: none
+    script:
+      - npm install --unsafe-perm -g vsce
+      - vsce publish -p $VSCE_PERSONAL_ACCESS_TOKEN --packagePath $CI_PROJECT_NAME-$CI_COMMIT_TAG.vsix
+
+#=================== TEST ==========================#
+license_management:
+  image:
+    name: "registry.gitlab.com/gitlab-org/security-products/license-management:$CI_SERVER_VERSION_MAJOR-$CI_SERVER_VERSION_MINOR-stable"
+    entrypoint: [""]
+  stage: test
+  variables:
+    NODE_ENV: production
+  only:
+    - tags
+    - develop
+    - merge_requests
+  allow_failure: true
+  script:
+    - /run.sh analyze .
+  artifacts:
+    reports:
+      license_management: gl-license-management-report.json
+
+dependency_scanning:
+  image: docker:stable
+  stage: test
+  only:
+    - tags
+    - develop
+    - merge_requests
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env DEP_SCAN_DISABLE_REMOTE_CHECKS="${DEP_SCAN_DISABLE_REMOTE_CHECKS:-false}"
+        --volume "$PWD:/code"
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/dependency-scanning:$SP_VERSION" /code
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json
+
+code_quality:
+  image: docker:stable
+  stage: test
+  only:
+    - tags
+    - develop
+    - merge_requests
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    reports:
+      codequality: gl-code-quality-report.json
+
+

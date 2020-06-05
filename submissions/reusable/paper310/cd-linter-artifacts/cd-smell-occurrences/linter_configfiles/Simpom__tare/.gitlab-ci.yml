@@ -1,0 +1,50 @@
+.packages_py2: &packages_definition_py2
+  before_script:
+  - export PIP_PACKAGES="pytest pytest-cov pytest-pep8 Sphinx sphinx_rtd_theme mock future"
+  - export PYTHON="python"
+
+.packages_py3: &packages_definition_py3
+  before_script:
+  - export PIP_PACKAGES="pytest pytest-cov pytest-pep8 Sphinx sphinx_rtd_theme"
+  - export PYTHON="python3"
+
+.job: &job_definition
+  script:
+  - export PYTHONVERSION=$(${PYTHON} -c "import platform ; print(platform.python_version()[:3])")
+  - echo PYTHONVERSION=${PYTHONVERSION}
+  - export INSTALL_DIR=${CI_PROJECT_DIR}/../tare_install
+  - export SITE_PACKAGES_DIR=${INSTALL_DIR}/lib/python${PYTHONVERSION}/site-packages/
+  - mkdir -p ${SITE_PACKAGES_DIR}
+  - export PYTHONPATH="${SITE_PACKAGES_DIR}:${PYTHONPATH}"
+  - ${PYTHON} -m pip install --upgrade pip
+  - ${PYTHON} -m pip install ${PIP_PACKAGES} --user
+  - ${PYTHON} setup.py build_sphinx
+  - ${PYTHON} setup.py install --prefix=${INSTALL_DIR}
+  - ${PYTHON} -m pytest -svv
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+
+python38:
+  image: python:3.8
+  <<: *packages_definition_py3
+  <<: *job_definition
+
+python37:
+  image: python:3.7
+  <<: *packages_definition_py3
+  <<: *job_definition
+
+python36:
+  image: python:3.6
+  <<: *packages_definition_py3
+  <<: *job_definition
+
+python35:
+  image: python:3.5
+  <<: *packages_definition_py3
+  <<: *job_definition
+
+python27:
+  image: python:2.7
+  <<: *packages_definition_py2
+  <<: *job_definition
+

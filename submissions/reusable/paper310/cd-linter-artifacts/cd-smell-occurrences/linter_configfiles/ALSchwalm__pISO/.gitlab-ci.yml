@@ -1,0 +1,40 @@
+image: docker:stable
+
+variables:
+  DOCKER_DRIVER: overlay2
+  GIT_SUBMODULE_STRATEGY: recursive
+  CARGO_HOME: .cargo
+
+services:
+- docker:dind
+
+before_script:
+  - apk update
+  - apk add make tar git zip
+
+rust-tests:
+  script:
+  - make test-ci
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - pISO/target/
+      - pISO/.cargo/
+
+make-image:
+  script:
+  - make sdimage-ci &> build.log
+  tags:
+    - disk-image
+  artifacts:
+    name: "sdimage-$CI_COMMIT_SHA"
+    paths:
+    - sdcard.img.zip
+    - update.zip
+    - build.log
+    when: always
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+    - buildroot/output/
+

@@ -1,0 +1,13 @@
+image: daewok/lisp-devel
+
+stages:
+  - test
+
+before_script:
+  - ln -s "${CI_PROJECT_DIR}" ~/quicklisp/local-projects/cl-decentralise
+
+test:
+  stage: test
+  script:
+    - sbcl --load tests.lisp --disable-debugger --quit
+

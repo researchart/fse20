@@ -1,0 +1,29 @@
+image: weboaks/node-karma-protractor-chrome
+
+variables:
+  VERSION_ID: '0.5'
+
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  script:
+    - yarn
+    - yarn lint
+    - yarn test
+
+build:
+  image: electronuserland/builder:wine
+  stage: build
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/release/*.*
+  script:
+    - export DATE=$(date +%Y%m%d%H%M)
+    - sed "s/0.0.0/${VERSION_ID}.${DATE}/g" package.json > _package.json && mv _package.json package.json
+    - yarn && yarn electron:windows && yarn electron:linux
+  only:
+    - master
+

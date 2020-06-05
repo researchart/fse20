@@ -1,0 +1,39 @@
+# This file is a template, and might need editing before it works on your project.
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:11
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+  - yarn
+
+stages:
+  - test
+  - build
+  - deploy
+
+test:
+  stage: test
+  script: 'yarn test'
+  coverage: '/^All files\s*\|\s*\d+\.*\d*\s*\|\s*(\d+\.*\d*)/'
+  
+build:
+  stage: build
+  script: 'yarn build'
+
+
+publish:
+  stage: deploy
+  only:
+    - tags
+    - triggers
+  script:
+    - yarn build
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+    - npm publish
+

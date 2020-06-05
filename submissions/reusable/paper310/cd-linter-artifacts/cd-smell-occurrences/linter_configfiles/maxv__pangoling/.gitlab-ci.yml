@@ -1,0 +1,106 @@
+# Tempaltes
+
+.template_android_build_tags:
+  tags: &anrdoid_build_tags
+  - android-tools-25-0-5
+  - android-sdk-25
+  - txrunner
+
+# Global settings
+
+stages:
+  - build
+  - test
+  - package
+  - deploy-www
+
+variables:
+  GIT_STRATEGY: fetch
+  GIT_DEPTH: "1"
+
+# Every build jobs
+
+build_release_android:
+  stage: build
+  tags: *anrdoid_build_tags
+  script:
+  - "android/gradlew assembleRelease -p android"
+  - >
+    $ANDROID_HOME/build-tools/25.0.2/zipalign -v -p 4
+    android/app/build/outputs/apk/app-release-unsigned.apk 
+    app-release-aligned.apk
+  - >
+    $ANDROID_HOME/build-tools/25.0.2/apksigner sign
+    --ks $KEYSTORE_PATH --key-pass env:KEY_PASSWORD --ks-key-alias $KEY_NAME --ks-pass env:KEYSTORE_PASSWORD
+    --out pangoling-release.apk  app-release-aligned.apk
+  - "rm app-release-aligned.apk"
+  artifacts:
+    name: "build_release_android"
+    expire_in: 1 weeks
+    untracked: true
+  cache:
+    untracked: true
+
+lint_test:
+  stage: test
+  tags: *anrdoid_build_tags
+  script:
+  - "./android/gradlew lintRelease -p android"
+  dependencies:
+  - "build_release_android"
+  artifacts:
+    name: "lint-result"
+    when: always
+    expire_in: 1 years
+    paths:
+    - "android/app/build/reports/lint-results-release.*"
+
+package_apk:
+  stage: package
+  tags: *anrdoid_build_tags
+  dependencies:
+  - "build_release_android"
+  script:
+  - "cp android/app/build/outputs/apk/app-release-unsigned.apk package-unsigned.apk"
+  - "cp android/app/build/outputs/mapping/release/mapping.txt mapping.txt"
+  artifacts:
+    name: "packages"
+    expire_in: 1 years
+    paths:
+    - pangoling-release.apk
+    - package-unsigned.apk
+    - mapping.txt
+
+pages:
+    stage: deploy-www
+    script:
+    - ./www/nindex/generate.py
+    dependencies: []
+    artifacts:
+        name: "site"
+        paths:
+        - public
+    only:
+    - www-public
+
+# Drafts
+.unit_test:
+  stage: test
+  tags: *anrdoid_build_tags
+  scrip: "???"
+  dependencies:
+  - "build_debug_android"
+  cache:
+    untracked: true
+
+
+.generate_ui_images:
+  stage: test
+  tags: *anrdoid_build_tags
+  scrip: "???"
+  dependencies:
+  - "build_debug_android"
+  cache:
+    untracked: true
+
+

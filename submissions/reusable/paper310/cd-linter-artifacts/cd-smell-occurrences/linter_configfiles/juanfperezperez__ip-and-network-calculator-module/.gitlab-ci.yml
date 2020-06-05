@@ -1,0 +1,100 @@
+stages:
+  - test
+  - build
+  - artifacts
+  - deploy
+
+before_script:
+  - apt-get -qq install git
+
+test:
+  stage: test
+  image:
+    name: microsoft/powershell
+  script:
+    - pwsh -Command ". ./build.init.ps1; Invoke-Build Test"
+
+build:
+  stage: build
+  image:
+    name: microsoft/powershell
+  script:
+    - pwsh -Command ". ./build.init.ps1; Invoke-Build Build"
+  artifacts:
+    paths:
+      - .build
+    expire_in: 1 hour
+
+create_artifacts:
+  before_script:
+    - chmod +x ./linuxbuilddependencies.sh
+    - ./linuxbuilddependencies.sh
+  stage: artifacts
+  image:
+    name: microsoft/powershell
+  script:
+    - pwsh -Command ". ./build.init.ps1; Invoke-Build CreateArtifacts"
+  artifacts:
+    paths:
+      - .build
+
+# apply_tags:
+#   # before_script:
+#   #   - chmod +x ./linuxbuilddependencies.sh
+#   #   - ./linuxbuilddependencies.sh
+#   stage: deploy
+#   image:
+#     name: microsoft/powershell
+#   script:
+#     - pwsh -Command ". ./build.init.ps1; Invoke-Build ApplyTags"
+#   except:
+#     -  /^v(\d+\.){2,3}\d-release(-candidate)?$/
+
+# publish_to_psgallery:
+#   stage: deploy
+#   before_script:
+#     - chmod +x ./linuxbuilddependencies.sh
+#     - ./linuxbuilddependencies.sh
+#   image:
+#     name: microsoft/powershell
+#   script:
+#     # - pwsh -Command ". ./build.init.ps1; Invoke-Build DeployToPSGallery"
+#     - echo "powershell to deploy goes here"
+#   # environment:
+#   #   name: PowerShell Gallery
+#   #   url: https://www.powershellgallery.com/packages/IPAndNetworkCalculator
+#   only:
+#     -  /^v(\d+\.){2,3}\d-release$/
+
+# publish_release_candidate:
+#   stage: deploy
+#   # before_script:
+#   #   - chmod +x ./linuxbuilddependencies.sh
+#   #   - ./linuxbuilddependencies.sh
+#   image:
+#     name: microsoft/powershell
+#   script:
+#     # - pwsh -Command ". ./build.init.ps1; Invoke-Build DeployToPSGallery"
+#     - echo "powershell release-candidate to deploy goes here"
+#   # environment:
+#   #   name: PowerShell Gallery
+#   #   url: https://www.powershellgallery.com/packages/IPAndNetworkCalculator
+#   only:
+#     -  /^v(\d+\.){2,3}\d-release-candidate$/
+
+pages:
+  stage: deploy
+  image:
+    name:  microsoft/powershell
+  script:
+    - pwsh -Command ". ./build.init.ps1; Invoke-Build DeployDocs_GitLabPages"
+  environment:
+    name: GitLab Pages
+    url: https://juanfperezperez.gitlab.io/ip-and-network-calculator-module/
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+  only:
+    - master
+

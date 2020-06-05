@@ -1,0 +1,139 @@
+variables:
+  GITLAB_CI_IMAGE_DEBIAN: 'debian:buster'
+  GITLAB_CI_APT_REPOSITORY: 'deb http://download.opensuse.org/repositories/home:/librespace:/satnogs/Debian_10/ /'
+  GITLAB_CI_APT_KEY_URL: 'https://download.opensuse.org/repositories/home:librespace:satnogs/Debian_10/Release.key'
+stages:
+  - style
+  - test
+  - build
+  - deploy
+style:
+  image: ${GITLAB_CI_IMAGE_DEBIAN}
+  stage: style
+  before_script:
+    - apt-get -q update
+    - apt-get -qy install astyle
+  script:
+    - 'astyle --dry-run --options=.astylerc --formatted lib/*.cc lib/*.h include/satnogs/*.h  | sed ''s/^Formatted/ERROR: Unformatted/;T;q1'''
+test:
+  image: ${GITLAB_CI_IMAGE_DEBIAN}
+  stage: test
+  before_script:
+    - apt-get -q update
+    - apt-get -qy install gnupg libcurl4
+    - echo "$GITLAB_CI_APT_REPOSITORY" > /etc/apt/sources.list.d/home:librespace:satnogs.list
+    - apt-key adv --fetch-keys "$GITLAB_CI_APT_KEY_URL"
+    - apt-get -q update
+    - >
+      apt-get -qy install
+      build-essential
+      cmake
+      doxygen
+      git
+      gnuradio-dev
+      gr-soapy
+      libboost-date-time-dev
+      libboost-dev
+      libboost-filesystem-dev
+      libboost-program-options-dev
+      libboost-regex-dev
+      libboost-system-dev
+      libboost-test-dev
+      libboost-thread-dev
+      libjsoncpp-dev
+      liborc-0.4-dev
+      libpng++-dev
+      libvorbis-dev
+      pkg-config
+      python3-dev
+      python3-six
+      swig
+  script:
+    - mkdir -p build
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr ..
+    - make
+    - make CTEST_OUTPUT_ON_FAILURE=1 test
+    - make install
+    - ldconfig
+    - python3 -c "import satnogs"
+    - rm -rf *
+    - cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DINCLUDE_DEBUG_BLOCKS=OFF -DCMAKE_INSTALL_PREFIX=/usr  ..
+    - make
+    - make CTEST_OUTPUT_ON_FAILURE=1 test
+    - make install
+    - ldconfig
+    - python3 -c "import satnogs"
+debian:
+  stage: build
+  image: ${GITLAB_CI_IMAGE_DEBIAN}
+  before_script:
+    - apt-get -q update
+    - apt-get -qy install gnupg libcurl4
+    - echo "$GITLAB_CI_APT_REPOSITORY" > /etc/apt/sources.list.d/home:librespace:satnogs.list
+    - apt-key adv --fetch-keys "$GITLAB_CI_APT_KEY_URL"
+    - apt-get -q update
+    - apt-get -qy install devscripts git-buildpackage
+  script:
+    - mk-build-deps -i -r -t "apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends -y"
+    - PACKAGE_VERSION="$CI_COMMIT_TAG"
+    - PACKAGE_VERSION="${PACKAGE_VERSION:-$(git describe --abbrev=8 2>/dev/null | tr '-' '+' | cut -c '2-' || true)}"
+    - PACKAGE_VERSION="${PACKAGE_VERSION#v}"
+    - |
+      [ -z "$PACKAGE_VERSION" ] || {
+          dch -b -M -v "${PACKAGE_VERSION}-1" "Bump to version '${PACKAGE_VERSION}-1'"
+          dch -r -m ""
+      }
+    - |
+      [ -n "$CI_COMMIT_TAG" ] || sed -i '/0001-remove-git-maint-version.patch/ d' debian/patches/series
+    - gbp buildpackage -us -uc --git-upstream-tag='HEAD' --git-ignore-branch --git-ignore-new
+    - mkdir artifacts
+    - cp -a ../*.{deb,debian.tar.xz,dsc,build,buildinfo,changes,orig.tar.gz} artifacts/
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - artifacts
+deploy:
+  stage: deploy
+  image: ${GITLAB_CI_IMAGE_DEBIAN}
+  before_script:
+    - apt-get -q update
+    - apt-get -qy install osc
+  script:
+    - |
+      cat <<-EOF > ~/.oscrc
+      [general]
+      apiurl = https://api.opensuse.org
+      [https://api.opensuse.org]
+      user = $OBS_USER
+      pass = $OBS_PASS
+      EOF
+    - |
+      PROJECT="${CI_COMMIT_TAG:+home:librespace:satnogs}"
+      PROJECT="${PROJECT:-home:librespace:satnogs-unstable}"
+      BASE_DIR="$(pwd)"
+      OSC_WORKDIR="$BASE_DIR/osc_workdir"
+      ARTIFACTS_DIR="$BASE_DIR/artifacts"
+      DSC_FILENAME=$(basename $(ls "$ARTIFACTS_DIR"/*.dsc))
+      PACKAGE="${CI_COMMIT_TAG:+${DSC_FILENAME%.dsc}}"
+      PACKAGE="${PACKAGE:-${DSC_FILENAME%%_*}}"
+      mkdir -p "$OSC_WORKDIR"
+      cd "$OSC_WORKDIR"
+      [ -d "$PROJECT" ] || osc co "$PROJECT"
+      cd "$PROJECT"
+      [ -d "$PACKAGE" ] || osc mkpac "$PACKAGE"
+      rm -f "$PACKAGE"/*.{dsc,debian.tar.xz,orig.tar.gz}
+      cp -a "$ARTIFACTS_DIR"/*.{dsc,debian.tar.xz,orig.tar.gz} "$PACKAGE"
+      osc addremove -r
+      osc ci -m "$DSC_FILENAME"
+      cd "$BASE_DIR"
+      rm -r "$OSC_WORKDIR"
+  only:
+    refs:
+      - master
+      - tags
+    variables:
+      - $OBS_USER
+      - $OBS_PASS
+

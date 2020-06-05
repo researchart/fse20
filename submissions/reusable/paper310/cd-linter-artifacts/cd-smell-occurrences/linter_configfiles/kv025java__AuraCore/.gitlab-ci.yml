@@ -1,0 +1,96 @@
+variables:
+  MAVEN_OPTS: "-Djava.awt.headless=true"
+
+.production-only: &production-only
+  only:
+    - master
+    - STAGE
+
+before_script:
+  - chmod u+x ./generate_config.sh
+  - if [ "$CI_COMMIT_REF_NAME" != "master" ]; then export BRANCH_NAME=$(echo -en $CI_COMMIT_REF_NAME | tr -c '[:alnum:]_.-' '-'); fi
+
+stages:
+  - build
+  - documentation
+  - package
+  - analyze_and_docker
+
+compile_project:
+  tags:
+    - ita
+  stage: build
+  script:
+    - ./generate_config.sh $PROD_HOST $PROD_DB $PROD_USER $PROD_PASS $LOGIN_HOST
+    - mvn clean compile -B "$MAVEN_OPTS"
+    - cp swagger/swagger.yaml public/
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - public/
+      - target/
+    when: always
+
+run_tests_and_package:
+  tags:
+    - ita
+  stage: package
+  script:
+      - mvn package -B "$MAVEN_OPTS"
+  dependencies:
+      - compile_project
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - target/
+    when: always
+
+sonar_qube:
+  tags:
+    - ita
+  stage: analyze_and_docker
+  script:
+    - mvn sonar:sonar -B -Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=kvjavaxxv -Dsonar.login="$SONAR_SECRET" -Dsonar.branch="$BRANCH_NAME" "$MAVEN_OPTS"
+    - cat target/site/jacoco/index.html
+  dependencies:
+    - run_tests_and_package
+  when: always
+
+deploy_the_war:
+  tags:
+    - container
+  stage: analyze_and_docker
+  before_script:
+    - if [ "$CI_COMMIT_REF_NAME" != "master" ]; then export IMAGE_TAG=$(echo -en $CI_COMMIT_REF_NAME | tr -c '[:alnum:]_.-' '-'); else export IMAGE_TAG="latest";fi
+    - chmod u+x generate_config.sh
+    - chmod +x rootfs/app-entrypoint.sh
+    - docker login -u "gitlab-ci-token" -p "$CI_JOB_TOKEN" $CI_REGISTRY
+  script:
+    - sh generate_config.sh $PROD_HOST $PROD_DB $PROD_USER $PROD_PASS $LOGIN_HOST
+    - docker build -t "$CI_REGISTRY_IMAGE:$IMAGE_TAG" .
+    - docker push "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
+  after_script:
+    - docker volume ls -qf dangling=true | xargs -r docker volume rm
+    - docker rm $(docker ps -qa --no-trunc --filter "status=exited")
+  <<: *production-only
+
+pack_the_client:
+  tags:
+    - ita
+  stage: analyze_and_docker
+  script:
+    - mvn clean install -B -Dswagger=client -Dmaven.test.skip=true
+  <<: *production-only
+
+pages:
+  tags:
+    - ita
+  stage: documentation
+  script:
+    - echo 'Publishing Documents'
+  artifacts:
+    paths:
+      - public
+  when: always
+  <<: *production-only
+

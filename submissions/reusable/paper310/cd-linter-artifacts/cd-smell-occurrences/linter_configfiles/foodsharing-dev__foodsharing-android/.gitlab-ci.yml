@@ -1,0 +1,137 @@
+stages:
+- vars
+- build
+- release
+
+.build: &build
+  image: alvrme/alpine-android:android-28
+  stage: build
+  before_script:
+  - export GRADLE_USER_HOME=$(pwd)/.gradle
+  - echo "sdk.dir=/opt/sdk" > local.properties
+  - mkdir -p app/src/main/resources
+  - echo "dsn=$SENTRY_DSN" > app/src/main/resources/sentry.properties
+  - apk update && apk add -u curl bash
+  - '[[ -f vars ]] && source vars'
+  - echo export VERSION_CODE="$(git rev-list HEAD --count)" >> vars
+  - echo export VERSION_NAME="${CHANGELOG_VERSION:-unknown}-$CI_COMMIT_SHORT_SHA" >> vars
+  - source vars
+  - cat vars
+  cache:
+    key: build
+    paths:
+    - .gradle
+    - android-build-cache
+  artifacts:
+    expire_in: 30 days
+    paths:
+    - app/build/reports
+    - app/build/outputs/apk
+
+.ruby: &ruby
+  image: ruby:2.6-alpine
+  cache:
+    key: ruby
+    paths:
+    - vendor
+  before_script:
+  - apk update && apk add build-base
+  - gem install bundler
+  - bundle install --path vendor
+  - '[[ -f vars ]] && source vars'
+
+# Here we set some vars that are used in later stages
+# We use the ruby environment for this and it has to run before the android
+# stage (which does not have ruby available, which is needed by the scripts)
+vars:
+  <<: *ruby
+  stage: vars
+  script:
+  - echo export CHANGELOG_VERSION=$(bundle exec ./scripts/latest-changelog-version) >> vars
+  - source vars
+  - '[[ -z "$CI_COMMIT_TAG" ]] || [[ "$CI_COMMIT_TAG" = "v$CHANGELOG_VERSION" ]] || (echo "Tag does not match changelog version" && exit 1)'
+  artifacts:
+    expire_in: 1 hour
+    paths:
+    - vars
+
+build:branch:
+  <<: *build
+  variables:
+    SENTRY_DSN: "https://a26ed9ed05954d37bc487a83b41ede29@sentry.io/1325852"
+    GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.caching=true"
+  environment:
+    name: debug
+    url: https://slack.com/app_redirect?channel=CE171RL3G
+  script:
+  - ./gradlew ktlintDebugCheck lintDebug testDebug assembleDebug
+  - (cd app/build/outputs/apk/debug && mv app-debug.apk app-debug.$CI_COMMIT_SHORT_SHA.apk)
+  - ./slacknotify.sh
+  except:
+  - tags
+
+build:tag:
+  <<: *build
+  variables:
+    SENTRY_DSN: "https://461eedc4e91e4eefacd321b6e52b5910@sentry.io/1400921"
+    GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.caching=true"
+    STORE_FILE: "upload.keystore"
+  script:
+  - echo "$STORE_FILE_CONTENTS" | base64 -d > "app/$STORE_FILE"
+  - ./gradlew ktlintDebugCheck lintDebug testDebug assembleRelease
+  only:
+  - tags
+
+build:master:
+  <<: *build
+  variables:
+    SENTRY_DSN: "https://a26ed9ed05954d37bc487a83b41ede29@sentry.io/1400921"
+    GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.caching=true"
+    STORE_FILE: "upload.keystore"
+  script:
+  - echo "$STORE_FILE_CONTENTS" | base64 -d > "app/$STORE_FILE"
+  - ./gradlew ktlintDebugCheck lintDebug testDebug assembleBeta
+  only:
+  - master@foodsharing-dev/foodsharing-android
+
+release:beta:
+  <<: *ruby
+  stage: release
+  environment:
+    name: beta
+    url: https://play.google.com/apps/internaltest/4701634005546839846
+  variables:
+    LC_ALL: en_US.UTF-8
+    LANG: en_US.UTF-8
+  script:
+  - bundle update fastlane
+  - source vars
+  - cat vars
+  - echo "Releasing version"
+  - echo "  version code $VERSION_CODE"
+  - echo "  version name $VERSION_NAME"
+  - echo "$GOOGLE_KEY_CONTENTS" | base64 -d > app/google-key.json
+  - bundle exec ./scripts/print-latest-changelog > ./fastlane/metadata/android/de-DE/changelogs/$VERSION_CODE.txt
+  - bundle exec fastlane release
+  only:
+  - tags
+
+release:internal:
+  <<: *ruby
+  stage: release
+  variables:
+    LC_ALL: en_US.UTF-8
+    LANG: en_US.UTF-8
+  script:
+  - bundle update fastlane
+  - source vars
+  - cat vars
+  - echo "Releasing version"
+  - echo "  version code $VERSION_CODE"
+  - echo "  version name $VERSION_NAME"
+  - echo "$GOOGLE_KEY_CONTENTS" | base64 -d > app/google-key.json
+  - bundle exec ./scripts/print-latest-changelog > ./fastlane/metadata/android/de-DE/changelogs/$VERSION_CODE.txt
+  - bundle exec fastlane beta
+  only:
+  - master@foodsharing-dev/foodsharing-android
+

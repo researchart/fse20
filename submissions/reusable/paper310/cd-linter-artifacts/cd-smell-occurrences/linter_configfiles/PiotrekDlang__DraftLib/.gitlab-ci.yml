@@ -1,0 +1,12 @@
+test:debian64:
+  image: debian:latest
+  script:
+   - uname -mrs
+   - dpkg --print-architecture
+
+test:debian32:
+  image: 32bit/debian:latest
+  script:
+   - uname -mrs
+   - dpkg --print-architecture
+

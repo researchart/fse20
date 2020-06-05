@@ -1,0 +1,22 @@
+run_tests:
+  image: python:3.5
+  script:
+  - pip3 install -r requirements.txt
+  - pip3 install -r test-requirements.txt
+  - py.test --cov
+
+check_code:
+  image: coala/base
+  script:
+  - coala-ci
+
+moban:
+  image: python:3.5
+  before_script:
+    - pip install moban
+    - git clone https://github.com/moremoban/setupmobans ../setupmobans
+    - git clone https://gitlab.com/coala/mobans ../coala-mobans
+  script:
+    - moban
+    - git diff --exit-code
+

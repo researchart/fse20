@@ -1,0 +1,18 @@
+image: alpine:latest
+
+before_script:
+  - apk add --update sassc make
+
+pages:
+
+  script:
+  - cd site
+  - make build
+  - mv public ../public
+
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

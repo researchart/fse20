@@ -1,0 +1,41 @@
+image: rocker/verse:latest
+stages:
+    - build
+    - check
+    - test
+    - deploy
+
+before_script:
+       - cat /etc/apt/sources.list
+       - apt-get update && apt-get upgrade -y && apt-get -y install libssl-dev libxml2-dev && apt-get -y install texlive-latex-base &&  apt-get -y install texlive-fonts-extra
+       - R --vanilla -e 'install.packages(c("desc"), repos = "https://cloud.r-project.org/")'
+       - R --vanilla -e ' for (p in desc::desc_get_deps()[["package"]]) {if (! require(p, character.only = TRUE)) install.packages(p, repos = "https://cloud.r-project.org/")}'
+
+build:
+  stage: build
+  script:
+    - R CMD build . 
+
+check:
+  stage: check
+  script:  
+    - R --vanilla -e 'devtools::install_git("https://gitlab.com/fvafrCU/packager")'
+    - R --vanilla -e 'packager::rcmdcheck_and_log(".")'
+
+coverage:
+  stage: test
+  script: R --vanilla -e 'install.packages("covr", repos = "https://cloud.r-project.org/"); covr::package_coverage()'
+  coverage: '/^.*\s*Coverage:\s*\d+.\d+\%$/'
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

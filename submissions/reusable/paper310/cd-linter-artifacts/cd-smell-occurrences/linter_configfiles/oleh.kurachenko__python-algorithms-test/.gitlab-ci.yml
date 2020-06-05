@@ -1,0 +1,14 @@
+stages:
+- build
+
+image: ubuntu:16.04
+
+build:
+  stage: build
+  script:
+    - echo "ok"
+  artifacts:
+    paths:
+    - src
+    - prime_sieve_linear.run
+

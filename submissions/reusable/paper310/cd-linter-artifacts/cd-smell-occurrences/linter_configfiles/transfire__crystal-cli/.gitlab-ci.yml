@@ -1,0 +1,15 @@
+image: "crystallang/crystal:latest"
+
+pages:
+  stage: deploy
+  script:
+    - crystal docs
+    - mv docs public
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+
+

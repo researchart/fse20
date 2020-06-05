@@ -1,0 +1,86 @@
+stages:
+  - build
+  - test
+  - publish
+
+build:
+  stage: build
+  variables:
+    DEBUILD_ARGS: --prepend-path /usr/lib/go-1.12/bin
+    TOOL_ARGS: apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes
+  before_script:
+    - apt update
+    - apt-get install -y gnupg ca-certificates
+    - export PATH="$PATH:/usr/lib/go-1.12/bin"
+    - echo "deb http://deb.debian.org/debian/ unstable main" > /etc/apt/sources.list.d/unstable.list
+    - echo "deb https://repo.iovisor.org/apt/xenial xenial main" > /etc/apt/sources.list.d/ioviser.list
+    - apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4052245BD4284CDD
+    - apt-get update
+    - apt-get install -y devscripts dpkg-sig gnupg curl
+  script:
+    - mk-build-deps --install --tool="$TOOL_ARGS" debian/control
+    - ./build-deb.sh
+    - make
+  artifacts:
+    paths:
+      - "build/*"
+  tags:
+    - merge
+    - docker
+    - buster
+
+test:
+  stage: test
+  script:
+    - cd models/2net/
+    - sudo -E ../../build/rvn build
+    - sudo -E ../../build/rvn deploy
+    - sudo -E ../../build/rvn pingwait n0 n1 nimbus
+    - sudo -E ../../build/rvn configure
+  after_script:
+    - cd models/2net/
+    - sudo -E ../../build/rvn destroy
+    - sudo -E chown gitlab-runner:gitlab-runner -R /home/gitlab-runner
+  dependencies:
+    - build
+  tags:
+    - merge
+    - shell
+
+test-debs:
+  stage: test
+  before_script:
+    - sudo ./build-deb-in-ctr.sh debian
+    - sudo ./build-deb-in-ctr.sh ubuntu
+  script:
+    - cd test/internal/install
+    - sudo -E ./run.sh
+  after_script:
+    - cd test/internal/install
+    - sudo rvn destroy
+  dependencies:
+    - build
+  tags:
+    - merge
+    - shell
+
+publish-pkg:
+  stage: publish
+  script:
+    - apt-get update
+    - apt-get install -y devscripts dpkg-sig gnupg curl
+    - 'curl -L https://gitlab.com/mergetb/devops/pkg/raw/master/add-deb.sh > add-deb.sh'
+    - 'chmod +x add-deb.sh'
+    - echo $MERGETB_GPG_KEY | base64 -di | gpg --import
+    - echo $MERGETB_GPG_PUBKEY | base64 -di | gpg --import
+    - dpkg-sig -k $MERGETB_GPG_KEY_ID --sign builder build/*.deb
+    - find build -name "*.deb" | xargs -n 1 ./add-deb.sh
+  dependencies:
+    - build
+  only:
+    - tags
+  tags:
+    - merge
+    - docker
+    - buster
+

@@ -1,0 +1,28 @@
+# Use only one stage for simplicity's sake
+stages:
+  - build
+
+variables:
+  # Directories to deploy the website's files to
+  DEPLOY_DIR_PRODUCTION: /var/www/hugo.pro
+  DEPLOY_DIR_STAGING: /var/www/hugo.pro_staging
+
+cache:
+  key: $CI_COMMIT_REF_SLUG
+  paths:
+  - node_modules/
+  - vendor/ruby/
+
+build:website:
+  stage: build
+  image: ubuntu:19.04
+  before_script:
+    - "$CI_PROJECT_DIR/.gitlab-ci/before_script.sh"
+  script:
+    - "$CI_PROJECT_DIR/.gitlab-ci/script.sh"
+  after_script:
+    - "$CI_PROJECT_DIR/.gitlab-ci/after_script.sh"
+  artifacts:
+    paths:
+      - artifacts/
+

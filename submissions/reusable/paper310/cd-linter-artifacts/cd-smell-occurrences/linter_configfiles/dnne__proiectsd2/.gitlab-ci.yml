@@ -1,0 +1,37 @@
+before_script:
+    - apt-get update
+    - apt-get -y install gcc valgrind
+
+build:
+    script:
+        make build
+
+sample_check:
+    script:
+        - make build/checker
+        - valgrind ./build/checker < checker/inputGenerator/sample_ref_file.txt
+
+check2:
+    script:
+        - make build/checker
+        - valgrind ./build/checker < checker/inputGenerator/ref_file2.txt
+
+check3:
+    script:
+        - make build/checker
+        - valgrind ./build/checker < checker/inputGenerator/ref_file3.txt
+
+check_1k_1k:
+    script:
+        - make build/checker
+        - valgrind ./build/checker < checker/inputGenerator/ref_file_1k_1k.txt
+        - cat newStoreCoords.txt
+
+check_10k_10k:
+    script:
+        - make build/checker
+        - valgrind ./build/checker < checker/inputGenerator/ref_file_10k_10k.txt
+
+
+
+

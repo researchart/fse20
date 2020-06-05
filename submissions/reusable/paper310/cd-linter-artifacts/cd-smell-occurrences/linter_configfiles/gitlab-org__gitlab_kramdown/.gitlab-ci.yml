@@ -1,0 +1,71 @@
+.ruby: &ruby
+  variables:
+    LANG: "C.UTF-8"
+  before_script:
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler  --no-document        # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+.ruby-25: &ruby-25
+  <<: *ruby
+  image: "ruby:2.5"
+  cache:
+    paths:
+      - vendor/ruby
+    key: 'ruby2.5'
+
+.ruby-26: &ruby-26
+  <<: *ruby
+  image: "ruby:2.6"
+  cache:
+    paths:
+      - vendor/ruby
+    key: 'ruby2.6'
+
+.rspec: &rspec
+  script:
+    - bundle exec rake spec
+  artifacts:
+    reports:
+      junit: rspec.xml
+
+rspec ruby2.5:
+  <<: *rspec
+  <<: *ruby-25
+
+rspec ruby2.6:
+  <<: *rspec
+  <<: *ruby-26
+
+rubocop:
+  <<: *ruby-25
+  script:
+    - bundle exec rubocop
+
+benchmark:
+  <<: *ruby-26
+  script:
+    - ./benchmark/benchmark.rb
+
+code_quality:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    reports:
+      codequality: gl-code-quality-report.json
+
+include:
+  - template: SAST.gitlab-ci.yml
+  - template: Dependency-Scanning.gitlab-ci.yml
+

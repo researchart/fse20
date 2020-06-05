@@ -1,0 +1,54 @@
+image: ruby:2.6
+
+variables:
+  DEBIAN_FRONTEND: "noninteractive"
+  BUNDLE_PATH: "$CI_PROJECT_DIR/.bundle"
+
+cookstyle:
+  script:
+    - bundle exec cookstyle
+  stage: test
+
+before_script:
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo $CI_PRIVATE_KEY |base64 -d)
+  - mkdir -p ~/.ssh
+  - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  - ruby -v
+  - bundle install
+
+stages:
+- test
+- publish
+
+rspec:
+  script:
+    - bundle exec rspec -f d
+  only:
+    variables:
+      - "$CI_PRIVATE_KEY"
+  stage: test
+
+kitchen:
+  stage: test
+  cache:
+    paths:
+    - $BUNDLE_PATH
+  script:
+    - apt-get -qq update && apt-get -yqq install openssh-client rsync make jq
+    - make gems
+    - make kitchen
+
+push-cookbook:
+  stage: publish
+  only:
+    refs:
+      - master
+    variables:
+      - "$OPS_CLONE_USERNAME"
+      - "$OPS_CLONE_PASSWORD"
+  script:
+    - git clone https://$OPS_CLONE_USERNAME:$OPS_CLONE_PASSWORD@ops.gitlab.net/gitlab-cookbooks/cookbook-publisher.git /tmp/cookbook-publisher
+    - cp /tmp/cookbook-publisher/publisher.rb .
+    - ruby publisher.rb
+

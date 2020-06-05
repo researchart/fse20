@@ -1,0 +1,46 @@
+stages:
+  - test
+  - build
+  - deploy
+
+before_script:
+  - npm install
+
+lint:
+  stage: test
+  script:
+    - npm run lint
+
+build:
+  stage: build
+  script:
+    - npm run hbs
+    - rm -rf platforms plugins
+    - npm run build
+  except:
+    - master
+    - beta
+    - /^release\/.*$/
+
+deploy:
+  stage: deploy
+  variables:
+    SIASAPP_APK_ROOTPATH: "platforms/android/app/build/outputs/apk/release"
+  script:
+    - npm run hbs
+    - rm -rf platforms plugins
+    - npm run release
+    - export SIASAPP_FILENAME=$(cat config.xml | grep '^<widget' | sed 's|^.*version="\([^"]*\)".*|SIASApp-\1.apk|')
+    - zipalign -f -p 4 $SIASAPP_APK_ROOTPATH/app-release-unsigned.apk $SIASAPP_APK_ROOTPATH/app-release-unsigned-aligned.apk
+    - apksigner sign --ks "$SIASAR_RELEASE_KEY" --ks-pass env:SIASAR_RELEASE_KEY_PASS --key-pass env:SIASAR_RELEASE_KEY_PASS --out $SIASAPP_APK_ROOTPATH/app-release.apk $SIASAPP_APK_ROOTPATH/app-release-unsigned-aligned.apk
+    - apksigner verify $SIASAPP_APK_ROOTPATH/app-release.apk
+    - cp $SIASAPP_APK_ROOTPATH/app-release.apk "$SIASAPP_FILENAME"
+  artifacts:
+    name: SIASApp
+    paths:
+      - "*.apk"
+  only:
+    - master
+    - beta
+    - /^release\/.*$/
+

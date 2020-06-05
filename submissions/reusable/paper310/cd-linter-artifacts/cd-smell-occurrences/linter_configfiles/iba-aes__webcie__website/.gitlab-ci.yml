@@ -1,0 +1,106 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  DOCKER_IMAGE: "registry.gitlab.com/iba-aes/webcie/website:$CI_COMMIT_SHORT_SHA"
+
+Make Docker image:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+  # Het gebeurt nog wel eens dat het builden van de docker image faalt zonder goede reden. Hierom proberen we de job
+  # gewoon eenmalig opnieuw.
+  retry:
+    max: 1
+    when: script_failure
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t $DOCKER_IMAGE .
+    - docker push $DOCKER_IMAGE
+
+# Definitie voor de standaard container voor tests
+.website_tests_job: &website_tests
+  image:
+    name: $DOCKER_IMAGE
+    entrypoint: [""]
+  services:
+    - name: mariadb:latest
+      alias: mysql
+  variables:
+    MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    MYSQL_DATABASE: "test_whoswho4"
+    # De momentele commit is al geinstalleerd onder /var/www/html/website, dus we hoeven niet op nieuw te clonen
+    GIT_STRATEGY: none
+  before_script:
+    # Initialiseer pyenv
+    - eval "$(pyenv init -)"; eval "$(pyenv virtualenv-init -)";
+    - cd /var/www/html/website
+    - mv .docker/testing.env .env
+    - .docker/prepareTests.sh
+
+Pytest:
+  <<: *website_tests
+  stage: test
+  script:
+    - pytest --junitxml=pytest-results.xml
+    - mv pytest-results.xml $CI_PROJECT_DIR
+  artifacts:
+    reports:
+      junit: pytest-results.xml
+
+PHPUnit:
+  <<: *website_tests
+  stage: test
+  script:
+    - www/vendor/bin/phpunit -c phpunit.xml --coverage-text --color=never --log-junit phpunit-results.xml
+    - mv phpunit-results.xml $CI_PROJECT_DIR
+  artifacts:
+    reports:
+      junit: phpunit-results.xml
+
+Black:
+  <<: *website_tests
+  stage: test
+  script:
+    # Black vind unicode niet zo leuk. Dus gebruiken we hier tijdelijk UTF-8
+    - export LC_ALL=C.UTF-8; export LANG=C.UTF-8
+    - black -S --check --diff --exclude whoswhopy/gen/ pytest scripts whoswhopy
+
+Zet live:
+  stage: deploy
+  # Livezetten mag alleen op de master branch
+  only:
+    - master
+  # Als een job op 'manual' staat moet je write permissies hebben op die branch om het uit te voeren
+  # Hierom zullen alleen webcie-leden dit kunnen doen
+  # Daarnaast staat de vm-www2 op 'protected branches only'
+  tags:
+    - vm-www2
+  when: manual
+  environment:
+    name: Productie
+    url: https://a-eskwadraat.nl
+  variables:
+    GIT_STRATEGY: none
+    DEPLOY_FOLDER: /website
+  script:
+    - cd $DEPLOY_FOLDER
+    - git fetch
+    - git checkout $CI_COMMIT_SHA
+    - cd www
+    - ./composer install --no-progress
+    - ./minify
+    - cd ../gettext
+    - ./update
+    - cd $DEPLOY_FOLDER
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+    - alembic upgrade head
+    - chown -R :apache $DEPLOY_FOLDER
+

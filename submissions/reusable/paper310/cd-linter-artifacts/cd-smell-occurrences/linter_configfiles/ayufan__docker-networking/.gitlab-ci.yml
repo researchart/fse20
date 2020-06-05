@@ -1,0 +1,10 @@
+image: docker:git
+services:
+  - docker:dind
+
+test:
+  script:
+    - docker run -d -p 80:80 -v `pwd`/www:/www fnichol/uhttpd
+    - sleep 1
+    - curl http://docker:80/
+

@@ -1,0 +1,52 @@
+image: 'golang:1.10'
+
+stages:
+  - test
+  - build
+  - release
+
+test:branch:  
+  stage: test   
+  except:
+    - /master/
+    - /develop/
+  script:     
+    - ./build.sh 
+      download-go
+      test-go    
+  
+build:develop:
+  stage: build
+  only: 
+    - /develop/
+  script:    
+    - ./build.sh 
+      download-semrel 
+      download-go 
+      build-go 
+      test-go
+      package-beta          
+  artifacts:
+    name: ezrep-prerelease
+    paths:
+      - ezrep-* 
+
+build:master:
+  stage: release
+  only:
+    - /master/
+  except:
+    - tags
+  script:
+    - ./build.sh 
+      download-semrel
+      download-go
+      build-go
+      package-release
+      tag-release
+      publish-release
+  artifacts:
+    name: ezrep-release
+    paths:
+      - ezrep-*      
+

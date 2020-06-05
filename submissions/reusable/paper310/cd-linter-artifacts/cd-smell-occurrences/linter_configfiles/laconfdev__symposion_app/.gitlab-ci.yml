@@ -1,0 +1,185 @@
+variables:
+  CONTAINER_IMAGE_2019: "asia.gcr.io/linuxconfsydney/symposion_app_2019"
+  DOCKER_DRIVER: overlay2
+
+build_image:
+  image: docker:git
+  stage: build
+  services:
+  - docker:dind
+  script:
+    - docker build -f docker/Dockerfile -t asia.gcr.io/linuxconfsydney/symposion_app:$CI_COMMIT_SHA .
+    - docker build --build-arg CI_COMMIT_SHA=$CI_COMMIT_SHA -f docker/Dockerfile.dev -t asia.gcr.io/linuxconfsydney/symposion_app_dev:$CI_COMMIT_SHA .
+    - docker login -u _json_key -p "$GOOGLE_KEY" https://asia.gcr.io
+    - docker push asia.gcr.io/linuxconfsydney/symposion_app:$CI_COMMIT_SHA
+    - docker push asia.gcr.io/linuxconfsydney/symposion_app_dev:$CI_COMMIT_SHA
+    - docker tag asia.gcr.io/linuxconfsydney/symposion_app:$CI_COMMIT_SHA asia.gcr.io/linuxconfsydney/symposion_app:latest
+    - docker tag asia.gcr.io/linuxconfsydney/symposion_app_dev:$CI_COMMIT_SHA asia.gcr.io/linuxconfsydney/symposion_app_dev:latest
+    - docker push asia.gcr.io/linuxconfsydney/symposion_app:latest
+    - docker push asia.gcr.io/linuxconfsydney/symposion_app_dev:latest
+  only:
+    - master
+
+k8s-prod-deploy:
+  image: google/cloud-sdk
+  stage: deploy
+  script:
+  - echo "$GOOGLE_KEY" > key.json
+  - gcloud auth activate-service-account --key-file key.json
+  - gcloud config set compute/zone australia-southeast1-b
+  - gcloud config set project linuxconfsydney
+  - gcloud config set container/use_client_certificate True
+  - gcloud container clusters get-credentials lca02
+  - kubectl --namespace=rego-prod set image deployment/symposion-app symposion-app=asia.gcr.io/linuxconfsydney/symposion_app:$CI_COMMIT_SHA
+  when: manual
+  only:
+  - master
+  environment:
+    name: 2019/prod
+    url: https://rego.linux.conf.au
+
+build_review_deployment:
+  image: docker:git
+  services:
+    - docker:dind
+  stage: build
+  script:
+    - docker run -v "${PWD}"/k8s:/src sparkprime/jsonnet /src/deployment_template.jsonnet --tla-str slug="${CI_COMMIT_REF_SLUG}" --tla-str sha="${CI_COMMIT_SHA}" -m /src
+  only:
+    - /^dev\/.*$/
+  artifacts:
+    paths:
+    - k8s/deployment.json
+    - k8s/ingress.json
+    - k8s/certificate.json
+
+build_2019_image:
+  image: docker:git
+  stage: build
+  services:
+  - docker:dind
+  script:
+    - docker login -u _json_key -p "$GOOGLE_KEY" https://asia.gcr.io
+    - docker pull "${CONTAINER_IMAGE_2019}":latest || true
+    - docker build --cache-from "${CONTAINER_IMAGE_2019}":latest -f docker/Dockerfile -t "${CONTAINER_IMAGE_2019}":$CI_COMMIT_SHA .
+    - docker push "${CONTAINER_IMAGE_2019}":$CI_COMMIT_SHA
+    - docker build --build-arg CI_COMMIT_SHA=$CI_COMMIT_SHA -f docker/Dockerfile.dev -t "${CONTAINER_IMAGE_2019}"_dev:$CI_COMMIT_SHA .
+    - docker push "${CONTAINER_IMAGE_2019}"_dev:$CI_COMMIT_SHA
+    - docker tag "${CONTAINER_IMAGE_2019}"_dev:$CI_COMMIT_SHA "${CONTAINER_IMAGE_2019}"_dev:$CI_COMMIT_REF_SLUG
+    - docker push "${CONTAINER_IMAGE_2019}"_dev:$CI_COMMIT_REF_SLUG
+  except:
+    - "2019"
+    - "master"
+
+
+2019-prod-deploy:
+  image: google/cloud-sdk
+  stage: deploy
+  script:
+  - echo "${CA_CERT}" > cert.crt
+  - kubectl config set-cluster cluster --server="${KUBE_SERVER}" --embed-certs=true --certificate-authority=cert.crt
+  - kubectl config set-context cluster --cluster=cluster --namespace=lca2019-prod --user=gitlab-ci
+  - kubectl config use-context cluster
+  - kubectl --token "${GL_KUBE_TOKEN}" set image deployment/symposion-app symposion-app="${CONTAINER_IMAGE_2019}":$CI_COMMIT_SHA
+  only:
+  - "2019"
+  when: manual
+  environment:
+    name: 2019/prod
+    url: https://2019.linux.conf.au
+
+2019_dev-deploy:
+  image: google/cloud-sdk
+  stage: deploy
+  script:
+  - echo "${CA_CERT}" > cert.crt
+  - kubectl config set-cluster cluster --server="${KUBE_SERVER}" --embed-certs=true --certificate-authority=cert.crt
+  - kubectl config set-context cluster --cluster=cluster --namespace=rego-dev --user=gitlab-sa
+  - kubectl config use-context cluster
+  - kubectl --token "${GL_KUBE_TOKEN}" set image deployment/symposion-app symposion-app="${CONTAINER_IMAGE_2019}"_dev:$CI_COMMIT_SHA
+  only:
+  - dev/2019
+  environment:
+    name: 2019/dev
+    url: https://dev.lca2019.org
+
+2019_review-deploy:
+  image: google/cloud-sdk
+  stage: deploy
+  script:
+  - echo "${CA_CERT}" > cert.crt
+  - kubectl config set-cluster cluster --server="${KUBE_SERVER}" --embed-certs=true --certificate-authority=cert.crt
+  - kubectl config set-context cluster --cluster=cluster --namespace=rego-review --user=rego-dev/gitlab-sa
+  - kubectl config use-context cluster
+  - kubectl --token "${GL_KUBE_TOKEN}" apply -f k8s/deployment.json
+  - kubectl --token "${GL_KUBE_TOKEN}" apply -f k8s/ingress.json
+  - kubectl --token "${GL_KUBE_TOKEN}" apply -f k8s/certificate.json
+
+  only:
+  - /^dev\/.*$/
+  environment:
+    name: 2019/dev/${CI_COMMIT_REF_SLUG}
+    url: https://${CI_COMMIT_REF_SLUG}.dev.lca2019.org
+    on_stop: 2019_review-stop-deploy
+
+2019_review-stop-deploy:
+  image: google/cloud-sdk
+  stage: deploy
+  script:
+  - echo "${CA_CERT}" > cert.crt
+  - kubectl config set-cluster cluster --server="${KUBE_SERVER}" --embed-certs=true --certificate-authority=cert.crt
+  - kubectl config set-context cluster --cluster=cluster --namespace=rego-review --user=rego-dev/gitlab-sa
+  - kubectl config use-context cluster
+  - kubectl --token "${GL_KUBE_TOKEN}" delete -f k8s/deployment.json
+  - kubectl --token "${GL_KUBE_TOKEN}" delete -f k8s/ingress.json
+  - kubectl --token "${GL_KUBE_TOKEN}" delete -f k8s/certificate.json
+  only:
+  - /^dev\/.*$/
+  when: manual
+  environment:
+    name: 2019/dev/${CI_COMMIT_REF_SLUG}
+    url: https://${CI_COMMIT_REF_SLUG}.dev.lca2019.org
+    action: stop
+
+2019_staging-deploy:
+  image: google/cloud-sdk
+  stage: deploy
+  script:
+  - echo "${CA_CERT}" > cert.crt
+  - kubectl config set-cluster cluster --server="${KUBE_SERVER}" --embed-certs=true --certificate-authority=cert.crt
+  - kubectl config set-context cluster --cluster=cluster --namespace=lca2019-staging --user=gitlab-ci
+  - kubectl config use-context cluster
+  - kubectl --token "${GL_KUBE_TOKEN}" set image deployment/symposion-app symposion-app="${CONTAINER_IMAGE_2019}"_dev:$CI_COMMIT_SHA
+  when: manual
+  only:
+  - dev/2019
+  environment:
+    name: 2019/staging
+    url: https://staging.lca2019.org
+
+.docs_template: &sphinx
+  image: alpine
+  script:
+  - apk --no-cache add py2-pip python-dev make
+  - pip install sphinx
+  - cd docs
+  - make html
+  - cd ..
+  - mv docs/_build/html public
+  artifacts:
+    paths:
+    - public
+
+pages:
+  <<: *sphinx
+  only:
+  - master
+  - "2019"
+  environment:
+    name: docs
+    url: https://laconfdev.gitlab.io/symposion_app/
+
+build_sphinx:
+  <<: *sphinx
+  stage: build
+

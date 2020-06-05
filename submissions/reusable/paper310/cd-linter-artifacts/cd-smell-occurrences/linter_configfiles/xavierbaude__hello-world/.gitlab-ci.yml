@@ -1,0 +1,28 @@
+stages:
+  - build
+  - release
+
+build-master:
+  stage: build
+  image: docker
+  services:
+    - docker:dind
+  script:
+    - docker login -u "$QUAY_USER" -p "$QUAY_PASSWORD" quay.io
+    - docker build --pull --build-arg CI_COMMIT_SHA=${CI_COMMIT_SHA:0:8} -t "quay.io/xavierbaude/hello-world:${CI_COMMIT_SHA:0:8}" .
+    - docker tag "quay.io/xavierbaude/hello-world:${CI_COMMIT_SHA:0:8}" "quay.io/xavierbaude/hello-world:latest"
+    - docker push "quay.io/xavierbaude/hello-world:${CI_COMMIT_SHA:0:8}"
+    - docker push "quay.io/xavierbaude/hello-world:latest"
+    
+
+release-master:
+  stage: release
+  image: docker
+  services:
+    - docker:dind
+  script:
+    - docker login -u "$QUAY_USER" -p "$QUAY_PASSWORD" quay.io
+    - docker pull "quay.io/xavierbaude/hello-world:${CI_COMMIT_SHA:0:8}" 
+    - docker tag "quay.io/xavierbaude/hello-world:${CI_COMMIT_SHA:0:8}" "quay.io/xavierbaude/hello-world:stable"
+    - docker push "quay.io/xavierbaude/hello-world:stable"
+

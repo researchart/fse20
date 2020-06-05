@@ -1,0 +1,278 @@
+cache:
+  key: "${CI_JOB_NAME}"
+  paths:
+  - .ccache/
+
+variables:
+  USE_CCACHE: "true"
+  CCACHE_BASEDIR: "${CI_PROJECT_DIR}"
+  CCACHE_DIR: "${CI_PROJECT_DIR}/.ccache"
+  CCACHE_COMPILERCHECK: "content"
+  DEBIAN_FRONTEND: 'noninteractive'
+
+stages:
+  - build
+  - advanced_build
+  - test
+
+.debian_build: &debian_build
+  script:
+  - apt update && apt -y install --no-install-recommends eatmydata
+  - eatmydata -- apt -y install --no-install-recommends ${PACKAGES}
+  - eatmydata -- .ci-build/build.sh
+
+debian-stable:
+  image: debian:latest
+  stage: build
+  variables:
+    SCONSOPTS: 'qt=yes xgps=yes'
+    PACKAGES: 'build-essential ccache debhelper po-debconf python3-all-dev python3-all-dbg python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoctor libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd'
+  <<: *debian_build
+
+debian-unstable:gcc:
+  image: debian:unstable
+  stage: advanced_build
+  variables:
+    SCONSOPTS: 'qt=yes xgps=yes'
+    PACKAGES: 'build-essential ccache debhelper po-debconf python3-all-dev python3-all-dbg python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoctor libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd'
+  <<: *debian_build
+
+debian-unstable:clang:
+  image: debian:unstable
+  stage: advanced_build
+  variables:
+    SCONSOPTS: 'qt=yes xgps=yes'
+    CC: 'clang'
+    CXX: 'clang++'
+    PACKAGES: 'clang build-essential ccache debhelper po-debconf python3-all-dev python3-all-dbg python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoctor libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd'
+  <<: *debian_build
+
+debian-unstable:minimal:
+  image: debian:unstable
+  stage: advanced_build
+  variables:
+    SCONSOPTS: 'aivdm=no ashtech=no bluez=no control_socket=no controlsend=no coveraging=no dbus_export=no debug=no earthmate=no evermore=no force_global=no fury=no fv18=no garmin=no garmintxt=no geostar=no gpsclock=no gpsdclients=no greis=no implicit_link=no isync=no itrax=no leapfetch=no libgpsmm=no magic_hat=no manbuild=no minimal=no mtk3301=no navcom=no ncurses=no netfeed=no nmea0183=no nmea2000=no nostrip=no ntrip=no oceanserver=no oncore=no oscillator=no passthrough=no profiling=no python=no qt=no reconfigure=no rtcm104v2=no rtcm104v3=no shared=no shm_export=no sirf=no skytraq=no slow=no socket_export=yes squelch=no superstar2=no systemd=no timeservice=no tnt=no tripmate=no tsip=no ublox=no usb=no xgps=no'
+    NOCHECK: 'true'
+    PACKAGES: 'build-essential ccache scons chrpath lsb-release python3-all-dev'
+  <<: *debian_build
+
+
+# the latest tag should match the last Ubuntu LTS release.
+ubuntu-latest:gcc:
+  image: ubuntu:latest
+  stage: advanced_build
+  variables:
+    SCONSOPTS: 'qt=yes xgps=yes'
+    PACKAGES: 'build-essential ccache debhelper po-debconf python3-all-dev python3-all-dbg python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoctor libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd'
+  before_script:
+  - apt update && apt -y install scons
+  - sed -i "s/os.environ.has_key('DH_INTERNAL_OPTIONS')/'DH_INTERNAL_OPTIONS' in os.environ/" /usr/lib/scons/SCons/Script/Main.py
+  <<: *debian_build
+
+
+# the "rolling" release
+ubuntu-rolling:gcc:
+  image: ubuntu:rolling
+  stage: advanced_build
+  variables:
+    SCONSOPTS: 'qt=yes xgps=yes'
+    PACKAGES: 'build-essential ccache debhelper po-debconf python3-all-dev python3-all-dbg python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoctor libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd'
+  <<: *debian_build
+
+
+# the devel tag should point to the docker image of the next, upcoming Ubuntu release
+ubuntu-devel:gcc:
+  image: ubuntu:devel
+  stage: advanced_build
+  variables:
+    SCONSOPTS: 'qt=yes xgps=yes'
+    PACKAGES: 'build-essential ccache debhelper po-debconf python3-all-dev python3-all-dbg python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoctor libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd'
+  <<: *debian_build
+
+fedora-latest:
+  image: fedora:latest
+  stage: advanced_build
+  variables:
+    SCONSOPTS: 'qt=yes xgps=yes'
+  script:
+  - dnf install -y ccache diffutils bluez-libs-devel chrpath dbus-devel desktop-file-utils gcc-c++ libXaw-devel ncurses-devel python-devel qt-devel scons xmlto pps-tools-devel
+  - .ci-build/build.sh
+
+
+
+# to avoid falied builds on MRs/forks where no builder with the
+# tag `freebsd` is available, run this job only if
+# $HAVE_FREEBSD == "true"
+# set this in your CI environment settings in gitlab.
+freebsd:
+  only:
+    variables:
+    - $HAVE_FREEBSD == "true"
+  stage: advanced_build
+  variables:
+    WRITE_PAD: '0.01250'
+  tags:
+  - freebsd
+  script:
+  - .ci-build/build.sh
+
+# to avoid falied builds on MRs/forks where no builder with the
+# tag `sparc64` is available, run this job only if
+# $HAVE_SPARC64_LINUX == "true"
+# set this in your CI environment settings in gitlab.
+sparc64-linux:
+  allow_failure: true
+  only:
+    variables:
+    - $HAVE_SPARC64_LINUX == "true"
+  stage: advanced_build
+  tags:
+  - sparc64
+  - linux
+  script:
+  - .ci-build/build.sh
+
+# to avoid falied builds on MRs/forks where no builder with the
+# tag `mips64le` is available, run this job only if
+# $HAVE_MIPS64LE_LINUX == "true"
+# set this in your CI environment settings in gitlab.
+mips64le-linux:
+  only:
+    variables:
+    - $HAVE_MIPS64LE_LINUX == "true"
+  stage: advanced_build
+  tags:
+  - mips64le
+  - linux
+  script:
+  - .ci-build/build.sh
+
+scan-build:
+  allow_failure: true
+  image: debian:unstable
+  stage: test
+  needs: ["debian-unstable:gcc"]
+  variables:
+    SCONSOPTS: 'qt=yes xgps=yes'
+    SCAN_BUILD: 'scan-build -o scan_build'
+    NOCHECK: 'true'
+    PACKAGES: 'clang clang-tools build-essential debhelper po-debconf python3-all-dev python3-all-dbg python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoctor libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd'
+  artifacts:
+    paths:
+    - scan_build
+    expire_in: 1 week
+  <<: *debian_build
+
+# https://www.synopsys.com/blogs/software-security/integrating-coverity-scan-with-gitlab-ci/
+coverity:
+  allow_failure: true
+  image: debian:unstable
+  stage: test
+  needs: ["debian-unstable:gcc"]
+  only:
+    refs:
+      - master
+    variables:
+      - $COVERITY_SCAN_TOKEN != null
+  variables:
+    SCONSOPTS: 'qt=yes xgps=yes'
+    SCAN_BUILD: 'cov-analysis-linux64-*/bin/cov-build --dir cov-int'
+    NOCHECK: 'true'
+    PACKAGES: 'clang clang-tools build-essential debhelper po-debconf python3-all-dev python3-all-dbg python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoctor libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd'
+  before_script:
+  - apt update && apt -y install curl
+  - curl -o /tmp/cov-analysis-linux64.tgz https://scan.coverity.com/download/linux64 --form project=$COVERITY_SCAN_PROJECT_NAME --form token=$COVERITY_SCAN_TOKEN
+  - tar xfz /tmp/cov-analysis-linux64.tgz
+  after_script:
+  - tar cfz cov-int.tar.gz cov-int
+  - curl https://scan.coverity.com/builds?project=$COVERITY_SCAN_PROJECT_NAME
+    --form token=$COVERITY_SCAN_TOKEN --form email=$COVERITY_USER_EMAIL
+    --form file=@cov-int.tar.gz --form version="`git describe --tags`"
+    --form description="`git describe --tags` / $CI_COMMIT_TITLE / $CI_COMMIT_REF_NAME:$CI_PIPELINE_ID "
+  <<: *debian_build
+
+
+# as long as sconstruct has so many options, this does not make sense
+# needs a better / faster way to test
+#
+#test-options:
+#  image: debian:unstable
+#  stage: test
+#  needs: ["debian-unstable:gcc"]
+#  variables:
+#    DEBIAN_FRONTEND: 'noninteractive'
+#  when: manual
+#  script:
+#  - apt update && apt -y install build-essential debhelper po-debconf python3-all-dev python3-all-dbg python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoctor libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd
+#  - .ci-build/test_options.sh
+#
+
+.changes_pages: &changes_pages
+  changes:
+    - 'www/*'
+    - 'www/*/*'
+    - '*.adoc'
+    - 'man/*.xml'
+
+.should_build_pages: &should_build_pages
+  only:
+    refs:
+      - master
+    <<: *changes_pages
+
+pages:
+  image: alpine:latest
+  stage: build
+  script:
+  - apk update && apk add python xmlto asciidoctor scons rsync musl-dev gcc
+  - mkdir .pages; WEBSITE=.public scons website=.pages website; mv .public public
+  - find public -type f -regex '.*\.\(htm\|html\|txt\|text\|js\|css\)$' -exec gzip -f -k {} \;
+  - ls -lR public
+  artifacts:
+    paths:
+    - public
+  <<: *should_build_pages
+
+dist-1:
+  image: alpine
+  stage: build
+  script:
+  - apk update && apk add python-dev scons xmlto asciidoctor bzip2 xz git linux-headers build-base tar
+  - scons dist
+  artifacts:
+    paths:
+    - gpsd-*.tar.gz
+    - packaging/rpm/gpsd.spec
+    expire_in: 2 weeks
+  only:
+    - schedules
+    - tags
+    - web
+
+dist-1f:
+  image: fedora:latest
+  stage: advanced_build
+  script:
+  - dnf install -y gcc-c++ python3-devel scons xmlto asciidoctor bzip2 xz git dnf-plugins-core
+  - scons dist
+  - dnf builddep -y packaging/rpm/gpsd.spec
+  - dnf install -y chrpath fedora-packager rpmdevtools createrepo_c
+  - echo dnf install -y bluez-libs-devel dbus-devel desktop-file-utils gcc-c++ ncurses-devel python2-devel python3-devel python3-cairo python3-gobject qt-devel scons xmlto pps-tools-devel python3-pyserial gtk3-devel cairo
+  - rpmdev-setuptree
+  - cp gpsd-*.tar.gz ~/rpmbuild/SOURCES/
+  - rpmbuild -ba packaging/rpm/gpsd.spec
+  - mkdir -pv .pages .public/repos/Fedora/`lsb_release -sr`/gpsd/x86_64/RPMS
+  - mv -v /root/rpmbuild/RPMS/x86_64/*.rpm .public/repos/Fedora/`lsb_release -sr`/gpsd/x86_64/RPMS
+  - createrepo_c -v --deltas --retain-old-md 1 .public/repos/Fedora/`lsb_release -sr`/gpsd/x86_64/RPMS
+  - ls -laR gpsd-* .public/repos/Fedora/`lsb_release -sr`/gpsd/x86_64
+  artifacts:
+    paths:
+    - .repos/Fedora/`lsb_release -sr`/py3/x86_64/RPMS
+    - gpsd-*.tar.gz
+    - packaging/rpm/gpsd.spec
+    expire_in: 2 weeks
+  only:
+    - schedules
+    - tags
+    - web
+

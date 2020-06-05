@@ -1,0 +1,34 @@
+image: docker:stable
+
+services:
+    - docker:stable-dind
+
+stages:
+    - build
+    - test
+
+build-image:
+    stage: build
+    script:
+        - mkdir Dockercontext
+        - docker login "$CI_REGISTRY" --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD"
+        - docker pull "$CI_REGISTRY_IMAGE:base"
+        - docker build -t "$CI_REGISTRY_IMAGE:latest" -f /builds/elRepo.io/Tier1/gitlabCI.Dockerfile Dockercontext
+        - docker push "$CI_REGISTRY_IMAGE:latest"
+
+test-jsonapi:
+    stage: test
+    script:
+        - docker login "$CI_REGISTRY" --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD"
+        - docker pull "$CI_REGISTRY_IMAGE:latest"
+        - docker run --name tier1 --detach --tty "$CI_REGISTRY_IMAGE:latest" retroshare-service --jsonApiPort 9092
+        - docker exec tier1 apt-get install -y curl
+        - docker exec tier1 curl --verbose http://127.0.0.1:9092/jsonApiServer/version
+        - docker exec tier1 curl --verbose http://127.0.0.1:9092/rsMsgs/getChatLobbyList
+        - docker exec tier1 curl --verbose http://127.0.0.1:9092/rsLoginHelper/getLocations
+        - docker exec tier1 curl --verbose --data '{ "location":{ "mLocationName":"Test 1", "mPpgName":"Test2", "makeHidden":false, "makeAutoTor":false }, "password":"Test 3", "caller_data":"Test 5"}' http://127.0.0.1:9092/rsLoginHelper/createLocation
+        - docker exec tier1 curl --verbose http://127.0.0.1:9092/rsLoginHelper/getLocations
+        - docker exec tier1 curl --verbose http://127.0.0.1:9092/rsLoginHelper/isLoggedIn
+        - docker exec tier1 curl --verbose http://127.0.0.1:9092/rsMsgs/getChatLobbyList
+        - docker container stop tier1
+

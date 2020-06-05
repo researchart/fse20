@@ -1,0 +1,11 @@
+update:all:
+  stage: deploy
+  image: debian
+  
+  before_script:
+    - apt update
+    - apt -y upgrade
+    - apt install -y jq curl git
+  script:
+    - bash ${CI_PROJECT_DIR}/scripts/deploy/update_all.sh
+

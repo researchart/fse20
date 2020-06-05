@@ -1,0 +1,38 @@
+test:
+  image: jekyll/jekyll:3.5.2
+  script:
+  - wget https://webperms-api.cubekrowd.net/ -O _data/staff.yml
+  - bundle install
+  - bundle exec jekyll build
+  - mv _site public
+  artifacts:
+    paths:
+    - _site
+  except:
+  - master
+
+pages:
+  image: jekyll/jekyll:3.5.2
+  script:
+  - wget https://webperms-api.cubekrowd.net/ -O _data/staff.yml
+  - bundle install
+  - bundle exec jekyll build
+  - mv _site public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+build:
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+  - docker version
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  - docker build -t registry.gitlab.com/cubekrowd/website .
+  - docker push registry.gitlab.com/cubekrowd/website
+  only:
+  - master
+

@@ -1,0 +1,41 @@
+image: gradle:4.7-jdk10
+
+build:
+  stage: build
+  script:
+    - gradle jar
+
+javadoc:
+  stage: build
+  script:
+    - gradle javadoc
+  artifacts:
+    expire_in: 1d
+    paths:
+      - adba/build/docs
+      - adbaoverjdbc/build/docs
+
+unit-test:
+  stage: test
+  script:
+    - gradle test
+  artifacts:
+    when: always
+    expire_in: 1d
+    paths:
+      - adbaoverjdbc/build/reports
+
+pages:
+  stage: deploy
+  script:
+    - mkdir --parents public/adba/docs
+    - mv adba/build/docs/javadoc public/adba/docs
+    - mkdir --parents public/adbaoverjdbc/docs
+    - mv adbaoverjdbc/build/docs/javadoc public/adbaoverjdbc/docs
+  artifacts:
+    paths:
+      - public
+  when: always
+  only:
+    - master
+

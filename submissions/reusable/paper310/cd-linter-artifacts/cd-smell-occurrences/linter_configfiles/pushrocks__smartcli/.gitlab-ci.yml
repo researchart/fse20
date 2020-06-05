@@ -1,0 +1,126 @@
+# gitzone standard
+image: hosttoday/ht-docker-node:npmci
+
+cache:
+  paths:
+  - .npmci_cache/
+  key: "$CI_BUILD_STAGE"
+
+stages:
+- security
+- test
+- release
+- metadata
+
+# ====================
+# security stage
+# ====================
+mirror:
+  stage: security
+  script:
+  - npmci git mirror
+  tags:
+  - docker
+  - notpriv
+
+snyk:
+  stage: security
+  script:
+    - npmci npm prepare
+    - npmci command npm install -g snyk
+    - npmci command npm install --ignore-scripts
+    - npmci command snyk test
+  tags:
+  - docker
+  - notpriv
+
+# ====================
+# test stage
+# ====================
+
+testLTS:
+  stage: test
+  script:
+  - npmci npm prepare
+  - npmci node install lts
+  - npmci npm install
+  - npmci npm test
+  coverage: /\d+.?\d+?\%\s*coverage/
+  tags:
+  - docker
+  - notpriv
+    
+testSTABLE:
+  stage: test
+  script:
+  - npmci npm prepare
+  - npmci node install stable
+  - npmci npm install
+  - npmci npm test
+  coverage: /\d+.?\d+?\%\s*coverage/
+  tags:
+  - docker
+  - notpriv
+
+release:
+  stage: release
+  script:
+  - npmci node install stable
+  - npmci npm publish
+  only:
+  - tags
+  tags:
+  - docker
+  - notpriv
+
+# ====================
+# metadata stage
+# ====================
+codequality:
+  stage: metadata
+  image: docker:stable
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    paths: [codeclimate.json]
+  tags:
+  - docker
+  - priv
+
+trigger:
+  stage: metadata
+  script:
+  - npmci trigger
+  only:
+  - tags
+  tags:
+  - docker
+  - notpriv
+
+pages:
+  image: hosttoday/ht-docker-node:npmci
+  stage: metadata
+  script:
+    - npmci command npm install -g typedoc typescript
+    - npmci npm prepare
+    - npmci npm install
+    - npmci command typedoc --module "commonjs" --target "ES2016" --out public/ ts/
+  tags:
+    - docker
+    - notpriv
+  only:
+    - tags
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - public
+  allow_failure: true
+

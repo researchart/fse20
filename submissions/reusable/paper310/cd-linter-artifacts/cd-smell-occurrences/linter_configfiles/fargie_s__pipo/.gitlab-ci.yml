@@ -1,0 +1,48 @@
+image: "node:lts-alpine"
+
+stages:
+  - test
+  - pages
+
+test:
+  stage: test
+  script:
+    - apk update
+    # Rebuild leveldown
+    - apk add make g++ python lsof
+    - npm install --build-from-source
+    # Workarround htmltidy issue
+    - apk add tidyhtml && cp $(which tidy) node_modules/htmltidy/bin/linux
+
+    - npm start test.coverage
+
+test-update:
+  stage: test
+  only: [ 'schedules' ]
+  script:
+    - apk update
+    - apk add make g++ python lsof
+    - npm install --build-from-source
+    - apk add tidyhtml && cp $(which tidy) node_modules/htmltidy/bin/linux
+
+    - npm install npm-check-updates
+    - rm package-lock.json
+    - ./node_modules/.bin/ncu -u
+
+    - npm start test.coverage
+
+pages:
+  stage: pages
+  script:
+    - apk update
+    - apk add make g++ python
+
+    - npm install jsdoc nps nps-utils lodash ink-docstrap
+    - npm start jsdoc
+    - mv docs public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

@@ -1,0 +1,42 @@
+image: zachgeek/songbook-builder:latest
+
+stages:
+  - build
+  - deploy
+
+everything:
+  stage: build
+  script:
+    - apt-get update
+    - apt-get install -y abcmidi ruby abcm2ps pandoc texlive-music texlive-xetex texlive-latex-base texlive-full wget nodejs
+    - wget https://github.com/google/fonts/raw/master/ofl/junge/Junge-Regular.ttf -O /usr/share/fonts/truetype/Junge-Regular.ttf
+    - wget https://github.com/google/fonts/raw/master/ofl/sourcesanspro/SourceSansPro-Regular.ttf -O /usr/share/fonts/truetype/SourceSansPro-Regular.ttf
+    - wget https://github.com/google/fonts/raw/master/ofl/oldstandardtt/OldStandard-Regular.ttf -O /usr/share/fonts/truetype/OldStandard-Regular.ttf
+    - wget https://github.com/google/fonts/raw/master/ofl/oldstandardtt/OldStandard-Italic.ttf -O /usr/share/fonts/truetype/OldStandard-Italic.ttf
+    - wget https://github.com/google/fonts/raw/master/ofl/indieflower/IndieFlower-Regular.ttf -O /usr/share/fonts/truetype/IndieFlower.ttf
+    - wget https://github.com/google/fonts/raw/master/ofl/lora/Lora-Regular.ttf -O /usr/share/fonts/truetype/Lora-Regular.ttf
+    - wget https://github.com/google/fonts/raw/master/ofl/lora/Lora-Bold.ttf -O /usr/share/fonts/truetype/Lora-Bold.ttf
+    - ruby --version
+    - export LANG=en_US.UTF-8
+    - export LANGUAGE=en_US.UTF-8
+    - export LC_ALL=en_US.UTF-8
+    - gem install bundler
+    - bundle install
+    - bundle exec rake
+  artifacts:
+    paths:
+    - latex/*.pdf
+    - html
+
+pages:
+  stage: deploy
+  script:
+    - mv html public
+    - cp public/songbook.html public/index.html
+    - cp latex/*.pdf public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

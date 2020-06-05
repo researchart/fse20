@@ -1,0 +1,30 @@
+stages:
+  - build
+  - containerize
+
+build:
+  image: maven:3-jdk-8
+  stage: build
+  script:
+    - mvn package -q -DskipTests
+  artifacts:
+      paths:
+        - "admin-server/target/*.jar"
+        - "api-gateway/target/*.jar"
+        - "cloud-gateway/target/*.jar"
+        - "config-server/target/*.jar"
+        - "service-registry/target/*.jar"
+        - "example-capability-service/target/*.jar"
+        - "example-experience-service/target/*.jar"
+        - "zipkin-server/target/*.jar"
+
+docker-compose-build:
+  image: tmaier/docker-compose:latest
+  services:
+    - docker:dind
+  stage: containerize
+  script:
+    - docker login -u $DOCKER_USER -p $DOCKER_PWD
+    - docker-compose build
+    - docker-compose push
+

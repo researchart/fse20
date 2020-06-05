@@ -1,0 +1,51 @@
+variables:
+  # If package name is "ros-kinetic-actionlib" it becomes "actionlib" (remove the prefix)
+  ROS_PACKAGES_TO_INSTALL: "actionlib" # Here the package is useless, it is just for demonstration
+
+before_script:
+  - git clone https://gitlab.com/VictorLamoine/ros_gitlab_ci.git
+  - source ros_gitlab_ci/gitlab-ci.bash >/dev/null
+
+cache:
+  paths:
+    - ccache/
+
+# Tests for Melodic
+melodic-catkin_make:
+  image: ros:melodic-ros-core
+  stage: build
+  script:
+    - catkin_make
+
+melodic-catkin_build:
+  image: ros:melodic-ros-core
+  stage: build
+  script:
+    - catkin build --summarize --no-status --force-color
+
+# Tests for Kinetic
+kinetic-catkin_make:
+  image: ros:kinetic-ros-core
+  stage: build
+  script:
+    - catkin_make
+
+kinetic-catkin_build:
+  image: ros:kinetic-ros-core
+  stage: build
+  script:
+    - catkin build --summarize --no-status --force-color
+
+# Tests for Indigo
+indigo-catkin_make:
+  image: ros:indigo-ros-core
+  stage: build
+  script:
+    - catkin_make
+
+indigo-catkin_build:
+  image: ros:indigo-ros-core
+  stage: build
+  script:
+    - catkin build --summarize --no-status --force-color
+

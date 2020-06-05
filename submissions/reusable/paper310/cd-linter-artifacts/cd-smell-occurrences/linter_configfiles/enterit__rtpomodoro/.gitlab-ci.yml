@@ -1,0 +1,40 @@
+image: node:alpine
+cache:
+  key: '$CI_JOB_NAME/$CI_COMMIT_REF_NAME'
+  paths:
+    - node_modules
+
+build:
+  stage: build
+  script:
+    - yarn install
+    - yarn run build
+    - find build -type f | xargs -i sh -c 'gzip -6 -c {} > {}.gz'
+  artifacts:
+    paths:
+      - build
+    expire_in: 1 day
+
+pages-digitalocean:
+  stage: deploy
+  image: tailordev/rsync
+  script:
+    - echo "$SSH_SERVER_HOSTKEYS" > ~/.ssh/known_hosts
+    - rsync -avz --delete build/ rtpomodoro@ubuntu-docker.devcake.org:/srv/rtpomodoro/html
+  only:
+    - master
+
+pages:
+  stage: deploy
+  script:
+    # gitlab can only use 'public' folder for pages
+    # see https://gitlab.com/gitlab-org/gitlab-ee/issues/660
+    - rm -rf public
+    - mv build public
+    - cp -r .well-known public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

@@ -1,0 +1,25 @@
+variables:
+  GIT_STRATEGY: clone
+stages:
+  - build
+
+build_modpacks:
+  stage: build
+  image: registry.gitlab.com/kirara/launcher/builder
+  only:
+    - master
+  when: manual
+  variables:
+    CONTAINER_NAME: "${CI_PROJECT_NAME}-web"
+    IMAGE_NAME: "${CI_REGISTRY_IMAGE}/web"
+    PORT: "8080"
+  tags:
+    - docker-host
+  script:
+    - git lfs pull
+    - ./build_packs.py
+    - for modpack in $(ls -1 server); do echo "Packing modpack $modpack"; tar -czvf server/${modpack}.tar.gz -C server/${modpack} . && rm -rf server/${modpack} ; done
+    - docker build -f Dockerfile.web -t ${IMAGE_NAME} .
+    - docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME} || true
+    - docker run -d --name ${CONTAINER_NAME} -p "$PORT:80" ${IMAGE_NAME}
+

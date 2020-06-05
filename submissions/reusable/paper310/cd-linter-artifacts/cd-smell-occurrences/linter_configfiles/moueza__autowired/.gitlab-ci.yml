@@ -1,0 +1,27 @@
+#image:  docker:latest
+#image: openjdk:6b38-jdk
+image: maven:3.5.2-jdk-7-alpine
+#services:
+#  - mysql
+
+before_script:
+ # - bundle install
+
+after_script:
+ # - rm secrets
+
+stages:
+  - build
+  - test
+  - deploy
+
+job1:
+  stage: build
+  script:
+    #- execute-script-for-job1
+    echo "OKK"
+  only:
+    - master
+  tags:
+    - docker
+

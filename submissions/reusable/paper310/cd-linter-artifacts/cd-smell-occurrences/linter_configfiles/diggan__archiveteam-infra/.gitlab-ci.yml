@@ -1,0 +1,59 @@
+# This file is a template, and might need editing before it works on your project.
+# Official image for Hashicorp's Terraform. It uses light image which is Alpine
+# based as it is much lighter.
+#
+# Entrypoint is also needed as image by default set `terraform` binary as an
+# entrypoint.
+image:
+  name: hashicorp/terraform:light
+  entrypoint:
+    - '/usr/bin/env'
+    - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
+# Default output file for Terraform plan
+variables:
+  PLAN: plan.tfplan
+
+cache:
+  paths:
+    - .terraform
+
+before_script:
+  - terraform --version
+  - terraform init
+  - cp terraform.tfvars.dist terraform.tfvars
+
+stages:
+  - validate
+  - build
+  - deploy
+
+validate:
+  stage: validate
+  script:
+    - terraform validate
+
+plan:
+  stage: build
+  script:
+    # Missing the correct SSH key for deploy
+    - terraform plan -var "do_token=$do_token" -var "do_ssh_keys=$do_ssh_keys" -var "warrior_username=$warrior_username" -var "warrior_password=$warrior_password" -var "warrior_downloader=$warrior_downloader" -out=$PLAN
+  artifacts:
+    name: plan
+    paths:
+      - $PLAN
+
+# Separate apply job for manual launching Terraform as it can be destructive
+# action.
+apply:
+  stage: deploy
+  environment:
+    name: production
+  script:
+    - terraform apply $PLAN
+  dependencies:
+    - plan
+  when: manual
+  only:
+    - master
+

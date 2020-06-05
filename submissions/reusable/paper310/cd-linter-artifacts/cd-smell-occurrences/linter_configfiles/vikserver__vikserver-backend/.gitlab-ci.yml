@@ -1,0 +1,137 @@
+image: node:latest
+stages:
+- test
+- build
+- check
+- deploy
+
+include:
+    - template: Container-Scanning.gitlab-ci.yml
+    - template: Dependency-Scanning.gitlab-ci.yml
+    - template: SAST.gitlab-ci.yml
+
+variables:
+    MYSQL_USER: vikserver_test
+    MYSQL_PASSWORD: "test/password"
+    MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    MYSQL_DATABASE: vikserver_test
+    MYSQL_HOST: "mariadb"
+    OPENPGP_PASSPHRASE: "testpassword"
+
+.Test Backend:
+    stage: test
+    allow_failure: true
+    services:
+    - mariadb:latest
+    variables:
+        NODE_ENV: "test"
+    script:
+    - npm install
+    - export PATH=node_modules/.bin:$PATH
+    - ./vikserver-test.sh
+
+Test on Node 10 Alpine:
+    extends: .Test Backend
+    image: node:10-alpine
+    before_script:
+    - apk --update add git
+    allow_failure: false
+
+Test on Node 10:
+    extends: .Test Backend
+    image: node:10
+
+Test on Node 11 Alpine:
+    extends: .Test Backend
+    before_script:
+    - apk --update add git
+    image: node:11-alpine
+
+Test on Node 11:
+    extends: .Test Backend
+    image: node:11
+
+Test on Node 12:
+    extends: .Test Backend
+    image: node:12
+
+Test on Node 12 Alpine:
+    extends: .Test Backend
+    image: node:12-alpine
+    before_script:
+    - apk --update add git
+    - npm i -g mocha eslint
+    variables:
+        NODE_ENV: "production"
+    allow_failure: false
+
+Pass eslint:
+    stage: test
+    image: node:12-alpine
+    before_script:
+    - apk --update add git
+    - npm i -g eslint
+    variables:
+        NODE_ENV: "production"
+    script:
+    - npx eslint .
+
+code_quality:
+    stage: test
+    image: docker:stable
+    allow_failure: true
+    services:
+    - docker:stable-dind
+    variables:
+        DOCKER_DRIVER: overlay2
+    script:
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:11-8-stable" /code
+    artifacts:
+        reports:
+            codequality: gl-code-quality-report.json
+        expire_in: 1 week
+
+Build Docker image:
+    image: docker
+    stage: build
+    services:
+    - mariadb:latest
+    - docker:dind
+    variables:
+         NODE_ENV: "production"
+    script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - sh -c 'stat .privado/credenciales.json&>/dev/null&&rm .privado/credenciales.json||return 0'
+    - export BASETAG="$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_NAME"
+    - export TAG1="$BASETAG:${CI_COMMIT_SHA}"
+    - export TAG2="$BASETAG:latest"
+    - docker build -t $TAG1 -t $TAG2 .
+    - docker run --rm -i -e ENCRYPTION_KEY="$ENCRYPTION_KEY" -e NODE_ENV='test' -e MYSQL_HOST="$MARIADB_PORT_3306_TCP_ADDR" -e MYSQL_USER="$MYSQL_USER" -e MYSQL_PASSWORD="$MYSQL_PASSWORD" -e MYSQL_DATABASE="$MYSQL_DATABASE" -e OPENPGP_PASSPHRASE="$OPENPGP_PASSPHRASE" $TAG1 ./vikserver-test.sh
+    - docker push $TAG1
+    - docker push $TAG2
+
+container_scanning:
+    stage: check
+    dependencies:
+    - Build Docker image
+
+Deploy to Heroku:
+    image: alpine:latest
+    stage: deploy
+    environment: Heroku production
+    variables:
+          NODE_ENV: "production"
+    only:
+        refs:
+        - master
+    script:
+    - apk --update add ruby gnupg ruby-doc ruby-json git git-lfs curl
+    - gem install rdoc||gem install rdoc
+    - gem install dpl
+    - gpg --passphrase "$ENCRYPTION_KEY" --batch  -o .privado/credenciales.json -d .privado/credenciales.json.gpg
+    - dpl --provider=heroku --app=vikserver-backend --api-key="$HEROKU_API_KEY" --skip_cleanup
+

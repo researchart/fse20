@@ -1,0 +1,55 @@
+stages:
+  - build
+  - test
+  - publish
+
+variables:
+  IMAGE: registry.gitlab.com/jnmoal-docker/debian-ansible
+  VERSION: latest
+
+build:
+  stage: build
+  image: docker:git
+  services:
+    - docker:dind
+  script:
+    - sh run.sh build $IMAGE:$VERSION
+    - mkdir -p image
+    - docker save -o image/debian-ansible.tar $IMAGE:$VERSION
+  cache:
+    paths:
+      - image/
+    policy: push
+
+test:
+  stage: test
+  image: docker:git
+  services:
+    - docker:dind
+  script:
+    - docker load -i image/debian-ansible.tar -q
+    - sh run.sh test $IMAGE:$VERSION
+  cache:
+    paths:
+      - image/
+    policy: pull
+
+publish:
+  stage: publish
+  image: docker:git
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  script:
+    - docker load -i image/debian-ansible.tar -q
+    - docker push $IMAGE:$VERSION
+    - docker tag $IMAGE:$VERSION $IMAGE:$CI_COMMIT_REF_NAME
+    - docker push $IMAGE:$CI_COMMIT_REF_NAME
+  cache:
+    paths:
+      - image/
+    policy: pull
+  only:
+    - tags
+

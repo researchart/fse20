@@ -1,0 +1,109 @@
+image: docker:stable
+
+stages:
+  - build
+  - testes
+#  - analise_estatica TODO
+  - release
+  - implantacao
+
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_REGISTRY: "registry.gitlab.com/radar-parlamentar/radar/"
+  LATEST_IMAGE: "${DOCKER_REGISTRY}production:latest"
+
+before_script:
+  # py-paramiko added to avoid issues with gcc while installing docker-compose
+  # https://github.com/docker/compose/issues/6617
+  - apk add --no-cache py-pip git make py-paramiko
+  - pip install docker-compose
+  # Doing it here because of:
+  # - https://gitlab.com/gitlab-org/gitlab-ce/issues/48061#note_101405444
+  # and
+  # - https://gitlab.com/gitlab-org/gitlab-ce/issues/24256
+  - export TEST_IMAGE=${DOCKER_REGISTRY}test:${CI_COMMIT_SHA:0:7}
+
+build:
+  stage: build
+  variables:
+    RADAR_TEST: "TRUE"
+  script:
+    # faz o pull antes do build para aproveitar cache
+    - make build
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} registry.gitlab.com
+    - docker push ${TEST_IMAGE}
+    - docker push $TEST_IMAGE
+
+testes:
+  stage: testes
+  variables:
+    RADAR_TEST: "TRUE"
+  script:
+    - make pull
+    - make test
+
+testa_migrations_nao_geradas:
+  stage: testes
+  variables:
+    RADAR_IMAGE: ${TEST_IMAGE}
+    RADAR_TEST: "TRUE"
+  script:
+    - make run NO_DEPS="TRUE" SERVICES='postgres'
+    - make run NO_DEPS="TRUE" SERVICES='django'
+    - docker-compose exec -T django python manage.py makemigrations --no-input --check
+    - EXIT_CODE=$?
+    - >
+      if [[ $EXIT_CODE -ne 0 ]]; then
+          echo "Ainda existem migrations a serem criadas e testadas."
+          echo "Falhando o CI até que não existam migrations não comitadas."
+          exit 1
+      fi
+
+testa_migrations_alteradas_manualmente:
+  stage: testes
+  before_script:
+    - apk add --no-cache git
+  script:
+    - export CHANGED_FILES="$(git show master..HEAD --pretty='format:' --name-status | grep -E '^M.*/migrations/')"
+    - >
+      if [ -n "$CHANGED_FILES" ]; then
+          echo "Uma ou mais migrations foram modificadas manualmente."
+          echo "Este é um procedimento que não pode ocorrer."
+          echo "Você deveria utilizar o makemigrations para criar novas migrations."
+          echo "Falhando o CI até que não existam migrations alteradas."
+          exit 1
+      else
+          echo "Nenhuma migration foi modificada neste Merge Request. Tudo ok!"
+      fi
+
+release:
+  stage: release
+  only:
+    - master
+  script:
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} registry.gitlab.com
+    - make release
+
+implantacao:
+  image: ubuntu
+  stage: implantacao
+  environment: production
+  only:
+    - master
+  before_script:
+    - export RADAR_IMAGE=${DOCKER_REGISTRY}production:${CI_COMMIT_SHA:0:7}
+    # prepara a chave SSH
+    - 'which ssh-agent || ( apt-get update -y && apt install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - echo "${SSH_PRIVATE_KEY}" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan ${PRODUCTION_HOST} >> ~/.ssh/known_hosts 2> /dev/null
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    # faz o deploy
+    - ssh ${USER_SSH}@${PRODUCTION_HOST} "cd /home/radar/radar/ && export DOCKER_REGISTRY=${DOCKER_REGISTRY} && export RADAR_IMAGE=${RADAR_IMAGE} && export RADAR_IS_PRODUCTION=${RADAR_IS_PRODUCTION} && export RADAR_DB_PASSWORD=${RADAR_DB_PASSWORD} && docker pull ${RADAR_IMAGE} && git reset --hard HEAD && git clean -df && git fetch --all --prune --tags && git checkout ${CI_COMMIT_SHA} && docker-compose rm -f -s django && docker-compose rm -f -s celery && docker-compose rm -f -s nginx &&  docker-compose run -T django deploy && docker-compose up -d django && docker system prune -a -f"
+

@@ -1,0 +1,14 @@
+image: python:3.7-alpine
+
+pages:
+  script:
+  - cd doc
+  - pip install -r requirements.txt
+  - sphinx-build -d _build/doctrees . _build/html
+  - mv _build/html ../public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

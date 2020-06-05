@@ -1,0 +1,122 @@
+image: golang:1.11-alpine
+
+stages:
+  - test
+  - build
+
+variables:
+  LDFLAGS_GITVERSION: -X main.git_version='${CI_COMMIT_SHA}'
+  LDFLAGS_WEBHOOK: -X main.build_webhook_url="${BUILD_WEBHOOK_URL}"
+
+# Overwrite LDFLAGS_WEBHOOK back to LDFLAGS if there is no BUILD_WEBHOOK_URL.
+before_script:
+  - >
+    [ -z "${BUILD_WEBHOOK_URL}" ] && {
+      >&2 echo "BUILD_WEBHOOK_URL empty, clearing LDFLAGS_WEBHOOK."
+      unset LDFLAGS_WEBHOOK
+    }
+
+Syntax Check:
+  stage: test
+  script:
+    - gofmt -e *.go
+
+Test Message to Slackbot:
+  stage: test
+  script:
+    - >
+      go run slackr.go
+      -target @slackbot
+      -message "Test"
+      -verbose
+
+Test Call to Version Command:
+  stage: test
+  script:
+    - go run slackr.go -version
+    - >
+      go run
+      -ldflags="${LDFLAGS_GITVERSION}"
+      slackr.go
+      -version
+
+Golang Compile - Native:
+  stage: build
+  script:
+    - >
+      go build
+      -ldflags="${LDFLAGS_GITVERSION} ${LDFLAGS_WEBHOOK}"
+      -o slackr
+  artifacts:
+    paths:
+      - slackr
+    expire_in: 1 year
+
+# Cross platform compiles - Valid GOOS and GOOARCH values are located at:
+# https://github.com/golang/go/blob/master/src/go/build/syslist.go
+Golang Compile - linux_amd64:
+  stage: build
+  variables:
+    GOOS: linux
+    GOARCH: amd64
+  script:
+    - >
+      go build
+      -ldflags="${LDFLAGS_GITVERSION} ${LDFLAGS_WEBHOOK}"
+      -o slackr
+  artifacts:
+    paths:
+      - slackr
+    expire_in: 1 year
+  only:
+    - master
+Golang Compile - linux_mips64:
+  stage: build
+  variables:
+    GOOS: linux
+    GOARCH: mips64
+  script:
+    - >
+      go build
+      -ldflags="${LDFLAGS_GITVERSION} ${LDFLAGS_WEBHOOK}"
+      -o slackr
+  artifacts:
+    paths:
+      - slackr
+    expire_in: 1 year
+  only:
+    - master
+Golang Compile - linux_armv7l:
+  stage: build
+  variables:
+    GOOS: linux
+    GOARCH: arm
+    GOARM: "7"
+  script:
+    - >
+      go build
+      -ldflags="${LDFLAGS_GITVERSION} ${LDFLAGS_WEBHOOK}"
+      -o slackr
+  artifacts:
+    paths:
+      - slackr
+    expire_in: 1 year
+  only:
+    - master
+Golang Compile - darwin_amd64:
+  stage: build
+  variables:
+    GOOS: darwin
+    GOARCH: amd64
+  script:
+    - >
+      go build
+      -ldflags="${LDFLAGS_GITVERSION} ${LDFLAGS_WEBHOOK}"
+      -o slackr
+  artifacts:
+    paths:
+      - slackr
+    expire_in: 1 year
+  only:
+    - master
+

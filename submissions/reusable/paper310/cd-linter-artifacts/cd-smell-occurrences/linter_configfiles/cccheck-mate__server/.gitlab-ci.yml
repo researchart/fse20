@@ -1,0 +1,9 @@
+image: rust:latest
+
+test:
+  script:
+  - rustc --version && cargo --version
+  - cargo check --all --verbose
+  - cargo build --all --verbose
+  - cargo test --all --verbose
+

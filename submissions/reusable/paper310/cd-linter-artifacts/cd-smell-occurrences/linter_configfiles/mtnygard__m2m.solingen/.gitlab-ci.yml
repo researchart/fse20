@@ -1,0 +1,59 @@
+image: golang:latest
+services:
+  - docker:dind
+
+stages:
+  - build
+  - deploy
+  - restart
+
+variables:
+  S3_BUCKET_NAME: "mtnygard.m2m.request"
+  REPO_NAME: gitlab.com/mtnygard/m2m.master
+
+lobster-build:
+  image: ruby:latest
+  stage: build
+  script: 
+    - cd lobsters
+    - bundle package
+    - cd .. 
+    - tar cvzf lobsters.tgz lobsters
+  artifacts:
+    paths:
+      - lobsters.tgz
+
+request-build:
+  image: maven:3-jdk-8
+  stage: build
+  script: "cd m2m.request && mvn package"
+  artifacts:
+    paths:
+      - m2m.request/target/*.jar
+
+router-build:
+  image: node:8.11.2-alpine
+  stage: build
+  script: "cd m2m.router && npm install && tar cvzf m2m.router.tgz ."
+  artifacts:
+    paths:
+      - m2m.router/m2m.router.tgz
+
+deploy:
+  image: python:3.6-slim
+  stage: deploy
+  script:
+    - pip install awscli
+    - aws s3 cp ./lobsters.tgz               s3://$S3_BUCKET_NAME/
+    - aws s3 cp ./m2m.request/target/*.jar   s3://$S3_BUCKET_NAME/
+    - aws s3 cp ./m2m.router/m2m.router.tgz  s3://$S3_BUCKET_NAME/
+
+restart:
+  image: python:3.6-slim
+  stage: restart
+  script:
+    - pip install awscli
+    - ./infrastructure/aws/bin/recycle-asg.sh eu-central-1 asg-lobsters-12345
+    - ./infrastructure/aws/bin/recycle-asg.sh eu-central-1 asg-request-12345
+    - ./infrastructure/aws/bin/recycle-asg.sh eu-central-1 asg-router-12345
+

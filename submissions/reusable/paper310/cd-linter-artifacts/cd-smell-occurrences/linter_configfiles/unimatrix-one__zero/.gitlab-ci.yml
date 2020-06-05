@@ -1,0 +1,23 @@
+image: microsoft/dotnet:3.0-sdk
+
+stages:
+  - build
+  
+variables:
+  project: "zero.sync"
+
+before_script:
+  - "dotnet --version"
+  - "git submodule init"
+  - "git submodule update"
+  - "dotnet restore"
+
+build:
+  stage: build
+  variables:
+    build_path: "$project"
+  script:
+    - "cd $build_path"
+    - "dotnet build"
+
+

@@ -1,0 +1,111 @@
+test_quick:
+  image: debian:jessie-backports
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq libdata-dump-perl libdbd-sqlite3-perl libfile-next-perl libfile-slurper-perl libwww-perl libmoo-perl libtest-exception-perl libxml-libxml-perl libtest-xml-perl libenum-perl libsql-abstract-perl libconfig-any-perl libconfig-general-perl libjson-xs-perl libfile-basedir-perl libcontextual-return-perl libio-prompter-perl libtest-longstring-perl # build/test modules
+    - apt-get install -y -qq libdevel-cover-perl libpod-coverage-perl libtemplate-perl libppi-html-perl libjson-xs-perl # coverage modules
+  stage: test
+  script: 
+    - cover -delete
+    - HARNESS_PERL_SWITCHES=-MDevel::Cover=+ignore,^t\\/ prove -f -j3
+    - cover -report html_basic -output cover_html
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - cover_db/
+      - cover_html/
+
+pages:
+  only:
+    - master
+  stage: deploy
+  dependencies:
+    - test_quick
+  script:
+    - mkdir public/
+    - cp -R pages/* public/
+    - mv cover_html public/coverage
+  artifacts: 
+    paths: 
+      - public/
+
+test_5.20: 
+  only:
+    - tags
+  image: perl:5.20
+  before_script:
+    - cpan Config::Any
+    - cpan Config::General
+    - cpan Contextual::Return
+    - cpan Data::Dump
+    - cpan DBD::SQLite
+    - cpan DBI
+    - cpan enum
+    - cpan File::BaseDir
+    - cpan File::Next
+    - cpan File::Slurper
+    - cpan IO::Prompter
+    - cpan JSON::XS
+    - cpan LWP
+    - cpan Moo
+    - cpan SQL::Abstract
+    - cpan Test::Exception
+    - cpan Test::LongString
+    - cpan Test::XML
+    - cpan XML::LibXML
+  stage: test
+  script: prove -f -j3
+
+test_5.22: 
+  only:
+    - tags
+  image: perl:5.22
+  before_script:
+    - cpan Config::Any
+    - cpan Config::General
+    - cpan Contextual::Return
+    - cpan Data::Dump
+    - cpan DBD::SQLite
+    - cpan DBI
+    - cpan enum
+    - cpan File::BaseDir
+    - cpan File::Next
+    - cpan File::Slurper
+    - cpan IO::Prompter
+    - cpan JSON::XS
+    - cpan LWP
+    - cpan Moo
+    - cpan SQL::Abstract
+    - cpan Test::Exception
+    - cpan Test::LongString
+    - cpan Test::XML
+    - cpan XML::LibXML
+  stage: test
+  script: prove -f -j3
+
+test_5.24: 
+  only:
+    - tags
+  image: perl:5.24
+  before_script:
+    - cpan Config::Any
+    - cpan Config::General
+    - cpan Contextual::Return
+    - cpan Data::Dump
+    - cpan DBD::SQLite
+    - cpan DBI
+    - cpan enum
+    - cpan File::BaseDir
+    - cpan File::Next
+    - cpan File::Slurper
+    - cpan IO::Prompter
+    - cpan JSON::XS
+    - cpan LWP
+    - cpan Moo
+    - cpan SQL::Abstract
+    - cpan Test::Exception
+    - cpan Test::LongString
+    - cpan Test::XML
+    - cpan XML::LibXML
+  stage: test
+  script: prove -f -j3
+

@@ -1,0 +1,108 @@
+image: node:8
+
+stages:
+  - init
+  - commit_test
+  - build
+  - acceptance_test
+  - release
+  - deploy
+
+cache:
+  untracked: true
+  key: $CI_BUILD_REF_NAME
+  paths:
+    - node_modules
+
+variables:
+  GET_SOURCES_ATTEMPTS: '2'
+
+before_script:
+  - time npm prune && exit 0
+  - time npm install
+
+
+npm_install:
+  stage: init
+  only:
+    - branches
+  script: echo ' '
+  artifacts:
+    paths:
+      - node_modules
+
+
+lint:
+  stage: commit_test
+  only:
+    - branches
+  script: time npm run lint
+
+unit:
+  stage: commit_test
+  only:
+    - branches
+  script: time npm run test:unit
+  artifacts:
+    expire_in: 3 days
+    paths:
+      - coverage
+
+
+commonjs:
+  stage: build
+  only:
+    - branches  
+  script: time npm run build:cjs
+  artifacts:
+    expire_in: 3 days
+    paths:
+      - build
+
+javascript:
+  stage: build
+  only:
+    - branches
+  script: time npm run build:js
+  artifacts:
+    expire_in: 3 days
+    paths:
+      - build
+
+docs:
+  stage: build
+  only:
+    - branches
+  script: time npm run build:docs
+  artifacts:
+    expire_in: 3 days
+    paths:
+      - build
+
+e2e:
+  stage: acceptance_test
+  only:
+    - branches
+  script: time echo npm run test:e2e
+  artifacts:
+    expire_in: 3 days
+    paths:
+      - coverage
+
+
+pages:
+  stage: deploy
+  only:
+    - master
+  environment:
+    name: GitLab Pages
+    url: https://td7x.gitlab.io/s6
+  script:
+    - mkdir public
+    - mv build/docs/* public
+    - mv coverage public/coverage
+  artifacts:
+    paths:
+    - public
+    - build
+

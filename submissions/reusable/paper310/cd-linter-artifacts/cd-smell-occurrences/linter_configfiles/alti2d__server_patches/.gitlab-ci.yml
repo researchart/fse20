@@ -1,0 +1,40 @@
+stages:
+    - build
+    - release
+
+build-job:
+    image: gradle:jdk7-alpine
+    stage: build
+    cache:
+        untracked: true
+        paths:
+            - .gradle/wrapper
+            - .gradle/caches
+            - .gradle/native
+    script:
+        - echo 'Job Id:' $CI_JOB_ID
+        - echo 'Pipeline Id:' $CI_PIPELINE_ID
+        - gradle --gradle-user-home .gradle/ --no-daemon shadowJar
+    artifacts:
+        paths:
+            - build/libs/game.jar
+        expire_in: 1 week # these will be available directly tjhrough the job
+
+release-job:
+    image: tutum/curl:alpine
+    stage: release
+    before_script:
+        - export PROJECT_RELEASE_ARTIFACT=build/libs/game.jar?job=release-job
+        - 'export RELEASE_MESSAGE="Release $CI_COMMIT_REF_NAME: **[:floppy_disk: Download here]($CI_PROJECT_URL/builds/artifacts/$CI_COMMIT_REF_NAME/raw/$PROJECT_RELEASE_ARTIFACT)**"'
+    script:
+        #- echo --request POST --form "token=$CI_RELEASE" --form "tag_name=$CI_COMMIT_REF_NAME" "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/repository/tags/$CI_COMMIT_REF_NAME/release"
+        #- 'curl -H "PRIVATE-TOKEN: $CI_JOB_TOKEN" "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/repository/tags/$CI_COMMIT_REF_NAME"'
+        - 'if [ -z "$RELEASE_TOKEN" ]; then echo RELEASE_TOKEN not set && exit 1; fi'
+        - 'curl --fail --request POST -H "PRIVATE-TOKEN: $RELEASE_TOKEN" --form "description=$RELEASE_MESSAGE" --form "tag_name=$CI_COMMIT_REF_NAME" "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/repository/tags/$CI_COMMIT_REF_NAME/release"'
+    artifacts:
+        paths:
+            - build/libs/game.jar
+    only:
+        - tags
+
+

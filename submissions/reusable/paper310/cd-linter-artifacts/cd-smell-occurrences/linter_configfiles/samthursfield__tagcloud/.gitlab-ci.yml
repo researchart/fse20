@@ -1,0 +1,55 @@
+image: ssssam/buildstream-flatpak:3
+
+variables:
+  XDG_CACHE_HOME: "${CI_PROJECT_DIR}/cache"
+
+  # Generic variable for invoking buildstream
+  BST: bst --colors
+
+cache:
+  paths:
+    - "${XDG_CACHE_HOME}/buildstream/sources/"
+
+build_and_test:
+  tags: [ flatpak ]
+
+  before_script:
+  # Update the ref in the project to build the correct branch. This is a bit
+  # ugly of course, but it saves turning the .bst file into a template.
+  - |
+    sed -e "/  track: .*/ a \\
+      ref: $CI_COMMIT_SHA" -i flatpak/elements/tagcloud.bst
+
+  script:
+  - cd flatpak
+
+  # Build the application bundle
+  - |
+    bst build tagcloud-flatpak.bst
+
+  # Run the testsuite, inside a simulated application bundle environment.
+  - |
+    bst build tagcloud-test-environment.bst
+    bst shell tagcloud-test-environment.bst --mount $CI_PROJECT_DIR /src \
+        -- sh -c 'cd /src; mkdir build; meson ./build --prefix=/app'
+    bst shell tagcloud-test-environment.bst --mount $CI_PROJECT_DIR /src \
+        -- sh -c 'cd /src/build; xvfb-run dbus-launch meson test --verbose'
+
+  # Install the Flathub remote and pull the necessary runtime.
+  - |
+    flatpak remote-add flathub --from https://flathub.org/repo/flathub.flatpakrepo
+    flatpak install --runtime flathub org.gnome.Platform//3.28
+
+  # Deploy the application bundle and run a very basic "smoke test"
+  - |
+    bash -x ./deploy.sh
+    flatpak run uk.me.afuera.Tagcloud --help
+
+  # Build a bundle that we can publish as an artifact
+  - flatpak build-bundle ./tagcloud-flatpak/repo ../tagcloud.flatpak uk.me.afuera.Tagcloud
+
+  artifacts:
+    paths:
+    - tagcloud.flatpak
+    expire_in: '1 month'
+

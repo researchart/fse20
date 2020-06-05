@@ -1,0 +1,107 @@
+stages:
+  - test
+  - build
+  - deploy
+
+test:
+  stage: test
+  tags:
+    - shell
+  script:
+    - composer install
+    - docker build -t registry.gitlab.com/pleio/pleio:${CI_COMMIT_SHA:0:8} .
+    - scan.sh registry.gitlab.com/pleio/pleio:${CI_COMMIT_SHA:0:8}
+
+build:
+  stage: build
+  only:
+    - dev
+    - master
+  tags:
+    - shell
+  script:
+    - composer install
+    - docker build -t registry.gitlab.com/pleio/pleio:latest .
+    - docker build -t registry.gitlab.com/pleio/pleio:${CI_COMMIT_SHA:0:8} .
+    - scan.sh registry.gitlab.com/pleio/pleio:${CI_COMMIT_SHA:0:8}
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker push registry.gitlab.com/pleio/pleio:latest
+    - docker push registry.gitlab.com/pleio/pleio:${CI_COMMIT_SHA:0:8}
+
+build-master:
+  stage: build
+  only:
+    - master
+  tags:
+    - shell
+  script:
+    - composer install
+    - docker build -t registry.gitlab.com/pleio/pleio:stable .
+    - scan.sh registry.gitlab.com/pleio/pleio:${CI_COMMIT_SHA:0:8}
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker push registry.gitlab.com/pleio/pleio:stable
+
+build-feature:
+  stage: build
+  only:
+    - /^feature-(.*)$/
+  tags:
+    - shell
+  script:
+    - composer install
+    - docker build -t registry.gitlab.com/pleio/pleio:feature-${CI_COMMIT_SHA:0:8} .
+    - scan.sh registry.gitlab.com/pleio/pleio:feature-${CI_COMMIT_SHA:0:8}
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker push registry.gitlab.com/pleio/pleio:feature-${CI_COMMIT_SHA:0:8}
+
+deploy-dev-vps:
+  stage: deploy
+  tags:
+    - control-vps
+  only:
+    - dev
+  script:
+    - /snap/bin/kubectl set image deployment/pleio-test pleio-test=registry.gitlab.com/pleio/pleio:${CI_COMMIT_SHA:0:8}    
+
+deploy-dev-odc:
+  stage: deploy
+  tags:
+    - control-odc
+  only:
+    - dev
+  script:
+  - /snap/bin/kubectl set image deployment/pleio-test pleio-test=registry.gitlab.com/pleio/pleio:${CI_COMMIT_SHA:0:8}
+
+deploy-master-vps:
+  stage: deploy
+  tags:
+    - control-vps
+  only:
+    - master
+  when: manual
+  script:
+    - /snap/bin/kubectl set image deployment/pleio pleio=registry.gitlab.com/pleio/pleio:${CI_COMMIT_SHA:0:8}
+    - sleep 30
+    - /snap/bin/kubectl patch deployment memcache -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"date\":\"`date +'%s'`\"}}}}}"
+
+deploy-master-odc:
+  stage: deploy
+  tags:
+    - control-odc
+  only:
+    - master
+  when: manual
+  script:
+  - /snap/bin/kubectl set image deployment/pleio pleio=registry.gitlab.com/pleio/pleio:${CI_COMMIT_SHA:0:8}
+  - sleep 30
+  - /snap/bin/kubectl patch deployment memcache -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"date\":\"`date +'%s'`\"}}}}}"
+
+deploy-feature-vps:
+  stage: deploy
+  tags:
+    - control-vps
+  only:
+    - /^feature-(.*)$/
+  script:
+    - /snap/bin/kubectl set image deployment/pleio-feature pleio-feature=registry.gitlab.com/pleio/pleio:feature-${CI_COMMIT_SHA:0:8}
+

@@ -1,0 +1,17 @@
+image: node:6
+
+pages:
+  stage: deploy
+  script:
+  - git submodule update --init --recursive
+  - npm install
+  - npm run build
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

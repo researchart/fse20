@@ -1,0 +1,29 @@
+stages:
+  - build
+  - test
+
+image: registry.gitlab.com/marius-rizac/ci-registry/php7.1:latest
+
+variables:
+  GIT_DEPTH: "1"
+
+cache:
+  key: kisphp_docker_manager
+  untracked: true
+  paths:
+    - node_modules/
+    - vendor/
+
+build_script:
+  stage: build
+  script:
+    - ./build.sh dev
+
+testing:
+  stage: test
+  before_script:
+    - composer install --no-interaction
+  script:
+    - vendor/bin/phpunit
+    - vendor/bin/php-cs-fixer fix -v --dry-run
+

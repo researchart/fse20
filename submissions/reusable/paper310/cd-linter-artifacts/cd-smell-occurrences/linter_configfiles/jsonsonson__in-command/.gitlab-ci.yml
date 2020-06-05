@@ -1,0 +1,61 @@
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:8.9.4
+
+before_script:
+  - npm install
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - lint
+  - test
+  - release_test
+  - report
+
+lint:
+  stage: lint
+  script:
+   - npm run lint
+  tags:
+   - docker
+
+test:
+  stage: test
+  script:
+   - npm t
+  tags:
+   - docker
+  except:
+    - tags
+
+release_test:
+  stage: release_test
+  script:
+   - npm t
+  tags:
+   - docker
+  only:
+    - tags
+  artifacts:
+    paths:
+      - coverage/
+    expire_in: 1 year
+  allow_failure: true
+
+pages:
+  stage: report
+  script:
+    - mkdir public
+    - mv coverage/ public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - tags
+  allow_failure: true
+

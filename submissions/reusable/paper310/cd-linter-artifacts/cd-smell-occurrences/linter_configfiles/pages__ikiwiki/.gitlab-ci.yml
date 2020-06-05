@@ -1,0 +1,25 @@
+image: elecnix/ikiwiki
+
+before_script:
+  - apt-get install -y git
+  - git submodule init
+  - git submodule update
+
+test:
+  stage: test
+  script:
+  - ikiwiki --setup ikiwiki.setup --libdir themes/ikistrap/lib
+  only:
+  - branches
+  - tags
+
+pages:
+  stage: deploy
+  script:
+  - ikiwiki --setup ikiwiki.setup --libdir themes/ikistrap/lib
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

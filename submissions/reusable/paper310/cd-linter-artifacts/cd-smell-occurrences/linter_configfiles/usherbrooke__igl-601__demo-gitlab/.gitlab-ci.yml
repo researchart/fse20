@@ -1,0 +1,52 @@
+image: node:8
+cache:
+  paths:
+    - node_modules/
+
+stages:
+  - test
+  - build
+  - deploy
+
+test:unit:
+  stage: test
+  script:
+    - yarn
+    - yarn test
+
+test:lint:
+  stage: test
+  script:
+    - yarn
+    - yarn lint
+
+build:
+  stage: build
+  script:
+    - yarn
+    - yarn build
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - dist
+deploy:staging:
+  stage: deploy
+  environment: staging
+  dependencies:
+    - build
+  when: manual
+  script:
+    - yarn global add netlify-cli
+    - netlify deploy -p dist -s $NETLIFY_STAGING -t $NETLIFY_TOKEN
+
+deploy:prod:
+  stage: deploy
+  environment: prod
+  only:
+    - tags
+  dependencies:
+    - build
+  script:
+    - yarn global add netlify-cli
+    - netlify deploy -p dist -s $NETLIFY_PROD -t $NETLIFY_TOKEN
+

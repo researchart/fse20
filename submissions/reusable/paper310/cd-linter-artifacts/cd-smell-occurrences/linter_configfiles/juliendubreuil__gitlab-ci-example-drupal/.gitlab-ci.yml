@@ -1,0 +1,89 @@
+# Select what we should cache between builds
+#cache:
+#  paths:
+#  - vendor/
+
+stages:
+  - build
+  - deploy
+
+# Step 1 : Project building phase
+# - Downloading composer dependencies
+# - Removing git informations
+#
+build:
+  stage: build
+  image:  juliend/drupal-build-tools-ci
+  script:
+    - composer -n global require -n "hirak/prestissimo:^0.3"
+    #- composer install --no-interaction
+    - composer install --no-dev
+    - rm -rf .git
+  artifacts:
+    name: "plateform_${CI_BUILD_NAME}_${CI_BUILD_REF_NAME}_${CI_BUILD_REF}"
+    expire_in: '1 week'
+    paths:
+      - ./
+
+.deploy template: &deploy_template
+  stage: deploy
+  environment:
+    name:
+    url:
+  only:
+    - trigger
+  when: manual
+  before_script:
+    # install ssh-agent
+    - 'which rsync || ( apt-get update -y && apt-get install rsync -y )'
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    # run ssh-agent
+    - eval $(ssh-agent -s)
+    # add ssh key stored in SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    # disable host key checking (NOTE: makes you susceptible to man-in-the-middle attacks)
+    # WARNING: use only in docker container, if you use it with shell you will overwrite your user's ssh config
+    - mkdir -p ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  script:
+    # setup
+    - export TARGETPATH="${TARGETBASEPATH}"
+    - echo "Host    " $TARGETHOST
+    - echo "Path    " $TARGETPATH
+    # install deps with composer
+    #- ./Build/bin/composer.phar install --no-ansi --no-progress --no-dev
+    - date > VERSION
+    - echo "Tag   ${CI_BUILD_TAG}" >> VERSION
+    - echo "Build ${CI_BUILD_ID}" >> VERSION
+    - echo "Ref   ${CI_BUILD_REF}" >> VERSION
+    - echo "Name  ${CI_BUILD_NAME}" >> VERSION
+    - echo "git   $(git describe)" >> VERSION
+    - ls -la
+    # prepare target host
+    - ssh -p $TARGETPORT $TARGETHOST "mkdir -p $TARGETPATH"
+    # - enable maintenance page
+    # sync files
+    - rsync -azv -e "ssh -p $TARGETPORT" --delete
+      --exclude=/composer.*
+      --exclude=/.ssh
+      www $TARGETHOST:$TARGETPATH
+    # finish build on target
+    # Add files/
+    # finish/cleanup releases
+    - echo "cleanup ... "
+    # - disable maintenance page
+    - echo "done."
+
+
+Deploy:dev:
+  <<: *deploy_template
+  only:
+    - dev
+  variables:
+    TARGETHOST: "$DEV_SERVER_SSH_IP"
+    TARGETPORT: "$DEV_SERVER_SSH_PORT"
+    TARGETBASEPATH: "/var/www/html/${CI_COMMIT_REF_NAME}.${CI_PROJECT_NAME}.example.com"
+  environment:
+    name: dev
+    url: "https://${CI_COMMIT_REF_NAME}.${CI_PROJECT_NAME}.ci-example.com"
+

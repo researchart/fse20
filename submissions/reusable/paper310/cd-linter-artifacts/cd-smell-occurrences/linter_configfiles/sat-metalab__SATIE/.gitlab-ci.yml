@@ -1,0 +1,15 @@
+image:
+  name: metalabsat/supercollider:3.10.4
+  entrypoint: [""]
+
+before_script:
+
+    # install SATIE and dependant quarks
+    - sclang ci/install_quarks.scd
+
+test:
+    script:
+        - jackd --no-realtime -d dummy -r 48000 -p 1024 &
+        - sleep 20
+        - sclang ci/run_tests.scd
+

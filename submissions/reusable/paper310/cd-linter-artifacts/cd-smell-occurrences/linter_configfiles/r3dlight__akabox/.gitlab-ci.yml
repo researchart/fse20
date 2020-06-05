@@ -1,0 +1,60 @@
+# akabox custom docker image with go and clang-7.
+image: registry.gitlab.com/r3dlight/akabox/go-clang7:latest
+
+variables:
+  REPO_NAME: gitlab.com/r3dlight/akabox
+
+cache:
+  paths:
+    - /apt-cache
+    - /go/src/github.com
+    - /go/src/golang.org
+    - /go/src/google.golang.org
+    - /go/src/gopkg.in
+
+# The problem is that to be able to use go get, one needs to put
+# the repository in the $GOPATH. So for example if your gitlab domain
+# is gitlab.com, and that your repository is namespace/project, and
+# the default GOPATH being /go, then you'd need to have your
+# repository in /go/src/gitlab.com/namespace/project
+# Thus, making a symbolic link corrects this.
+before_script:
+  - mkdir -p /go/src/gitlab.com/r3dlight/
+  - cp -r /builds/r3dlight/akabox /go/src/gitlab.com/r3dlight/
+    #- go get -u github.com/urfave/negroni
+    #- go get -u github.com/dgrijalva/jwt-go
+    #- go get -u github.com/dgrijalva/jwt-go/request
+    #- go get -u github.com/docker/docker/api/types
+    #- go get -u github.com/docker/docker/api/types/container
+    #- go get -u github.com/docker/docker/client
+    #- go get -u github.com/docker/go-connections/nat
+    #- go get -u github.com/hashicorp/go-version
+    #- go get -u github.com/seccomp/libseccomp-golang
+    #- go get -u github.com/tkanos/gonfig
+    #- go get -u golang.org/x/net/context
+    #- cd /go/src/gitlab.com/r3dlight/akabox
+    #- mv /go/src/github.com/docker/docker/vendor/github.com/docker/go-connections/{nat,nat.old}
+
+
+stages:
+    - test
+    - build
+
+format:
+    stage: test
+    script:
+      - cd /go/src/gitlab.com/r3dlight/akabox
+      - go fmt $(go list ./... | grep -v /vendor/)
+      - go vet $(go list ./... | grep -v /vendor/)
+      - export CC=clang-7
+      - go test -msan -short
+      - go test -race $(go list ./... | grep -v /vendor/)
+
+compile:
+    stage: build
+    script:
+      - cd /go/src/gitlab.com/r3dlight/akabox && go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/akabox
+    artifacts:
+      paths:
+        - akabox
+

@@ -1,0 +1,60 @@
+stages:
+  - build
+  - pages
+
+publish:
+
+  stage: build
+
+  image: registry.gitlab.com/contentascode/activist-apprentice:v0.0.10
+
+  cache:
+    paths:
+    - node_modules/
+
+  before_script:
+  - mkdir ~/workspace && cd ~/workspace
+  - apprentice init --non-interactive
+  - apprentice config
+  # Manually template with current course
+  - rm -rf ~/.content/packages/activist-apprentice-course-template
+  - cp -R $CI_PROJECT_DIR ~/.content/packages/activist-apprentice-course-template
+  - cd ~/.content/packages/activist-apprentice-course-template
+  - npm install
+
+
+  script:
+  # Build website
+  - cd ~/workspace
+  - apprentice start --clean --no-watch --baseurl /$CI_PROJECT_NAME preview
+  - apprentice start --clean --no-watch mobile
+  - cd ~/.content/build/@apprentice/mobile
+  - more package.json
+  - more app.json
+  # - npm install
+  - npm install -g exp
+  - exp login -u $EXP_LOGIN -p $EXP_PASS
+  - exp publish --non-interactive
+  - cd ~
+  - cp -R ~/.content/build/@apprentice/preview $CI_PROJECT_DIR/public
+  - ls -la $CI_PROJECT_DIR/public
+
+  artifacts:
+    paths:
+    - public
+
+  only:
+    - master
+
+pages:
+
+  stage: pages
+
+  script:
+  - echo "Deploying to gitlab pages"
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

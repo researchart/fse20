@@ -1,0 +1,9 @@
+image: "python:3.7"
+
+flake8:
+  script:
+    - pip install pipenv
+    - pipenv install --dev
+    - pipenv run python -m flake8
+    - pipenv run python main.py
+

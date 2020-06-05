@@ -1,0 +1,26 @@
+image: "ruby:2.4"
+
+cache:
+  paths:
+    - vendor/ruby
+
+before_script:
+  - apt-get update -qq && apt-get install -yqq nodejs libpq-dev
+  - gem install bundler  --no-ri --no-rdoc
+  - bundle install -j $(nproc) --path vendor
+
+rails:
+  variables:
+    POSTGRES_USER: test
+    POSTGRES_PASSSWORD: test-password
+    POSTGRES_DB: test
+    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSSWORD}@postgres/${POSTGRES_DB}
+    RAILS_ENV: test
+  services:
+    - postgres:alpine
+  script:
+  - rails db:migrate
+  - rails db:seed
+  - rails test
+
+

@@ -1,0 +1,27 @@
+image: node:8
+
+cache:
+  key: "$CI_BUILD_REF_NAME"
+  untracked: true
+  paths:
+    - node_modules/
+
+before_script:
+  - npm install -g gulp -q
+
+stages:
+- deploy
+
+build_and_deploy_job:
+  stage: deploy
+  script:
+    - npm install -q
+    - cp config-prod.js config.js
+    - gulp build
+    - gulp deploy  
+  environment:
+    name: production
+    url: https://www.buytwitter.org
+  only:
+    - master
+

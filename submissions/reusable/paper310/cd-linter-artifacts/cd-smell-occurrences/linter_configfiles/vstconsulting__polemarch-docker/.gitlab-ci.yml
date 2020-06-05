@@ -1,0 +1,25 @@
+image: python:2-slim-jessie
+
+services:
+  - name: 'docker:18.05-dind'
+    alias: 'docker_service_host'
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+stages:
+  - release-tag
+  - check-version
+  - release-version
+
+.image_tamplate: &upload_docker_image
+  script:
+    - pip install tox
+    - tox
+
+release_tag:
+  stage: release-tag
+  <<: *upload_docker_image
+  only:
+    - tags
+

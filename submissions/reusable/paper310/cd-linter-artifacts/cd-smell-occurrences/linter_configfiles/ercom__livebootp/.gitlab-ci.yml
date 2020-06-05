@@ -1,0 +1,87 @@
+
+stages:
+  - build
+  - mksquashfs
+  - deploy
+
+bootp-registry:
+  stage: build
+  tags:
+    - docker
+  services:
+  - name: registry.gitlab.com/ercom/docker:17.12.0-ce-dind
+    alias: docker
+  variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+  image: registry.gitlab.com/ercom/docker:17.12.0-ce-git
+  only:
+    - /^bootp-registry\/.*$/
+  script:
+    - tools/gitlab-ci/run.sh
+
+.target-build-template: &target-build-template
+  stage: build
+  tags:
+    - docker
+  services:
+  - name: registry.gitlab.com/ercom/docker:17.12.0-ce-dind
+    alias: docker
+  variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    CITBX_JOB_RUN_FILE_NAME: target-build.sh
+  image: registry.gitlab.com/ercom/docker:17.12.0-ce-git
+  #With Gitlab 10.5
+  #expression:
+    #- $CI_COMMIT_TAG ~= /^\$CI_JOB_NAME\/.*$/
+  script:
+    - tools/gitlab-ci/run.sh
+
+.target-mksquashfs-template: &target-mksquashfs-template
+  stage: mksquashfs
+  tags:
+    - docker
+  services:
+  - name: registry.gitlab.com/ercom/docker:17.12.0-ce-dind
+    alias: docker
+  variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    CITBX_JOB_RUN_FILE_NAME: target-mksquashfs.sh
+  image: registry.gitlab.com/ercom/docker:17.12.0-ce-git
+  #With Gitlab 10.5
+  #expression:
+    #- $CI_COMMIT_TAG ~= /^\$CI_JOB_NAME\/.*$/
+  script:
+    - tools/gitlab-ci/run.sh
+  artifacts:
+    paths:
+      - artifacts
+    expire_in: 1 day
+
+target-base-build:
+  only:
+    - /^target-base\/.*$/
+  <<: *target-build-template
+
+#target-my-target-name-build:
+  #only:
+    #- /^target-my-target-name\/.*$/
+  #<<: *target-build-template
+
+#target-my-target-name-mksquashfs:
+  #only:
+    #- /^target-my-target-name\/.*$/
+  #<<: *target-mksquashfs-template
+
+#########################################
+#                                       #
+#             SPECIFIC PART             #
+#                                       #
+# ### DO NOT MODIFY THE ABOVE LINES ### #
+# ###  AND KEEP THIS INSERT AS IS   ### #
+# ###   TO FACILITATE GIT REBASE    ### #
+#                                       #
+#########################################
+

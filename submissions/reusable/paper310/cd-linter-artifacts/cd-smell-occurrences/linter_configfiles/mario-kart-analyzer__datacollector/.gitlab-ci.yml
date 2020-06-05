@@ -1,0 +1,7 @@
+test:
+  image: kaakaa/opencv-contrib-python3:latest
+  script:
+    - pip install -r requirements.txt
+    - export PYTHONPATH=$PYTHONPATH:$(pwd)
+    - python -m pytest
+

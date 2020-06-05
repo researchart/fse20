@@ -1,0 +1,26 @@
+before_script:
+  - apt-get update -yqq -o=Dpkg::Use-Pty=0
+  - apt-get install -yqq -o=Dpkg::Use-Pty=0 --no-install-recommends build-essential libssl-dev pkg-config
+
+# https://store.docker.com/community/images/pitkley/rust
+'.cargo test': &test
+  stage: test
+  cache:
+    key: "$CI_JOB_NAME/$CI_COMMIT_REF_NAME"
+    untracked: true
+  script:
+  - rustc --version && cargo --version
+  - cargo test --color always --release
+
+'cargo test (stable)':
+  <<: *test
+  image: pitkley/rust:stable
+
+'cargo test (beta)':
+  <<: *test
+  image: pitkley/rust:beta
+
+'cargo test (nightly)':
+  <<: *test
+  image: pitkley/rust:nightly
+

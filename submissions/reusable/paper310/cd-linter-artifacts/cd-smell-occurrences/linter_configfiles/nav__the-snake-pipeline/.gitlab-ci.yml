@@ -1,0 +1,26 @@
+# The Snake Pipeline
+# First pipeline is handling tests and running the application with Gitlab Runners.
+# The second pipeline is for Deployment, which packages the app and deploys it to a server.
+image: mwallasch/docker-ruby-node
+
+cache:
+  paths:
+  - node_modules/
+
+test:
+  stage: test
+  script:
+    - npm install
+    - npm run test:unit
+    - npm run test:app
+
+production:
+  stage: deploy
+  script:
+  - npm -v
+  - npm install -qs
+  - gem install dpl
+  - dpl --skip_cleanup --provider=heroku --app=snake-pipeline --api-key=$HEROKU_PRODUCTION_API_KEY
+  only:
+  - master
+

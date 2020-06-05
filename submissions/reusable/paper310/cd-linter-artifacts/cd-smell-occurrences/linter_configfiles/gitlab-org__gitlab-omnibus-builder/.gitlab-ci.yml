@@ -1,0 +1,217 @@
+image: docker:git
+
+stages:
+- test
+- test-stg2
+- test-stg3
+- build
+- build-stg2
+- build-stg3
+- gcp
+
+services:
+- docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+.dev-tag-only: &dev-tag-only
+  only:
+    - tags@cookbooks/gitlab-omnibus-builder
+
+before_script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+
+.test_dep_build: &test_dep_build
+  stage: test
+  script:
+    # Hack to set an array in /bin/sh
+    # http://unix.stackexchange.com/a/137571
+    - set -- $CI_JOB_NAME
+    - cd docker/builders
+    # pre builders only get updated if their dockerfile changes
+    - commitId=$(git ls-tree HEAD -- Dockerfile_$1 | awk '{ print $3 }')
+    - if $(docker pull "$CI_REGISTRY_IMAGE/staging-builders/$1:$commitId" > /dev/null); then
+    -   echo "Builder already up-to-date"
+    -   exit 0
+    - fi
+    #
+    - docker pull "$CI_REGISTRY_IMAGE/staging-builders/$1:$CI_COMMIT_REF_SLUG" || docker pull "$CI_REGISTRY_IMAGE/builders/$1:latest" || true
+    #
+    - docker build --cache-from "$CI_REGISTRY_IMAGE/staging-builders/$1:$CI_COMMIT_REF_SLUG" --cache-from "$CI_REGISTRY_IMAGE/builders/$1:latest" -f "Dockerfile_$1" -t "$CI_REGISTRY_IMAGE/staging-builders/$1:$commitId" -t "$CI_REGISTRY_IMAGE/staging-builders/$1:$CI_COMMIT_REF_SLUG" .
+    - docker push "$CI_REGISTRY_IMAGE/staging-builders/$1:$commitId"
+    - docker push "$CI_REGISTRY_IMAGE/staging-builders/$1:$CI_COMMIT_REF_SLUG"
+  only:
+    - branches
+  retry: 1
+
+.test_build: &test_build
+  stage: test
+  script:
+    # Hack to set an array in /bin/sh
+    # http://unix.stackexchange.com/a/137571
+    - set -- $CI_JOB_NAME
+    - docker pull "$CI_REGISTRY_IMAGE/staging/$1:builder-latest" || docker pull "$CI_REGISTRY_IMAGE/$1:builder-latest" || true
+    - docker pull "$CI_REGISTRY_IMAGE/staging/$1:$CI_COMMIT_REF_SLUG" || docker pull "$CI_REGISTRY_IMAGE/$1:latest" || true
+    #
+    - cd docker
+    - BUILDER_ARGS=""
+    - for filename in builders/Dockerfile_${1}_*; do
+    -   if [ -e "$filename" ]; then
+    -     commitId=$(git ls-tree HEAD -- $filename | awk '{ print $3 }')
+    -     fileBase=$(basename $filename)
+    -     builderImage=${fileBase//Dockerfile_/}
+    -     BUILDER_ARGS="$BUILDER_ARGS --build-arg ${builderImage}_image=$CI_REGISTRY_IMAGE/staging-builders/$builderImage:$commitId"
+    -   fi
+    - done
+    #
+    - docker build --cache-from "$CI_REGISTRY_IMAGE/staging/$1:builder-latest" --cache-from "$CI_REGISTRY_IMAGE/$1:builder-latest" -t "$CI_REGISTRY_IMAGE/staging/$1:builder-latest" -f "Dockerfile_$1" --target builder . --build-arg SMT_HOST=$SMT_HOST $BUILDER_ARGS
+    - docker build --cache-from "$CI_REGISTRY_IMAGE/staging/$1:builder-latest" --cache-from "$CI_REGISTRY_IMAGE/staging/$1:$CI_COMMIT_REF_SLUG" --cache-from "$CI_REGISTRY_IMAGE/$1:latest" -f "Dockerfile_$1" -t "$CI_REGISTRY_IMAGE/staging/$1:$CI_COMMIT_REF_SLUG" . --build-arg SMT_HOST=$SMT_HOST $BUILDER_ARGS
+    - docker push "$CI_REGISTRY_IMAGE/staging/$1:builder-latest"
+    - docker push "$CI_REGISTRY_IMAGE/staging/$1:${CI_COMMIT_REF_SLUG}"
+  only:
+    - branches
+  retry: 1
+
+.dep_build: &dep_build
+  stage: build
+  script:
+    - cd docker/builders
+    # pre builders only get updated if their dockerfile changes
+    - commitId=$(git ls-tree HEAD -- Dockerfile_$CI_JOB_NAME | awk '{ print $3 }')
+    - if $(docker pull "$CI_REGISTRY_IMAGE/builders/$CI_JOB_NAME:$commitId" > /dev/null); then
+    -   echo "Builder already up-to-date"
+    -   exit 0
+    - fi
+    #
+    - docker pull "$CI_REGISTRY_IMAGE/builders/$CI_JOB_NAME:latest" || true
+    #
+    - docker build --cache-from "$CI_REGISTRY_IMAGE/builders/$1:latest" -f "Dockerfile_$CI_JOB_NAME" -t "$CI_REGISTRY_IMAGE/builders/$CI_JOB_NAME:$commitId" -t "$CI_REGISTRY_IMAGE/builders/$CI_JOB_NAME:latest" .
+    - docker push "$CI_REGISTRY_IMAGE/builders/$CI_JOB_NAME:$commitId"
+    - docker push "$CI_REGISTRY_IMAGE/builders/$CI_JOB_NAME:latest"
+  only:
+    - tags
+  retry: 1
+
+.build_and_deploy: &build_and_deploy
+  stage: build
+  script:
+    - export IMAGE_TAG=${CI_COMMIT_TAG}
+    - docker pull "$CI_REGISTRY_IMAGE/$CI_JOB_NAME:latest" || true
+    - docker pull "$CI_REGISTRY_IMAGE/$CI_JOB_NAME:builder-latest" || true
+    #
+    - cd docker
+    - BUILDER_ARGS=""
+    - for filename in builders/Dockerfile_${CI_JOB_NAME}_*; do
+    -   if [ -e "$filename" ]; then
+    -     commitId=$(git ls-tree HEAD -- $filename | awk '{ print $3 }')
+    -     fileBase=$(basename $filename)
+    -     builderImage=${fileBase//Dockerfile_/}
+    -     BUILDER_ARGS="$BUILDER_ARGS --build-arg ${builderImage}_image=$CI_REGISTRY_IMAGE/builders/$builderImage:$commitId"
+    -   fi
+    - done
+    #
+    - docker build --cache-from "$CI_REGISTRY_IMAGE/$CI_JOB_NAME:builder-latest" -t "$CI_REGISTRY_IMAGE/$CI_JOB_NAME:builder-latest" -f "Dockerfile_$CI_JOB_NAME" --target builder . --build-arg SMT_HOST=$SMT_HOST $BUILDER_ARGS
+    - docker build --cache-from "$CI_REGISTRY_IMAGE/$CI_JOB_NAME:builder-latest" --cache-from "$CI_REGISTRY_IMAGE/$CI_JOB_NAME:latest" -t "$CI_REGISTRY_IMAGE/$CI_JOB_NAME:${IMAGE_TAG}" -t "$CI_REGISTRY_IMAGE/$CI_JOB_NAME:latest" -f "Dockerfile_$CI_JOB_NAME" . --build-arg SMT_HOST=$SMT_HOST $BUILDER_ARGS
+    #
+    - docker push "$CI_REGISTRY_IMAGE/$CI_JOB_NAME:builder-latest"
+    - docker push "$CI_REGISTRY_IMAGE/$CI_JOB_NAME:${IMAGE_TAG}"
+    - docker push "$CI_REGISTRY_IMAGE/$CI_JOB_NAME:latest"
+  only:
+    - tags
+  retry: 1
+
+centos_6_nodejs test: *test_dep_build
+
+debian_8 test: *test_build
+debian_9 test: *test_build
+debian_10 test: *test_build
+centos_7 test: *test_build
+centos_8 test: *test_build
+ubuntu_14.04 test: *test_build
+ubuntu_16.04 test: *test_build
+ubuntu_18.04 test: *test_build
+opensuse_42.3 test: *test_build
+opensuse_15.0 test: *test_build
+opensuse_15.1 test: *test_build
+debian_packer test: *test_build
+ruby_docker test: *test_build
+gitlab_provisioner test: *test_build
+
+centos_6 test:
+  extends: .test_build
+  stage: test-stg2
+rpi_9_git test:
+  extends: .test_dep_build
+  stage: test-stg2
+rpi_9 test:
+  extends: .test_build
+  stage: test-stg3
+
+centos_6_nodejs: *dep_build
+
+debian_8: *build_and_deploy
+debian_9: *build_and_deploy
+debian_10: *build_and_deploy
+centos_7: *build_and_deploy
+centos_8: *build_and_deploy
+ubuntu_14.04: *build_and_deploy
+ubuntu_16.04: *build_and_deploy
+ubuntu_18.04: *build_and_deploy
+opensuse_42.3: *build_and_deploy
+opensuse_15.0: *build_and_deploy
+opensuse_15.1: *build_and_deploy
+debian_packer: *build_and_deploy
+ruby_docker: *build_and_deploy
+gitlab_provisioner: *build_and_deploy
+
+centos_6:
+  extends: .build_and_deploy
+  stage: build-stg2
+rpi_9_git:
+  extends: .dep_build
+  stage: build-stg2
+rpi_9:
+  extends: .build_and_deploy
+  stage: build-stg3
+
+# Run only on dev.gitlab.org
+
+sles_12sp2 test:
+  extends:
+    - .test_build
+  only:
+    - branches@cookbooks/gitlab-omnibus-builder
+
+sles_12sp2:
+  extends:
+    - .build_and_deploy
+    - .dev-tag-only
+
+all_in_one:
+  stage: gcp
+  image: "dev.gitlab.org:5005/cookbooks/gitlab-omnibus-builder:alpine-packer"
+  extends: .dev-tag-only
+  before_script: []
+  script:
+    - export IMAGE_TAG=${CI_COMMIT_TAG}
+    - export IMAGE_SUFFIX=$(echo $IMAGE_TAG | tr "." "-")
+    - export images=`find docker/Dockerfile_* -maxdepth 1 -type f | cut -c 19-`
+    - echo $GCP_ACCOUNT_KEY > packer/account.json
+    - cd packer
+    # Using force to remove image if already exists
+    - packer build -force packer.json
+
+basic_image:
+  stage: gcp
+  image: "dev.gitlab.org:5005/cookbooks/gitlab-omnibus-builder:alpine-packer"
+  extends: .dev-tag-only
+  before_script: []
+  script:
+    - export IMAGE_TAG=${CI_COMMIT_TAG}
+    - export IMAGE_SUFFIX=$(echo $IMAGE_TAG | tr "." "-")
+    - echo $GCP_ACCOUNT_KEY > packer/account.json
+    - cd packer
+    # Using force to remove image if already exists
+    - packer build -force packer-basic.json
+

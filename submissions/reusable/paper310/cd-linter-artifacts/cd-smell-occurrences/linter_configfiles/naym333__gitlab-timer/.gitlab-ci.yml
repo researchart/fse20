@@ -1,0 +1,18 @@
+# This file is a template, and might need editing before it works on your project.
+# Full project: https://gitlab.com/pages/hexo
+image: kkarczmarczyk/node-yarn
+
+pages:
+  cache:
+    paths:
+    - node_modules/
+
+  script:
+  - yarn install
+  - yarn run production
+  artifacts:
+    paths:
+    - .
+  only:
+  - master
+

@@ -1,0 +1,56 @@
+---
+image: ubuntu:latest
+before_script:
+  - export DEBIAN_FRONTEND=noninteractive && apt-get update -qq && apt-get install --no-install-recommends -y build-essential apache2-dev autoconf automake bison dejagnu flex libpam-dev libtool perl liblocale-gettext-perl pkg-config python-all-dev python3-all-dev pyflakes3 ruby-dev swig lsb-release python3-notify2 python3-psutil zlib1g-dev
+  - lsb_release -a
+  - uname -a
+
+# XXX - add a deploy stage to publish man pages, docs, and coverage
+# reports
+
+stages:
+  - build
+  - test
+
+build-all:
+  stage: build
+  artifacts:
+    name: ${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHA}
+    expire_in: 30 days
+    untracked: true
+    paths:
+        - libraries/libapparmor/
+        - parser/
+        - binutils/
+        - utils/
+        - changehat/mod_apparmor/
+        - changehat/pam_apparmor/
+        - profiles/
+  script:
+      - cd libraries/libapparmor && ./autogen.sh && PYTHON=/usr/bin/python3 ./configure --with-perl --with-python --prefix=/usr && make PYTHON=/usr/bin/python3 && cd ../.. || { cat config.log ; exit 1 ; }
+      - make -C parser
+      - make -C binutils
+      - make -C utils
+      - make -C changehat/mod_apparmor
+      - make -C changehat/pam_apparmor
+      - make -C profiles
+
+test-all:
+  stage: test
+  script:
+      - make -C libraries/libapparmor check PYTHON=/usr/bin/python3
+      - make -C parser check
+      - make -C binutils check
+      - make -C utils check PYFLAKES=/usr/bin/pyflakes3 PYTHON_VERSIONS=/usr/bin/python3
+      - make -C changehat/mod_apparmor check
+      - make -C profiles check-parser
+      - make -C profiles check-abstractions.d
+
+# Disabled due to aa-logprof dependency on /sbin/apparmor_parser existing
+#      - make -C profiles check-profiles
+
+# test-pam_apparmor:
+#  - stage: test
+#  - script:
+#    - cd changehat/pam_apparmor && make check
+

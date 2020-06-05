@@ -1,0 +1,11 @@
+image: registry.gitlab.com/ratmice/docker-urweb/urweb
+
+pages:
+  script:
+  - urweb example
+  - ./mirror.sh
+  artifacts:
+    paths:
+    - public 
+
+

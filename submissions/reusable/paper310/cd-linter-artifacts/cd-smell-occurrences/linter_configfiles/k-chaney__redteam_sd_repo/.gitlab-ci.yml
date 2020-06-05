@@ -1,0 +1,43 @@
+stages:
+  - build
+  - test
+  - docs
+
+job_cm:
+  stage: build
+  script:
+    - system_launch/scripts/redteam_install
+
+dynamic_object_test:
+  stage: test
+  script:
+    - system_launch/scripts/dynamic_object_test_script
+
+pluginlib_test:
+  stage: test
+  script:
+    - system_launch/scripts/pluginlib_test_script
+
+point_cloud_filters_test:
+  stage: test
+  script:
+    - system_launch/scripts/point_cloud_filters_test_script
+
+creation_destruction_test:
+  stage: test
+  script:
+    - system_launch/scripts/creation_destruction_test_script
+
+msckf_test:
+  stage: test
+  script:
+    - system_launch/scripts/msckf_test_script
+    - system_launch/scripts/msckf_utils_test_script
+
+generate_doxygen:
+  stage: docs
+  only: 
+    - master
+  script:
+    - system_launch/scripts/generate_doxygen
+

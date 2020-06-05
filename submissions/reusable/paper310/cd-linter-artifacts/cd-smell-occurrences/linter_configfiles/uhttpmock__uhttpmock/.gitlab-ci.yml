@@ -1,0 +1,25 @@
+image: debian:unstable
+
+before_script:
+  - apt update -qq
+  - apt install -y -qq build-essential autoconf automake pkg-config libtool m4 autoconf-archive gtk-doc-tools libxml2-utils gobject-introspection libgirepository1.0-dev libglib2.0-dev libsoup2.4-dev ca-certificates
+  # Needed to ensure /etc/ssl/certs/ca-certificates.crt is present
+#  - update-ca-certificates
+
+stages:
+  - build
+
+build-check:
+  stage: build
+  script:
+    - mkdir build
+    - cd build
+    - ../autogen.sh
+    - make V=1 VERBOSE=1
+    - make distcheck V=1 VERBOSE=1
+
+  # The files which are to be made available in GitLab
+  artifacts:
+    paths:
+      - build/*
+

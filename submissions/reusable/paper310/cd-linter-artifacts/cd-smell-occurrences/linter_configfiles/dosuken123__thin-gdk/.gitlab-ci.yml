@@ -1,0 +1,92 @@
+image: ubuntu:18.04
+
+.default-only:
+  only:
+    refs:
+    - master
+    - tags
+    - merge_requests
+
+stages:
+  - build
+  - configure
+  - test
+  - build-deployable-image
+  - deploy
+
+.from-guest:
+  extends: .default-only
+  image: ${CI_REGISTRY_IMAGE}/thin-gdk-monolith:master
+  before_script:
+  - gem install devkitkat
+  - devkitkat add-test-domain
+  - devkitkat add-user -e "home_dir=${CI_PROJECT_DIR}" -e "user_name=devkitkat"
+  artifacts:
+    paths:
+    - "services/*/log"
+    - parallel.log
+    when: always
+    expire_in: 1 day
+  retry: 1
+
+configure:
+  extends: .from-guest
+  stage: configure
+  script:
+  - su - devkitkat -c "devkitkat clone default -e 'GIT_DEPTH=1'"
+  - su - devkitkat -c "devkitkat configure default"
+  - su - devkitkat -c "devkitkat clone runner -e 'GIT_DEPTH=1'"
+  - su - devkitkat -c "devkitkat configure runner"
+  - su - devkitkat -c "devkitkat start postgres,redis,gitaly &"
+  - sleep 60s
+  - su - devkitkat -c "devkitkat seed rails -e 'size=1'"
+  after_script:
+  - rm -Rf services/**/cache # Data is too big to upload to artifacts server
+  - du -h -d 1 services | sort -gr
+  artifacts:
+    paths:
+    - services/*
+    when: always
+    expire_in: 1 day
+
+test:rspec:
+  extends: .from-guest
+  stage: test
+  script:
+  - su - devkitkat -c "devkitkat reconfigure default"
+  - su - devkitkat -c "devkitkat -i test-rspec"
+  dependencies: [configure]
+
+test:psql:
+  extends: .from-guest
+  stage: test
+  script:
+  - su - devkitkat -c "devkitkat reconfigure default"
+  - su - devkitkat -c "devkitkat -i test-psql"
+  dependencies: [configure]
+
+test:curl:
+  extends: .from-guest
+  stage: test
+  script:
+  - su - devkitkat -c "devkitkat reconfigure default"
+  - su - devkitkat -c "devkitkat -i test-curl"
+  dependencies: [configure]
+
+test:git:
+  extends: .from-guest
+  stage: test
+  script:
+  - su - devkitkat -c "devkitkat reconfigure default"
+  - su - devkitkat -c "devkitkat -i test-git"
+  dependencies: [configure]
+
+test:runner:
+  extends: .from-guest
+  stage: test
+  script:
+  - su - devkitkat -c "devkitkat reconfigure default"
+  - su - devkitkat -c "devkitkat -i test-runner"
+  dependencies: [configure]
+  retry: 2
+

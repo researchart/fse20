@@ -1,0 +1,22 @@
+before_script:
+  - git submodule sync --recursive
+  - git submodule update --init --recursive
+  - echo "Restoring NuGet Packages..."
+  - '"src\nuget\NuGet.exe" restore "GitLabVS.sln"'
+ 
+stages:
+  - buildGitLabForVS
+buildGitLabForVS:
+  stage: buildGitLabForVS
+  script:
+  -  rebuildself.cmd    GitLabVS.sln
+ 
+  artifacts:
+    expire_in: 2 mos
+    name: "%CI_PROJECT_NAME%_%CI_COMMIT_REF_NAME%"
+    paths:
+    -  build/Release/GitLab.VisualStudio.vsix
+    -  README.md
+    
+ 
+

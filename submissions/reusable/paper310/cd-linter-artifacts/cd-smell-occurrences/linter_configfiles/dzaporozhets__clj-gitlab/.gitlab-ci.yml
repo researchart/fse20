@@ -1,0 +1,42 @@
+image: clojure:lein-2.7.0
+
+stages:
+  - test
+  - package
+  - deploy
+
+test:
+  stage: test
+  script:
+    - lein test
+
+ancient:
+  stage: test
+  script:
+    - lein ancient
+
+kibit:
+  stage: test
+  script:
+    - lein kibit
+
+package:
+  stage: package
+  script:
+    - lein pom
+  only:
+    - master
+  artifacts:
+    untracked: true
+
+deploy:
+  stage: deploy
+  script:
+    - 'cp ci/settings.xml /root/.m2/settings.xml'
+    - 'mvn deploy'
+  dependencies:
+    - package
+  only:
+    - master
+  image: maven:3.3.9-jdk-8
+

@@ -1,0 +1,22 @@
+image: node:8.9.4
+
+before_script:
+- npm install
+
+cache:
+  paths:
+    - node_modules/
+
+test:
+  script:
+    - npm run test
+
+release:
+  only:
+    - tags
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+

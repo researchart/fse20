@@ -1,0 +1,37 @@
+stages:
+    - test
+    - deploy
+
+variables:
+    MYSQL_DATABASE: khmercoders
+    MYSQL_ROOT_PASSWORD: secret
+
+test:
+    stage: test
+    image: invisal/hello
+    services: 
+         - mysql:latest
+    tags:
+         - khmercoders
+    script:
+         - composer install
+         - cp .env.testing .env
+         - php artisan key:generate
+         - php artisan config:cache
+         - php artisan migrate
+         - php vendor/bin/phpunit
+
+deploy:
+    environment: deploy
+    stage: deploy
+    tags:
+         - khmercoders
+    script:
+         - eval $(ssh-agent -s)
+         - ssh-add <(echo "$SSH_PRIVATE_KEY")
+         - mkdir -p ~/.ssh
+         - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+         - ssh root@$SSH_SERVER "bash /var/www/deploy.sh $DB_BACKUP_USER $DB_BACKUP_PASS"
+    only:
+         - master
+

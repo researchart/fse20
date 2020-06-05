@@ -1,0 +1,15 @@
+# https://hub.docker.com/r/microsoft/dotnet/
+image: microsoft/dotnet
+
+pages:
+  script:
+  - dotnet --version
+  - mkdir public
+  - cd src
+  - dotnet restore
+  - dotnet run
+  - cp *.html ../public
+  artifacts:
+    paths:
+    - public
+

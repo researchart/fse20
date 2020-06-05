@@ -1,0 +1,68 @@
+image: python:3
+
+before_script:
+  - VERSION=`cat maev/VERSION`
+  - pip install virtualenv
+  - virtualenv ~/.venv/maev
+  - source ~/.venv/maev/bin/activate
+  - pip install -r requirements/dev.txt
+
+
+stages:
+  - unit-test
+  - release
+  - pages
+
+pages:
+  image: python:3
+  stage: pages
+  script:
+    - sphinx-apidoc -fMTeE -o docs/source maev/
+    - mkdir public
+    - cd docs
+    - make clean && make html
+    - mv build/html/* ../public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+unit-test-py3:
+  image: python:3
+  stage: unit-test
+  script:
+    - pytest -vvv --cov=maev/
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+  except:
+    - tags
+
+
+
+
+
+release:
+  image: python:3
+  stage: release
+  before_script:
+    - VERSION=`cat maev/VERSION`
+    - if ! [[ "$CI_BUILD_TAG" = "$VERSION" ]]; then echo "$VERSION does not match $CI_BUILD_TAG"; exit -1 ; fi
+  script:
+    - pip install -r requirements/dev.txt
+    - echo "[server-login]" >> ~/.pypirc
+    - echo "username="$PYPI_USER >> ~/.pypirc
+    - echo "password="$PYPI_PASSWORD >> ~/.pypirc
+    - python setup.py check sdist bdist_wheel upload
+    - echo "" > ~/.pypirc && rm ~/.pypirc
+  only:
+    - tags
+
+
+cleanup_release:
+  stage: release
+  when: always
+  script:
+    - rm -vf ~/.pypirc
+  only:
+    - tags
+

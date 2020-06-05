@@ -1,0 +1,13 @@
+stages:
+  - run-tests
+
+test-master:
+  image: microsoft/dotnet:2.1-sdk
+  stage: run-tests
+  script:
+    - 'dotnet test Source/MemExchange.Server/MemExchange.Tests/MemExchange.Tests.csproj'
+  only:
+    - master
+  tags:
+    - docker
+

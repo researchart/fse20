@@ -1,0 +1,1234 @@
+image: "${CI_REGISTRY}/gitlab-com/gl-infra/ci-images/gitlab-com-infrastructure:latest"
+
+stages:
+  - verify
+  - init
+  - validate
+  - plan
+  - apply
+
+variables:
+  TF_IN_AUTOMATION: 'true'
+  TF_PLAN_FILE: "${CI_ENVIRONMENT_NAME}_${CI_COMMIT_REF_SLUG}.plan}"
+
+change-lock:
+  image: "${CI_REGISTRY}/gitlab-com/gl-infra/change-lock:latest"
+  stage: verify
+  script:
+    - change-lock --tags infra --slack-channels=#infrastructure-lounge
+  only:
+    refs:
+      - merge_requests
+
+tf_format:
+  stage: verify
+  script: |
+    set +o pipefail
+    echo "running tf format"  # there's no output for empty builds otherwise
+    fmt_diff=$(git diff-tree --no-commit-id --name-only -r ${CI_COMMIT_SHA} | grep '\.tf$' | xargs -I{} bash -c 'cd "$(dirname {})" && terraform fmt -write=false "$(basename {})"' | sed '/^\s*$/d')
+    if test -n "$fmt_diff"; then
+      echo "******* Terraform formatting error:"
+      echo ""
+      echo $fmt_diff
+      exit 1
+    fi
+  only:
+    refs:
+      - merge_requests
+
+shellcheck:
+  stage: verify
+  image: 'koalaman/shellcheck-alpine'
+  script: shellcheck bin/*
+  only:
+    refs:
+      - merge_requests
+
+shfmt:
+  stage: verify
+  image:
+    name: 'mvdan/shfmt:v3.0.0'
+    entrypoint: [""]
+  script: shfmt -i 2 -ci -d bin/
+  only:
+    refs:
+      - merge_requests
+
+danger_review:
+  stage: verify
+  image: "${CI_REGISTRY}/gitlab-org/gitlab-build-images:danger"
+  except:
+    - tags
+    - master
+  script:
+    # The `DANGER_GITLAB_API_TOKEN` token is saved under the DevOps 1password vault,
+    # under "Danger bot - OPS" name. The private token has been added to
+    # https://ops.gitlab.net/groups/gitlab-com and it has API scope set.
+    - danger --fail-on-errors=true
+  only:
+    refs:
+      - merge_requests
+
+.pre_scripts: &pre_scripts
+  before_script:
+    - for version in $(find . -name .terraform-version |xargs cat |sort -u); do /.tfenv/bin/tfenv install ${version}; done
+
+.tf_init: &tf_init
+  stage: init
+  script: |
+    eval $(ssh-agent -s)
+    echo "$SSH_PRIVATE_KEY" | base64 -d | tr -d '\r' | ssh-add - > /dev/null
+    mkdir -p ~/.ssh
+    chmod 700 ~/.ssh
+    echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    chmod 644 ~/.ssh/known_hosts
+
+    echo "Initializing working directory for ${CI_ENVIRONMENT_NAME}..."
+    cd environments/${CI_ENVIRONMENT_NAME}
+    terraform init
+  artifacts:
+    paths:
+      - environments/${CI_ENVIRONMENT_NAME}/.terraform
+  <<: *pre_scripts
+
+.tf_validate: &tf_validate
+  stage: validate
+  script:
+    - echo "running terraform validate for ${CI_ENVIRONMENT_NAME}"  # there's no output for empty builds otherwise
+    - cd environments/$CI_ENVIRONMENT_NAME
+    - terraform validate
+    - tflint
+  <<: *pre_scripts
+
+.review_plan: &review_plan
+  script:
+    - export GOOGLE_CLOUD_KEYFILE_JSON=${GCLOUD_TERRAFORM_PRIVATE_KEY_JSON}
+    - cd environments/$CI_ENVIRONMENT_NAME
+    - terraform plan -input=false
+  <<: *pre_scripts
+
+.merge_plan: &merge_plan
+  script:
+    - export GOOGLE_CLOUD_KEYFILE_JSON=${GCLOUD_TERRAFORM_PRIVATE_KEY_JSON}
+    - cd environments/$CI_ENVIRONMENT_NAME
+    - terraform plan -input=false -out=${TF_PLAN_FILE}
+  artifacts:
+    paths:
+      - environments/${CI_ENVIRONMENT_NAME}/${TF_PLAN_FILE}
+  <<: *pre_scripts
+
+.tf_apply: &tf_apply
+  script: |
+    # Terraform plan
+    export GOOGLE_CLOUD_KEYFILE_JSON=${GCLOUD_TERRAFORM_PRIVATE_KEY_JSON}
+    cd environments/$CI_ENVIRONMENT_NAME
+    terraform apply -input=false ${TF_PLAN_FILE}
+  <<: *pre_scripts
+
+
+##################################################
+# aws-account
+##################################################
+init aws-account:
+  environment: aws-account
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/aws-account/*
+  <<: *tf_init
+
+validate aws-account:
+  dependencies: ["init aws-account"]
+  environment:
+    name: aws-account
+  needs: ["init aws-account"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/aws-account/**
+  <<: *tf_validate
+
+review aws-account:
+  stage: plan
+  dependencies: ["init aws-account"]
+  environment:
+    name: aws-account
+  needs:
+    - init aws-account
+    - validate aws-account
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/aws-account/**
+  <<: *review_plan
+
+plan aws-account:
+  stage: plan
+  dependencies: ["init aws-account"]
+  environment:
+    name: aws-account
+  needs:
+    - init aws-account
+    - validate aws-account
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/aws-account/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply aws-account:
+  stage: apply
+  dependencies:
+    - init aws-account
+    - plan aws-account
+  environment:
+    name: aws-account
+  needs:
+    - init aws-account
+    - plan aws-account
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/aws-account/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# aws-snowplow
+##################################################
+init aws-snowplow:
+  environment: aws-snowplow
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/aws-snowplow/*
+  <<: *tf_init
+
+validate aws-snowplow:
+  dependencies: ["init aws-snowplow"]
+  environment:
+    name: aws-snowplow
+  needs: ["init aws-snowplow"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/aws-snowplow/**
+  <<: *tf_validate
+
+review aws-snowplow:
+  stage: plan
+  dependencies: ["init aws-snowplow"]
+  environment:
+    name: aws-snowplow
+  needs:
+    - init aws-snowplow
+    - validate aws-snowplow
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/aws-snowplow/**
+  <<: *review_plan
+
+plan aws-snowplow:
+  stage: plan
+  dependencies: ["init aws-snowplow"]
+  environment:
+    name: aws-snowplow
+  needs:
+    - init aws-snowplow
+    - validate aws-snowplow
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/aws-snowplow/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply aws-snowplow:
+  stage: apply
+  dependencies:
+    - init aws-snowplow
+    - plan aws-snowplow
+  environment:
+    name: aws-snowplow
+  needs:
+    - init aws-snowplow
+    - plan aws-snowplow
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/aws-snowplow/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# dr
+##################################################
+init dr:
+  environment: dr
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/dr/*
+  <<: *tf_init
+
+validate dr:
+  dependencies: ["init dr"]
+  environment:
+    name: dr
+  needs: ["init dr"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/dr/**
+  <<: *tf_validate
+
+review dr:
+  stage: plan
+  dependencies: ["init dr"]
+  environment:
+    name: dr
+  needs:
+    - init dr
+    - validate dr
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/dr/**
+  <<: *review_plan
+
+plan dr:
+  stage: plan
+  dependencies: ["init dr"]
+  environment:
+    name: dr
+  needs:
+    - init dr
+    - validate dr
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/dr/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply dr:
+  stage: apply
+  dependencies:
+    - init dr
+    - plan dr
+  environment:
+    name: dr
+  needs:
+    - init dr
+    - plan dr
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/dr/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# gprd
+##################################################
+init gprd:
+  environment: gprd
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/gprd/*
+  <<: *tf_init
+
+validate gprd:
+  dependencies: ["init gprd"]
+  environment:
+    name: gprd
+  needs: ["init gprd"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/gprd/**
+  <<: *tf_validate
+
+review gprd:
+  stage: plan
+  dependencies: ["init gprd"]
+  environment:
+    name: gprd
+  needs:
+    - init gprd
+    - validate gprd
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/gprd/**
+  <<: *review_plan
+
+plan gprd:
+  stage: plan
+  dependencies: ["init gprd"]
+  environment:
+    name: gprd
+  needs:
+    - init gprd
+    - validate gprd
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/gprd/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply gprd:
+  stage: apply
+  dependencies:
+    - init gprd
+    - plan gprd
+  environment:
+    name: gprd
+  needs:
+    - init gprd
+    - plan gprd
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/gprd/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# gstg
+##################################################
+init gstg:
+  environment: gstg
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/gstg/*
+  <<: *tf_init
+
+validate gstg:
+  dependencies: ["init gstg"]
+  environment:
+    name: gstg
+  needs: ["init gstg"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/gstg/**
+  <<: *tf_validate
+
+review gstg:
+  stage: plan
+  dependencies: ["init gstg"]
+  environment:
+    name: gstg
+  needs:
+    - init gstg
+    - validate gstg
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/gstg/**
+  <<: *review_plan
+
+plan gstg:
+  stage: plan
+  dependencies: ["init gstg"]
+  environment:
+    name: gstg
+  needs:
+    - init gstg
+    - validate gstg
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/gstg/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply gstg:
+  stage: apply
+  dependencies:
+    - init gstg
+    - plan gstg
+  environment:
+    name: gstg
+  needs:
+    - init gstg
+    - plan gstg
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/gstg/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# ops
+##################################################
+init ops:
+  environment: ops
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/ops/*
+  <<: *tf_init
+
+validate ops:
+  dependencies: ["init ops"]
+  environment:
+    name: ops
+  needs: ["init ops"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/ops/**
+  <<: *tf_validate
+
+review ops:
+  stage: plan
+  dependencies: ["init ops"]
+  environment:
+    name: ops
+  needs:
+    - init ops
+    - validate ops
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/ops/**
+  <<: *review_plan
+
+plan ops:
+  stage: plan
+  dependencies: ["init ops"]
+  environment:
+    name: ops
+  needs:
+    - init ops
+    - validate ops
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/ops/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply ops:
+  stage: apply
+  dependencies:
+    - init ops
+    - plan ops
+  environment:
+    name: ops
+  needs:
+    - init ops
+    - plan ops
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/ops/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# pre
+##################################################
+init pre:
+  environment: pre
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/pre/*
+  <<: *tf_init
+
+validate pre:
+  dependencies: ["init pre"]
+  environment:
+    name: pre
+  needs: ["init pre"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/pre/**
+  <<: *tf_validate
+
+review pre:
+  stage: plan
+  dependencies: ["init pre"]
+  environment:
+    name: pre
+  needs:
+    - init pre
+    - validate pre
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/pre/**
+  <<: *review_plan
+
+plan pre:
+  stage: plan
+  dependencies: ["init pre"]
+  environment:
+    name: pre
+  needs:
+    - init pre
+    - validate pre
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/pre/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply pre:
+  stage: apply
+  dependencies:
+    - init pre
+    - plan pre
+  environment:
+    name: pre
+  needs:
+    - init pre
+    - plan pre
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/pre/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# testbed
+##################################################
+init testbed:
+  environment: testbed
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/testbed/*
+  <<: *tf_init
+
+validate testbed:
+  dependencies: ["init testbed"]
+  environment:
+    name: testbed
+  needs: ["init testbed"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/testbed/**
+  <<: *tf_validate
+
+review testbed:
+  stage: plan
+  dependencies: ["init testbed"]
+  environment:
+    name: testbed
+  needs:
+    - init testbed
+    - validate testbed
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/testbed/**
+  <<: *review_plan
+
+plan testbed:
+  stage: plan
+  dependencies: ["init testbed"]
+  environment:
+    name: testbed
+  needs:
+    - init testbed
+    - validate testbed
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/testbed/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply testbed:
+  stage: apply
+  dependencies:
+    - init testbed
+    - plan testbed
+  environment:
+    name: testbed
+  needs:
+    - init testbed
+    - plan testbed
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/testbed/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# redirects
+##################################################
+init redirects:
+  environment: redirects
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/redirects/*
+  <<: *tf_init
+
+validate redirects:
+  dependencies: ["init redirects"]
+  environment:
+    name: redirects
+  needs: ["init redirects"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/redirects/**
+  <<: *tf_validate
+
+review redirects:
+  stage: plan
+  dependencies: ["init redirects"]
+  environment:
+    name: redirects
+  needs:
+    - init redirects
+    - validate redirects
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/redirects/**
+  <<: *review_plan
+
+plan redirects:
+  stage: plan
+  dependencies: ["init redirects"]
+  environment:
+    name: redirects
+  needs:
+    - init redirects
+    - validate redirects
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/redirects/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply redirects:
+  stage: apply
+  dependencies:
+    - init redirects
+    - plan redirects
+  environment:
+    name: redirects
+  needs:
+    - init redirects
+    - plan redirects
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/redirects/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# ci
+##################################################
+init ci:
+  environment: ci
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/ci/*
+  <<: *tf_init
+
+validate ci:
+  dependencies: ["init ci"]
+  environment:
+    name: ci
+  needs: ["init ci"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/ci/**
+  <<: *tf_validate
+
+review ci:
+  stage: plan
+  dependencies: ["init ci"]
+  environment:
+    name: ci
+  needs:
+    - init ci
+    - validate ci
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/ci/**
+  <<: *review_plan
+
+plan ci:
+  stage: plan
+  dependencies: ["init ci"]
+  environment:
+    name: ci
+  needs:
+    - init ci
+    - validate ci
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/ci/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply ci:
+  stage: apply
+  dependencies:
+    - init ci
+    - plan ci
+  environment:
+    name: ci
+  needs:
+    - init ci
+    - plan ci
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/ci/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# windows-ci
+##################################################
+init windows-ci:
+  environment: windows-ci
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/windows-ci/**
+  <<: *tf_init
+
+validate windows-ci:
+  dependencies: ["init windows-ci"]
+  environment:
+    name: windows-ci
+  needs: ["init windows-ci"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/windows-ci/**
+  <<: *tf_validate
+
+review windows-ci:
+  stage: plan
+  dependencies: ["init windows-ci"]
+  environment:
+    name: windows-ci
+  needs:
+    - init windows-ci
+    - validate windows-ci
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/windows-ci/**
+  <<: *review_plan
+
+plan windows-ci:
+  stage: plan
+  dependencies: ["init windows-ci"]
+  environment:
+    name: windows-ci
+  needs:
+    - init windows-ci
+    - validate windows-ci
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/windows-ci/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply windows-ci:
+  stage: apply
+  dependencies:
+    - init windows-ci
+    - plan windows-ci
+  environment:
+    name: windows-ci
+  needs:
+    - init windows-ci
+    - plan windows-ci
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/windows-ci/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# dns
+##################################################
+init dns:
+  environment: dns
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/dns/*
+  <<: *tf_init
+
+validate dns:
+  dependencies: ["init dns"]
+  environment:
+    name: dns
+  needs: ["init dns"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/dns/**
+  <<: *tf_validate
+
+review dns:
+  stage: plan
+  dependencies: ["init dns"]
+  environment:
+    name: dns
+  needs:
+    - init dns
+    - validate dns
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/dns/**
+  <<: *review_plan
+
+plan dns:
+  stage: plan
+  dependencies: ["init dns"]
+  environment:
+    name: dns
+  needs:
+    - init dns
+    - validate dns
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/dns/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply dns:
+  stage: apply
+  dependencies:
+    - init dns
+    - plan dns
+  environment:
+    name: dns
+  needs:
+    - init dns
+    - plan dns
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/dns/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# okta-asa
+##################################################
+init okta-asa:
+  environment: okta-asa
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/okta-asa/*
+  <<: *tf_init
+
+validate okta-asa:
+  dependencies: ["init okta-asa"]
+  environment:
+    name: okta-asa
+  needs: ["init okta-asa"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/okta-asa/**
+  <<: *tf_validate
+
+review okta-asa:
+  stage: plan
+  dependencies: ["init okta-asa"]
+  environment:
+    name: okta-asa
+  needs:
+    - init okta-asa
+    - validate okta-asa
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/okta-asa/**
+  <<: *review_plan
+
+plan okta-asa:
+  stage: plan
+  dependencies: ["init okta-asa"]
+  environment:
+    name: okta-asa
+  needs:
+    - init okta-asa
+    - validate okta-asa
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/okta-asa/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply okta-asa:
+  stage: apply
+  dependencies:
+    - init okta-asa
+    - plan okta-asa
+  environment:
+    name: okta-asa
+  needs:
+    - init okta-asa
+    - plan okta-asa
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/okta-asa/**
+  when: manual
+  <<: *tf_apply
+
+##################################################
+# packagecloud
+##################################################
+init packagecloud:
+  environment: packagecloud
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/packagecloud/*
+  <<: *tf_init
+
+validate packagecloud:
+  dependencies: ["init packagecloud"]
+  environment:
+    name: packagecloud
+  needs: ["init packagecloud"]
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/packagecloud/**
+  <<: *tf_validate
+
+review packagecloud:
+  stage: plan
+  dependencies: ["init packagecloud"]
+  environment:
+    name: packagecloud
+  needs:
+    - init packagecloud
+    - validate packagecloud
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci.yml
+      - environments/packagecloud/**
+  <<: *review_plan
+
+plan packagecloud:
+  stage: plan
+  dependencies: ["init packagecloud"]
+  environment:
+    name: packagecloud
+  needs:
+    - init packagecloud
+    - validate packagecloud
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - environments/packagecloud/**
+    refs:
+      - master
+  <<: *merge_plan
+
+apply packagecloud:
+  stage: apply
+  dependencies:
+    - init packagecloud
+    - plan packagecloud
+  environment:
+    name: packagecloud
+  needs:
+    - init packagecloud
+    - plan packagecloud
+  only:
+    refs:
+      - master
+    changes:
+      - .gitlab-ci.yml
+      - environments/packagecloud/**
+  when: manual
+  <<: *tf_apply
+

@@ -1,0 +1,12 @@
+pages:
+    stage: deploy
+    script:
+        - "mkdir .public"
+        - "for a in *; do if [ -d $a ]; then cp --recursive $a .public/$a; fi; done"
+        - "mv .public public"
+    artifacts:
+        paths:
+        - public/
+    only:
+    - master
+

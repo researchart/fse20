@@ -1,0 +1,38 @@
+image: smmccabe/docker:latest
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  artifacts:
+    paths:
+      - dist/
+  script:
+    - npm install
+    - npm run build
+
+deploy-live:
+  stage: deploy
+
+  only:
+    - master
+
+  environment: live
+
+  script:
+    # Install ssh-agent if not already installed, it is required by Docker.
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+
+    # Run ssh-agent (inside the build environment)
+    - eval $(ssh-agent -s)
+
+    # Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$DEPLOY_KEY")
+
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+    - rsync -av --no-perms --no-owner --no-group --exclude-from '.gitlab-ci-rsync-exclude.txt' --exclude '.git' --delete ./ jbennest@allidoisscoregoals.com:/home/brock/web/
+
+

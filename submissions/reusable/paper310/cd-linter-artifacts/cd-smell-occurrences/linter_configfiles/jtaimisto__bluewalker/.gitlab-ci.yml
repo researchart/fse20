@@ -1,0 +1,18 @@
+image: golang:latest
+
+stages:
+  - build
+  - test
+
+build-main-app:
+  stage: build
+  script:
+    - go install gitlab.com/jtaimisto/bluewalker
+    - go install gitlab.com/jtaimisto/bluewalker/listener
+
+run-tests:
+  stage: test
+  script:
+   - go test -race -coverprofile=.cov.out gitlab.com/jtaimisto/bluewalker/...
+   - go tool cover -func .cov.out
+

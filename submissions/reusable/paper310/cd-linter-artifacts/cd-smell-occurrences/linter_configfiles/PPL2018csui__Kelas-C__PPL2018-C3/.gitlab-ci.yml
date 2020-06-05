@@ -1,0 +1,107 @@
+stages:
+  - test
+  - deploy
+
+test_microservice:
+  image: "node:8.9.3"
+  stage: test
+  before_script:
+    - "cd microservice"
+    - "npm cache clean --force"
+    - "rm -rf node_modules"
+    - "npm install"
+  script:
+    - "npm test"
+  coverage: /All files[^|]*\\|[^|]*\\s+([\\d\\.]+)/
+
+test_frontend:
+  image: "node:8.9.3"
+  stage: test
+  before_script:
+    - "cd frontend"
+    - "npm cache clean --force"
+    - "rm -rf node_modules"
+    - "npm install"
+  script:
+    - "npm test"
+  coverage: /All files[^|]*\\|[^|]*\\s+([\\d\\.]+)/
+
+test_backend:
+  stage: test
+  before_script:
+    - apt-get install -f
+    - apt-get update -qy
+    - apt-get install -y python3-pip sudo python-dev libpq-dev postgresql postgresql-contrib pep8
+    - apt-get update
+    - service postgresql start
+    - sudo -u postgres psql -c "CREATE USER ppl WITH PASSWORD 'ppl' CREATEDB"
+    - sudo -u postgres psql -c "CREATE DATABASE ppl OWNER ppl;"
+    - sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ppl TO ppl;"
+    - export DATABASE_NAME=ppl
+    - export DATABASE_USER=ppl
+    - export DATABASE_PASSWORD=ppl
+    - export DATABASE_HOST=localhost
+  script:
+    - cd backend
+    - pip3 install -r requirements.txt
+    - python3 manage.py migrate
+    - coverage run --source='.' --omit='*/env*',manage.py,'./api/views/paginator.py','./api/management/*' manage.py test
+    - pycodestyle .
+    - coverage report
+    - cd ..
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+  artifacts:
+    paths:
+      - public
+
+deploy_situat:
+  image: ruby:latest
+  type: deploy
+  stage: deploy
+  only:
+    - sit_uat
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - cd frontend && dpl --provider=heroku --app=$HEROKU_APP_SITUAT_NEW --api-key=$HEROKU_API_KEY_NEW
+    - cd ../backend && dpl --provider=heroku --app=$HEROKU_APP_SITUAT_2_NEW --api-key=$HEROKU_API_KEY_NEW
+  environment:
+    name: SITUAT
+    url: $HEROKU_APP_HOST_SITUAT
+
+deploy_staging:
+  image: ruby:latest
+  type: deploy
+  stage: deploy
+  except:
+    - sit_uat
+    - master
+    - production
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - cd frontend && dpl --provider=heroku --app=$HEROKU_APP_STAGING --api-key=$HEROKU_API_KEY
+    - cd ../backend && dpl --provider=heroku --app=$HEROKU_APP_STAGING_2 --api-key=$HEROKU_API_KEY_2
+  environment:
+    name: production
+    url: $HEROKU_APP_HOST_STAGING
+
+deploy_production:
+  image: ruby:latest
+  type: deploy
+  stage: deploy
+  only:
+    - master
+    - production
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - cd frontend && dpl --provider=heroku --app=$HEROKU_APP_PRODUCTION --api-key=$HEROKU_API_KEY
+    - cd ../backend && dpl --provider=heroku --app=$HEROKU_APP_PRODUCTION_2 --api-key=$HEROKU_API_KEY_2
+  environment:
+    name: production
+    url: $HEROKU_APP_HOST_PRODUCTION
+

@@ -1,0 +1,18 @@
+image: elixir:1.3.2
+
+services:
+  - postgres:9.5.3
+
+variables:
+  ROCKBOOKS_DB_HOST: "postgres"
+
+before_script:
+  - mix local.rebar --force
+  - mix local.hex --force
+  - mix deps.get
+
+test:
+  script:
+    - mix coveralls.json
+    - bash <(curl -s https://codecov.io/bash) -t 78abf403-9490-455c-9be9-e60cede9f22a
+

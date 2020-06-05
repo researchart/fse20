@@ -1,0 +1,22 @@
+image: docker:stable-dind
+
+variables:
+    DOCKER_DRIVER: overlay2
+
+before_script:
+  - dockerd-entrypoint.sh &
+  - while ! [ -e /var/run/docker.sock ]; do sleep 1; done
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+  - NAME="$CI_REGISTRY_IMAGE:$(echo $CI_COMMIT_SHA|cut -c1-8)"
+
+build:
+  stage: build
+  script:
+    - docker pull "$CI_REGISTRY_IMAGE:latest" || true
+    - docker pull "$NAME" || true
+    - docker build --build-arg BASIC_AUTH=latency-at-bot:$ACCESS_TOKEN --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$NAME" .
+    - docker tag "$NAME" "$CI_REGISTRY_IMAGE:latest"
+    - docker push "$NAME"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+    - kill $(cat /var/run/docker.pid)
+

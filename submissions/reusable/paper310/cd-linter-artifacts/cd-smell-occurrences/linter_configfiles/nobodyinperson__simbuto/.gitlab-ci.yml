@@ -1,0 +1,126 @@
+image: registry.gitlab.com/nobodyinperson/simbuto/ubuntu_16.04
+
+variables:
+    DEBIAN_PACKAGE_DIR: debian-package
+    GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+    - build
+    - build-test
+    - install-test
+    - app-test
+    - deploy
+    - deploy-test
+
+before_script:
+    - "apt-get -qq update >/dev/null"
+    - "apt-get -qq -y install r-cran-optparse libgtksourceview-3.0-dev >/dev/null"
+
+autoconf-build:
+    stage: build
+    script:
+        - autoreconf --install
+        - ./configure
+        - make
+        - make dist
+        - make distcheck
+        - make install
+        - make uninstall
+    artifacts:
+        paths:
+            - "*-*.tar.gz"
+        expire_in: 1 week
+
+debian-package-build:
+    stage: build
+    script:
+        - autoreconf --install
+        - dpkg-buildpackage -us -uc # build package
+        - mkdir -p $DEBIAN_PACKAGE_DIR # create folder for debian package
+        - cp ../*.deb ../*.dsc ../*.changes $DEBIAN_PACKAGE_DIR # copy .deb-file into build directory
+    artifacts:
+        name: "${CI_JOB_STAGE}_${CI_COMMIT_REF_NAME}"
+        paths:
+            - "$DEBIAN_PACKAGE_DIR/*"
+
+debian-package-test:
+    before_script: []
+    variables:
+        GIT_STRATEGY: none # no repo cloning necessary
+    stage: build-test
+    script:
+        - dpkg-deb -I $DEBIAN_PACKAGE_DIR/*.deb
+        - dpkg -c $DEBIAN_PACKAGE_DIR/*.deb
+        - lintian --fail-on-warnings $DEBIAN_PACKAGE_DIR/*.deb # check package
+    dependencies:
+        - debian-package-build
+
+debian-package-install-uninstall:
+    before_script:
+        - "apt-get -qq update >/dev/null"
+    variables:
+        GIT_STRATEGY: none # no repo cloning necessary
+    image: ubuntu
+    stage: install-test
+    script:
+        - "dpkg -i $DEBIAN_PACKAGE_DIR/*.deb || true" # install it
+        - dpkg -r $(dpkg -I $DEBIAN_PACKAGE_DIR/*.deb | perl -ne 'if(s/^\s*package:\s*(\w+)$/$1/ig){print;exit}')
+    dependencies:
+        - debian-package-build
+
+apt-deploy:
+    before_script:
+        - "apt-get -qq update >/dev/null"
+    variables:
+        GIT_STRATEGY: none # no repo cloning necessary
+    stage: deploy
+    environment:
+        name: production
+        url: http://apt.nobodyinperson.de
+    script:
+        - "apt-get -y -qq install apt-transport-https >/dev/null"
+        - eval $(ssh-agent -s) # start ssh agent
+        - ssh-add <(echo "$SSH_DEPLOY_PRIVATE_KEY") # add private key
+        - mkdir -p ~/.ssh
+        - echo "$SSH_DEPLOY_HOSTKEYS" >> ~/.ssh/known_hosts # add host keys
+        - scp -qP "$SSH_DEPLOY_PORT" "$DEBIAN_PACKAGE_DIR"/*.deb "$SSH_DEPLOY_ADDRESS" # deploy package
+    dependencies:
+        - debian-package-build
+    artifacts:
+        name: debian-package
+        paths:
+            - "$DEBIAN_PACKAGE_DIR/*.deb"
+    only:
+        - master
+    only:
+        - tags
+
+apt-install-test:
+    before_script:
+        - "apt-get -qq update >/dev/null"
+    variables:
+        GIT_STRATEGY: none # no repo cloning necessary
+    stage: deploy-test
+    script:
+        - "apt-get -y -qq install apt-transport-https wget >/dev/null"
+        - 'set -e'
+        - 'export DEBFILE=($DEBIAN_PACKAGE_DIR/*.deb)'
+        - 'echo "debian package file: $DEBFILE"'
+        - 'export PACKAGE_NAME=$(dpkg -I $DEBFILE | perl -ne ''if(s/^\s*package:\s*(\S+)\s*$/$1/ig){print;exit}'')'
+        - 'export PACKAGE_VERSION=$(dpkg -I $DEBFILE | perl -ne ''if(s/^\s*version:\s*(\S+)\s*$/$1/ig){print;exit}'')'
+        - 'echo "built package version: $PACKAGE_VERSION"'
+        - 'wget -qO- https://apt.nobodyinperson.de/gpg.key | apt-key add -'
+        - 'echo "deb https://apt.nobodyinperson.de unstable main" | tee /etc/apt/sources.list.d/nobodyinperson.list'
+        - 'apt-get update -qq'
+        - 'apt-get download -y -qq $PACKAGE_NAME'
+        - 'export APT_PACKAGE_VERSION=$(dpkg -I $PACKAGE_NAME*.deb | perl -ne ''if(s/^\s*version:\s*(\S+)\s*$/$1/ig){print;exit}'')'
+        - 'echo "apt package version: $APT_PACKAGE_VERSION"'
+        - 'test "$PACKAGE_VERSION" = "$APT_PACKAGE_VERSION"'
+        - 'apt-get install -y -qq $PACKAGE_NAME >/dev/null'
+    dependencies:
+        - debian-package-build
+    only:
+        - master
+    only:
+        - tags
+

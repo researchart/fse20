@@ -1,0 +1,62 @@
+image: registry.gitlab.com/camelot-project/camelot/image
+
+stages:
+  - build
+  - test
+  - package
+
+compile:
+  stage: build
+  before_script:
+    - export LEIN_ROOT=1
+    - export LEIN_SNAPSHOTS_IN_RELEASE=1
+    - export PATH="$HOME/bin:${PATH}"
+  script:
+    - script/build
+  artifacts:
+    paths:
+      - "target/camelot.jar"
+    expire_in: 20 minutes
+
+unittest-clj:
+  stage: build
+  before_script:
+    - export LEIN_ROOT=1
+    - export PATH="$HOME/bin:${PATH}"
+  script:
+    - script/test clj
+
+unittest-cljs:
+  stage: build
+  before_script:
+    - export LEIN_ROOT=1
+    - export PATH="$HOME/bin:${PATH}"
+  script:
+    - script/test cljs
+
+upgrade:
+  stage: test
+  before_script:
+    - mkdir ~/.ssh
+    - chmod 700 ~/.ssh
+    - sh -c "ssh-keyscan -t rsa gitlab.com >> ~/.ssh/known_hosts"
+  script:
+    - script/setup-testdata.sh
+    - CAMELOT_DATADIR="testdata" script/test-runtime.sh
+
+new-install:
+  stage: test
+  script:
+    - script/test-runtime.sh
+
+package:
+  stage: package
+  script:
+    - mkdir -p "camelot-${CI_BUILD_REF_NAME}/"
+    - script/prepare-snapshot.sh
+    - cp target/camelot-*.jar script/bin/camelot-desktop.sh script/bin/camelot-desktop.bat script/bin/camelot-desktop.command "camelot-${CI_BUILD_REF_NAME}/"
+  artifacts:
+    name: "camelot-${CI_BUILD_REF_NAME}-$(date '+%Y%m%d%H%M%S')"
+    paths:
+      - "camelot-${CI_BUILD_REF_NAME}/"
+

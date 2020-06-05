@@ -1,0 +1,8 @@
+image: "debian:sid"
+
+build_deb:
+    script:
+        - apt update -q && apt upgrade -y && apt install wget debhelper devscripts qtbase5-dev libqt5svg5-dev qtmultimedia5-dev libqt5webkit5-dev libhunspell-dev pkg-config qttools5-dev-tools -y
+        - wget https://gitlab.com/ghostwriter-deb/upstream-tarball/raw/master/ghostwriter_1.7.4.orig.tar.gz -P ..
+        - debuild -us -uc
+

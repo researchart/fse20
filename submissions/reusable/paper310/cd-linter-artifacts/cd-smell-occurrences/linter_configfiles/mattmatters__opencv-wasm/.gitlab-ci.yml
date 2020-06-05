@@ -1,0 +1,99 @@
+image: docker:latest
+services:
+  - docker:dind
+
+cache:
+  key: "$CI_PIPELINE_ID"
+  untracked: true
+
+variables:
+  DOCKER_DRIVER: overlay2
+  GL_CONTAINER: registry.gitlab.com/mattmatters/opencv-wasm
+
+stages:
+  - build
+  - release
+  - test
+  - deploy
+
+before_script:
+  - docker version
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+build:wasm:
+  stage: build
+  script:
+    - docker build -t $GL_CONTAINER/wasm:$CI_PIPELINE_ID -f docker/Dockerfile_wasm .
+    - docker push $GL_CONTAINER/wasm:$CI_PIPELINE_ID
+
+build:wasm:
+  stage: build
+  script:
+    - docker build -t $GL_CONTAINER/wasm:$CI_PIPELINE_ID -f docker/Dockerfile_wasm .
+    - docker push $GL_CONTAINER/wasm:$CI_PIPELINE_ID
+
+build:devserver:
+  stage: build
+  script:
+    - docker build -t $GL_CONTAINER/devserver:$CI_PIPELINE_ID -f docker/Dockerfile_devserver .
+    - docker push $GL_CONTAINER/devserver:$CI_PIPELINE_ID
+
+build:e2e:
+  stage: build
+  script:
+    - docker build -t $GL_CONTAINER/e2e:$CI_PIPELINE_ID -f docker/Dockerfile_e2e .
+    - docker push $GL_CONTAINER/e2e:$CI_PIPELINE_ID
+
+# Prepare everything for release
+release:wasm:
+  stage: release
+  artifacts:
+    paths:
+      - dist/
+  script:
+    - docker pull $GL_CONTAINER/wasm:$CI_PIPELINE_ID
+    - mkdir dist
+    - docker run -v "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"/dist:/usr/src/app/dist $GL_CONTAINER/wasm:$CI_PIPELINE_ID
+
+release:js:
+  image: python:latest
+  before_script:
+    - echo "overwrite before_script"
+  stage: release
+  artifacts:
+    paths:
+      - dist/
+  script:
+    - bash ./scripts/build_static.sh
+
+test:e2e:
+  stage: test
+  dependencies:
+    - release:wasm
+    - release:js
+  script:
+    - docker pull $GL_CONTAINER/devserver:$CI_PIPELINE_ID
+    - docker pull $GL_CONTAINER/e2e:$CI_PIPELINE_ID
+    - docker network create test
+    - docker run -v $(pwd)/dist:/usr/share/nginx/html --network test --name devserve -d $GL_CONTAINER/devserver:$CI_PIPELINE_ID
+    - sleep 5
+    - docker run -e BROWSERSTACK_ACCESS_KEY -e BROWSERSTACK_USER --env ADDRESS=devserve --name tester --network test $GL_CONTAINER/e2e:$CI_PIPELINE_ID
+    - (if [ "$(docker inspect tester --format='{{.State.ExitCode}}')" == "0" ]; then echo "passed"; else exit "$(docker inspect tester --format='{{.State.ExitCode}}')"; fi);
+    - docker stop devserve
+
+deploy:
+  image: python:3.6
+  stage: deploy
+  dependencies:
+    - release:wasm
+    - release:js
+  variables:
+    BUCKET: "s3://opencvwasm"
+  before_script:
+    - pip install awscli
+  script:
+    - bash scripts/deploy.sh
+  only:
+    - master
+

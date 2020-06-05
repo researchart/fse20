@@ -1,0 +1,60 @@
+stages:
+    - build
+    - compose
+    - deploy
+variables:
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+
+build:
+  stage: build
+  image: microsoft/dotnet:2.1-sdk-stretch
+  artifacts:
+      paths:
+      - app
+  script:
+    - curl -sL https://deb.nodesource.com/setup_6.x | bash -
+    - apt-get install -y nodejs
+    - dotnet restore
+    - dotnet publish -r alpine-x64 -o app
+    
+dockerbuild:
+  stage: compose
+  image: docker:latest
+  services:
+  - docker:dind
+  artifacts:
+      paths:
+      - app
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $IMAGE_TAG ./app
+    - docker push $IMAGE_TAG
+ 
+deploy:
+  stage: deploy
+  image: debian:latest
+  artifacts:
+    paths:
+    - app
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - master
+  before_script:
+     - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+     - eval $(ssh-agent -s)
+     - ssh-add <(echo "$SSH_PRIVATE_KEY")
+     - mkdir -p ~/.ssh
+     - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+
+     - |
+        ssh $BUILD_USER@$BUILD_SERVER << EOF
+            docker stop $CONTAINER_NAME || true; 
+            docker rm $CONTAINER_NAME || true; 
+            docker pull $IMAGE_TAG; 
+            docker run -d --name $CONTAINER_NAME $IMAGE_TAG
+        EOF
+

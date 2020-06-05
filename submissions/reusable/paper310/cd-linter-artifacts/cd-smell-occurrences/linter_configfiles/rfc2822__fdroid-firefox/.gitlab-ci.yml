@@ -1,0 +1,31 @@
+image: wonko21/fdroidserver:latest
+
+before_script:
+  - echo $fdroid_keystore_base64 | base64 -d >keystore.bks
+  - chmod 600 fdroid/config.py keystore.bks
+  - mkdir -p fdroid/repo
+
+pages:
+  stage: deploy
+  script:
+  - (cd fdroid/repo && while read -r line || [ -n "$line" ]; do rm -f $line; done < ../../cleanup.txt)
+  - ./download.py
+  - cd fdroid
+  - echo "keypass=\"$fdroid_keypass\"" >>config.py
+  - echo "keystorepass=\"$fdroid_keystorepass\"" >>config.py
+  - fdroid update
+  - rm -rf archive
+  - mkdir /fdroid && fdroid server update
+  - rm -rf /fdroid/archive
+  - cd .. && mkdir public && mv -v /fdroid public
+  - echo "Repo size:" && du -hs public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+  - schedules
+  cache:
+    paths:
+    - fdroid
+

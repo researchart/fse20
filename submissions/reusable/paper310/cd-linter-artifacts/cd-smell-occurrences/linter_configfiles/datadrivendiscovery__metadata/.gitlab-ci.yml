@@ -1,0 +1,71 @@
+style_check:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-xenial-python36
+
+  script:
+    - pycodestyle d3m_metadata
+
+type_check:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-xenial-python36
+
+  variables:
+    DEPENDENCY_REF: v2018.1.26
+
+  script:
+    - git clone https://gitlab.com/datadrivendiscovery/primitive-interfaces.git
+    - cd primitive-interfaces
+    - git checkout ${DEPENDENCY_REF}
+    - cd ..
+    - MYPYPATH=primitive-interfaces mypy d3m_metadata
+
+tests:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-xenial-python36
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+  script:
+    - python3 setup.py sdist
+    - pip3 install --process-dependency-links dist/*
+    - rm -rf d3m_metadata
+    - python3 ./run_tests.py
+
+pages:
+  stage: deploy
+
+  image: node:6
+
+  script:
+    - |
+      set -o errexit
+      cd site
+      npm install
+      make
+      cd ..
+      cp -a site/static public
+      rm -f public/schemas
+      cp -a d3m_metadata/schemas public/schemas
+
+  artifacts:
+    paths:
+      - public
+
+  only:
+    - master
+
+trigger_images_rebuild:
+  stage: deploy
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-xenial-python36
+
+  script:
+    - if [ -n "$TRIGGER_TOKEN" ]; then curl -X POST -F token=$TRIGGER_TOKEN -F ref=master -F variables[REBUILD_IMAGE]=core:ubuntu-xenial-python36-devel https://gitlab.com/api/v4/projects/5024100/trigger/pipeline; fi
+
+  only:
+    - devel
+

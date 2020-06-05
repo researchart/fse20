@@ -1,0 +1,56 @@
+image: osrf/ros:lunar-desktop-xenial
+
+before_script:
+  ## Setup ROS workspace
+  - mkdir -p ~/catkin_ws/src
+  - cd ~/catkin_ws/src
+  - export ROS_LANG_DISABLE="genlisp:geneus:gennodejs"
+  - if [ ! -f CMakeLists.txt ]; then catkin_init_workspace; else echo "CMakeList file already there";fi
+  - if [ ! -f .rosinstall ]; then wstool init; else echo "rosinstall file already there";fi
+  - ln -s ${CI_PROJECT_DIR} .
+  - cd ~/catkin_ws/src
+  - wstool up
+  - git clone https://github.com/catkin/catkin_simple.git
+  - cd ~/catkin_ws
+
+  ## Install dependencies
+  - apt-get -qq update
+  - apt-get -qq install software-properties-common wget default-jdk-headless zip -y
+  - apt-get -qq update
+  - apt-get -qq install python-pip -y
+  - pip install numpy sgp4 pytest pdoc matplotlib scikit-learn scipy numpy codecov pytest-cov mock
+
+docs_and_tests:
+  script:
+    - mkdir ~/docs
+    - cd ~/catkin_ws
+    - catkin_make
+    - source ~/catkin_ws/devel/setup.bash
+
+    - cd ${CI_PROJECT_DIR}
+    - pytest ${CI_PROJECT_DIR} -v -s --cov=./ --cov-config .coveragerc
+
+# removing this rostest as it needs a gui
+#    - rostest --text ${CI_PROJECT_DIR}/rospace_plugins/rqt_simtime_plugin/test/simtime_plugin.test
+
+    - rostest --text ${CI_PROJECT_DIR}/rospace_lib/test/testSimTime.test
+    # integration & node tests:
+    - rostest --text ${CI_PROJECT_DIR}/rospace_nodes/rospace_imu/test/launch_IMUnode_integration.test
+    - rostest --text ${CI_PROJECT_DIR}/rospace_nodes/rospace_imu/test/launch_IMUnode.test
+    - rostest --text ${CI_PROJECT_DIR}/rospace_nodes/rospace_magnetorquer/test/launch_MagnetorquerNode_integration.test
+    - rostest --text ${CI_PROJECT_DIR}/rospace_nodes/rospace_flightsoftware/test/launch_FlightSoftwareNode_integration.test
+
+    - pdoc --html --html-dir ~/docs ${CI_PROJECT_DIR}/rospace_lib/src/rospace_lib
+    - pdoc --html --html-dir ~/docs ${CI_PROJECT_DIR}/rospace_plugins/rqt_simtime_plugin/src/rqt_simtime_plugin/
+    - pdoc --html --html-dir ~/docs ${CI_PROJECT_DIR}/rospace_nodes/rospace_propagator/src/propagator/
+    - zip -r ${CI_PROJECT_DIR}/docs.zip ~/docs/*
+
+# hack due to https://github.com/codecov/codecov-python/issues/146
+    - CI_REPOSITORY_URL=${CI_REPOSITORY_URL/eSpace-epfl\/}
+    - codecov -e
+
+
+  artifacts:
+    paths:
+    - docs.zip
+

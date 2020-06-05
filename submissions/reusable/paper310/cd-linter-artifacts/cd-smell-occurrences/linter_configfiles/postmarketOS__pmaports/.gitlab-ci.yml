@@ -1,0 +1,146 @@
+---
+
+# global settings
+image: alpine:latest
+after_script:
+  - .gitlab-ci/move_logs.sh $CI_PROJECT_DIR
+stages:
+  - first
+  - second
+
+# defaults for "only"
+# We need to run the CI jobs in a "merge request specific context", if CI is
+# running in a merge request. Otherwise the environment variable that holds the
+# merge request ID is not available. This means, we must set the "only"
+# variable accordingly - and if we only do it for one job, all other jobs will
+# not get executed. So have the defaults here, and use them in all jobs that
+# should run on both the master branch, and in merge requests.
+# https://docs.gitlab.com/ee/ci/merge_request_pipelines/index.html#excluding-certain-jobs
+.only-default: &only-default
+  only:
+    - master
+    - merge_requests
+    - tags
+
+# device documentation
+wiki:
+  stage: first
+  <<: *only-default
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - device/device-*/*
+  before_script:
+    - apk -q add python3
+  script:
+    - .gitlab-ci/check_devices_in_wiki.py --booting
+
+# testcases linting
+testcases-linting:
+  stage: first
+  <<: *only-default
+  only:
+    refs:
+      - merge_requests
+    changes:
+      - .gitlab-ci/*
+  before_script:
+    - apk -q add py-flake8
+  script:
+    - flake8 --ignore E501,F401,E722,W504,W605
+
+# shellcheck
+shellcheck:
+  stage: first
+  <<: *only-default
+  image: alpine:edge
+  before_script:
+    - apk -q upgrade
+    - apk -q add shellcheck
+  script:
+    - .gitlab-ci/shellcheck.sh
+
+# aports checks (generic)
+aports-static:
+  stage: first
+  <<: *only-default
+  before_script:
+    - .gitlab-ci/install_pmbootstrap.sh pytest
+  script:
+    - apk -q add git
+    - su pmos -c ".gitlab-ci/run_testcases.sh
+        -m 'not pmaports_upstream_compat'"
+    - su pmos -c ".gitlab-ci/check_changed_aports_versions.py"
+  artifacts:
+    when: on_failure
+    paths:
+      - log.txt
+      - log_testsuite_pmaports.txt
+      - pmbootstrap.cfg
+    expire_in: 1 week
+
+# APKBUILD linting
+aport-lint:
+  stage: first
+  before_script:
+    - apk -q add git atools python3
+  script:
+    - .gitlab-ci/apkbuild-linting.py
+  only:
+    - merge_requests
+  allow_failure: true
+
+# kernel kconfig check
+kernel-kconfig:
+  stage: first
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes:
+      - device/linux-*/config-*
+      - main/linux-*/config-*
+  before_script:
+    - .gitlab-ci/install_pmbootstrap.sh pytest
+  script:
+    - su pmos -c "pmbootstrap kconfig check"
+
+# MR settings
+# (Checks for "Allow commits from members who can merge to the target branch")
+mr-settings:
+  stage: first
+  only:
+    - merge_requests
+  before_script:
+    - apk -q add python3
+  script:
+    - .gitlab-ci/check_mr_settings.py
+
+# aports checks (upstream compatibility)
+aports-static-upstream:
+  stage: second
+  only:
+    - master@postmarketOS/pmaports
+  before_script:
+    - .gitlab-ci/install_pmbootstrap.sh pytest
+  script:
+    - su pmos -c ".gitlab-ci/run_testcases.sh
+        -m 'pmaports_upstream_compat'"
+  artifacts:
+    when: on_failure
+    paths:
+      - log.txt
+      - log_testsuite_pmaports.txt
+      - pmbootstrap.cfg
+    expire_in: 1 week
+
+# build changed aports
+aports-build:
+  stage: second
+  <<: *only-default
+  before_script:
+    - .gitlab-ci/install_pmbootstrap.sh git
+  script:
+    - PYTHONUNBUFFERED=1 su pmos -c ".gitlab-ci/build_changed_aports.py"
+

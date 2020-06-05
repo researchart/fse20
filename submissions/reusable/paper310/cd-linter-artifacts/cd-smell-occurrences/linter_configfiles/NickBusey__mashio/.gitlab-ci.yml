@@ -1,0 +1,71 @@
+image: nickbusey/mashio:dev
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_HOST: tcp://localhost:2375
+  MYSQL_ROOT_PASSWORD: "2x4VWgZmzQgJ5tiHjRANaJKeNhWqg3WSjhs3zpKTUFfD6N"
+  MYSQL_HOST: "mariadb"
+  MYSQL_DATABASE: "test"
+  MYSQL_TEST_HOST: "mariadb"
+  MYSQL_TEST_DATABASE: "test"
+  MYSQL_USER: "mashio"
+  MYSQL_PASSWORD: "mashio"
+
+
+stages:
+  - build
+  - test
+
+services:
+  - docker:dind
+  
+# before_script:
+#   - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD
+
+# Build:
+#   stage: build
+#   script:
+#     - docker build -t nickbusey/mashio:dev .
+#     - docker push nickbusey/mashio:dev
+#   only:
+#     - master
+
+# Release:
+#   stage: build
+#   script:
+#     - docker build -t nickbusey/mashio:latest .
+#     - docker push nickbusey/mashio:latest
+#     - docker tag nickbusey/mashio:latest nickbusey/mashio:$CI_COMMIT_REF_NAME
+#     - docker push nickbusey/mashio:$CI_COMMIT_REF_NAME
+#   only:
+#     - /^v.*$/
+#   except:
+#     - branches
+
+test:
+  stage: test
+  services:
+    - mariadb
+  script:
+    - cd /builds/NickBusey/mashio/BackEnd
+    - composer install
+    - rm /var/www/html/mashio_db_test
+    - bin/cake migrations migrate -c test
+    - vendor/bin/phpunit --coverage-text --colors=never --stop-on-failure --coverage-clover=coverage.xml
+
+    # Upload test coverage results
+    - bash <(curl -s https://codecov.io/bash)
+
+pages:
+  image: python:alpine
+  script:
+    - pip install mkdocs
+    - pip install mkdocs-material
+    - mkdocs build
+    - mv site public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

@@ -1,0 +1,136 @@
+stages:
+  - build
+  - deploy-api
+  - deploy-client
+
+# WARNING : Cannot used variables in variables ...
+# GitLab expand only 1 level of variables.
+
+# i.e.
+# VAR1: "${CI_COMMIT_REF_SLUG}"
+# VAR2: "test-${VAR1}"
+# echo VAR1 -> master
+# echo VAR2 -> test-${CI_COMMIT_REF_SLUG}
+
+# see https://gitlab.com/gitlab-org/gitlab-runner/issues/1809 for more info!
+
+variables:
+  AWS_DEFAULT_REGION: ca-central-1
+  AWS_CLIENT_NAME: aws-client
+  AWS_S3_BUCKET_NAME: ${AWS_CLIENT_NAME}-${AWS_DEFAULT_REGION}
+
+  # Stacks
+  AWS_API_STACK_NAME: ${AWS_CLIENT_NAME}-api-${CI_COMMIT_REF_SLUG}
+  AWS_S3_STACK_NAME: ${AWS_CLIENT_NAME}-s3
+
+  # Templates url
+  AWS_TEMPLATE_URL: https://s3.${AWS_DEFAULT_REGION}.amazonaws.com/${AWS_CLIENT_NAME}-${AWS_DEFAULT_REGION}/${CI_COMMIT_REF_SLUG}/UnicornAccessRole.yml
+  AWS_CHILD_TEMPLATE_URL: https://s3.${AWS_DEFAULT_REGION}.amazonaws.com/${AWS_CLIENT_NAME}-${AWS_DEFAULT_REGION}/${CI_COMMIT_REF_SLUG}/UnicornAccessRoleChild.yml
+
+create-s3:
+  image: python:latest
+  stage: build
+  before_script:
+    - pip install awscli
+  script:
+    # S3 in ca-central-1
+    - aws cloudformation deploy --template-file aws-unicorn/aws-client-s3.yml --stack-name ${AWS_S3_STACK_NAME} --no-fail-on-empty-changeset --region ca-central-1
+    # S3 in us-east-1
+    - aws cloudformation deploy --template-file aws-unicorn/aws-client-s3.yml --stack-name ${AWS_S3_STACK_NAME} --no-fail-on-empty-changeset --region us-east-1
+  only:
+    - master
+
+build-client-code:
+  image: node:latest
+  stage: build
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq zip
+  script:
+    # Zip UnicornLambdaCode folder with dependencies
+    - cd aws-client/UnicornLambdaCode
+    - npm install
+    - zip -r ../UnicornLambdaCode.zip *
+    - cd ../..
+  artifacts:
+    paths:
+      - aws-client/UnicornLambdaCode.zip
+    expire_in: 1 day
+
+deploy-api:
+  image: python:latest
+  stage: deploy-api
+  before_script:
+    - pip install awscli chalice
+  script:
+    - cd aws-unicorn
+    # Install requirements
+    - pip install -r requirements.txt
+    # Create package SAM (Serverless App Model)
+    - chalice package --stage prod package/
+    # Convert SAM to cloudformation
+    - aws cloudformation package --template-file package/sam.json --s3-bucket ${AWS_S3_BUCKET_NAME} --s3-prefix chalice/${CI_COMMIT_REF_SLUG}/ --force-upload --output-template-file cloud-formation-packaged.yml
+    # Deploy to aws cloudformation
+    - aws cloudformation deploy --template-file cloud-formation-packaged.yml --stack-name ${AWS_API_STACK_NAME} --capabilities CAPABILITY_IAM --no-fail-on-empty-changeset
+    # Get endpoint url and print it
+    - aws cloudformation describe-stacks --stack-name ${AWS_API_STACK_NAME} --query "Stacks[].Outputs[?OutputKey=='EndpointURL'][] | [0].OutputValue" --output text > endpoint-url.output
+    - cat endpoint-url.output
+  artifacts:
+    paths:
+      - aws-unicorn/endpoint-url.output
+
+deploy-client:
+  image: python:latest
+  stage: deploy-client
+  before_script:
+    - pip install awscli
+  script:
+    # Put ACCOUNT_ID, ENDPOINT_URL, CHILD_TEMPLATE_URL and BUCKET_NAME in yml
+    - sed -i -e "s|{{ACCOUNT_ID}}|${AWS_ACCOUNT_ID}|g" aws-client/UnicornAccessRole.yml
+    - sed -i -e "s|{{ENDPOINT_URL}}|$(cat aws-unicorn/endpoint-url.output)|g" aws-client/UnicornAccessRole.yml
+    - sed -i -e "s|{{CHILD_TEMPLATE_URL}}|${AWS_CHILD_TEMPLATE_URL}|g" aws-client/UnicornAccessRole.yml
+    - sed -i -e "s|{{BUCKET_NAME}}|${AWS_S3_BUCKET_NAME}|g" aws-client/UnicornAccessRole.yml
+    # Upload content of aws-client folder
+    - aws s3 cp aws-client s3://${AWS_S3_BUCKET_NAME}/${CI_COMMIT_REF_SLUG} --recursive --exclude UnicornLambdaCode/* --acl public-read
+    - echo ${AWS_TEMPLATE_URL}
+  environment:
+    name: ${CI_COMMIT_REF_SLUG}
+    # This is the url of the bucket we saved before
+    url: ${AWS_TEMPLATE_URL}
+    # When the branch is merged, we clean up after ourself
+    on_stop: clean-all
+
+deploy-client-us-east-1:
+  image: python:latest
+  stage: deploy-client
+  variables:
+    AWS_DEFAULT_REGION: us-east-1
+  before_script:
+    - pip install awscli
+  script:
+    # Put ACCOUNT_ID, ENDPOINT_URL, CHILD_TEMPLATE_URL and BUCKET_NAME in yml
+    - sed -i -e "s|{{ACCOUNT_ID}}|${AWS_ACCOUNT_ID}|g" aws-client/UnicornAccessRole.yml
+    - sed -i -e "s|{{ENDPOINT_URL}}|$(cat aws-unicorn/endpoint-url.output)|g" aws-client/UnicornAccessRole.yml
+    - sed -i -e "s|{{CHILD_TEMPLATE_URL}}|${AWS_CHILD_TEMPLATE_URL}|g" aws-client/UnicornAccessRole.yml
+    - sed -i -e "s|{{BUCKET_NAME}}|${AWS_S3_BUCKET_NAME}|g" aws-client/UnicornAccessRole.yml
+    # Upload content of aws-client folder
+    - aws s3 cp aws-client s3://${AWS_S3_BUCKET_NAME}/${CI_COMMIT_REF_SLUG} --recursive --exclude UnicornLambdaCode/* --acl public-read
+    - echo ${AWS_TEMPLATE_URL}
+  only:
+    - master
+
+clean-all:
+  image: python:latest
+  stage: deploy-client
+  before_script:
+    - pip install awscli
+  script:
+    - aws s3 rm s3://${AWS_S3_BUCKET_NAME}/${CI_COMMIT_REF_SLUG} --recursive
+    - aws s3 rm s3://${AWS_S3_BUCKET_NAME}/chalice/${CI_COMMIT_REF_SLUG} --recursive
+    - aws cloudformation delete-stack ${AWS_API_STACK_NAME}
+  environment:
+    name: ${CI_COMMIT_REF_SLUG}
+    action: stop
+  when: manual
+  except:
+    - master
+

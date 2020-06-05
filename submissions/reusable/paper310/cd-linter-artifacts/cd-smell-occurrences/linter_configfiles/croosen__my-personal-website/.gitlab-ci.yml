@@ -1,0 +1,32 @@
+stages:
+  - build
+  - test
+  - deploy
+
+build_app:
+  stage: build
+  image: moddix/ci-aws:python-3.6-yarn
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - ./build.sh
+  artifacts:
+    paths:
+      - build/dist/
+
+test_app:
+  stage: test
+  image: moddix/ci-aws:python-3.6-yarn
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - ./test.sh
+
+deploy_app:
+  stage: deploy
+  image: moddix/ci-aws:python-3.6-yarn
+  script:
+    - ./deploy.sh 
+

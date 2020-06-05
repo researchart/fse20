@@ -1,0 +1,8 @@
+image: python:2.7
+
+all_tests:
+  script:
+  - make develop
+  - make lint
+  - make test
+

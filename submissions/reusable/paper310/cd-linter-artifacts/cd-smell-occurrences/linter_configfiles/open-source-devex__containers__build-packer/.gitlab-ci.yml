@@ -1,0 +1,56 @@
+image: registry.gitlab.com/open-source-devex/containers/build:latest
+
+
+stages:
+- build
+- test
+- release
+
+
+services:
+- docker:dind
+
+
+variables:
+  CONTAINER_TEST_IMAGE: registry.gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}:${CI_COMMIT_SHA}
+  CONTAINER_RELEASE_IMAGE: registry.gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}
+  CONTAINER_NAME: test_container_${CI_BUILD_REF}
+  DOCKER_HOST: tcp://docker:2375
+
+
+before_script:
+- docker login -u gitlab-ci-token -p ${CI_BUILD_TOKEN} registry.gitlab.com
+
+
+build:
+  stage: build
+  script:
+  - ci/build.sh
+  except:
+  - tags
+
+
+test:
+  stage: test
+  script:
+  - ci/test.sh
+  except:
+  - tags
+
+
+release:
+  stage: release
+  variables:
+    GIT_REMOTE: git@gitlab.com:${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}
+  before_script:
+  - docker login -u gitlab-ci-token -p ${CI_BUILD_TOKEN} registry.gitlab.com
+  - /opt/toolbox/users/setup-bot.sh
+  - /opt/toolbox/users/install-ssh-key.sh "${DEVEX_BOT_SSH_KEY}"
+  script:
+  - ci/publish-container.sh
+  - ci/release.sh
+  after_script:
+  - /opt/toolbox/users/cleanup-bot.sh
+  only:
+  - master
+

@@ -1,0 +1,75 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+  # GitLab CI & Registry
+  CONTAINER_REPO: registry.gitlab.com/tottokotkd/benicky
+  CONTAINER_BASE_IMAGE: $CONTAINER_REPO/alpine:latest
+  CONTAINER_BUNDLE_IMAGE: $CONTAINER_REPO/bundle_exec:$CI_COMMIT_REF_SLUG
+  # GCP
+  GCP_CREDENTIALS: /root/credentials.json
+  GKE_IMAGE: gcr.io/$GCP_PROJECT_ID/benicky:$CI_COMMIT_SHA
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CONTAINER_REPO
+
+build:
+  stage: build
+  script:
+    - docker build --pull --file deploy/docker/Dockerfile_Base -t $CONTAINER_BASE_IMAGE .
+    - docker push $CONTAINER_BASE_IMAGE
+    - docker build --pull --file deploy/docker/Dockerfile_Bundler -t $CONTAINER_BUNDLE_IMAGE .
+    - docker push $CONTAINER_BUNDLE_IMAGE
+  except:
+    - production
+
+rspec:
+  stage: test
+  script:
+    - docker pull $CONTAINER_BUNDLE_IMAGE
+    - docker run --rm $CONTAINER_BUNDLE_IMAGE rspec --profile
+  except:
+    - production
+
+rubocop:
+  stage: test
+  script:
+    - docker pull $CONTAINER_BUNDLE_IMAGE
+    - docker run --rm $CONTAINER_BUNDLE_IMAGE rubocop
+  allow_failure: true
+  except:
+    - production
+
+rails_best_practices:
+  stage: test
+  script:
+    - docker pull $CONTAINER_BUNDLE_IMAGE
+    - docker run --rm $CONTAINER_BUNDLE_IMAGE rails_best_practices .
+  allow_failure: true
+  except:
+    - production
+
+deploy:
+  stage: deploy
+  environment:
+    name: production
+    url: https://benicky.io
+  only:
+    - production
+  script:
+    - echo $RAILS_MASTER_KEY > config/master.key
+    - echo $GCP_CREDENTIALS_JSON > $GCP_CREDENTIALS
+    - bin/gcp_install.sh
+    - export PATH=$PATH:./google-cloud-sdk/bin
+    - bin/gcp_setup.sh
+    - bin/docker_build.sh
+    - bin/gke_set_image.sh
+

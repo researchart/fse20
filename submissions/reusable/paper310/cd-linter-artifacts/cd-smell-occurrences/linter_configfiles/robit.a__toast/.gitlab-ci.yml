@@ -1,0 +1,26 @@
+stages:
+ - test
+ - coverage
+
+test_latest:
+  image: rocker/geospatial
+  stage: test
+  script:
+  - r -e 'install.packages(c("data.table", "igraph", "testthat", "knitr", "rmarkdown"))'
+  - R CMD build . --no-manual --no-build-vignettes
+  - PKG_FILE_NAME=$(ls -1t *.tar.gz | head -n 1)
+  - R CMD check "${PKG_FILE_NAME}" --no-manual --no-build-vignettes
+  only:
+  - master
+
+coverage_job:
+  image: rocker/geospatial
+  stage: coverage
+  when: on_success
+  only:
+    - master
+  script:
+    - r -e 'install.packages("covr")'
+    - r -e 'devtools::install()'
+    - r -e 'covr::codecov(type = c("tests", "examples"), quiet = FALSE, token = "2077b2ff-8cc1-46b7-9e64-d56274b92892")'
+

@@ -1,0 +1,51 @@
+stages:
+  - build
+  - test
+  - production
+  
+image: gradle:alpine
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+before_script:
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+
+cache:
+  paths:
+    - build
+    - .gradle
+
+
+gradle-build:
+  stage: build
+  script:
+    - gradle classes
+
+
+gradle-test:
+  stage: test
+  script:
+    - gradle check
+  artifacts:
+    paths:
+      - build/reports
+      - build/test-results
+
+gradle-doc:
+  stage: production
+  script:
+    - gradle doc
+  artifacts:
+    paths:
+      - build/doc
+
+gradle-package:
+  stage: production
+  script:
+    - gradle jar
+  artifacts:
+    paths:
+      - build/libs
+
+

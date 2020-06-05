@@ -1,0 +1,25 @@
+map:
+  image: jonzelner/rstan:latest
+  stage: build
+  script:
+    - make map
+  artifacts:
+    paths:
+      - output
+
+pages:
+  image: ruby:2.3
+  stage: deploy
+  script:
+    - mkdir -p web/images
+    - cp output/hotspot_map.jpg web/images/.
+    - gem install jekyll
+    - cd web && jekyll build -d ../public
+  dependencies:
+    - map
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

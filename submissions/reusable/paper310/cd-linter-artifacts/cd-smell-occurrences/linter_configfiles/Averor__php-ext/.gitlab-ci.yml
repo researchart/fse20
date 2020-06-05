@@ -1,0 +1,19 @@
+image: php:7.0
+
+# Select what we should cache between builds
+cache:
+  paths:
+  - vendor/
+
+before_script:
+- apt-get update -yqq
+- apt-get install -yqq git
+- curl -sS https://getcomposer.org/installer | php
+- php composer.phar update --no-interaction --prefer-source --prefer-stable
+
+# Run our tests
+# If Xdebug was installed you can generate a coverage report and see code coverage metrics.
+test:
+  script:
+  - vendor/bin/phpunit --configuration phpunit.xml --coverage-text --colors=never
+

@@ -1,0 +1,1012 @@
+variables:
+  # Store everything under the /builds directory. This is a separate Docker
+  # volume. Note that GitLab CI will only cache stuff inside the build
+  # directory.
+  XDG_CACHE_HOME: "${CI_PROJECT_DIR}/cache"
+  GET_SOURCES_ATTEMPTS: 3
+  BST_CACHE_SERVER_ADDRESS: 'freedesktop-sdk-cache.codethink.co.uk'
+  RUNTIME_VERSION: '20.08'
+  STABLE_ABI: 'false'
+  IMAGE_ID: '80f4a16af18b8641874fe037710dcaad4710ff50'
+
+  # Docker Images
+  DOCKER_REGISTRY: "registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images"
+  DOCKER_AMD64: "${DOCKER_REGISTRY}/bst14/amd64:${IMAGE_ID}"
+  DOCKER_AARCH64: "${DOCKER_REGISTRY}/bst14/arm64:${IMAGE_ID}"
+  DOCKER_POWERPC64LE: "${DOCKER_REGISTRY}/bst14/ppc64le:${IMAGE_ID}"
+
+  # Generic variable for invoking buildstream
+  BST: bst --colors
+
+  GIT_SUBMODULE_STRATEGY: "recursive"
+
+stages:
+  - bootstrap
+  - update
+  - flatpak
+  - snap
+  - vm
+  - prepare-publish
+  - publish
+  - finish-publish
+  - publish-snap
+  - publish-docker
+  - publish-docker-finish
+  - reproducible
+
+before_script:
+  - export PATH=~/.local/bin:${PATH}
+
+  - |
+    if [ "${IMPORT_BOOTSTRAP}" = true ]; then
+      mv "bootstrap/${ARCH}" bootstrap/current
+    fi
+
+  # Configure Buildstream
+  - mkdir -p ~/.config
+  - |
+    cat > ~/.config/buildstream.conf << EOF
+    # Get a lot of output in case of errors
+    logging:
+      error-lines: 80
+    EOF
+
+  - |
+    if [ -n "$(echo ${CI_RUNNER_TAGS} | grep few-fetchers)" ]; then
+    cat >> ~/.config/buildstream.conf << EOF
+    scheduler:
+      fetchers: 5
+    EOF
+    fi
+
+  # Create CAS directory for SSL keys
+  - mkdir -p /etc/ssl/CAS
+
+  # Private SSL keys/certs for pushing to the CAS server
+  - |
+    if [ "${CI_JOB_NAME}" != app_x86_64-no-cache ] && [ "${CI_JOB_NAME}" != app_arm-no-cache ]; then
+    if [ -n "$GITLAB_CAS_PUSH_CERT" ] && [ -n "$GITLAB_CAS_PUSH_KEY" ]; then
+        echo "$GITLAB_CAS_PUSH_CERT" > /etc/ssl/CAS/server.crt
+        echo "$GITLAB_CAS_PUSH_KEY" > /etc/ssl/CAS/server.key
+
+        echo "projects:" >> ~/.config/buildstream.conf
+        echo "  freedesktop-sdk:" >> ~/.config/buildstream.conf
+        echo "    artifacts:" >> ~/.config/buildstream.conf
+        if [ -f /cache-certificate/server.crt ]; then
+            echo "    - url: https://local-cas-server:1102" >> ~/.config/buildstream.conf
+            echo "      client-key: /etc/ssl/CAS/server.key" >> ~/.config/buildstream.conf
+            echo "      client-cert: /etc/ssl/CAS/server.crt" >> ~/.config/buildstream.conf
+            echo "      server-cert: /cache-certificate/server.crt"  >> ~/.config/buildstream.conf
+            if [ "${DISABLE_CACHE_PUSH:+set}" != set ]; then
+              echo "      push: true" >> ~/.config/buildstream.conf
+            fi
+        fi
+        echo "    - url: https://${BST_CACHE_SERVER_ADDRESS}:11002" >> ~/.config/buildstream.conf
+        echo "      client-key: /etc/ssl/CAS/server.key" >> ~/.config/buildstream.conf
+        echo "      client-cert: /etc/ssl/CAS/server.crt" >> ~/.config/buildstream.conf
+        if [ "${DISABLE_CACHE_PUSH:+set}" != set ]; then
+          echo "      push: true" >> ~/.config/buildstream.conf
+        fi
+    fi
+    fi
+
+  # flat-manager tokens to upload the releases
+  - |
+    if [ -n "$CI_COMMIT_TAG" ] && [ -n "$FLATHUB_REPO_TOKEN" ]; then
+        export RELEASES_SERVER_ADDRESS=https://hub.flathub.org/
+        ./utils/generate-version flatpak-version.yml
+        case "${CI_COMMIT_TAG}" in
+          *beta*)
+            export RELEASE_CHANNEL=beta
+            export REPO_TOKEN="${FLATHUB_REPO_TOKEN_BETA}"
+            ;;
+          *)
+            export RELEASE_CHANNEL=stable
+            export REPO_TOKEN="${FLATHUB_REPO_TOKEN}"
+            # Check we have enabled stable ABI before we do any stable release
+            [ "${STABLE_ABI}" = "true" ]
+            ;;
+        esac
+    elif [ -n "$RELEASES_REPO_TOKEN" ]; then
+        export REPO_TOKEN=$RELEASES_REPO_TOKEN
+        export RELEASES_SERVER_ADDRESS=https://cache.sdk.freedesktop.org/
+        # We always use "stable" here. This is all beta on this server.
+        export RELEASE_CHANNEL=stable
+    fi
+
+  - |
+    if [ -n "$CI_COMMIT_TAG" ] && [ -n "$SNAPCRAFT_LOGIN_FILE" ]; then
+        export SNAP_RELEASE=stable
+        export SNAP_GRADE=stable
+        ./utils/generate-version snap-version.yml
+    elif [ -n "$SNAPCRAFT_LOGIN_FILE" ]; then
+        export SNAP_RELEASE=edge
+        export SNAP_GRADE=devel
+        ./utils/generate-version snap-version.yml
+    else
+        export SNAP_GRADE=devel
+    fi
+
+  - |
+    if [ -n "$CI_COMMIT_TAG" ]; then
+        case "${CI_COMMIT_TAG}" in
+            *beta*)
+                export DOCKER_VERSION="${RUNTIME_VERSION}-beta"
+                ;;
+            *)
+                export DOCKER_VERSION="${RUNTIME_VERSION}"
+                ;;
+        esac
+    else
+        export DOCKER_VERSION="${RUNTIME_VERSION}-devel"
+    fi
+
+pylint:
+  image: $DOCKER_AMD64
+  stage: flatpak
+  tags:
+    - x86_64
+    - cache_x86_64
+  variables:
+    ARCH: x86_64
+  script:
+    - find . -iname "*.py" | xargs pylint
+  except:
+    - master
+    - '18.08'
+    - '19.08'
+    - tags
+  interruptible: true
+
+check_update_elements:
+  image: $DOCKER_AARCH64
+  stage: update
+  tags:
+    - check_update
+  script:
+    - git checkout -- snap-version.yml
+    - ${BST} track --deps all track-elements.bst
+    - git -c diff.external=utils/yaml_diff.py diff
+  only:
+    - schedules
+
+.flatpak_template: &flatpak_definition
+  stage: flatpak
+  script:
+    - |
+      if [ "${CI_JOB_NAME}" == app_x86_64-no-cache ] || [ "${CI_JOB_NAME}" == app_arm-no-cache ]; then
+        sed -i '/artifacts:/,+1 d' project.conf
+      fi
+
+    - make build
+    - test ${ARCH} != "aarch64" && make build-vm
+
+    - export FLATPAK_USER_DIR="${PWD}/tmp-flatpak"
+    - make test-apps
+
+    - git checkout -- snap-version.yml
+    - |
+      if [ "${STABLE_ABI}" != "false" ]; then
+        make check-abi
+      fi
+
+    - |
+      set -e
+      if [ "${ARCH}" != powerpc64le ]; then
+        make export-snap
+        python3 utils/parse_review.py snap/platform.snap
+        python3 utils/parse_review.py snap/glxinfo.snap
+        python3 utils/parse_review.py snap/vulkaninfo.snap
+        python3 utils/parse_review.py snap/clinfo.snap
+        python3 utils/parse_review.py snap/vainfo.snap
+      fi
+
+  artifacts:
+    when: always
+    paths:
+      - ${CI_PROJECT_DIR}/cache/buildstream/logs
+  except:
+    - master
+    - '18.08'
+    - '19.08'
+    - tags
+  interruptible: true
+
+app_x86_64:
+  image: $DOCKER_AMD64
+  <<: *flatpak_definition
+  tags:
+    - x86_64
+    - cache_x86_64
+  variables:
+    ARCH: x86_64
+  dependencies: []
+
+app_x86_64-no-cache:
+  image: $DOCKER_AMD64
+  <<: *flatpak_definition
+  tags:
+    - x86_64
+  variables:
+    ARCH: x86_64
+  dependencies: []
+  except:
+    - tags
+  only:
+    - schedules
+
+app_i686:
+  image: $DOCKER_AMD64
+  <<: *flatpak_definition
+  tags:
+    - x86_64
+    - cache_i686
+  variables:
+    ARCH: i686
+  dependencies: []
+
+app_aarch64:
+  image: $DOCKER_AARCH64
+  <<: *flatpak_definition
+  tags:
+    - aarch64
+  variables:
+    ARCH: aarch64
+  dependencies: []
+
+app_arm:
+  image: $DOCKER_AARCH64
+  <<: *flatpak_definition
+  tags:
+    - armhf
+  variables:
+    ARCH: arm
+  dependencies: []
+
+app_arm-no-cache:
+  image: $DOCKER_AARCH64
+  <<: *flatpak_definition
+  tags:
+    - armhf
+  variables:
+    ARCH: arm
+  dependencies: []
+  except:
+    - tags
+  only:
+    - schedules
+
+app_powerpc64le:
+  image: $DOCKER_POWERPC64LE
+  <<: *flatpak_definition
+  tags:
+    - ppc64le
+  variables:
+    ARCH: powerpc64le
+  allow_failure: true
+  dependencies: []
+
+.bootstrap_template: &bootstrap_definition
+  stage: bootstrap
+  script:
+    - make bootstrap
+  artifacts:
+    when: always
+    paths:
+      - ${CI_PROJECT_DIR}/cache/buildstream/logs
+      - bootstrap/${ARCH}
+  except:
+    - '18.08'
+    - '19.08'
+    - tags
+
+.vm_imageless_template: &vm_imageless
+  stage: vm
+  script:
+    - make build-vm
+    - utils/test_minimal_system.py --dialog "${DIALOG}" command 'make run-vm'
+  artifacts:
+    when: always
+    paths:
+      - ${CI_PROJECT_DIR}/cache/buildstream/logs
+  except:
+    - master
+    - '18.08'
+    - '19.08'
+    - tags
+  interruptible: true
+
+minimal_systemd_vm_x86_64:
+  image: $DOCKER_AMD64
+  tags:
+    - x86_64
+    - cache_x86_64
+  <<: *vm_imageless
+  variables:
+    ARCH: x86_64
+    VM_ARTIFACT_BOOT: vm/boot/virt.bst
+    VM_ARTIFACT_FILESYSTEM: vm/minimal/virt.bst
+    DIALOG: root-login
+  dependencies: []
+
+minimal_systemd_vm_i686:
+  image: $DOCKER_AMD64
+  tags:
+    - x86_64
+    - cache_i686
+  <<: *vm_imageless
+  variables:
+    ARCH: i686
+    VM_ARTIFACT_BOOT: vm/boot/virt.bst
+    VM_ARTIFACT_FILESYSTEM: vm/minimal/virt.bst
+    DIALOG: root-login
+  dependencies: []
+
+minimal_systemd_vm_aarch64:
+  image: $DOCKER_AARCH64
+  tags:
+    - aarch64
+  <<: *vm_imageless
+  variables:
+    ARCH: aarch64
+    VM_ARTIFACT_BOOT: vm/boot/virt.bst
+    VM_ARTIFACT_FILESYSTEM: vm/minimal/virt.bst
+    DIALOG: root-login
+  dependencies: []
+  when: manual # skip aarch64 VM tests by default for now; the runner is too slow
+
+minimal_systemd_vm_arm:
+  image: $DOCKER_AARCH64
+  tags:
+    - armhf
+  <<: *vm_imageless
+  variables:
+    ARCH: arm
+    VM_ARTIFACT_BOOT: vm/boot/virt.bst
+    VM_ARTIFACT_FILESYSTEM: vm/minimal/virt.bst
+    DIALOG: root-login
+  dependencies: []
+
+minimal_systemd_vm_powerpc64le:
+  # FIXME: We should find out why this fails to boot.
+  allow_failure: true
+  image: $DOCKER_POWERPC64LE
+  tags:
+    - ppc64le
+  <<: *vm_imageless
+  variables:
+    ARCH: powerpc64le
+    VM_ARTIFACT_BOOT: vm/boot/virt.bst
+    VM_ARTIFACT_FILESYSTEM: vm/minimal/virt.bst
+    DIALOG: root-login
+  dependencies: []
+  when: manual
+
+.vm_image_template: &vm_image
+  stage: vm
+  script:
+    - ${BST} -o target_arch "${ARCH}" build vm/"${TYPE}"/bios.bst
+    - ${BST} -o target_arch "${ARCH}" checkout vm/"${TYPE}"/bios.bst ./vm
+    - utils/test_minimal_system.py --dialog "${DIALOG}" image vm/disk.img
+  artifacts:
+    when: always
+    paths:
+      - ${CI_PROJECT_DIR}/cache/buildstream/logs
+  except:
+    - master
+    - '18.08'
+    - '19.08'
+    - tags
+  when: manual
+  interruptible: true
+
+minimal_systemd_vm_image_x86_64:
+  image: $DOCKER_AMD64
+  tags:
+    - x86_64
+    - cache_x86_64
+  <<: *vm_image
+  variables:
+    ARCH: x86_64
+    TYPE: minimal
+    DIALOG: root-login
+  dependencies: []
+
+.vm_efi_image_template: &vm_efi_image
+  stage: vm
+  script:
+    - ${BST} -o target_arch "${ARCH}" build vm/"${TYPE}"/efi.bst
+    - ${BST} -o target_arch "${ARCH}" checkout vm/"${TYPE}"/efi.bst ./vm
+    - EFI_CODE="-drive if=pflash,format=raw,unit=0,file=/usr/share/qemu/edk2-x86_64-code.fd,readonly=on"
+    - cp /usr/share/qemu/edk2-i386-vars.fd .
+    - EFI_VARS="-drive if=pflash,format=raw,unit=1,file=${PWD}/edk2-i386-vars.fd"
+    - DISK="-drive file=vm/disk.img,format=raw,media=disk"
+    - QEMU="qemu-system-${ARCH} -enable-kvm -m 2G -nographic ${EFI_CODE} ${EFI_VARS} ${DISK}"
+    - utils/test_minimal_system.py --dialog "${DIALOG}" command "${QEMU}"
+  artifacts:
+    when: always
+    paths:
+      - ${CI_PROJECT_DIR}/cache/buildstream/logs
+  except:
+    - master
+    - '18.08'
+    - '19.08'
+    - tags
+  interruptible: true
+
+minimal_efi_vm_image_x86_64:
+  image: $DOCKER_AMD64
+  tags:
+    - x86_64
+    - cache_x86_64
+  <<: *vm_efi_image
+  allow_failure: true
+  variables:
+    ARCH: x86_64
+    TYPE: minimal
+    DIALOG: root-login
+  dependencies: []
+  when: manual
+
+.prepare_publish_template: &prepare_publish
+  image: $DOCKER_AMD64
+  stage: prepare-publish
+  tags:
+    - x86_64
+  script:
+    - flat-manager-client -v create $RELEASES_SERVER_ADDRESS "${RELEASE_CHANNEL}" > publish_build.txt
+  artifacts:
+    paths:
+      - publish_build.txt
+  except:
+    - schedules
+
+prepare_publish_branch:
+  <<: *prepare_publish
+  only:
+    - master
+    - '18.08'
+    - '19.08'
+  # In order to allow Gitlab to cancel the pipeline when it becomes
+  # redundent in case of batch merges. We must delay the release pipeline.
+  # Once started, we should not stop it.
+  when: delayed
+  start_in: 15 minutes
+
+prepare_publish_release:
+  <<: *prepare_publish
+  only:
+    - tags
+
+finish_publish:
+  image: $DOCKER_AMD64
+  stage: finish-publish
+  tags:
+    - x86_64
+  script:
+    - flat-manager-client -v commit --wait $(cat publish_build.txt)
+    - flat-manager-client -v publish --wait-update $(cat publish_build.txt)
+    - flat-manager-client -v purge $(cat publish_build.txt)
+    - make manifest
+  artifacts:
+     paths:
+      - "${CI_PROJECT_DIR}/platform-manifest/usr/"
+      - "${CI_PROJECT_DIR}/sdk-manifest/usr/"
+  only:
+    - tags
+    - master
+    - '18.08'
+    - '19.08'
+  except:
+    - schedules
+  dependencies:
+    - prepare_publish_branch
+    - prepare_publish_release
+
+finish_publish_failed:
+  image: $DOCKER_AMD64
+  stage: finish-publish
+  tags:
+    - x86_64
+  script:
+    - flat-manager-client purge $(cat publish_build.txt)
+  only:
+    - tags
+    - master
+    - '18.08'
+    - '19.08'
+  except:
+    - schedules
+  when: on_failure
+  dependencies:
+    - prepare_publish_branch
+    - prepare_publish_release
+
+.flatpak_publish_template:
+  stage: publish
+  retry: 2
+  script:
+    - make export
+
+    - |
+      case "$RELEASES_SERVER_ADDRESS" in
+        https://hub.flathub.org/)
+          if [ "${ARCH}" = powerpc64le ]; then
+            echo "ppc64le not published to Flathub yet"
+            exit 1
+          fi
+          for ref in $(ostree --repo=repo refs --list); do
+            case "${ref}" in
+              */org.freedesktop.Sdk.PreBootstrap/*/*) ;&
+              */org.freedesktop.Platform.GL32.mesa-git/*/*) ;&
+              */org.freedesktop.Platform.GL.mesa-git/*/*) ;&
+              */*/i386/*)
+                echo "Deleting ${ref}"
+                ostree --repo=repo refs --delete "${ref}"
+                ;;
+              */org.freedesktop.Sdk*/*/*) ;&
+              */org.freedesktop.Platform*/*/*)
+                echo "Keeping ${ref}"
+                ;;
+              */*/*/*)
+                echo "Deleting ${ref}"
+                ostree --repo=repo refs --delete "${ref}"
+                ;;
+            esac
+          done
+          ;;
+        https://cache.sdk.freedesktop.org/)
+          ;;
+        *)
+          false
+          ;;
+      esac
+
+    - flatpak build-update-repo --generate-static-deltas --prune repo
+    - flat-manager-client push $(cat publish_build.txt) repo
+  artifacts:
+    when: always
+    paths:
+      - ${CI_PROJECT_DIR}/cache/buildstream/logs
+  only:
+    - tags
+    - master
+    - '18.08'
+    - '19.08'
+  except:
+    - schedules
+
+.publish_tar_template:
+  stage: publish
+  script:
+    - make export-tar
+    - |
+      aws --endpoint-url ${AWS_ENDPOINT} \
+          s3 cp --recursive --acl public-read \
+                "${CI_PROJECT_DIR}/tarballs" \
+                "s3://freedesktop-sdk-tarballs/$(git describe)"
+  only:
+    - tags
+  except:
+    - schedules
+
+publish_x86_64:
+  extends: .flatpak_publish_template
+  image: $DOCKER_AMD64
+  tags:
+    - x86_64
+    - cache_x86_64
+  variables:
+    ARCH: x86_64
+  dependencies:
+    - prepare_publish_branch
+    - prepare_publish_release
+
+publish_i686:
+  extends: .flatpak_publish_template
+  image: $DOCKER_AMD64
+  tags:
+    - x86_64
+    - cache_i686
+  variables:
+    ARCH: i686
+  dependencies:
+    - prepare_publish_branch
+    - prepare_publish_release
+
+publish_aarch64:
+  extends: .flatpak_publish_template
+  image: $DOCKER_AARCH64
+  tags:
+    - aarch64
+  variables:
+    ARCH: aarch64
+  dependencies:
+    - prepare_publish_branch
+    - prepare_publish_release
+
+publish_arm:
+  extends: .flatpak_publish_template
+  image: $DOCKER_AARCH64
+  tags:
+    - armhf
+  variables:
+    ARCH: arm
+  dependencies:
+    - prepare_publish_branch
+    - prepare_publish_release
+
+publish_powerpc64le:
+  extends: .flatpak_publish_template
+  image: $DOCKER_POWERPC64LE
+  tags:
+    - ppc64le
+  variables:
+    ARCH: powerpc64le
+  allow_failure: true
+  dependencies:
+    - prepare_publish_branch
+    - prepare_publish_release
+
+publish_x86_64_tar:
+  extends: .publish_tar_template
+  image: $DOCKER_AMD64
+  tags:
+    - x86_64
+  variables:
+    ARCH: x86_64
+  dependencies: []
+  when: manual
+
+publish_i686_tar:
+  extends: .publish_tar_template
+  image: $DOCKER_AMD64
+  tags:
+    - x86_64
+  variables:
+    ARCH: i686
+  dependencies: []
+  when: manual
+
+publish_aarch64_tar:
+  extends: .publish_tar_template
+  image: $DOCKER_AARCH64
+  tags:
+    - aarch64
+  variables:
+    ARCH: aarch64
+  dependencies: []
+  when: manual
+
+publish_arm_tar:
+  extends: .publish_tar_template
+  image: $DOCKER_AARCH64
+  tags:
+    - armhf
+  variables:
+    ARCH: arm
+  dependencies: []
+  when: manual
+
+publish_powerpc64le_tar:
+  extends: .publish_tar_template
+  image: $DOCKER_POWERPC64LE
+  tags:
+    - ppc64le
+  variables:
+    ARCH: powerpc64le
+  dependencies: []
+  when: manual
+
+cve_report:
+  stage: finish-publish
+  image: $DOCKER_AMD64
+  cache:
+    key: cve
+    paths:
+      - "${XDG_CACHE_HOME}/cve"
+  tags:
+    - x86_64
+    - cache_x86_64
+  script:
+    - make manifest
+
+    - mkdir -p "${XDG_CACHE_HOME}/cve"
+    - cd "${XDG_CACHE_HOME}/cve"
+    - python3 "${CI_PROJECT_DIR}/utils/update_local_cve_database.py"
+
+    - mkdir -p "${CI_PROJECT_DIR}/cve-reports"
+    - python3 "${CI_PROJECT_DIR}/utils/generate_cve_report.py" "${CI_PROJECT_DIR}/sdk-manifest/usr/manifest.json" "${CI_PROJECT_DIR}/cve-reports/sdk.html"
+    - python3 "${CI_PROJECT_DIR}/utils/generate_cve_report.py" "${CI_PROJECT_DIR}/platform-manifest/usr/manifest.json" "${CI_PROJECT_DIR}/cve-reports/platform.html"
+  artifacts:
+    paths:
+      - "${CI_PROJECT_DIR}/cve-reports"
+  only:
+    - master
+    - '18.08'
+    - '19.08'
+  dependencies: []
+
+markdown_manifest:
+  stage: finish-publish
+  image: $DOCKER_AMD64
+  tags:
+    - x86_64
+    - cache_x86_64
+  script:
+    - make markdown-manifest
+  artifacts:
+    paths:
+      - "${CI_PROJECT_DIR}/platform-manifest/usr/"
+      - "${CI_PROJECT_DIR}/sdk-manifest/usr/"
+  only:
+    - master
+    - '18.08'
+    - '19.08'
+  except:
+    - schedules
+  dependencies: []
+
+.reproducible_template: &reproducible
+  stage: reproducible
+  script:
+    - ./utils/test-reproducibility.sh reproducible-test.bst
+  artifacts:
+    when: always
+    paths:
+      - ${CI_PROJECT_DIR}/cache/buildstream/logs
+      - ${CI_PROJECT_DIR}/results.cache
+  only:
+    - schedules
+
+reproducible_x86_64:
+  image: $DOCKER_AMD64
+  <<: *reproducible
+  tags:
+    - x86_64
+  variables:
+    ARCH: x86_64
+  when: manual
+
+reproducible_i686:
+  image: $DOCKER_AMD64
+  <<: *reproducible
+  tags:
+    - x86_64
+  variables:
+    ARCH: i686
+  when: manual
+
+reproducible_aarch64:
+  image: $DOCKER_AARCH64
+  <<: *reproducible
+  tags:
+    - aarch64
+  variables:
+    ARCH: aarch64
+  when: manual
+
+reproducible_arm:
+  image: $DOCKER_AARCH64
+  <<: *reproducible
+  tags:
+    - armhf
+  variables:
+    ARCH: arm
+  when: manual
+
+.snap_publish_template:
+  stage: publish-snap
+  script:
+    - |
+      [ -n "${SNAPCRAFT_LOGIN_FILE}" ]
+    - |
+      [ -n "${SNAP_RELEASE}" ]
+
+    - make export-snap
+
+    - mkdir -p ".snapcraft/"
+    - echo "${SNAPCRAFT_LOGIN_FILE}" | base64 --decode --ignore-garbage > ".snapcraft/snapcraft.cfg"
+
+    - |
+      push() {
+        if ! snapcraft push "${1}" --release "${SNAP_RELEASE}" 2>&1 | tee output.log; then
+          cmp -s <(tail -n2 output.log) - <<EOF
+      Please check the errors and some hints below:
+        - (NEEDS REVIEW) type 'base' not allowed
+      EOF
+        fi
+      }
+      failed=false
+      for snap in platform glxinfo vulkaninfo clinfo vainfo; do
+        if ! push "snap/${snap}.snap"; then
+          failed=true
+        fi
+      done
+      [ "${failed}" == false ]
+
+  artifacts:
+    when: always
+    paths:
+      - ${CI_PROJECT_DIR}/cache/buildstream/logs
+  only:
+    - tags
+    - master
+  except:
+    - schedules
+
+publish_snap_x86_64:
+  extends: .snap_publish_template
+  image: $DOCKER_AMD64
+  tags:
+    - x86_64
+    - cache_x86_64
+  variables:
+    ARCH: x86_64
+  when: manual
+
+publish_snap_i686:
+  extends: .snap_publish_template
+  image: $DOCKER_AMD64
+  tags:
+    - x86_64
+    - cache_i686
+  variables:
+    ARCH: i686
+  when: manual
+
+publish_snap_arm:
+  extends: .snap_publish_template
+  image: $DOCKER_AARCH64
+  tags:
+    - armhf
+  variables:
+    ARCH: arm
+  when: manual
+
+publish_snap_aarch64:
+  extends: .snap_publish_template
+  image: $DOCKER_AARCH64
+  tags:
+    - aarch64
+  variables:
+    ARCH: aarch64
+  when: manual
+
+.docker_publish_template:
+  stage: publish-docker
+  script:
+  - |
+    [ -n "${DOCKER_HUB_USER}" ]
+  - |
+    [ -n "${DOCKER_HUB_PASSWORD}" ]
+  - |
+    [ -n "${DOCKER_HUB_ADDRESS}" ]
+
+  - make export-docker
+  # Unfortunately BuildStream adds ./ prefix in file names and podman
+  # does not accept it.
+
+  - podman login -u "${DOCKER_HUB_USER}" -p "${DOCKER_HUB_PASSWORD}" "${DOCKER_HUB_ADDRESS}"
+
+  - |
+    set -eu
+    for name in platform sdk debug flatpak; do
+      mkdir -p ${name}-tar-extract
+      (cd ${name}-tar-extract && tar xf ../${name}-docker.tar)
+      (cd ${name}-tar-extract && tar cf ../${name}-fixed.tar *)
+      podman load --storage-driver=vfs -i ${name}-fixed.tar
+      podman push freedesktopsdk/${name}:latest docker://docker.io/freedesktopsdk/${name}:${DOCKER_VERSION}-${ARCH}
+      mkdir -p "docker-pushed-digests/${DOCKER_VERSION}"
+      digest="$(python3 utils/get_remote_digest.py freedesktopsdk/${name} ${DOCKER_VERSION}-${ARCH})"
+      echo "freedesktopsdk/${name}@${digest}" \
+          >"docker-pushed-digests/${DOCKER_VERSION}/${name}-${ARCH}.txt"
+    done
+
+  artifacts:
+    when: always
+    paths:
+    - ${CI_PROJECT_DIR}/cache/buildstream/logs
+    - docker-pushed-digests
+  only:
+  - tags
+  except:
+  - schedules
+
+publish_docker_x86_64:
+  extends: .docker_publish_template
+  image: $DOCKER_AMD64
+  tags:
+  - x86_64
+  - cache_x86_64
+  variables:
+    ARCH: x86_64
+    DISABLE_CACHE_PUSH: 1
+  dependencies: []
+
+publish_docker_i686:
+  extends: .docker_publish_template
+  image: $DOCKER_AMD64
+  tags:
+  - x86_64
+  - cache_i686
+  variables:
+    ARCH: i686
+    DISABLE_CACHE_PUSH: 1
+  dependencies: []
+
+publish_docker_aarch64:
+  extends: .docker_publish_template
+  image: $DOCKER_AARCH64
+  tags:
+  - aarch64
+  variables:
+    ARCH: aarch64
+    DISABLE_CACHE_PUSH: 1
+  dependencies: []
+
+publish_docker_arm:
+  extends: .docker_publish_template
+  image: $DOCKER_AARCH64
+  tags:
+  - armhf
+  variables:
+    ARCH: arm
+    DISABLE_CACHE_PUSH: 1
+  dependencies: []
+
+publish_docker_ppc64le:
+  extends: .docker_publish_template
+  image: $DOCKER_POWERPC64LE
+  tags:
+  - ppc64le
+  variables:
+    ARCH: powerpc64le
+    DISABLE_CACHE_PUSH: 1
+  allow_failure: true
+
+publish_docker_finish:
+  image: docker
+  services:
+  - docker:dind
+  stage: publish-docker-finish
+  allow_failure: true
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+  before_script: []
+  script:
+  - mkdir -p "${HOME}/.docker"
+  - |
+    cat >>"${HOME}/.docker/config.json" <<EOF
+    {
+        "experimental": "enabled"
+    }
+    EOF
+
+  - docker login -u "${DOCKER_HUB_USER}" -p "${DOCKER_HUB_PASSWORD}"
+
+  - |
+    set -eu
+    for name in platform sdk debug flatpak; do
+      for dir in docker-pushed-digests/*; do
+        DOCKER_VERSION="$(basename "${dir}")"
+        docker manifest create freedesktopsdk/${name}:${DOCKER_VERSION} \
+                      $(cat "${dir}"/${name}-*.txt)
+        docker manifest push freedesktopsdk/${name}:${DOCKER_VERSION}
+      done
+    done
+
+  only:
+  - tags
+  except:
+  - schedules
+  tags:
+  - armhf
+  dependencies:
+  - publish_docker_ppc64le
+  - publish_docker_arm
+  - publish_docker_aarch64
+  - publish_docker_x86_64
+  - publish_docker_i686
+

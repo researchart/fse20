@@ -1,0 +1,10 @@
+image: node:current-alpine
+
+all_tests:
+  script:
+   - npm install
+   - npm run test
+   - npm run lint
+   - npm run build
+   - node dist/index.js
+

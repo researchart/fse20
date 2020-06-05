@@ -1,0 +1,45 @@
+stages:
+  - build
+  - deploy
+
+build_job:
+  image: runmymind/docker-android-sdk:ubuntu-standalone
+  variables:
+    NODE_VERSION: 8.11.1
+  stage: build
+  only:
+    - master
+    - tags
+  script: 
+    - git submodule update --init --recursive
+    - wget -q http://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz
+    - tar -xzf node-v${NODE_VERSION}-linux-x64.tar.gz
+    - mv node-v${NODE_VERSION}-linux-x64 /opt/node
+    - rm node-v${NODE_VERSION}-linux-x64.tar.gz
+    - PATH=${PATH}:/opt/node/bin
+    - npm install -g nativescript --unsafe-perm
+    - npm install nativescript --unsafe-perm
+    - $ANDROID_HOME/tools/bin/sdkmanager "tools" "platform-tools" "platforms;android-26" "build-tools;26.0.2" "extras;android;m2repository" "extras;google;m2repository" > /dev/null
+    - npm i
+    - echo "build version code $CI_PIPELINE_IID"
+    - sed -i '/versionCode/c\	android:versionCode="'"$CI_PIPELINE_IID"'"' app/App_Resources/Android/AndroidManifest.xml
+    - if [[ -v CI_COMMIT_TAG ]]; then sed -i '/versionName/c\	android:versionName="'"$CI_COMMIT_TAG"'">' app/App_Resources/Android/AndroidManifest.xml; fi;
+    - ./fix_sodium.sh
+    - echo $ANDROID_KEY_BASE64 | base64 -d > bsc-release-key.jks
+    - tns build android --release --bundle --env.snapshot --env.aot --key-store-path bsc-release-key.jks --key-store-password $ANDROID_KEY_PASSWORD --key-store-alias-password $ANDROID_KEY_PASSWORD --key-store-alias bsc
+  artifacts:
+    paths:
+      - platforms/android/app/build/outputs/apk/
+
+deploy-google-play:
+  stage: deploy
+  image: debian:stretch
+  dependencies:
+    - build_job
+  only:
+    - tags
+  script:
+    - apt-get update
+    - apt-get -y install curl jq
+    - bin/deploy_play.sh
+

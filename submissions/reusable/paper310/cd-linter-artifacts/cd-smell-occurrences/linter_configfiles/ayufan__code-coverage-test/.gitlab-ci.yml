@@ -1,0 +1,10 @@
+image: alpine
+
+test:
+  script:
+  - "echo Code coverage: 50.0"
+  - echo Hello World2
+  coverage: '/Code coverage: \d+\.\d+/'
+
+
+

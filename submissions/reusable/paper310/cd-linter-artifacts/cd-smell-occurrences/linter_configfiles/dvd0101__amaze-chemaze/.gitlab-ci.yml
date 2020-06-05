@@ -1,0 +1,29 @@
+image: ubuntu:16.04
+
+before_script:
+    - apt-get update -qy
+    - apt-get install -qy build-essential libglfw3-dev g++-5 p7zip-full curl unzip cmake pkg-config
+    - cd support
+    - ./deps.sh
+    - cd ..
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZE_ADDRESS=OFF -DENABLE_LTO=OFF ..
+    - cd ..
+
+stages:
+    - build
+    - test
+
+build_amaze:
+    script:
+        - cd build
+        - make
+    stage: build
+
+test_amaze:
+    script:
+        - cd build
+        - make test
+    stage: test
+

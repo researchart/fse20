@@ -1,0 +1,30 @@
+stages:
+  - build_image
+  - reduce_image_size
+  - upload
+
+before_script:
+  # - sudo apt-get update && sudo apt-get install -y docker
+  - docker info
+
+build_odoo8_branch_on_trusty:
+  stage: build_image
+  script: 
+    - docker build -t ubuntu1404-odoo8 -f ubuntu-14-04/8.0/Dockerfile .
+
+build_odoo9_branch_on_trusty:
+  stage: build_image
+  script: 
+    - docker build -t ubuntu1404-odoo9 -f ubuntu-14-04/9.0/Dockerfile .
+
+build_odoo_saas9_branch_on_trusty:
+  stage: build_image
+  script: 
+    - docker build -t ubuntu1404-saas9 -f ubuntu-14-04/saas-9/Dockerfile .
+
+build_odoo_saas10_branch_on_trusty:
+  stage: build_image
+  script: 
+    - docker build -t ubuntu1404-saas10 -f ubuntu-14-04/saas-10/Dockerfile .
+    
+

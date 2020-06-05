@@ -1,0 +1,24 @@
+before_script:
+  - npm -v
+  - meteor --version
+  - whoami
+  - rm -rf .builds
+  - meteor update
+  - npm install
+  - mkdir .builds
+
+#tests:
+#  script:
+
+build_linux:
+  tags:
+    - meteor
+  stage: build
+  script:
+    - meteor build .builds --architecture os.linux.x86_64
+  artifacts:
+    name: power5online.tar.gz
+    paths:
+        - .builds/
+    expire_in: 50 weeks
+

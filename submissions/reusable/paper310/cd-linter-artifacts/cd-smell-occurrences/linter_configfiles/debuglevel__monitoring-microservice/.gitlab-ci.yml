@@ -1,0 +1,76 @@
+services:
+  - name: docker:dind
+    command: ["/bin/sh", "-c", "[[ -z $CERTIFICATE_URL ]] && ( echo Injecting no certificate && dockerd-entrypoint.sh || exit ) || ( echo Injecting certificate $CERTIFICATE_URL && wget $CERTIFICATE_URL -O /usr/local/share/ca-certificates/cert.crt && update-ca-certificates && dockerd-entrypoint.sh || exit )"]
+
+variables:
+## Uncomment this to inject a self-signed certificate into the docker:dind service
+#  CERTIFICATE_URL: http://my_server/my_corp.crt
+
+before_script:
+  - JOB_TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
+  - COMMIT_HASH_SHORT=${CI_COMMIT_SHA:0:8}
+  - COMMIT_BRANCH_OR_TAG=$CI_COMMIT_REF_SLUG
+  - REGISTRY_HOST=$CI_REGISTRY
+  - REGISTRY_USER=$CI_REGISTRY_USER
+  - REGISTRY_PASSWORD=$CI_REGISTRY_PASSWORD
+  - REGISTRY_IMAGE=$CI_REGISTRY_IMAGE
+
+stages:
+  - build
+  - release
+
+# No explicit test stage is needed, as "gradle build" does already run the "test" task
+#test:
+#  stage: build
+#  image: alpine:3.7
+#  script:
+#    - ...
+
+# Traditional build with gradle and generate artifacts
+build:
+  stage: build
+  image: openjdk:8-jdk-alpine
+  script:
+    - ./gradlew build
+  artifacts:
+    paths:
+      # use only shadowed jars
+      - "build/libs/*.jar"
+      - "build/distributions/*shadow*.tar"
+
+      # reports (e.g. about failed tests)
+      - "build/reports"
+
+## Build & Push Docker Images ##
+# Build docker image and push it to the registry as "debuglevel/greeting-microservice:branch-97dd42c"
+build-docker-master:
+  stage: build
+  image: docker:latest
+  script:
+    - echo "JOB_TIMESTAMP $JOB_TIMESTAMP | COMMIT_HASH_SHORT $COMMIT_HASH_SHORT | COMMIT_BRANCH_OR_TAG $COMMIT_BRANCH_OR_TAG | REGISTRY_HOST $REGISTRY_HOST | REGISTRY_USER $REGISTRY_USER | REGISTRY_IMAGE $REGISTRY_IMAGE | CERTIFICATE_URL $CERTIFICATE_URL"
+    - docker login -u "$REGISTRY_USER" -p "$REGISTRY_PASSWORD" $REGISTRY_HOST
+    - docker build --pull -t "$REGISTRY_IMAGE:$COMMIT_BRANCH_OR_TAG-$COMMIT_HASH_SHORT" .
+    - docker push "$REGISTRY_IMAGE:$COMMIT_BRANCH_OR_TAG-$COMMIT_HASH_SHORT" && echo "== Pushed docker image $REGISTRY_IMAGE:$COMMIT_BRANCH_OR_TAG-$COMMIT_HASH_SHORT"
+
+# Release branch docker image by pushing it to the registry as "debuglevel/greeting-microservice:branch"
+release-docker:
+  stage: release
+  image: docker:latest
+  script:
+    - docker login -u "$REGISTRY_USER" -p "$REGISTRY_PASSWORD" $REGISTRY_HOST
+    - docker pull "$REGISTRY_IMAGE:$COMMIT_BRANCH_OR_TAG-$COMMIT_HASH_SHORT"
+    - docker tag "$REGISTRY_IMAGE:$COMMIT_BRANCH_OR_TAG-$COMMIT_HASH_SHORT" "$REGISTRY_IMAGE:$COMMIT_BRANCH_OR_TAG"
+    - docker push "$REGISTRY_IMAGE:$COMMIT_BRANCH_OR_TAG" && echo "== Pushed docker image $REGISTRY_IMAGE:$COMMIT_BRANCH_OR_TAG"
+
+# Release master docker image by pushing it to the registry as "debuglevel/greeting-microservice" (which automatically also becomes "debuglevel/greeting-microservice:latest")
+release-docker-master:
+  stage: release
+  image: docker:latest
+  script:
+    - docker login -u "$REGISTRY_USER" -p "$REGISTRY_PASSWORD" $REGISTRY_HOST
+    - docker pull "$REGISTRY_IMAGE:$COMMIT_BRANCH_OR_TAG-$COMMIT_HASH_SHORT"
+    - docker tag "$REGISTRY_IMAGE:$COMMIT_BRANCH_OR_TAG-$COMMIT_HASH_SHORT" "$REGISTRY_IMAGE"
+    - docker push "$REGISTRY_IMAGE" && echo "== Pushed docker image $REGISTRY_IMAGE"
+  only:
+    - master
+

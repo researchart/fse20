@@ -1,0 +1,13 @@
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -rv output/* .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:    
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /^AppVeyor commit for build.*/
+

@@ -1,0 +1,70 @@
+image: "liuchong/rustup:1.31.1"
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+  GIT_SUBMODULE_STRATEGY: normal
+
+before_script:
+  - apt-get update -yqq && apt-get install  -yqq libudev-dev pkg-config git
+  - rustc -Vv && cargo -Vv
+
+test:x86_64-unknown-linux-gnu:
+  stage: test
+  script:
+    - cargo test --verbose --all --all-features
+
+test:i686-unknown-linux-gnu:
+  stage: test
+  variables:
+    PKG_CONFIG_ALLOW_CROSS: 1
+  before_script:
+    - dpkg --add-architecture i386
+    - apt-get update -yqq && apt-get install  -yqq libudev-dev pkg-config git gcc-multilib libudev1:i386 libudev-dev:i386
+    - rustc -Vv && cargo -Vv
+    - rustup target add i686-unknown-linux-gnu
+  script:
+    - cargo test --verbose --target=i686-unknown-linux-gnu --all --all-features
+
+build:wasm32-unknown-unknown:
+  image: "liuchong/rustup:1.33.0"
+  stage: test
+  before_script:
+    - rustc -Vv && cargo -Vv
+    - rustup target add wasm32-unknown-unknown
+    - curl -L https://github.com/koute/cargo-web/releases/download/0.6.24/cargo-web-x86_64-unknown-linux-gnu.gz | gzip -d > cargo-web
+    - chmod +x cargo-web
+    - mkdir -p $CARGO_HOME/bin
+    - mv cargo-web $CARGO_HOME/bin
+  script:
+    - cargo web test --no-run --verbose --package gilrs-core --all-features
+    - cargo web test --no-run --verbose --package gilrs --all-features
+
+check:x86_64-apple-darwin:
+  stage: test
+  before_script:
+    - rustc -Vv && cargo -Vv
+    - rustup target add x86_64-apple-darwin
+  script:
+    - cargo check --target=x86_64-apple-darwin --verbose --all --all-features
+
+
+pages:
+  stage: deploy
+  script:
+  - cargo doc
+  # Remove libc from documentation to speed up deploy
+  - rm -r target/doc/libc
+  - rm -r target/doc/src/libc
+  - mkdir public
+  - mkdir public/img
+  - mv target/doc public
+  - mv controller.svg public/img/
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - public
+  only:
+    - master
+  except:
+    - schedules
+

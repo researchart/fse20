@@ -1,0 +1,32 @@
+image: elixir:latest
+
+variables:
+  MIX_ENV: test
+
+stages:
+  - setup
+  - build
+  - test
+
+get-dependencies:
+  stage: setup
+  script:
+    - make deps
+  artifacts:
+    expire_in: 30 minutes
+    paths:
+      - deps
+      - mix.lock
+
+compile:
+  stage: build
+  script:
+    - make compile
+
+tests:
+  stage: test
+  script:
+    - make lint
+    - make test
+  coverage: /\[TOTAL\]\s+(\d+\.\d+)%/
+

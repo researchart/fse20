@@ -1,0 +1,14 @@
+image: ruby:2.3
+
+before_script:
+  - bundle --version
+  - bundle install
+
+styles:
+  script:
+    - bundle exec rubocop --debug --parallel
+
+specs:
+  script:
+    - bundle exec rspec
+

@@ -1,0 +1,38 @@
+stages:
+  - build-app
+  - build-image
+
+build-app:
+  stage: build-app
+  image: node:8
+  cache:
+    paths:
+      - node_modules
+  script:
+    - unset CI ## helps prevent from crashes on warnings
+    - yarn install
+    - cp .env.dist .env
+    - yarn lint
+    - yarn build
+  artifacts:
+    expire_in: 1d ## build files are temporary (they are only used to produce the container)
+    paths:
+      - build
+
+build-image:
+  stage: build-image
+  image: docker:latest
+  services:
+   - docker:dind
+  dependencies:
+    - build-app
+  script:   
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com || true
+    - echo "Image created at:" > build/meta.txt ## make container time available at HOST/meta.txt for CI results checking
+    - date -u >> build/meta.txt
+    - docker pull $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG || docker pull $CI_REGISTRY_IMAGE:master || true
+    - docker build --tag=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA --cache-from=$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG --cache-from=$CI_REGISTRY_IMAGE:master --file=docker/Dockerfile .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+

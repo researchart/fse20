@@ -1,0 +1,229 @@
+<!-- Daniel Vargas -->
+<!-- gradle-maven-comparison -->
+<!-- 05 January 2018 -->
+<!-- pom.xml -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- Basic project information -->
+  <name>gradle-maven-comparison</name>
+  <url>https://gitlab.com/prettycoldramen/gradle-maven-comparison.git</url>
+
+  <groupId>com.test</groupId>
+  <artifactId>gradle-maven-comparison</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <!-- Specify sub-modules of this project -->
+  <modules>
+    <module>string-manip-ear</module>
+    <module>string-manip-app</module>
+    <module>string-manip-bean</module>
+    <module>string-manip-common</module>
+  </modules>
+
+  <!-- Define common dependencies for all sub-projects -->
+  <dependencyManagement>
+    <dependencies>
+
+      <dependency>
+        <groupId>org.testng</groupId>
+        <artifactId>testng</artifactId>
+        <version>6.9.8</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.uncommons</groupId>
+        <artifactId>reportng</artifactId>
+        <version>1.1.2</version>
+        <scope>test</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+    </dependencies>
+  </dependencyManagement>
+
+  <!-- Define common plugins for all sub-projects -->
+  <build>
+    <plugins>
+
+      <!-- Static code analysis with pmd -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <version>3.8</version>
+        <!-- Plugin settings -->
+        <configuration>
+          <!-- Ignore rule failures -->
+          <failOnViolation>false</failOnViolation>
+
+          <!-- Specify rule sets to use -->
+          <ruleset>/rulesets/java/android.xml</ruleset>
+          <ruleset>/rulesets/java/basic.xml</ruleset>
+          <ruleset>/rulesets/java/braces.xml</ruleset>
+          <ruleset>/rulesets/java/clone.xml</ruleset>
+          <ruleset>/rulesets/java/codesize.xml</ruleset>
+          <ruleset>/rulesets/java/comments.xml</ruleset>
+          <ruleset>/rulesets/java/controversial.xml</ruleset>
+          <ruleset>/rulesets/java/coupling.xml</ruleset>
+          <ruleset>/rulesets/java/design.xml</ruleset>
+          <ruleset>/rulesets/java/empty.xml</ruleset>
+          <ruleset>/rulesets/java/finalizers.xml</ruleset>
+          <ruleset>/rulesets/java/imports.xml</ruleset>
+          <ruleset>/rulesets/java/j2ee.xml</ruleset>
+          <ruleset>/rulesets/java/javanbeans.xml</ruleset>
+          <ruleset>/rulesets/java/junit.xml</ruleset>
+          <ruleset>/rulesets/java/logging-jakarta-commons.xml</ruleset>
+          <ruleset>/rulesets/java/logging-java.xml</ruleset>
+          <ruleset>/rulesets/java/migrating.xml</ruleset>
+          <ruleset>/rulesets/java/naming.xml</ruleset>
+          <ruleset>/rulesets/java/optimizations.xml</ruleset>
+          <ruleset>/rulesets/java/strictexception.xml</ruleset>
+          <ruleset>/rulesets/java/strings.xml</ruleset>
+          <ruleset>/rulesets/java/sunsecure.xml</ruleset>
+          <ruleset>/rulesets/java/typeresolution.xml</ruleset>
+          <ruleset>/rulesets/java/unnecessary.xml</ruleset>
+          <ruleset>/rulesets/java/unusedcode.xml</ruleset>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+              <goal>cpd-check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Static code analysis with findbugs -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+        <version>3.0.5</version>
+        <configuration>
+          <!-- Build doesn't fail if problems are found -->
+          <failOnError>false</failOnError>
+
+          <!-- Analysis effort level (max is the highest...) -->
+          <effort>Max</effort>
+
+          <!-- Set reporting level (low means report everything...) -->
+          <threshold>Low</threshold>
+
+          <!-- Produces XML report -->
+          <xmlOutput>true</xmlOutput>
+
+          <!-- Configures the directory in which the XML report is created -->
+          <findbugsXmlOutputDirectory>${project.build.directory}/findbugs</findbugsXmlOutputDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <id>analyze-compile</id>
+              <phase>compile</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Generate html report for findbugs -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>xml-maven-plugin</artifactId>
+        <version>1.0</version>
+        <configuration>
+          <transformationSets>
+            <transformationSet>
+              <!-- Configures the source directory of XML files. -->
+              <dir>${project.build.directory}/findbugs</dir>
+              <!-- Configures the directory in which the FindBugs report is written.-->
+              <outputDir>${project.build.directory}/findbugs</outputDir>
+              <!-- Selects the used stylesheet. -->
+              <!-- <stylesheet>fancy-hist.xsl</stylesheet> -->
+              <stylesheet>default.xsl</stylesheet>
+              <!--<stylesheet>plain.xsl</stylesheet>-->
+              <!--<stylesheet>fancy.xsl</stylesheet>-->
+              <!--<stylesheet>summary.xsl</stylesheet>-->
+              <fileMappers>
+                <!-- Configures the file extension of the output files. -->
+                <fileMapper implementation="org.codehaus.plexus.components.io.filemappers.FileExtensionMapper">
+                  <targetExtension>.html</targetExtension>
+                </fileMapper>
+              </fileMappers>
+            </transformationSet>
+          </transformationSets>
+        </configuration>
+        <executions>
+          <!-- Ensures that the XSLT transformation is run when the project is compiled. -->
+          <execution>
+            <phase>compile</phase>
+            <goals>
+              <goal>transform</goal>
+            </goals>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>findbugs</artifactId>
+            <version>2.0.1</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+
+      <!-- Static code analysis with checkstyle -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>2.17</version>
+      </plugin>
+
+      <!-- Code coverage with jacoco -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.0</version>
+        <!-- Define where the reports are output to -->
+        <configuration>
+          <destfile>${basedir}/target/coverage-reports/jacoco-unit.exec</destfile>
+          <datafile>${basedir}/target/coverage-reports/jacoco-unit.exec</datafile>
+        </configuration>
+        <!-- Initialize agent during testing phase and report results during package stage -->
+        <executions>
+          <execution>
+            <id>jacoco-initialize</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>jacoco-site</id>
+            <phase>package</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+    </plugins>
+  </build>
+
+  <!-- Specify parent project -->
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>1.5.9.RELEASE</version>
+  </parent>
+
+</project>
+

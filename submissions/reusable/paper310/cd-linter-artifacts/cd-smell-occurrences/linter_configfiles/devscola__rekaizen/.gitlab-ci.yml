@@ -1,0 +1,74 @@
+variables:
+  DOCKER_DRIVER: overlay2
+  E2E_IMAGE: $CI_REGISTRY_IMAGE/e2e
+  E2E_DIR: $CI_PROJECT_DIR/e2e/
+  APP_IMAGE: $CI_REGISTRY_IMAGE/app
+  APP_DIR: $CI_PROJECT_DIR/app/
+  API_IMAGE: $CI_REGISTRY_IMAGE/api
+  API_DIR: $CI_PROJECT_DIR/api/
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: tmaier/docker-compose:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker pull $E2E_IMAGE:latest || true
+    - docker build --cache-from $E2E_IMAGE:latest --tag $E2E_IMAGE:$CI_COMMIT_SHA --tag $E2E_IMAGE:latest $E2E_DIR
+    - docker pull $APP_IMAGE:latest || true
+    - docker build --cache-from $APP_IMAGE:latest --tag $APP_IMAGE:$CI_COMMIT_SHA --tag $APP_IMAGE:latest $APP_DIR
+    - docker pull $API_IMAGE:latest || true
+    - docker build --cache-from $API_IMAGE:latest --tag $API_IMAGE:$CI_COMMIT_SHA --tag $API_IMAGE:latest $API_DIR
+  script:
+    - docker-compose --f docker-compose.ci.yml up --build -d
+    - docker-compose exec -T api npm run test-all
+    - docker-compose exec -T app npm run test-all
+    - docker-compose exec -T app npm run build-test
+    - docker-compose exec -T e2e npm run test-all
+  after_script:
+    - docker push $E2E_IMAGE:$CI_COMMIT_SHA
+    - docker push $E2E_IMAGE:latest
+    - docker push $APP_IMAGE:$CI_COMMIT_SHA
+    - docker push $APP_IMAGE:latest
+    - docker push $API_IMAGE:$CI_COMMIT_SHA
+    - docker push $API_IMAGE:latest
+
+
+staging:
+  stage: deploy
+  image: ruby:2.5.5-alpine3.10
+  before_script:
+    - apk update
+    - apk add ruby-dev git curl
+    - gem install dpl
+  script:
+    - cd $API_DIR
+    - dpl --provider=heroku --app=rekaizen-api --api-key=$HEROKU_PRODUCTION_API_KEY
+    - cd $APP_DIR
+    - dpl --provider=heroku --app=rekaizen --api-key=$HEROKU_PRODUCTION_API_KEY
+  only:
+    - master
+
+production:
+  stage: deploy
+  image: alpine:latest
+  environment:
+    name: production
+    url: rekaizen.org
+  before_script:
+    - 'which ssh-agent || ( apk update && apk add openssh-client )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+  script:
+    - ssh -tt -o StrictHostKeyChecking=no debian@51.89.165.239 "cd /home/debian/rekaizen_devscola && git pull && docker-compose down && docker-compose -f docker-compose.production.yml up --build -d"
+  when: manual
+  only:
+    - master
+

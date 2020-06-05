@@ -1,0 +1,216 @@
+# set to local images because too long execution
+image: onegreyonewhite/tox:tox
+
+variables:
+  GET_SOURCES_ATTEMPTS: 3
+  ARTIFACT_DOWNLOAD_ATTEMPTS: 3
+  RESTORE_CACHE_ATTEMPTS: 3
+  DJANGO_LOG_LEVEL: 'DEBUG'
+  TOX_ARGS: "--workdir /cache/.tox_polemarch_${CI_BUILD_REF_NAME}"
+  CCACHE_DIR: /cache/.ccache
+  CC: ccache gcc
+  DOCKER_DRIVER: "overlay2"
+  REGISTRY_IMAGE: "${CI_REGISTRY_IMAGE}"
+  REGISTRY_IMAGE_TAG: "${KUBE_NAMESPACE}"
+  REGISTRY_USER: "${CI_REGISTRY_USER}"
+  REGISTRY_PASSWORD: "${CI_REGISTRY_PASSWORD}"
+  REGISTRY_URL: "${CI_REGISTRY}"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: "tcp://docker_service_host:2375"
+  K8S_INGRESS_DOMAIN: "polemarch-$KUBE_NAMESPACE.$KUBE_INGRESS_BASE_DOMAIN"
+
+stages:
+  - code_standarts
+  - build
+  - test
+  - packaging-test
+  - release
+  - publish
+
+# Test templates
+###########################################
+.branch_tests_template: &branch_tests
+  stage: test
+  image: onegreyonewhite/tox:tox
+  variables:
+    TOX_ENVS: ""
+  before_script:
+    - if [ "${CI_BUILD_REF_NAME}" != "master" -a "${CI_BUILD_REF_NAME}" != "developer" ]; then export TOX_ARGS="--workdir /tmp/.tox_polemarchplus_${CI_BUILD_REF_NAME}"; fi
+  script:
+   - make test ENVS=$TOX_ENVS
+   - make build-clean
+  except:
+    refs:
+      - tags
+  only:
+    refs:
+      - merge_requests
+      - web
+      - master
+    changes:
+      - polemarch/main/**/*
+      - polemarch/api/**/*
+      - polemarch/__init__.py
+      - tests.py
+      - setup.{py,cfg}
+      - MANIFEST.in
+      - requirements.txt
+      - requirements-test.txt
+      - Makefile
+      - tox.ini
+      - .coveragerc
+      - .gitlab-ci.yml
+  retry: 2
+
+# Branch tests
+###########################################
+code_style:
+  stage: code_standarts
+  image: onegreyonewhite/tox:tox
+  variables:
+    TOX_ARGS: "--workdir /cache/.tox_polemarch_code"
+  script:
+   - make test ENVS=flake,pylint,jshint
+  except:
+    refs:
+      - tags
+      - issue_building
+  only:
+    refs:
+      - merge_requests
+      - web
+  retry: 2
+
+py37-coverage:
+  <<: *branch_tests
+  variables:
+    TOX_ENVS: "$CI_BUILD_NAME"
+
+py36-install:
+  <<: *branch_tests
+  variables:
+    TOX_ENVS: "$CI_BUILD_NAME"
+
+# Realese
+###########################################
+deploy_environment:
+  stage: release
+  image: onegreyonewhite/tox:tox
+  services:
+    - name: "docker:19.03-dind"
+      alias: "docker_service_host"
+  script:
+    - tox -e deploy_env
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    on_stop: delete_environment
+    url: http://polemarch-$KUBE_NAMESPACE.$KUBE_INGRESS_BASE_DOMAIN
+  only:
+    kubernetes: active
+    refs:
+      - branches
+  when: manual
+
+delete_environment:
+  stage: release
+  image: onegreyonewhite/tox:tox
+  script:
+    - tox -e destroy_env
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+  only:
+    kubernetes: active
+    refs:
+      - branches
+  when: manual
+
+release:
+  stage: release
+  image: onegreyonewhite/tox:tox
+  only:
+    refs:
+      - master
+    variables:
+      - $GIT_ACCESS_USER
+      - $GIT_ACCESS_PASSWORD
+  before_script:
+    - url_host=`echo "${CI_REPOSITORY_URL}" | sed -e "s/https:\/\/gitlab-ci-token:.*@//g"`
+    - git config --global user.name "${GITLAB_USER_NAME}"
+    - git config --global user.email "${GITLAB_USER_EMAIL}"
+    - git remote set-url origin "https://${GIT_ACCESS_USER}:${GIT_ACCESS_PASSWORD}@${url_host}"
+  script:
+    - bash autorelease.sh
+
+pages:
+  stage: release
+  script:
+    - make test ENVS=builddoc
+    - mv doc/_build/html public
+  artifacts:
+    paths:
+    - public
+  only:
+    refs:
+      - developer
+      - tags
+  when: always
+
+release_pypi:
+  stage: release
+  image: onegreyonewhite/tox:centos6
+  only:
+    refs:
+    - tags
+    variables:
+    - $PYPI_UPLOAD_PASSWORD
+    - $PYPI_UPLOAD_NAME
+  variables:
+    TOX_ARGS: ""
+  script:
+   - make test ENVS=build
+   - twine upload -u ${PYPI_UPLOAD_NAME} -p ${PYPI_UPLOAD_PASSWORD} $(find dist/*.{tar.gz,whl})
+  allow_failure: true
+  artifacts:
+    name: "release-packages-${CI_BUILD_REF_NAME}.${CI_BUILD_ID}"
+    paths:
+    - dist/
+
+publish_docker:
+  stage: publish
+  image: onegreyonewhite/tox:tox
+  services:
+    - name: 'docker:19.03-dind'
+      alias: 'docker_service_host'
+  script:
+    - pip install tox
+    - tox -e release-docker
+  only:
+    refs:
+      - tags
+    variables:
+      - $POLEMARCH_DOCKER_USER
+      - $POLEMARCH_DOCKER_PASSWORD
+      - $POLEMARCH_DOCKER_EMAIL
+      - $POLEMARCH_DOCKER_IMAGE_NAME
+
+publish_release:
+  stage: publish
+  image: onegreyonewhite/tox:ubuntu
+  allow_failure: true
+  needs: ["release_pypi"]
+  only:
+    refs:
+    - tags
+    variables:
+    - $PYPI_UPLOAD_PASSWORD
+    - $PYPI_UPLOAD_NAME
+  variables:
+    TOX_ARGS: ""
+  before_script:
+  - git config --global user.name "${GITLAB_USER_NAME}"
+  - git config --global user.email "${GITLAB_USER_EMAIL}"
+  - git push https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/vstconsulting/polemarch.git ${CI_COMMIT_TAG} || echo "Failed to upload to github."
+  script:
+  - make test ENVS=release
+

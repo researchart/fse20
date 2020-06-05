@@ -1,0 +1,181 @@
+image: registry.gitlab.com/ostrokach-docker/conda:latest
+
+stages:
+  - build
+  - test
+  - deploy
+
+# cache:
+#   key: ${CI_COMMIT_REF_NAME}
+#   paths:
+#     - .conda
+
+# === Variables ===
+
+.py27: &py27
+  PYTHON_VERSION: "2.7"
+
+.py36: &py36
+  PYTHON_VERSION: "3.6"
+
+.py37: &py37
+  PYTHON_VERSION: "3.7"
+
+# === Configuration ===
+
+.configure: &configure
+  before_script:
+    # Need to create some symlinks for /opt/conda/libexec/git-core/git-remote-https to work
+    - sudo ln -s /usr/lib64/libssl.so.1.0.1e /usr/lib64/libssl.so.1.0.0
+    - sudo ln -s /usr/lib64/libcrypto.so.1.0.1e /usr/lib64/libcrypto.so.1.0.0
+    # Set conda envs and pkgs dirs
+    - mkdir -p "${CI_PROJECT_DIR}/.conda/envs" "${CI_PROJECT_DIR}/.conda/pkgs"
+    - conda config --add envs_dirs "${CI_PROJECT_DIR}/.conda/envs"
+    - conda config --add pkgs_dirs "${CI_PROJECT_DIR}/.conda/pkgs"
+    # Set conda build dir
+    - mkdir -p "${CI_PROJECT_DIR}/conda-bld"
+    # Fix "FileNotFoundError(2, 'No such file or directory')" error
+    - mkdir -p ~/.conda/envs
+    # Channels
+    # - conda config --add channels ${CI_PROJECT_NAMESPACE}
+    # - conda config --add channels defaults
+    - conda config --remove channels conda-forge
+    - conda config --add channels conda-forge/label/gcc7
+    # - conda update -y -q --no-channel-priority conda conda-build
+
+# === Build ===
+
+.build:
+  extends: .configure
+  stage: build
+  tags:
+    - 16gb
+  script:
+    # Build conda package
+    - cd "${CI_PROJECT_DIR}/recipe"
+    - conda build .
+      --variant-config-files conda_build_config.yaml
+      --python ${PYTHON_VERSION}
+      --output-folder "${CI_PROJECT_DIR}/conda-bld" 
+      --no-test
+      2>&1 | tee "${CI_PROJECT_DIR}/build-log.txt"
+  artifacts:
+    when: always
+    paths:
+      - conda-bld
+      - config.log
+      - build.log
+
+build-py27:
+  extends: .build
+  variables:
+    <<: [*py27]
+
+build-py36:
+  extends: .build
+  variables:
+    <<: [*py36]
+
+build-py37:
+  extends: .build
+  variables:
+    <<: [*py37]
+
+# === Test ===
+
+.test:
+  extends: .configure
+  stage: test
+  script:
+    - conda build --test $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2
+
+test-py27:
+  extends: .test
+  dependencies:
+    - build-py27
+  variables:
+    <<: [*py27]
+
+test-py36:
+  extends: .test
+  dependencies:
+    - build-py36
+  variables:
+    <<: [*py36]
+
+test-py37:
+  extends: .test
+  dependencies:
+    - build-py37
+  variables:
+    <<: [*py37]
+
+# === Test Plotting ===
+
+.test-plotting:
+  extends: .configure
+  stage: test
+  script:
+    # Restore built packages
+    - cp -r $CI_PROJECT_DIR/conda-bld/* /opt/conda/conda-bld/
+    - conda index /opt/conda/conda-bld/
+    # Run tests
+    - conda create -n graph-tool -y -q "python=$PYTHON_VERSION"
+    - conda install -n graph-tool -y -q --use-local graph-tool
+    - source activate graph-tool
+    - python ./tests/make_plot.py
+    - "[[ -f graph-draw-sfdp.png ]]"
+  artifacts:
+    paths:
+      - environment-py${PYTHON_VERSION/./}.yml
+      - graph-draw-sfdp.png
+
+test-plotting-py27:
+  extends: .test-plotting
+  dependencies:
+    - build-py27
+  variables:
+    <<: [*py27]
+
+test-plotting-py36:
+  extends: .test-plotting
+  dependencies:
+    - build-py36
+  variables:
+    <<: [*py36]
+
+test-plotting-py37:
+  extends: .test-plotting
+  dependencies:
+    - build-py37
+  variables:
+    <<: [*py37]
+
+# === Deploy ===
+
+.deploy:
+  stage: deploy
+  script:
+    - if [[ ${CI_COMMIT_REF_NAME} = 'master' ]] ; then
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u ${CI_PROJECT_NAMESPACE} --force --no-progress ;
+      else
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u ${CI_PROJECT_NAMESPACE} --label dev --force --no-progress ;
+      fi
+  only:
+    - master
+
+deploy-py27:
+  extends: .deploy
+  dependencies:
+    - build-py27
+
+deploy-py36:
+  extends: .deploy
+  dependencies:
+    - build-py36
+
+deploy-py37:
+  extends: .deploy
+  dependencies:
+    - build-py37
+

@@ -1,0 +1,76 @@
+#image: nwops/ci_builder:1.0.1
+image: monachus/hugo
+
+stages:
+  - validate
+  - test
+  - deploy
+
+compile_test:
+  stage: test
+  script:
+    - hugo
+  except:
+    - master
+
+# Auto spellcheck - https://github.com/lukeapage/node-markdown-spellcheck
+spell_check:
+  stage: validate
+  image: tmaier/markdown-spellcheck:latest
+  script:
+    - mdspell --report "content/**/*.md" --ignore-acronyms --ignore-numbers --en-us
+
+# Grammar check
+# https://github.com/btford/write-good
+grammar_check:
+  stage: validate
+  image: node:alpine
+  script:
+    - npm -g add write-good
+    - /usr/local/bin/write-good content/**/*.md
+  allow_failure: true
+
+# Automatic link checker
+# https://github.com/raviqqe/liche
+content_link_check:
+  stage: validate
+  image: nwops/liche
+  script:
+    - /go/bin/liche -v content/**/*.md
+  allow_failure: false
+
+layout_link_check:
+  stage: validate
+  image: nwops/liche
+  script:
+    - /go/bin/liche -v layouts/**/*.html
+  allow_failure: true
+
+pages:
+  stage: test
+  script:
+    - hugo
+  artifacts:
+    paths:
+      - public
+      - resources
+    expire_in: 1 day
+  only:
+    - master
+
+production_deploy:
+  when: manual
+  stage: deploy
+  variables:
+    # SITE_NAME: ''
+    # URL_ROOT: 'ie. CloudFront address'
+    # AWS_BUCKET: 'bucketname'
+    # AWS_CLOUDFRONT_DISTRIBUTION_ID: ''
+  script:
+    - hugo
+    - aws s3 cp ./public/ s3://$AWS_BUCKET/ --recursive
+    - aws cloudfront create-invalidation --distribution-id $AWS_CLOUDFRONT_DISTRIBUTION_ID --paths /index.html
+    - echo "Site available at $URL_ROOT"
+  only:
+    - master
+

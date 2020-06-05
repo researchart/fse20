@@ -1,0 +1,128 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+- prepare
+- build
+- release
+
+variables:
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY/damiencassou/emacs-ci-docker:$CI_COMMIT_REF_NAME
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY/damiencassou/emacs-ci-docker
+  EMACS_URL: https://ftp.gnu.org/gnu/emacs
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+prepare:
+  stage: prepare
+  script:
+    - docker build -t $CONTAINER_TEST_IMAGE-prepare -f Dockerfile.prepare .
+    - docker push $CONTAINER_TEST_IMAGE-prepare
+
+.build_job_template: &build_job_definition
+  stage: build
+  script: |
+    # https://stackoverflow.com/questions/37544423
+    echo 0 > /proc/sys/kernel/randomize_va_space
+
+    docker build --pull \
+      --build-arg BASE=$CONTAINER_TEST_IMAGE-prepare \
+      --build-arg EMACS_VERSION=$EMACS_VERSION \
+      --build-arg EMACS_URL=$EMACS_URL \
+      -t $CONTAINER_TEST_IMAGE-$EMACS_VERSION .
+
+    docker push $CONTAINER_TEST_IMAGE-$EMACS_VERSION
+
+build:26.0:
+  variables:
+    EMACS_URL: https://alpha.gnu.org/gnu/emacs/pretest/
+    EMACS_VERSION: "26.0.91"
+  <<: *build_job_definition
+
+build:25.3:
+  variables:
+    EMACS_VERSION: "25.3"
+  <<: *build_job_definition
+
+build:25.2:
+  variables:
+    EMACS_VERSION: "25.2"
+  <<: *build_job_definition
+
+build:25.1:
+  variables:
+    EMACS_VERSION: "25.1"
+  <<: *build_job_definition
+
+build:24.5:
+  variables:
+    EMACS_VERSION: "24.5"
+  <<: *build_job_definition
+
+build:24.4:
+  variables:
+    EMACS_VERSION: "24.4"
+  <<: *build_job_definition
+
+build:24.3:
+  variables:
+    EMACS_VERSION: "24.3"
+  <<: *build_job_definition
+
+build:24.2:
+  variables:
+    EMACS_VERSION: "24.2"
+  <<: *build_job_definition
+
+.release_job_template: &release_job_definition
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE-$EMACS_VERSION
+    - docker tag $CONTAINER_TEST_IMAGE-$EMACS_VERSION $CONTAINER_RELEASE_IMAGE:$EMACS_VERSION
+    - docker push $CONTAINER_RELEASE_IMAGE:$EMACS_VERSION
+  only:
+    - master
+
+release-image:26.0:
+  variables:
+    EMACS_VERSION: "26.0.91"
+  <<: *release_job_definition
+
+release-image:25.3:
+  variables:
+    EMACS_VERSION: "25.3"
+  <<: *release_job_definition
+
+release-image:25.2:
+  variables:
+    EMACS_VERSION: "25.2"
+  <<: *release_job_definition
+
+release-image:25.1:
+  variables:
+    EMACS_VERSION: "25.1"
+  <<: *release_job_definition
+
+release-image:24.5:
+  variables:
+    EMACS_VERSION: "24.5"
+  <<: *release_job_definition
+
+release-image:24.4:
+  variables:
+    EMACS_VERSION: "24.4"
+  <<: *release_job_definition
+
+release-image:24.3:
+  variables:
+    EMACS_VERSION: "24.3"
+  <<: *release_job_definition
+
+release-image:24.2:
+  variables:
+    EMACS_VERSION: "24.2"
+  <<: *release_job_definition
+

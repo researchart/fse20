@@ -1,0 +1,41 @@
+stages:
+  - test
+  - qa
+  # - dast
+
+include:
+  # Security Products features
+  - template: SAST.gitlab-ci.yml
+  # - template: Dependency-Scanning.gitlab-ci.yml
+  # - template: Container-Scanning.gitlab-ci.yml
+  # - template: DAST.gitlab-ci.yml
+  # - template: License-Management.gitlab-ci.yml
+
+  # Security Products features QA
+  - https://gitlab.com/gitlab-org/security-products/ci-templates/raw/master/includes-dev/qa-sast.yml
+  # - https://gitlab.com/gitlab-org/security-products/ci-templates/raw/master/includes-dev/qa-dependency_scanning.yml
+  # - https://gitlab.com/gitlab-org/security-products/ci-templates/raw/master/includes-dev/qa-container_scanning.yml
+  # - https://gitlab.com/gitlab-org/security-products/ci-templates/raw/master/includes-dev/qa-dast.yml
+  # - https://gitlab.com/gitlab-org/security-products/ci-templates/raw/master/includes-dev/qa-license_management.yml
+
+# Override default definition to provide artifacts for QA jobs
+sast:
+  artifacts:
+    paths: [gl-sast-report.json]
+
+# dependency_scanning:
+#   artifacts:
+#     paths: [gl-dependency-scanning-report.json]
+
+# container_scanning:
+#   artifacts:
+#     paths: [gl-container-scanning-report.json]
+
+# dast:
+#   artifacts:
+#     paths: [gl-dast-report.json]
+
+# license_management:
+#   artifacts:
+#     paths: [gl-license-management-report.json]
+

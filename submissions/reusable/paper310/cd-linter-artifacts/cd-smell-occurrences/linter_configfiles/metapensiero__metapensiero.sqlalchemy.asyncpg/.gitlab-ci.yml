@@ -1,0 +1,73 @@
+---
+stages:
+  - test
+  - various
+
+# disabled until we decide what to do with py3.5, see also setup.py classifiers
+# test:3.5:
+#   stage: test
+#   image: python:3.5
+#   services:
+#     - postgres:10.1
+#   variables:
+#     POSTGRES_USER: runner
+#     POSTGRES_PASSWORD: runner
+#     PG_HOST: postgres
+#   script:
+#     - pip install -r requirements.txt
+#     - pip install .
+#     - pytest
+#   coverage: '/\d+\%\s*$/'
+
+test:3.6_pg10:
+  stage: test
+  image: python:3.6
+  services:
+    - postgres:10.1
+  variables:
+    POSTGRES_USER: runner
+    POSTGRES_PASSWORD: runner
+    PG_HOST: postgres
+  script:
+    - pip install -r requirements.txt
+    - pip install .
+    - pytest
+  coverage: '/\d+\%\s*$/'
+
+test:3.6_pg9:
+  stage: test
+  image: python:3.6
+  services:
+    - postgres:9
+  variables:
+    POSTGRES_USER: runner
+    POSTGRES_PASSWORD: runner
+    PG_HOST: postgres
+  script:
+    - pip install -r requirements.txt
+    - pip install .
+    - pytest
+
+wheel:
+  stage: various
+  image: python:3.6
+  script:
+    - python setup.py bdist_wheel
+  artifacts:
+    paths:
+      - dist/*.whl
+
+pages:
+  stage: various
+  image: python:3.6
+  script:
+    - pip install -r requirements.txt
+    - pip install .
+    - cd doc ; make html
+    - mv _build/html ../public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

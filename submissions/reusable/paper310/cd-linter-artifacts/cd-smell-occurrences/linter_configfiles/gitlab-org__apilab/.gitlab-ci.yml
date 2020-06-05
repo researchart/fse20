@@ -1,0 +1,70 @@
+image: node:boron
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+  - node --version
+  - npm --version
+  # See https://docs.gitlab.com/ee/ci/ssh_keys/README.html
+  # -----------------------------------------------------------
+  # Install ssh-agent if not already installed, it is required by Docker.
+  # (change apt-get to yum if you use a CentOS-based image)
+  - 'which ssh-agent || (apt-get update -y && apt-get install openssh-client -y)'
+  # Run ssh-agent (inside the build environment)
+  - eval $(ssh-agent -s)
+  # Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+  - ssh-add <(echo "$SSH_PRIVATE_KEY")
+  # For Docker builds disable host key checking. Be aware that by adding that
+  # you are suspectible to man-in-the-middle attacks.
+  # WARNING: Use this only with the Docker executor, if you use it with shell
+  # you will overwrite your user's SSH config.
+  - mkdir -p ~/.ssh
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  # Install rsync
+  # --------
+  - 'which rsync || (apt-get update -y && apt-get install rsync -y)'
+
+
+build:
+  stage: build
+  script:
+    - npm install
+  artifacts:
+    paths:
+      - node_modules/
+  tags:
+    - docker
+    - shared
+
+
+test:
+  stage: test
+  script:
+    - npm run lint
+  tags:
+    - docker
+    - shared
+
+
+deploy:
+  stage: deploy
+  script:
+    # Exclude `data` to save the file store between deploys
+    - rsync -r --delete-after --exclude 'data' --quiet ./ $SSH_USER@$DEPLOY_HOST::apilab/
+    - ssh $SSH_USER@$DEPLOY_HOST '. ~/.bashrc && . ~/.nvm/nvm.sh && nvm use stable && pm2 restart apilab'
+  environment:
+    name: production
+    url: https://apilab.gitlab.org
+  only:
+    - master
+  tags:
+    - docker
+    - shared
+

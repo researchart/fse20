@@ -1,0 +1,19 @@
+image: python:3.6
+
+stages:
+  - test
+  #- dist
+
+test_install:
+  stage: test
+  only:
+    - master
+  script:
+    - make install
+    - aws-helper
+    - aws-helper --help
+    - aws-helper ansible --help
+    - aws-helper csv --help
+    - aws-helper ssh --help
+    - aws-helper version
+

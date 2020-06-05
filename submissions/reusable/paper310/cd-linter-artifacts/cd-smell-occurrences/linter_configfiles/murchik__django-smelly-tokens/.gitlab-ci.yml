@@ -1,0 +1,8 @@
+test:
+  script:
+  - export DJANGO_SETTINGS_MODULE=test_settings
+  - apt-get update -qy
+  - apt-get install -y python-dev python-pip
+  - pip install -e .
+  - py.test -v
+

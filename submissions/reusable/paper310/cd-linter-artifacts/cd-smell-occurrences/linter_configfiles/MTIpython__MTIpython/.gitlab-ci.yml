@@ -1,0 +1,129 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - test
+  - doc
+  - publish
+  - deploy
+
+unittest:
+  type: test
+  image: peer23peer/mtipy:latest
+  before_script:
+  - pip install --trusted-host www.coolprop.dreamhosters.com --process-dependency-links --pre -e .
+
+  script:
+  - python -m unittest discover -s ./MTIpython/testsuite/ -t ./MTIpython/testsuite/
+
+  artifacts:
+    paths:
+    - MTIpython/testsuite/*.log
+    expire_in: 1 week
+
+coverage:
+  type: test
+  image: peer23peer/mtipy_cov:latest
+  before_script:
+  - pip install --trusted-host www.coolprop.dreamhosters.com --process-dependency-links --pre -e .
+  - pip install -r cov-requirements.txt
+
+  script:
+  - py.test --cov=MTIpython --cov-report html:coverage MTIpython/testsuite/
+  - coverage report -m
+
+  coverage: '/\d+\%\s*$/'
+
+  artifacts:
+    paths:
+    - coverage/
+    expire_in: 1 week
+
+pylint:
+  type: test
+  image: peer23peer/mtipy_cov:latest
+  before_script:
+  - pip install --trusted-host www.coolprop.dreamhosters.com --process-dependency-links --pre -e .
+  - pip install -r cov-requirements.txt
+
+  script:
+  - python Tools/scripts/pylint2rst.py --folder=pylint
+
+  artifacts:
+    paths:
+    - pylint/
+    expire_in: 1 week
+
+pages:
+  image: peer23peer/mtipy_sphinx:latest
+  type: doc
+  dependencies:
+  - coverage
+  - pylint
+
+  before_script:
+  - pip install --trusted-host www.coolprop.dreamhosters.com --process-dependency-links --pre -e .
+  - pip install -r sphinx-requirements.txt
+
+  script:
+  - rm -rf Documentation/_build
+  - rm -rf build
+  - rm -rf pylint/_build
+  - rm -rf public
+  - cd Documentation
+  - make html
+  - make latex
+  - cd ..
+  - mv Documentation/_build/html/ public/
+  - cd pylint
+  - make html
+  - cd ..
+  - mv pylint/_build/html/ public/pylint
+  - mv coverage public/
+
+  artifacts:
+    paths:
+    - public
+    - Documentation/_build/latex
+
+  only:
+  - develop
+  - master
+  - prof
+
+pdf:
+  image: peer23peer/mtipy_pdf:latest
+  type: publish
+  dependencies:
+  - pages
+
+  script:
+  - chmod 755 Tools/scripts/build_pdf.bash
+  - Tools/scripts/build_pdf.bash
+
+  artifacts:
+    paths:
+    - MTIpython.pdf
+
+  only:
+  - develop
+  - master
+  - prof
+
+release:
+  image: peer23peer/mtipy:latest
+  type: deploy
+
+  script:
+  - python setup.py bdist_wheel
+  - mv dist/*.whl .
+
+  artifacts:
+    paths:
+    - ./*.whl
+
+  only:
+  - develop
+  - master
+  - prof
+

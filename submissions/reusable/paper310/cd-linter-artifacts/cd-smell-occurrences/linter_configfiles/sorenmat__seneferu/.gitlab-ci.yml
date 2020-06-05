@@ -1,0 +1,77 @@
+image: golang:latest
+
+variables:
+  REPO_NAME: gitlab.com/sorenmat/seneferu
+  CONTAINER_RELEASE_IMAGE: registry.gitlab.com/sorenmat/seneferu:latest
+  POSTGRES_HOST: postgres
+  POSTGRES_DB: seneferu
+
+before_script:
+  - mkdir -p $GOPATH/src/$REPO_NAME
+  - ln -svf $CI_PROJECT_DIR/* $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+
+stages:
+    - validate
+    - build
+    - coverage
+    - release
+
+format:
+    stage: validate
+    script:
+      - go fmt ./...
+vet:
+  stage: validate
+  script:
+      - go vet ./...
+
+test:
+  stage: validate
+  services:
+    - postgres:latest
+  script:
+     - go test -race ./...
+
+compile:
+    stage: build
+    script:
+      - GOOS=linux CGO_ENABLED=0 go build -o $CI_PROJECT_DIR/seneferu
+    artifacts:
+      untracked: true
+
+compile-js:
+  stage: build
+  image: node:9.2.0
+  script:
+    - cd $CI_PROJECT_DIR
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+    - js/
+
+#coverage:
+#  image: golang:1.10-rc-stretch
+#  stage: coverage
+#  script:
+#    - go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+#    - bash <(curl -s https://codecov.io/bash)
+release-image:
+  stage: release
+  image: docker:git
+  only:
+    - master
+  services:
+    - docker:dind
+  dependencies: 
+    - compile
+    - compile-js
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker version
+    - cd $CI_PROJECT_DIR
+    - docker build -t registry.gitlab.com/sorenmat/seneferu:$CI_COMMIT_REF_NAME .
+    - docker push registry.gitlab.com/sorenmat/seneferu:$CI_COMMIT_REF_NAME
+
+

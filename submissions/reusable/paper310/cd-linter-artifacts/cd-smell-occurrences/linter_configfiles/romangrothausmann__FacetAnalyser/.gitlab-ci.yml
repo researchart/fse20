@@ -1,0 +1,78 @@
+image: docker:stable
+
+services:
+  - docker:dind
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+stages:
+  - build
+  - test
+  - release
+
+variables:
+
+  IMAGE_TAG: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_NAME
+
+build:
+  stage: build
+  tags:
+    - multicore
+  script:
+    - docker pull $IMAGE_TAG:system-latest || true
+    - docker pull $IMAGE_TAG:builder-latest || true
+    ## builder image for caching:
+    ## https://github.com/moby/moby/issues/34715
+    ## https://gitlab.com/gitlab-org/gitlab-omnibus-builder/merge_requests/83
+    - docker build --pull
+                   --cache-from $IMAGE_TAG:system-latest
+                   --tag $IMAGE_TAG:system-latest
+                   --target system
+                   .
+    ## 2nd stage build using builder-latest for caching
+    - docker build --pull
+                   --cache-from $IMAGE_TAG:system-latest
+                   --cache-from $IMAGE_TAG:builder-latest
+                   --tag $IMAGE_TAG:builder-latest
+                   --target builder 
+                   .
+    ## 3rd stage build using system-latest and builder-latest for caching
+    - docker build --pull
+                   --cache-from $IMAGE_TAG:system-latest
+                   --cache-from $IMAGE_TAG:builder-latest
+                   --tag $IMAGE_TAG:test
+                   .
+    - docker push $IMAGE_TAG:system-latest
+    - docker push $IMAGE_TAG:builder-latest
+    - docker push $IMAGE_TAG:test
+  retry: 2
+
+test01:
+  stage: test
+  script:
+    - docker pull $IMAGE_TAG:test
+    ## make demos/ from git repos available to docker env for testing: https://gitlab.com/gitlab-org/gitlab-runner/issues/1482#note_34438183
+    # - cp -a /demos/ ./demos/ # not needed any more?
+    - docker run --rm
+                 -v $(pwd)/demos:/tmp/demos
+                 --workdir /tmp/demos/
+                 $IMAGE_TAG:test
+                 FacetAnalyserCLI  8faced-rhombic-dodecahedron_twinned_010_deformed_wss.vtp 51 15 0.2 0.001 2 8faced-rhombic-dodecahedron_twinned_010_deformed_wss_FA.vtp
+    ## test should result in the same file as stored by git
+    - apk update && apk upgrade && apk add --no-cache git
+    - git update-index -q --refresh
+    - git diff-index --exit-code HEAD --
+  retry: 2
+
+release:
+  stage: release
+  script:
+    - docker pull $IMAGE_TAG:test
+    - docker tag  $IMAGE_TAG:test $IMAGE_TAG:latest
+    - docker push $IMAGE_TAG:latest
+    - docker tag  $IMAGE_TAG:test $IMAGE_TAG:$CI_COMMIT_SHORT_SHA
+    - docker push $IMAGE_TAG:$CI_COMMIT_SHORT_SHA
+  only:
+    - master
+

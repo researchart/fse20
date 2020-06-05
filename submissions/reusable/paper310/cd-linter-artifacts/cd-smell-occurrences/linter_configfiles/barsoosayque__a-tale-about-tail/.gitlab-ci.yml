@@ -1,0 +1,41 @@
+image: ubuntu:19.10
+
+variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+    - dpkg --add-architecture i386
+    - apt-get update -qq && apt-get install -y -qq zip unzip wget libglib2.0-0
+    - export LOVE_VERSION="11.2" # need to recalculate hashes if want to change this
+    - export GAME_NAME="ATaleAboutTail"
+    - export GAME_PROVIDER="tailtail-ld40"
+    - export ICON_FILE="icon.png"
+    - export HERE=$(pwd)
+    - export SOURCE_DIR="$HERE/src"
+    - export BUILD_DIR="$HERE/build"
+    - export TEMP_DIR="$HERE/build/.temp"
+    - export CACHE_DIR="$HERE/build/.cache"
+    - export LOVE_FILE="$TEMP_DIR/archived.love"
+    - /bin/bash .buildscript/preparations.sh
+
+build:windows:
+    script: /bin/bash .buildscript/windows.sh
+    artifacts:
+        paths: 
+            - build/win32/ATaleAboutTail_win.zip
+
+build:macos:
+    script: /bin/bash .buildscript/osx.sh
+    artifacts:
+        paths:
+            - build/macos/ATaleAboutTail_osx.zip
+
+build:linux:
+    script:
+        - dpkg --add-architecture i386
+        - apt-get install -y -qq gcc-multilib:i386
+        - /bin/bash .buildscript/linux.sh
+    artifacts:
+        paths: 
+            - build/linux/*
+

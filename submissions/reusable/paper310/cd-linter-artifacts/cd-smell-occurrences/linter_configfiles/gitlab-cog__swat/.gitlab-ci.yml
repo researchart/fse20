@@ -1,0 +1,21 @@
+image: ruby:2.3
+before_script:
+  - ruby -v
+  - which ruby
+  - gem install bundler --no-ri --no-rdoc
+  - bundle install --jobs $(nproc)  "${FLAGS[@]}" --path vendor
+  - git config --global user.email "you@example.com"
+  - git config --global user.name "Your Name"
+
+cache:
+  paths:
+    - vendor
+
+rspec:
+  script:
+    - bundle exec rspec -f d -c -b
+
+rubocop:
+  script:
+    - bundle exec rubocop
+

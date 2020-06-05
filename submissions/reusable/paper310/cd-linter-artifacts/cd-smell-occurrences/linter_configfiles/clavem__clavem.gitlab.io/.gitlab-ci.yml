@@ -1,0 +1,59 @@
+image: bash:latest
+
+stages:
+  - stage1
+  - stage2
+
+minify:
+  stage: stage1
+  script:
+    - apk update
+    - apk add nodejs-npm
+    - npm install -g inliner
+    - cd public
+    - cat index.html | inliner > ../index.min.html
+  artifacts:
+    paths:
+    - index.min.html
+
+firefox:
+  stage: stage1
+  script:
+    - mkdir -p clavem/{public,addon}
+    - cp manifest.json clavem
+    - cp public/{crypto.js,script.js,launcher-icon-1x.png,launcher-icon-2x.png} clavem/public
+    - cp addon/{index.html,script.js,style.css} clavem/addon
+  artifacts:
+    name: clavem
+    paths:
+      - clavem
+
+pages:
+  stage: stage1
+  script:
+    - echo "Nothing to do..."
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+cache:
+  key: ${CI_PROJECT_ID}
+  paths:
+    - android/.gradle/
+
+android:
+  image: jangrewe/gitlab-ci-android
+  stage: stage2
+  script:
+    - mv index.min.html android/app/src/main/assets/www/index.html
+    - cd android
+    - echo "org.gradle.jvmargs=-Xmx1024m" > gradle.properties
+    - echo "org.gradle.daemon=false" >> gradle.properties
+    - ./gradlew assembleDebug
+    - mv app/build/outputs/apk/debug/app-debug.apk ..
+  artifacts:
+    paths:
+      - app-debug.apk
+

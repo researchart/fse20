@@ -1,0 +1,14 @@
+before_script:
+  - make clean
+
+stages:
+  - test
+
+test_job:
+  tags:
+    - slashdeploy
+  stage: test
+  script:
+    - make test-ci
+    - make test
+

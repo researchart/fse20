@@ -1,0 +1,68 @@
+image: gcc:latest
+
+before_script:
+    # Updating repositories
+    - apt-get -yq update
+    - apt-get -yq upgrade
+
+    # Installing packages
+    - apt-get -yq install cmake
+    - apt-get -yq install unzip
+    - apt-get -yq install libgl1-mesa-dev
+    - apt-get -yq install libglu1-mesa-dev
+    - apt-get -yq install freeglut3-dev
+    - apt-get -yq install mesa-common-dev
+    - apt-get -yq install xorg-dev
+
+    # json.hpp
+    - wget --quiet -P /usr/local/include/ https://github.com/nlohmann/json/releases/download/v2.0.4/json.hpp
+
+    # GLM
+    - wget --quiet https://github.com/g-truc/glm/releases/download/0.9.8.1/glm-0.9.8.1.zip
+    - unzip -q glm-0.9.8.1.zip
+    - rm glm-0.9.8.1.zip
+    - mv glm/glm /usr/local/include
+    - rm -rf glm
+
+    # GLEW
+    - wget --quiet https://github.com/nigels-com/glew/releases/download/glew-2.0.0/glew-2.0.0.tgz
+    - tar -zxf glew-2.0.0.tgz
+    - rm glew-2.0.0.tgz
+    - cd glew-2.0.0
+    - make
+    - make install
+    - cd ..
+    - rm -rf glew-2.0.0
+
+    # GLFW 3
+    - wget --quiet https://github.com/glfw/glfw/releases/download/3.2.1/glfw-3.2.1.zip
+    - unzip -q glfw-3.2.1.zip
+    - rm glfw-3.2.1.zip
+    - cd glfw-3.2.1
+    - cmake .
+    - make
+    - make install
+    - cd ..
+    - rm -rf glfw-3.2.1
+
+    # ICU
+    - apt-get -yq install libicu-dev
+
+    # LibNoise
+    - apt-get -yq install libnoise-dev
+    - mv /usr/include/libnoise /usr/local/include/noise
+
+    # FreeType 2
+    - apt-get -yq install libfreetype6-dev
+    - mv /usr/include/freetype2 /usr/local/include/freetype2
+
+    # FreeImagePlus
+
+
+Craftmine:
+    script:
+        - mkdir Build
+        - cd Build
+        - cmake ..
+        - make
+

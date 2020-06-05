@@ -1,0 +1,26 @@
+image: java:8
+
+test:
+  script:
+    - apt-get update -y
+    - wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
+    - chmod a+x lein
+    - export LEIN_ROOT=1
+    - PATH=$PATH:.
+    - tar xjf assets/phantomjs-2.1.1-linux-x86_64.tar.bz2 phantomjs-2.1.1-linux-x86_64/bin/phantomjs
+    - mv phantomjs-2.1.1-linux-x86_64/bin/phantomjs /usr/local/bin
+    - lein do deps, uberjar, test, doo phantom test once
+  artifacts:
+    paths:
+      - target/uberjar/*-standalone.jar
+
+staging:
+  type: deploy
+  script:
+    - apt-get update -qy
+    - apt-get install -y rubygems ruby-dev
+    - gem install dpl    
+    - dpl --provider=heroku --app=buildfunthings --api-key=$HEROKU_STAGING_API_KEY
+  only:
+    - master 
+

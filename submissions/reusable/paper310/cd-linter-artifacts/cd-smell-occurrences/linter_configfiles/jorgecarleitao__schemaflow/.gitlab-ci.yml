@@ -1,0 +1,68 @@
+stages:
+    - test
+    - check
+    - deploy
+
+.python_template: &job_definition
+    stage: test
+    before_script:
+        # install java (for pyspark)
+        - apt-get update -q
+        - apt-get install -q -y software-properties-common
+        - add-apt-repository ppa:openjdk-r/ppa
+        - apt-get install -q -y openjdk-8-jdk
+    script:
+        - pip install -q -r tests/requirements.txt
+        - python -m unittest discover
+
+test2.7:
+    <<: *job_definition
+    image: python:2.7
+
+test3.6:
+    <<: *job_definition
+    image: python:3.6
+
+test3.7:
+    <<: *job_definition
+    image: python:3.7
+
+
+coverage:
+    <<: *job_definition
+    image: python:3.7
+    stage: check
+    script:
+        - pip install -q -r tests/requirements.txt
+        - pip install -q coverage
+        - coverage run --source schemaflow -m unittest discover
+        - coverage html
+        - coverage report -m
+    coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+    artifacts:
+        paths:
+            - htmlcov
+
+lint:
+    image: python:3.7
+    stage: check
+    script:
+        - pip install flake8 mypy
+        - flake8 --ignore E501
+        # --ignore-missing-imports : we use dynamic loading on purpose
+        - mypy --ignore-missing-imports schemaflow
+
+pages:
+    image: python:3.7
+    stage: deploy
+    only:
+        - master
+    script:
+        - pip install -r docs/requirements.txt
+        - cd docs && make html && cd ..
+        - mkdir -p public/documentation
+        - mv docs/build/html/ public/documentation/latest/
+    artifacts:
+        paths:
+            - public
+

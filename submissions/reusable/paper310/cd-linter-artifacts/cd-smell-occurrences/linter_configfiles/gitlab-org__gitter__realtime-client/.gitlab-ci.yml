@@ -1,0 +1,41 @@
+stages:
+  - build
+  - test
+
+cache:
+  paths:
+  - node_modules/
+
+
+build:
+  image: node:10
+  stage: build
+  script:
+    - npm install
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - node_modules/
+  tags:
+    - docker
+    - shared
+
+
+test:
+  image: node:10
+  stage: test
+  script:
+    - npm test
+  tags:
+    - docker
+    - shared
+
+validate:
+  image: node:10
+  stage: test
+  script:
+    - npm run validate
+  tags:
+    - docker
+    - shared
+

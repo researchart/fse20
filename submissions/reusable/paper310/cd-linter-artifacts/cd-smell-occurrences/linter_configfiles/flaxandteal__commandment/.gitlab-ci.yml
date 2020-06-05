@@ -1,0 +1,46 @@
+image: docker:latest
+
+variables:
+  CONTAINER_TEST_IMAGE: registry.gitlab.com/flaxandteal/commandment:$CI_BUILD_REF_NAME
+  CONTAINER_RELEASE_IMAGE: registry.gitlab.com/phil.weir/flaxandteal/commandment:latest
+
+services:
+- docker:dind
+
+stages:
+- build
+- test
+- release
+- deploy
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+build:
+  stage: build
+  script:
+  - docker build -t $CONTAINER_TEST_IMAGE .
+  - docker push $CONTAINER_TEST_IMAGE
+
+test:
+  stage: test
+  script:
+    - docker run --entrypoint python $CONTAINER_TEST_IMAGE setup.py pytest
+
+release-image:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - master
+
+deploy:
+  stage: deploy
+  image: redspreadapps/gitlabci
+  script:
+    - null-script
+  only:
+    - master
+

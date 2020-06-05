@@ -1,0 +1,28 @@
+image: ros:kinetic-robot
+
+before_script:
+  - git clone https://gitlab.com/itu-auv/robosub19-main.git
+  - cd robosub19-main && git submodule update --init --recursive
+  - apt-get update > /dev/null
+  - apt-get install -y python-catkin-tools > /dev/null
+  - apt-get install -y ros-kinetic-tf > /dev/null
+  - apt-get install -y ros-kinetic-cv-bridge > /dev/null
+  - apt-get install -y ros-kinetic-image-geometry > /dev/null
+  - apt-get install -y ros-kinetic-image-transport > /dev/null
+  - apt-get install -y ros-kinetic-camera-info-manager > /dev/null
+  - apt-get install -y ros-kinetic-tf2-geometry-msgs > /dev/null
+  - apt-get install -y libgtk2.0-dev > /dev/null
+  - apt-get install -y ros-kinetic-gazebo-* > /dev/null
+  - apt-get install -y protobuf-compiler protobuf-c-compiler > /dev/null
+  - apt-get install -y autoconf > /dev/null
+  - apt-get install -y ros-kinetic-pcl-ros > /dev/null
+  - apt-get install -y libglew-dev > /dev/null
+  - apt-get install -y ros-kinetic-gps-common > /dev/null
+  - apt-get install -y ros-kinetic-uuv-simulator
+
+ 
+catkin tools: 
+  stage: build
+  script:
+    -  catkin build --no-status --force-color
+

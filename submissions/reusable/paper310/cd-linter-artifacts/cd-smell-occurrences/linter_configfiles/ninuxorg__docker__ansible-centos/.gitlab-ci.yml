@@ -1,0 +1,111 @@
+stages:
+  - build
+  - test
+  - release
+
+variables:
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_NAME
+  CONTAINER_DEV_IMAGE: $CI_REGISTRY_IMAGE/develop
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE
+  CONTAINER_ID: '$CI_JOB_NAME-$CI_PROJECT_NAME-Pipeline$CI_PIPELINE_ID-Job$CI_JOB_ID'
+
+.build_template: &docker_build
+  image: docker:latest
+  services:
+    - docker:dind
+  tags:
+   - docker
+  stage: build
+  script:
+    - docker build --pull -t $CONTAINER_TEST_IMAGE:$TAG -f Dockerfile.$DISTRO .
+    - docker push $CONTAINER_TEST_IMAGE:$TAG
+  except:
+    - master
+
+.test_template: &test_image
+  image: docker:latest
+  services:
+    - docker:dind
+  tags:
+    - docker
+  stage: test
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE:$TAG
+    # Test running the container.
+    - docker run --name $CONTAINER_ID -d --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:ro $CONTAINER_TEST_IMAGE:$TAG $INIT
+    # Verify Ansible is available in the container.
+    - docker exec --tty $CONTAINER_ID env TERM=xterm ansible --version
+    # Remove test-container
+    - docker rm -f $CONTAINER_ID
+  except:
+    - master
+
+.release-image: &release_image
+  image: docker:latest
+  services:
+    - docker:dind
+  tags:
+    - docker
+  stage: release
+  script:
+    - docker pull $CONTAINER_DEV_IMAGE:$TAG
+    - docker tag $CONTAINER_DEV_IMAGE:$TAG $CONTAINER_RELEASE_IMAGE:$RELEASE_TAG
+    - docker push $CONTAINER_RELEASE_IMAGE:$RELEASE_TAG
+  only:
+    - master
+
+before_script:
+  - docker info
+  - echo "$CI_JOB_TOKEN" | docker login -u gitlab-ci-token $CI_REGISTRY --password-stdin
+
+build_centos6:
+  variables:
+    DISTRO: centos6
+    TAG: 6
+
+  <<: *docker_build
+
+build_centos7:
+  variables:
+    DISTRO: centos7
+    TAG: 7
+
+  <<: *docker_build
+
+test_centos6:
+  variables:
+    DISTRO: centos6
+    INIT: /sbin/init
+    TAG: 6
+
+  <<: *test_image
+
+test_centos7:
+  variables:
+    DISTRO: centos7
+    INIT: /usr/lib/systemd/systemd
+    TAG: 7
+
+  <<: *test_image
+
+release-image_centos6:
+  variables:
+    TAG: 6
+    RELEASE_TAG: 6
+
+  <<: *release_image
+
+release-image_centos7:
+  variables:
+    TAG: 7
+    RELEASE_TAG: 7
+
+  <<: *release_image
+
+release-image_latest:
+  variables:
+    TAG: 7
+    RELEASE_TAG: latest
+
+  <<: *release_image
+

@@ -1,0 +1,41 @@
+# This file is a template, and might need editing before it works on your project.
+# docker image.
+image: registry.gitlab.com/latex-template/docker
+
+build:
+  stage: build
+  script:
+    - latexmk -synctex=1 -interaction=batchmode -halt-on-error -file-line-error -pdf document
+  artifacts:
+    paths:
+    - document.pdf
+    - document.log
+    - document.synctex.gz
+    expire_in: 1 week
+  except:
+    refs:
+      - master
+
+build_chapter:
+  stage: build
+  script:
+    - cd sections
+    - find . -name '*.tex' -exec latexmk -interaction=nonstopmode -file-line-error -pdf {} \;
+  artifacts:
+    paths:
+      - sections/*.pdf
+    expire_in: 1 week
+
+build_release:
+  stage: build
+  script:
+    - latexmk -synctex=1 -interaction=batchmode -halt-on-error -file-line-error -pdf document
+  artifacts:
+    paths:
+    - document.pdf
+    - document.log
+    - document.synctex.gz
+  only:
+    refs:
+      - master
+

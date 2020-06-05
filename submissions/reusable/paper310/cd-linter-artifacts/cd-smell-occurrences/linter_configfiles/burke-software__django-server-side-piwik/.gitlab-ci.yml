@@ -1,0 +1,21 @@
+variables:
+  POETRY_VERSION: 1.0.0
+  POETRY_VIRTUALENVS_CREATE: 'false'
+
+image: python:3.7-slim
+
+services:
+  - postgres:latest
+
+cache:
+  paths:
+  - ~/.cache/pip/
+
+before_script:
+  - pip install "poetry==$POETRY_VERSION"
+  - poetry install --no-interaction --no-ansi
+
+test:
+  script:
+  - ./manage.py test
+

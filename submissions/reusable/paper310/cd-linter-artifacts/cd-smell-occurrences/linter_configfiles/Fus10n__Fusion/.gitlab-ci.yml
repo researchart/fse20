@@ -1,0 +1,49 @@
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:10.9-alpine
+stages:
+  - prepare
+#  - test
+  - build
+  - package
+
+#test:lint:
+#  stage: test
+#  script: npm run lint
+
+prepare:
+  stage: prepare
+  cache:
+    paths:
+      - node_modules/
+  script:
+   - npm i
+
+build:
+  stage: build
+  cache:
+    paths:
+      - node_modules/
+      - src_compiled/
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - src_compiled/
+
+package:
+  stage: package
+  cache:
+    paths:
+      - node_modules/
+      - src_compiled/
+  script:
+    - apk update
+    - apk add xz
+    - tar -cf - src_compiled/ | xz -9 -c - > src_compiled.tar.xz
+    - tar -cf - node_modules/ | xz -9 -c - > node_modules.tar.xz
+  artifacts:
+    paths:
+      - src_compiled.tar.xz
+      - node_modules.tar.xz
+

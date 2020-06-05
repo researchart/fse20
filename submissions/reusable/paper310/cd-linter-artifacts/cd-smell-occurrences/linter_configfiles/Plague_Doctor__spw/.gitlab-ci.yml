@@ -1,0 +1,57 @@
+before_script:
+    - apt-get update -qq
+    - apt-get install -y python3
+
+test_python2:
+    script:
+        - python2 ./spw.py --help
+        - python2 ./spw.py
+        - python2 ./spw.py -1
+        - python2 ./spw.py --single
+        - python2 ./spw.py -E
+        - python2 ./spw.py 30 10
+        - python2 ./spw.py -l
+        - python2 ./spw.py -u
+        - python2 ./spw.py -d
+        - python2 ./spw.py -m
+        - python2 ./spw.py -seb
+        - python2 ./spw.py -seba
+        - python2 ./spw.py -sebam
+        - python2 ./spw.py --dictionary ./dict/spw_small -r 30 10
+        - python2 ./spw.py --dictionary ./dict/spw_small -rd 30 10
+        - python2 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 30 10
+        - python2 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 --separator '*'
+        - python2 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 -E
+        - python2 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 -S
+        - python2 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 -O
+        - python2 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 --overwrite
+        - python2 ./spw.py --sha1 ./dict/spw_en#salt1
+        - python2 ./spw.py --sha256 ./dict/spw_en#salt2
+
+
+test_python3:
+    script:
+        - python3 ./spw.py --help
+        - python3 ./spw.py
+        - python3 ./spw.py -1
+        - python3 ./spw.py --single
+        - python3 ./spw.py -E
+        - python3 ./spw.py 30 10
+        - python3 ./spw.py -l
+        - python3 ./spw.py -u
+        - python3 ./spw.py -d
+        - python3 ./spw.py -m
+        - python3 ./spw.py -seb
+        - python3 ./spw.py -seba
+        - python3 ./spw.py -sebam
+        - python3 ./spw.py --dictionary ./dict/spw_small -r 30 10
+        - python3 ./spw.py --dictionary ./dict/spw_small -rd 30 10
+        - python3 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 30 10
+        - python3 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 --separator '*'
+        - python3 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 -E
+        - python3 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 -S
+        - python3 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 -O
+        - python3 ./spw.py --dictionary ./dict/spw_small -x --min 3 --max 5 --overwrite
+        - python3 ./spw.py --sha1 ./dict/spw_en#salt1
+        - python3 ./spw.py --sha256 ./dict/spw_en#salt2
+

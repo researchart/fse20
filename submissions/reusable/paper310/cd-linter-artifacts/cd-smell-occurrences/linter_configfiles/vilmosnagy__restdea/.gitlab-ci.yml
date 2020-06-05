@@ -1,0 +1,23 @@
+stages:
+  - build
+
+build:java8:
+  tags:
+    - docker
+  image: openjdk:8
+  stage: build
+  before_script:
+    - java -version
+  script:
+    - ./gradlew build
+
+.build:java9: # TODO IDEA plugin currently does not builds with Java9
+  tags:
+    - docker
+  image: openjdk:9-slim # TODO the openjdk:9 image does not have the correct `cacerts` file
+  stage: build
+  before_script:
+    - java -version
+  script:
+    - ./gradlew build
+

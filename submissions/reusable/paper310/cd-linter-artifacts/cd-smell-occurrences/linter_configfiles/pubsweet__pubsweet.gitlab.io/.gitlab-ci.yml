@@ -1,0 +1,22 @@
+image: node:7
+
+# add 'node_modules' to cache for speeding up builds
+cache:
+  paths:
+    - node_modules/ # Node modules and dependencies
+
+before_script:
+  - npm install
+
+# the 'pages' job will deploy and build your site to the 'src/www' path
+pages:
+  stage: deploy
+  script:
+    - npm run build # build to public
+    - cp -R site/public/.well-known public/
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master # this job will affect only the 'master' branch
+

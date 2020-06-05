@@ -1,0 +1,23 @@
+# lint this file using
+# https://gitlab.com/ci/lint
+image: cypress/internal:cy-0.19.2
+
+# make NPM install "quiet"
+variables:
+  npm_config_loglevel: warn
+
+cypress-e2e:
+  stage: test
+  before_script:
+    - npm install
+    - npm run build
+  script:
+    - echo 'Spec folder'
+    - ls cypress/integration
+    - cypress run
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - cypress/screenshots
+    - cypress/videos
+

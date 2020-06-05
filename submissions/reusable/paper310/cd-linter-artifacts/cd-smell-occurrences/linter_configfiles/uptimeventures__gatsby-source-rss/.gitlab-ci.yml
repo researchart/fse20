@@ -1,0 +1,23 @@
+image: node:latest
+
+variables:
+  CI: 'true'
+
+before_script:
+  - npx npm-merge-driver install --global
+  - npm ci
+
+stages:
+  - test
+  - renovate
+
+lint:
+  stage: test 
+  script:
+    - npm run lint
+
+test:
+  stage: test
+  script:
+    - npm test
+

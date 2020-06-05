@@ -1,0 +1,118 @@
+image: "gableroux/unity3d:2019.1.4f1"
+
+stages:
+- check
+- test
+- build
+- post-build
+
+variables:
+  BUILD_NAME: SpotTheDefuser
+
+check-cleanarchi:
+  image: alpine:latest
+  stage: check
+  script: | 
+    chmod +x Tools/checkCleanArchitecture.sh && ./Tools/checkCleanArchitecture.sh
+
+.test: &test
+  stage: test
+  script: |
+    chmod +x Tools/setUnityLicense.sh && ./Tools/setUnityLicense.sh
+    xvfb-run --auto-servernum --server-args='-screen 0 640x480x24' \
+      /opt/Unity/Editor/Unity \
+        -projectPath $(pwd) \
+        -runTests \
+        -testPlatform $TEST_PLATFORM \
+        -testResults $(pwd)/$TEST_PLATFORM-results.xml \
+        -logFile \
+        -username "$UNITY_USERNAME" \
+        -password "$UNITY_PASSWORD" \
+        -nographics \
+        -batchmode
+
+  artifacts:
+    paths:
+    - $(pwd)/$TEST_PLATFORM-results.xml
+
+test-editmode:
+  <<: *test
+  variables:
+    TEST_PLATFORM: editmode
+
+test-playmode:
+  <<: *test
+  variables:
+    TEST_PLATFORM: playmode
+
+.build: &build
+  stage: build
+  script: |
+    chmod +x Tools/setUnityLicense.sh && ./Tools/setUnityLicense.sh
+    echo "Building for $BUILD_TARGET"
+    export BUILD_PATH=./Builds/$BUILD_TARGET/
+    mkdir -p $BUILD_PATH
+    xvfb-run --server-args="-screen 0 640x480x24" \
+      /opt/Unity/Editor/Unity \
+      -projectPath $(pwd) \
+      -buildTarget $BUILD_TARGET \
+      -customBuildTarget $BUILD_TARGET \
+      -customBuildName $BUILD_NAME \
+      -customBuildPath $BUILD_PATH \
+      -customBuildOptions AcceptExternalModificationsToPlayer \
+      -executeMethod BuildCommand.PerformBuild \
+      -logFile \
+      -username "$UNITY_USERNAME" \
+      -password "$UNITY_PASSWORD" \
+      -nographics \
+      -batchmode \
+      -quit
+    ls -la $BUILD_PATH
+    [ -n "$(ls -A $BUILD_PATH)" ] # fail job if build folder is empty
+
+  artifacts:
+    paths:
+    - ./Builds/
+
+build-StandaloneLinux64:
+  <<: *build
+  variables:
+    BUILD_TARGET: StandaloneLinux64
+
+build-StandaloneOSX:
+  before_script:
+    - export UNITY_LICENSE_CONTENT=$UNITY_LICENSE_CONTENT_OSX
+  image: gableroux/unity3d:2019.1.4f1-mac
+  <<: *build
+  variables:
+    BUILD_TARGET: StandaloneOSX
+
+build-StandaloneWindows64:
+  before_script:
+    - export UNITY_LICENSE_CONTENT=$UNITY_LICENSE_CONTENT_WINDOWS
+  image: gableroux/unity3d:2019.1.4f1-windows
+  <<: *build
+  variables:
+    BUILD_TARGET: StandaloneWindows64
+
+build-Android:
+  before_script:
+    - export UNITY_LICENSE_CONTENT=$UNITY_LICENSE_CONTENT_ANDROID
+  image: gableroux/unity3d:2019.1.4f1-android
+  <<: *build
+  variables:
+    BUILD_TARGET: Android
+
+generate-apk:
+  image: teuteuf/gradle-androidsdk:latest
+  stage: post-build
+  script: |
+    cd ./Builds/Android/$BUILD_NAME/$BUILD_NAME
+    gradle assembleRelease --stacktrace
+  retry: 2
+  artifacts:
+    name: "$BUILD_NAME $CI_PIPELINE_IID $BUILD_TARGET"
+    paths:
+    - ./Builds/Android/$BUILD_NAME/$BUILD_NAME/build/outputs/apk/release/$BUILD_NAME-release.apk
+    expire_in: 1 day
+

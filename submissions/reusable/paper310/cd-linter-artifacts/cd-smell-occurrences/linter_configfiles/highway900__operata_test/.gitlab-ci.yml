@@ -1,0 +1,74 @@
+image: lambci/lambda:build-go1.x
+
+variables:
+  # Please edit to your GitLab project
+  REPO_NAME: gitlab.com/highway900/operata_test
+  BUCKET_NAME: twiliodemo.operata
+
+# The problem is that to be able to use go get, one needs to put
+# the repository in the $GOPATH. So for example if your gitlab domain
+# is gitlab.com, and that your repository is namespace/project, and
+# the default GOPATH being /go, then you'd need to have your
+# repository in /go/src/gitlab.com/namespace/project
+# Thus, making a symbolic link corrects this.
+before_script:
+    - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+    - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+    - cd $GOPATH/src/$REPO_NAME
+
+stages:
+    - install # install all dependencies
+    - test    # execute unit tests
+    - build   # build artifact
+    - deploy  # deploy to aws
+
+depInstall:
+    stage: install
+    script:
+        - dep ensure
+    # artifacts describe the result of the stage
+    # that can be used in consecutive stages
+    artifacts:
+        untracked: true
+
+coverage:
+    stage: test
+    script:
+        # run coverage test
+        - go test -cover
+
+unittesting:
+    stage: test
+    # use the artifact of the 'depInstall' job
+    dependencies:
+        - depInstall
+    script:
+        - go test
+
+format:
+    stage: test
+    dependencies:
+        - depInstall
+    script:
+        - go fmt $(go list ./... | grep -v /vendor/)
+        - go vet $(go list ./... | grep -v /vendor/)
+        - go test -race $(go list ./... | grep -v /vendor/)
+
+compile:
+    stage: build
+    script:
+        - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/handler
+    artifacts:
+      paths:
+        - handler
+
+deployStaging:
+    stage: deploy
+    dependencies:
+        - compile
+    script:
+        # use the template file to deploy the stack
+        # - aws cloudformation deploy --template-file template.yml --s3-bucket twiliodemo.operata --stack-name twilio-demo-stack --capabilities CAPABILITY_IAM
+        - zip $CI_PROJECT_DIR/test0.zip $CI_PROJECT_DIR/handler
+        - aws s3 cp $CI_PROJECT_DIR/test0.zip s3://$BUCKET_NAME/test0.zip
+

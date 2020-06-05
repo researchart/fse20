@@ -1,0 +1,34 @@
+image: node:latest
+
+# Cache modules in between jobs
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+  - node_modules
+
+# Install dependencies
+before_script:
+  - npm install
+
+# Set stages
+stages:
+  - test
+  - deploy
+ 
+# Run tests and coverage
+npm_test:
+  stage: test
+  script:
+    - npm test
+    - npm run coverage
+    
+# Deploy to Npmjs
+submit_npmjs:
+  stage: deploy
+  only:
+    - tags
+  script:
+    - npm run build
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+    - npm publish
+

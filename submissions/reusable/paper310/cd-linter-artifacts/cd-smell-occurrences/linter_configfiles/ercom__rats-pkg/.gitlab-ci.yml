@@ -1,0 +1,14 @@
+
+build-deb-linux-amd64:
+    stage: build
+    image: ubuntu:16.04
+    script:
+        - apt-get update
+        - apt-get install -y pbuilder
+        - pbuilder create
+        - pbuilder build *.dsc
+        - cp -r /var/cache/pbuilder/result ./
+    artifacts:
+        paths:
+            - result
+

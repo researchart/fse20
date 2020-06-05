@@ -1,0 +1,47 @@
+image: gcc
+
+stages:
+  - build
+  - test
+
+before_script:
+  - apt-get update
+  - apt-get install -y libedit-dev
+
+build:
+  stage: build
+  script:
+    - gcc --std=c99 -Wall lisp.c mpc.c -ledit -lm -o lisp
+  artifacts:
+    paths:
+      - lisp
+
+test:
+  image: python:3-slim
+  stage: test
+  dependencies:
+    - build
+  script:
+    - python3 run-tests.py
+
+build-alpine:
+  image: frolvlad/alpine-gcc
+  stage: build
+  before_script:
+    - apk update && apk add libedit-dev build-base
+  script:
+    - gcc --std=c99 -Wall lisp.c mpc.c -ledit -lm -o lisp
+  artifacts:
+    paths:
+      - lisp
+
+test-alpine:
+  image: python:3-alpine
+  stage: test
+  before_script:
+    - apk update && apk add libedit-dev build-base
+  dependencies:
+    - build-alpine
+  script:
+    - python3 run-tests.py
+

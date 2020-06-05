@@ -1,0 +1,89 @@
+stages:
+  - syntax_check
+  - build
+  - deploy
+  - test
+  - release
+
+check_playbooks:
+  image: registry.gitlab.com/chusiang/continuous-delivery-workshop/ansible:2.4.1
+  stage: syntax_check
+  script:
+    - ls
+    - cd ansible-playbooks/
+    - echo "${VAULT_KEY}" > secret.txt
+    - make main
+    - rm -f secret.txt
+
+build_binary: 
+  image: registry.gitlab.com/chusiang/continuous-delivery-workshop/ubuntu:16.04
+  stage: build
+  script:
+    # For fix bad permissions of control directory on GitLab CI.
+    # > https://gitlab.com/chusiang/coscup2017-cd-demo/-/jobs/26274225
+    - chmod 755 penguin-htdocs/DEBIAN
+
+    - dpkg -b penguin-htdocs
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - penguin-htdocs.deb
+  tags:
+    - docker
+
+deploy_to_dev: 
+  image: registry.gitlab.com/chusiang/continuous-delivery-workshop/ansible:2.4.1
+  stage: deploy
+  script:
+    - ls
+    - cd ansible-playbooks/
+    - echo "${VAULT_KEY}" > secret.txt
+    - ansible-playbook deploy.yml
+    - rm -f secret.txt
+  only:
+    - master@chusiang/continuous-delivery-workshop
+    - develop@chusiang/continuous-delivery-workshop
+    - tags@chusiang/continuous-delivery-workshop
+  tags:
+    - docker
+  environment:
+    name: staging
+    url: http://stg.cdws.drx.tw
+
+test_dev: 
+  image: registry.gitlab.com/chusiang/continuous-delivery-workshop/ansible:2.4.1
+  stage: test
+  script:
+    - cd ansible-playbooks/
+    - echo "${VAULT_KEY}" > secret.txt
+    - ansible-playbook test.yml
+    - rm -f secret.txt
+  only:
+    - master@chusiang/continuous-delivery-workshop
+    - develop@chusiang/continuous-delivery-workshop
+    - tags@chusiang/continuous-delivery-workshop
+  tags:
+    - docker
+  environment:
+    name: staging
+    url: http://stg.cdws.drx.tw:10080
+
+release_to_prd: 
+  image: registry.gitlab.com/chusiang/continuous-delivery-workshop/ansible:2.4.1
+  stage: release
+  script:
+    - cd ansible-playbooks/
+    - echo "${VAULT_KEY}" > secret.txt
+    - ansible-playbook -i production deploy.yml
+    - rm -f secret.txt
+  only:
+    - master@chusiang/continuous-delivery-workshop
+    - tags@chusiang/continuous-delivery-workshop
+  tags:
+    - docker
+  environment:
+    name: production
+    url: http://cdws.drx.tw
+
+# vim: ft=yaml :
+

@@ -1,0 +1,200 @@
+image: openjdk:8-jdk
+
+variables:
+  ANDROID_SDK_TOOLS_VERSION: "https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip" # Latest version of "Android command line tools" at the end of https://developer.android.com/studio/index.html
+  ANDROID_SDK_TOOLS_CHECKSUM: "444e22ce8ca0f67353bda4b85175ed3731cae3ffa695ca18119cbacef1c1bea0" # SHA-256 checksum of "Android command line tools"
+  ANDROID_HOME: "./android-sdk-linux"
+
+stages:
+  - build
+  - test
+  - package
+
+
+####################################################################################################
+# BUILD
+#
+.build_template: &build_template_def
+  stage: build
+  artifacts:
+    expire_in: 4 hours
+    paths:
+    - meetu-android/app/build/outputs/
+    - .android/
+
+  before_script:
+    # Extract the SDK version that we're building against
+    - export ANDROID_COMPILE_SDK=`egrep '^[[:blank:]]+compileSdkVersion'  meetu-android/app/build.gradle | awk '{print $2}'`
+
+    # Explict output for logging purpose only
+    - echo $ANDROID_COMPILE_SDK
+
+    # Fetch the specified SDK tools version to build with
+    - wget --output-document=/tmp/sdk-tools-linux.zip https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip
+    - unzip /tmp/sdk-tools-linux.zip -d .android
+
+    # Set up environment variables
+    - export ANDROID_HOME=$PWD/.android
+    - export PATH=$PATH:$PWD/.android/platform-tools/
+
+    # Install platform tools and Android SDK for the compile target
+    - echo y | .android/tools/bin/sdkmanager "platforms;android-${ANDROID_COMPILE_SDK}"
+
+    - chmod +x meetu-android/gradlew
+    - cd meetu-android
+
+build_debug:
+  <<: *build_template_def
+  except:
+    - master
+  script:
+    - ./gradlew assembleDebug
+
+build_release:
+  <<: *build_template_def
+  only:
+    - master
+  script:
+    - ./gradlew assembleRelease
+
+####################################################################################################
+# UNIT TESTING
+#
+.unit_test_template: &unit_test_android_template_def
+  stage: test 
+  artifacts: 
+    paths: 
+      - meetu-android/codeCoverageReport
+
+  before_script: 
+    - export MINIMUM_COVERAGE=100 
+    - export ANDROID_HOME=$PWD/.android 
+    - export PATH=$PATH:$PWD/.android/platform-tools/ 
+    - apt-get update 
+    - apt-get install bc
+    - cd meetu-android
+
+unit_test_android_debug: 
+  <<: *unit_test_android_template_def 
+  except: 
+    - master
+
+  script:
+    - test `./gradlew lint | grep "0 issues" | wc -l` = `./gradlew lint | grep "issues" | wc -l` 
+    - ./gradlew clean test jacocoTestReport --stacktrace 
+    - mv app/build/reports/jacoco/jacocoTestReport ./codeCoverageReport
+    - MISSED_COUNT=`cat ./codeCoverageReport/jacocoTestReport.xml | grep -Po '<counter type="INSTRUCTION"[^>]*>' | tail -n 1 | cut -d '"' -f 4`
+    - COVERED_COUNT=`cat ./codeCoverageReport/jacocoTestReport.xml | grep -Po '<counter type="INSTRUCTION"[^>]*>' | tail -n 1 | cut -d '"' -f 6` 
+    - COVERAGE=`bc -l <<< "100.0 * $COVERED_COUNT / ( $MISSED_COUNT + $COVERED_COUNT )"` 
+    - 'echo "Code coverage result: ($(printf "%.2f" $COVERAGE)%) covered from minimum of $MINIMUM_COVERAGE%"'
+
+unit_test_android_release: 
+  <<: *unit_test_android_template_def
+  only: 
+    - master
+
+  script:
+    - test `./gradlew lint | grep "0 issues" | wc -l` = 2 
+    - ./gradlew clean test jacocoTestReport --stacktrace 
+    - mv app/build/reports/jacoco/jacocoTestReport ./codeCoverageReport  
+    - MISSED_COUNT=`cat ./codeCoverageReport/jacocoTestReport.xml | grep -Po '<counter type="INSTRUCTION"[^>]*>' | tail -n 1 | cut -d '"' -f 4` 
+    - COVERED_COUNT=`cat ./codeCoverageReport/jacocoTestReport.xml | grep -Po '<counter type="INSTRUCTION"[^>]*>' | tail -n 1 | cut -d '"' -f 6` 
+    - COVERAGE=`bc -l <<< "100.0 * $COVERED_COUNT / ( $MISSED_COUNT + $COVERED_COUNT )"` 
+    - 'echo "Code coverage result: ($(printf "%.2f" $COVERAGE)%) covered from minimum of $MINIMUM_COVERAGE%"'
+    - test `bc <<< "$COVERAGE>=$MINIMUM_COVERAGE"` = 1
+
+unit_test_backend_debug:
+  image: python:3.5
+  stage: test
+  except:
+    - master
+  script:
+    - export MINIMUM_COVERAGE=100
+    - pip install -r requirements.txt
+    - cd meetu-backend
+    - coverage run manage.py test meetu_backend.tests
+    - COVERAGE=`coverage report | tail -n 1 | rev | cut -d ' ' -f 1 | rev | cut -d '%' -f 1`
+    - 'echo "Code coverage result: ($(printf "%.2f" $COVERAGE)%) covered from minimum of $MINIMUM_COVERAGE%"'
+
+unit_test_backend_release:
+  image: python:3.5
+  stage: test
+  only:
+    - master
+  before_script:
+    - apt-get update
+    - apt-get install bc
+  script:
+    - export MINIMUM_COVERAGE=100
+    - pip install -r requirements.txt
+    - cd meetu-backend
+    - coverage run manage.py test meetu_backend.tests
+    - COVERAGE=`coverage report | tail -n 1 | rev | cut -d ' ' -f 1 | rev | cut -d '%' -f 1`
+    - 'echo "Code coverage result: ($(printf "%.2f" $COVERAGE)%) covered from minimum of $MINIMUM_COVERAGE%"'
+    - test `bc <<< "$COVERAGE>=$MINIMUM_COVERAGE"` = 1
+    
+####################################################################################################
+# PACKAGE APK FOR DOWNLOADING
+#
+
+.package_template: &package_template_def
+  stage: package
+  before_script:
+    - export VERSION_NAME=`egrep '^[[:blank:]]+versionName[[:blank:]]'  meetu-android/app/build.gradle | awk '{print $2}' | sed s/\"//g`
+    - export VERSION_CODE=`egrep '^[[:blank:]]+versionCode[[:blank:]]'  meetu-android/app/build.gradle | awk '{print $2}'`
+    - cd meetu-android
+    - mkdir -p deliverables
+
+    # Store some information about the build
+    - touch ./deliverables/info.txt
+    - echo "Build date          $(date)"                >> ./deliverables/info.txt
+    - echo "App version name    ${VERSION_NAME}"        >> ./deliverables/info.txt
+    - echo "App version code    ${VERSION_CODE}"        >> ./deliverables/info.txt
+    - echo "Git branch          ${CI_COMMIT_REF_NAME}"  >> ./deliverables/info.txt
+    - echo "Git commit          ${CI_COMMIT_SHA}"       >> ./deliverables/info.txt
+    - echo "Gitlab pipeline     ${CI_PIPELINE_ID}"      >> ./deliverables/info.txt
+
+package_develop:
+  <<: *package_template_def
+  environment: development
+  only:
+    - sit_uat
+  script:
+    - mv app/build/outputs/apk/debug/app-debug.apk ./deliverables/MeetU-v$VERSION_NAME-$VERSION_CODE-debug.apk
+  artifacts:
+    expire_in: 3 days
+    paths:
+    - meetu-android/deliverables
+
+package_release:
+  <<: *package_template_def
+  environment: production
+  only:
+    - master
+  script:
+    - mv app/build/outputs/apk/release/app-release.apk ./deliverables/MeetU-v$VERSION_NAME-$VERSION_CODE-release.apk
+  artifacts:
+    expire_in: 4 weeks
+    paths:
+    - meetu-android/deliverables
+
+deploy_staging:
+  stage: package
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=meetu-backend-dev --api-key=$HEROKU_API_KEY
+  only:
+    - sit_uat
+
+deploy_production:
+  stage: package
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=meetu-backend --api-key=$HEROKU_API_KEY
+  only:
+    - master
+

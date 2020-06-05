@@ -1,0 +1,40 @@
+stages:
+  - build
+  - generate_docs
+
+build_libadblockplus:nix:
+  stage: build
+  before_script:
+    # It seems gitlab does not create fully-fledged .git directory but we utilize .git/info/exclude
+    # directly in ensure_dependencies.py and therefore we have to provide the directory path.
+    - mkdir -p .git/info
+  script:
+    - export MAKEFLAGS="-j $(grep -c ^processor /proc/cpuinfo)"
+    - bash .travis/nix-script.sh
+
+build_libadblockplus:android:
+  stage: build
+  variables:
+    WGET_FLAGS: "--quiet"
+  before_script:
+    - mkdir -p .git/info
+  script:
+    - export ADDITIONALMAKEFLAGS="-j $(grep -c ^processor /proc/cpuinfo)"
+    - export ANDROID_NDK_ROOT="/third_party/android-ndk-r16b" #NDK is part of the docker image
+    - export V8_COMMIT=$(grep -m1 -o 'V8_COMMIT=.*' .travis.yml | cut -f2- -d= | cut -f1 -d\ )
+    - export URL_PREFIX="https://v8.eyeofiles.com/v8-$V8_COMMIT/"
+    - bash .travis/android-script.sh
+
+pages:
+  stage: generate_docs
+  script:
+  - doxygen
+  # https://docs.gitlab.com/ce/user/project/pages/getting_started_part_four.html#the-public-directory
+  # gitlab *requires* the directory to be named 'public'
+  - mv docs/html public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

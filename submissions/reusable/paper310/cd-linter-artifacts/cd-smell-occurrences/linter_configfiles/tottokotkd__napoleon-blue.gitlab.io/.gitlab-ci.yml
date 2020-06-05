@@ -1,0 +1,79 @@
+# This file is a template, and might need editing before it works on your project.
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:latest
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+    - node_modules/
+
+stages:
+  - build
+  - test
+  - deploy
+  - pages
+
+review_build:
+  stage: build
+  script:
+    - echo "module.exports = '$CI_BUILD_REF_NAME';" > pathPrefix.js
+    - yarn install
+    - npm run build || true && npm run clean
+    - npm run review_build
+  artifacts:
+    paths:
+      - public
+  except:
+    - develop
+    - master
+
+build:
+  stage: build
+  script:
+    - echo "module.exports = '/$CI_BUILD_REF_NAME';" > pathPrefix.js
+    - yarn install
+    - npm run build || true && npm run clean
+    - npm run build
+  artifacts:
+    paths:
+      - public
+  only:
+    - develop
+    - master
+
+review deploy:
+  stage: deploy
+  image: python:latest
+  environment: review
+  script:
+    - pip install awscli
+    - aws s3 cp ./public s3://$S3_BUCKET_NAME/$CI_BUILD_REF_NAME --recursive
+  only:
+    - /^text\/.*$/
+    - /^feature\/.*$/
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+
+deploy:
+  stage: deploy
+  image: python:latest
+  environment: staging
+  script:
+    - pip install awscli
+    - aws s3 cp ./public s3://$S3_BUCKET_NAME/ --recursive
+  only:
+    - develop
+
+pages:
+  stage: pages
+  environment: production
+  script:
+    - echo "publish done."
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

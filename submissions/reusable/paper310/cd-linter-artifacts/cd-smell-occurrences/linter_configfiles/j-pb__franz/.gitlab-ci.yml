@@ -1,0 +1,21 @@
+image: heliosmaster/franz
+
+before_script:
+  - lein deps
+
+test:
+  stage: test
+  script:
+  - lein doo phantom once
+
+
+pages:
+  stage: deploy
+  script:
+  - lein codox
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

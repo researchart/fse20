@@ -1,0 +1,20 @@
+image: docker:latest
+
+services:
+  - docker:dind
+variables:
+  DOCKER_DRIVER: overlay
+
+variables:
+  IMAGE: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+  - docker build -t ${IMAGE} .
+  - docker login -p ${CI_REGISTRY_PASSWORD} -u ${CI_REGISTRY_USER} ${CI_REGISTRY}
+  - docker push ${IMAGE}
+

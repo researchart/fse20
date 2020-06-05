@@ -1,0 +1,61 @@
+image: docker:git
+
+services:
+  - docker:dind
+
+stages:
+  - test
+  - release_base
+  - release_other
+
+variables:
+  DOCKER_DRIVER: 'overlay'
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+
+test:
+  stage: test
+  script:
+    - echo 'Pending!'
+
+.release_scripts: &release_scripts
+  only:
+    - master
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build -t $IMAGE_NAME -f $IMAGE_DIR/Dockerfile $IMAGE_DIR/
+    - docker push $IMAGE_NAME
+
+.release_base_scripts: &release_base_image
+  stage: release_base
+  before_script:
+    - set -- $CI_BUILD_NAME
+    - export RUBY_VERSION=$2
+    - export IMAGE_DIR=base
+    - export IMAGE_NAME=$CI_REGISTRY_IMAGE:$RUBY_VERSION
+    - cp $IMAGE_DIR/Dockerfile.template $IMAGE_DIR/Dockerfile
+    - sed -i "s@ruby:ruby_version@ruby:$RUBY_VERSION@g" $IMAGE_DIR/Dockerfile
+  <<: *release_scripts
+
+.release_other: &release_other_image
+  stage: release_other
+  before_script:
+    - set -- $CI_BUILD_NAME
+    - export RUBY_VERSION=$2
+    - export EXTENDED_NAME=$3
+    - export IMAGE_DIR=$EXTENDED_NAME
+    - export BASE_IMAGE_NAME=$CI_REGISTRY_IMAGE:$RUBY_VERSION
+    - export IMAGE_NAME=$BASE_IMAGE_NAME-$EXTENDED_NAME
+    - cp $IMAGE_DIR/Dockerfile.template $IMAGE_DIR/Dockerfile
+    - sed -i  "s@base_image_name@$BASE_IMAGE_NAME@g" $IMAGE_DIR/Dockerfile
+  <<: *release_scripts
+
+release 2.1: *release_base_image
+release 2.3: *release_base_image
+
+release 2.1 google-chrome: *release_other_image
+release 2.1 firefox: *release_other_image
+
+release 2.3 google-chrome: *release_other_image
+

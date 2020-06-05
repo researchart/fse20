@@ -1,0 +1,16 @@
+image: python:3.6
+
+stages:
+  - test
+
+luacheck:
+  stage: test
+  script:
+  - apt-get update
+  - apt-get install -y zip unzip
+  - pip install hererocks
+  - hererocks lua_install -l 5.1 -r latest
+  - export PATH=$PATH:$PWD/lua_install/bin
+  - luarocks install luacheck
+  - luacheck plugin
+

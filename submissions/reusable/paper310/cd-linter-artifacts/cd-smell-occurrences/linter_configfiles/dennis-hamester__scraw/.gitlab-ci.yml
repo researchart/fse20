@@ -1,0 +1,41 @@
+image: ubuntu:wily
+
+before_script:
+  - apt-get -y update >/dev/null
+  - apt-get -y install build-essential pkg-config cmake libusb-1.0-0-dev >/dev/null
+
+stages:
+  - build
+  - deploy_docs
+
+build_job:
+  stage: build
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DBUILD_SCRAW_INFO=ON -DBUILD_DOCS=OFF ..
+    - make
+
+pages:
+  stage: deploy_docs
+  script:
+    - apt-get -y install doxygen emacs-nox >/dev/null
+    - mkdir build
+    - cd build
+    - cmake -DBUILD_SCRAW_INFO=OFF -DBUILD_DOCS=ON ..
+    - make doc
+    - cd ..
+    - mv build/doc/html public
+    - cd protocol
+    - ./export.el
+    - mkdir protocol
+    - mv protocol.html protocol/index.html
+    - cp -r styles protocol/
+    - cd ..
+    - mv protocol/protocol public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

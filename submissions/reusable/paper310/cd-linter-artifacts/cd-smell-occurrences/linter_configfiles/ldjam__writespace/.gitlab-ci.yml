@@ -1,0 +1,63 @@
+image: python:2.7-alpine
+
+variables:
+  LOVE_VERSION: "11.1"
+  LOVEJS_DIR: /tmp/love.js
+
+stages:
+- build
+- deploy
+
+build-html:
+  stage: build
+  before_script:
+  - apk update
+  - apk add git
+  - git clone https://github.com/TannerRogalsky/love.js.git $LOVEJS_DIR
+  - rm -rf $LOVEJS_DIR/emscripten && git clone https://github.com/kripken/emscripten.git $LOVEJS_DIR/emscripten
+  - cp .emscripten ~/.emscripten
+  script:
+  - cd $LOVEJS_DIR/release-compatibility
+  - python ../emscripten/tools/file_packager.py game.data --preload "$CI_PROJECT_DIR@/" --js-output=game.js
+  - mv $LOVEJS_DIR/release-compatibility $CI_PROJECT_DIR/html
+  - sed "s|Game Title|$CI_PROJECT_NAME|" --in-place $CI_PROJECT_DIR/html/index.html
+  artifacts:
+    paths:
+    - html
+
+build-love:
+  stage: build
+  before_script:
+  - apk update
+  - apk add curl
+  - apk add zip
+  - apk add unzip
+  script:
+  - zip -9 -r $CI_PROJECT_PATH_SLUG.love . -x \*.git\*
+  - curl --location https://bitbucket.org/rude/love/downloads/love-$LOVE_VERSION-win32.zip --output love-win32.zip
+  - unzip love-win32.zip
+  - mkdir win32
+  - cp love-$LOVE_VERSION.0-win32/*.dll love-$LOVE_VERSION.0-win32/license.txt win32
+  - cat love-$LOVE_VERSION.0-win32/love.exe $CI_PROJECT_PATH_SLUG.love > win32/$CI_PROJECT_PATH_SLUG.exe
+  - cd win32
+  - zip -9 -r "../$CI_PROJECT_PATH_SLUG-win32.zip" .
+  artifacts:
+    paths:
+    - '*.love'
+    - '*-win32.zip'
+
+pages:
+  stage: deploy
+  script:
+  - mv html/ public/
+  - mkdir public/downloads/
+  - mv $CI_PROJECT_PATH_SLUG.love public/downloads/
+  - mv $CI_PROJECT_PATH_SLUG-win32.zip public/downloads/
+  - cd public/downloads/
+  - for file in *; do echo "<li><a href=\"$file\">$file</a></li>" >> index.html; done
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

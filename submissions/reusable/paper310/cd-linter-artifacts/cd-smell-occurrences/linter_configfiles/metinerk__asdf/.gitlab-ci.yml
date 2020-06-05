@@ -1,0 +1,18 @@
+image: node:8
+stages:
+  - deploy
+
+deploy:
+  stage: deploy
+  script:
+    - apt-get update && apt-get install -y lftp
+    - npm install --unsafe-perm -g @angular/cli@1.7.0
+    - npm install --unsafe-perm
+    - npm install typescript@latest
+    - ng build —prod —aot=false —build-optimizer=false
+    - mkdir ~/.lftp/
+    - echo "set ssl:verify-certificate no" >> ~/.lftp/rc
+    - lftp -c "set ftp:ssl-allow no; open -u $FTP_USERNAME,$FTP_PASSWORD $FTP_HOST; mirror -Rev dist/ ./  --ignore-time --parallel=10 --exclude-glob .git* --exclude .git/"
+  except:
+    - tags
+

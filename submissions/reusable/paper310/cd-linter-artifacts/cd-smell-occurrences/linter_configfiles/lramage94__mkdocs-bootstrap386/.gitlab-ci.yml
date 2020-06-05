@@ -1,0 +1,18 @@
+include:
+  template: Dependency-Scanning.gitlab-ci.yml
+
+image: python:alpine
+
+before_script:
+  - apk update && apk add make
+  - pip install -r requirements.txt
+
+pages:
+  script:
+    - make install
+    - mkdocs build
+    - mv site public
+  artifacts:
+    paths:
+      - public
+

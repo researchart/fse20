@@ -1,0 +1,20 @@
+image: debian:jessie
+
+test:
+  script:
+    - apt update && apt install -yq curl
+    - curl https://packages.chef.io/files/stable/chefdk/1.3.43/debian/8/chefdk_1.3.43-1_amd64.deb -o /tmp/chefdk.deb
+    - dpkg -i /tmp/chefdk.deb
+    - chef exec rspec
+
+integration_test:
+  image: docker:latest
+  services:
+  - docker:dind
+  script:
+    - 'echo gem: --no-document > $HOME/.gemrc'
+    - apk update
+    - apk add build-base git libffi-dev ruby-dev ruby-bundler
+    - gem install kitchen-docker kitchen-inspec berkshelf
+    - kitchen test
+

@@ -1,0 +1,14 @@
+image: node:11-alpine
+
+pages:
+  stage: deploy
+  script:
+    - yarn install
+    - yarn start build
+    - mv dist public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

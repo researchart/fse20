@@ -1,0 +1,23 @@
+zip:
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - echo -n "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - git config --global user.email "dark@darkrotations.com"
+    - git config --global user.name "Dark"
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+  script:
+    - git clone git@gitlab.com:dark_rotations/dark_addon.git
+    - cd dark_addon
+    - sed -e "s/\${i}/$(git rev-list --count HEAD)/" system/support/init_template.lua > system/support/init.lua
+    - git add .
+    - git commit -m "[ci skip] release r$(git rev-list --count HEAD)"
+    - git archive --format zip --prefix=dark_addon/ --output dark_addon.zip HEAD
+    - git push -u origin master
+  artifacts:
+    name: "dark_addon"
+    paths:
+    - dark_addon/dark_addon.zip
+

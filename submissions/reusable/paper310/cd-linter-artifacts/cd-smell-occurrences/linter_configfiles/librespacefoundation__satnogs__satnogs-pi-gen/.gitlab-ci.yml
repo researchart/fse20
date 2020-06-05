@@ -1,0 +1,44 @@
+variables:
+  GITLAB_CI_IMAGE_DOCKER: 'docker:18.09'
+  DOCKER_DRIVER: overlay2
+image: ${GITLAB_CI_IMAGE_DOCKER}
+services:
+  - ${GITLAB_CI_IMAGE_DOCKER}-dind
+before_script:
+  - apk --update add bash
+default:
+  stage: build
+  script:
+    - |
+      echo "IMG_NAME='Raspbian-SatNOGS-${CI_COMMIT_REF_NAME}'
+      ENABLE_SSH=1" > config
+    - touch ./stage3/SKIP ./stage4/SKIP ./stage5/SKIP
+    - rm stage2/EXPORT_NOOBS stage4/EXPORT* stage5/EXPORT*
+    - bash build-docker.sh
+    - (cd deploy; sha256sum *.info image*.zip > sha256sums)
+  except:
+    - tags
+  artifacts:
+    expire_in: 4 weeks
+    paths:
+      - deploy/*.info
+      - deploy/image*.zip
+      - deploy/sha256sums
+release:
+  stage: build
+  script:
+    - |
+      echo "IMG_NAME='Raspbian-SatNOGS'
+      ENABLE_SSH=1" > config
+    - touch ./stage3/SKIP ./stage4/SKIP ./stage5/SKIP
+    - rm stage2/EXPORT_NOOBS stage4/EXPORT* stage5/EXPORT*
+    - bash build-docker.sh
+    - (cd deploy; sha256sum *.info image*.zip > sha256sums)
+  only:
+    - tags
+  artifacts:
+    paths:
+      - deploy/*.info
+      - deploy/image*.zip
+      - deploy/sha256sums
+

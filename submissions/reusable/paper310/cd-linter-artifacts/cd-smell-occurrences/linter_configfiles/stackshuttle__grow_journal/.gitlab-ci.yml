@@ -1,0 +1,24 @@
+image: "elixir"
+services:
+  - "postgres:latest"
+
+variables:
+  POSTGRES_DB: grow_journal_test
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: ""
+  POSTGRES_HOST: postgres 
+  MIX_ENV: test
+
+before_script:
+  - apt-get update
+  - apt-get install -y build-essential postgresql-client git
+  - mix local.hex --force
+  - mix local.rebar
+  - mix deps.get
+  - mix ecto.create
+  - mix ecto.migrate
+
+test:
+  script:
+    - mix test
+

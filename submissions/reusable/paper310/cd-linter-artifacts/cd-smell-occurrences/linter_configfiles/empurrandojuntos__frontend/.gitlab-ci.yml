@@ -1,0 +1,88 @@
+---
+image: docker:17.09-git
+
+services:
+  - docker:17.09-dind
+
+stages:
+  - build
+  - test
+  - deploy
+
+
+variables:
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+
+test:
+  stage: test
+  script:
+    - docker run --rm -v $PWD:/app -w /app node:8 npm install
+
+    # Test basic application build first
+    - docker run --rm -v $PWD:/app -w /app node:8 ./node_modules/.bin/ng build --prod --environment=homolog --output-path dist/empurrandojuntos --deploy-url /
+
+    # Now, proceed with regular automated testing
+    - docker run --rm -v $PWD:/app -w /app node:8 ./node_modules/.bin/ng test --code-coverage --single-run
+  tags:
+    - docker
+
+
+build to homolog:
+  stage: build
+  script:
+    - docker run --rm -v $PWD:/app -w /app node:8 npm install
+    - docker run --rm -v $PWD:/app -w /app node:8 ./node_modules/.bin/ng build --prod --environment=homolog --output-path dist/empurrandojuntos --deploy-url /
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker create --name frontend nginx
+    - docker cp dist/empurrandojuntos/. frontend:/usr/share/nginx/html/
+    - docker cp compose/production/nginx/default.conf frontend:/etc/nginx/conf.d/default.conf
+    - docker commit frontend $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+    - docker push $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+  environment: homolog
+  tags:
+    - docker
+  only:
+    - master
+
+build to production:
+  stage: build
+  script:
+    - docker run --rm -v $PWD:/app -w /app node:8 npm install
+    - docker run --rm -v $PWD:/app -w /app node:8 ./node_modules/.bin/ng build --prod --environment=prod --output-path dist/empurrandojuntos --deploy-url /
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker create --name frontend nginx
+    - docker cp dist/empurrandojuntos/. frontend:/usr/share/nginx/html/
+    - docker cp compose/production/nginx/default.conf frontend:/etc/nginx/conf.d/default.conf
+    - docker commit frontend $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+    - docker tag $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+    - docker push $CI_REGISTRY_IMAGE:latest
+  environment: production
+  tags:
+    - docker
+  only:
+    - tags
+
+
+deploy to homolog:
+  stage: deploy
+  image: cdrx/rancher-gitlab-deploy
+  script:
+    - upgrade --environment FPAbramo --stack brasilqueopovoquer-empurrandojuntos-dev --service frontend --no-finish-upgrade
+  environment: homolog
+  tags:
+    - docker
+  only:
+    - master
+
+deploy to production:
+  stage: deploy
+  image: cdrx/rancher-gitlab-deploy
+  script:
+    - upgrade --environment FPAbramo --stack empurrandojuntos-prod --service frontend --no-finish-upgrade
+  environment: production
+  tags:
+    - docker
+  only:
+    - tags
+

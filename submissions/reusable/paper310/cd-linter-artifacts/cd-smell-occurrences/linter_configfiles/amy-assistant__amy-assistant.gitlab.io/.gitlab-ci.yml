@@ -1,0 +1,20 @@
+image: alpine:latest
+
+ipax:
+  stage: deploy
+  script:
+  - apk --no-cache add lftp
+  - lftp -c "set ftp:ssl-allow no; open -u $FTP_USERNAME,$FTP_PASSWORD $HOST; mirror -Rnev ./public . --ignore-time --parallel=10"
+  only:
+  - master
+
+pages:
+  stage: deploy
+  script:
+  - echo 'Nothing to do...'
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

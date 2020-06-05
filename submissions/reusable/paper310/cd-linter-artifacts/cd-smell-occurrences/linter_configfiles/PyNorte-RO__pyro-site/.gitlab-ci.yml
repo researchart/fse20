@@ -1,0 +1,10 @@
+image: python:3.6.5
+
+before_script:
+  - python -V
+  - pip install -r requirements.txt
+
+test:
+  script:
+  - pytest --cov=web tests
+

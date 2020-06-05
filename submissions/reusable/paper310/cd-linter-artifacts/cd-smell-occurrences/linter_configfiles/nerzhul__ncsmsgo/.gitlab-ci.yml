@@ -1,0 +1,36 @@
+---
+image: golang:1.12.0
+
+stages:
+  - build
+
+build:
+  stage: build
+  variables:
+    ANDROID_NDK_VERSION: r18b
+    ANDROID_SDK_TOOLS: 4333796
+    ANDROID_COMPILE_SDK: 28
+  before_script:
+    # Android part
+    - apt-get update -qy > /dev/null
+    - apt-get install wget unzip openjdk-8-jdk -qy > /dev/null
+    - wget --quiet --output-document=/tmp/sdk-tools-linux.zip https://dl.google.com/android/repository/sdk-tools-linux-${ANDROID_SDK_TOOLS}.zip
+    - wget --quiet --output-document=/tmp/android-ndk-linux.zip https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux-x86_64.zip
+    - unzip /tmp/sdk-tools-linux.zip -d .android > /dev/null
+    - unzip /tmp/android-ndk-linux.zip -d .android/ndk > /dev/null
+    - export ANDROID_HOME=$PWD/.android
+    - export PATH=$PATH:$PWD/.android/platform-tools/:$GOPATH/bin
+    - echo y | .android/tools/bin/sdkmanager "platforms;android-${ANDROID_COMPILE_SDK}"
+    # Gomobile part
+    - go get -u golang.org/x/mobile/cmd/gomobile
+    - $GOPATH/bin/gomobile init -ndk .android/ndk/android-ndk-${ANDROID_NDK_VERSION}
+    - mkdir -p $GOPATH/src/gitlab.com/nerzhul
+    - ln -s $(pwd) $GOPATH/src/gitlab.com/nerzhul/ncsmsgo
+  script:
+    - $GOPATH/bin/gomobile bind -o ncsmsgo.aar -target=android gitlab.com/nerzhul/ncsmsgo
+  artifacts:
+    when: on_success
+    expire_in: 3 months
+    paths:
+      - ncsmsgo.aar
+

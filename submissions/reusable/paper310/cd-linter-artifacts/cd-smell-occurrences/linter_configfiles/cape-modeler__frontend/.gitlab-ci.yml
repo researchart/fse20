@@ -1,0 +1,53 @@
+image: registry.gitlab.com/cape-modeler/frontend:latest
+
+
+stages:
+  - lint
+  - test
+  - after
+  - deploy
+
+
+lint:
+  stage: lint
+  before_script:
+      - cp -R /app/node_modules .
+  script:
+      - npm run lint -- --no-fix
+
+unit:
+  stage: test
+  before_script:
+      - cp -R /app/node_modules .
+      - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+      - chmod +x ./cc-test-reporter
+      - ./cc-test-reporter before-build
+  script:
+      - npm run test:unit -- --ci
+  after_script:
+      - ./cc-test-reporter after-build
+  artifacts:
+      paths:
+        - coverage
+
+e2e:
+  stage: test
+  before_script:
+      - cp -R /app/node_modules .
+  script:
+      - npm run test:e2e -- --headless --record --key $CYPRESS_RECORD_KEY
+
+pages:
+  stage: deploy
+  before_script:
+    - cp -R /app/node_modules .
+  script:
+    - npm run build
+    - mv public public-vue # GitLab Pages hooks on the public folder
+    - mv dist public # rename the dist folder (result of npm run build)
+  artifacts:
+    paths:
+      - public
+  only:
+    - tags
+

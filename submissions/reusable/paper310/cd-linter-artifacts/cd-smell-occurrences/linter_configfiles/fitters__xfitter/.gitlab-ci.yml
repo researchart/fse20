@@ -1,0 +1,34 @@
+image: "gitlab-registry.cern.ch/fitters/xfitter"
+
+cache:
+  paths: 
+    - deps
+
+stages:
+  - commit
+  - nightly
+
+before_script:
+  - yum -y install yum-plugin-ovl
+  - yum -y install which yaml-cpp-devel libyaml-devel gsl-devel
+  - . ./scripts/setup.sh
+  - ./scripts/install-deps.sh
+
+job:
+  stage: commit
+  script:
+    - ./scripts/test-build.sh
+  only:
+    - master
+  except:
+    - triggers
+
+nightly_devel:
+  stage: nightly
+  script:
+    - ./scripts/test-build.sh
+    - ./scripts/test-build.sh apfel applgrid lhapdf
+  only:
+    - devel
+    - triggers
+

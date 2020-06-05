@@ -1,0 +1,20 @@
+master:
+  image: python:3.7
+  script:
+    - apt-get update -qy
+    - apt-get install -qy libopenblas-dev libscalapack-mpi-dev libxc-dev > apt-get.output
+    - pip install flake8 mypy pytest
+    - pip install git+https://gitlab.com/ase/ase.git@master > ase-install.output
+    - mkdir ~/.gpaw
+    - echo "scalapack = True; libraries += ['scalapack-openmpi']" > ~/.gpaw/siteconfig.py
+    - python setup.py install > gpaw-install.output
+    - useradd -m user
+    - su user -c 'gpaw install-data --register gpaw-datasets'
+    - su user -c 'gpaw -P 1 info'
+    - su user -c 'pytest -v -m ci'
+    - flake8 --exit-zero --exclude "doc/platforms/*,gpaw/lrtddft2/*" gpaw doc > f8.out
+    - cat f8.out | wc -l | tee nerr
+    - python -c "assert int(open('nerr').read()) <= 2579, 'Please run flake8 on your code'"
+    - python -We:invalid -m compileall -f -q gpaw/
+    - mypy -p gpaw
+

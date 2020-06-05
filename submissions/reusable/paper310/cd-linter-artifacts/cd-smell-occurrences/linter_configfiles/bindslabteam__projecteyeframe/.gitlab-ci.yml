@@ -1,0 +1,17 @@
+image: debian:jessie-backports
+
+before_script:
+    - apt-get update -qq && apt-get install -y -qq openjdk-8-jdk openjfx git
+
+capsule:
+    only:
+        - master
+        - dev
+    script:
+        - git submodule update --init --recursive
+        - ./gradlew fatCapsule
+    artifacts:
+        name: "${CI_BUILD_NAME}_${CI_BUILD_REF_NAME}"
+        paths:
+            - build/libs/*-capsule.jar
+

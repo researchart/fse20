@@ -1,0 +1,84 @@
+variables:
+  NPMRC: |
+    //registry.npmjs.org/:_authToken=${NPM_TOKEN}
+  USEREMAIL: 4geit.gitlab.releaser@gmail.com
+  USERNAME: 4geit.gitlab.releaser
+stages:
+  - test
+  - release
+  - deploy
+  - fresh-deploy
+test:
+  stage: test
+  image: registry.gitlab.com/4geit/docker/lerna
+  # when: manual
+  services:
+    - name: mongo
+      alias: db
+  before_script:
+    # install dependencies
+    - yarn
+  script:
+    - yarn lint && yarn test:nowatch
+  only:
+    - branches@4geit/swagger-packages
+  except:
+    - master@4geit/swagger-packages
+    - production@4geit/swagger-packages
+release:
+  stage: release
+  image: registry.gitlab.com/4geit/docker/lerna
+  before_script:
+    # check if version already released
+    - >
+      if [ "$(git log --pretty=%an -1)" = "$USERNAME" ]; then
+        echo 'This version has been already released!'
+        exit
+      fi
+    # go to the master branch
+    - git checkout master
+    # override the git URL with the GITLAB_PERSONAL_ACCESS_TOKEN
+    - git remote set-url origin https://git:${GITLAB_PERSONAL_ACCESS_TOKEN}@gitlab.com/${CI_PROJECT_PATH}.git
+    # add releaser info
+    - git config --global user.email "$USEREMAIL"
+    - git config --global user.name "$USERNAME"
+    # add .npmrc file to each package
+    - >
+      for package in ./packages/*; do
+        echo $NPMRC | envsubst > $package/.npmrc
+      done
+  script:
+    # publish
+    - lerna publish --conventional-commits --yes
+  only:
+    - master@4geit/swagger-packages
+deploy:
+  stage: deploy
+  image: registry.gitlab.com/4geit/docker/docker-compose
+  environment:
+    name: staging
+    url: http://swagger-packages.vc1s.4ge.it
+  script:
+    # destroy, rebuild and relaunch the container
+    - docker-compose down
+    - docker-compose build
+    - docker-compose up -d
+  only:
+    - tags@4geit/swagger-packages
+# this CI job is manually triggerable in order to remove the DB before deploying
+fresh-deploy:
+  stage: deploy
+  when: manual
+  image: registry.gitlab.com/4geit/docker/docker-compose
+  environment:
+    name: staging
+    url: http://swagger-packages.vc1s.4ge.it
+  script:
+    # destroy, rebuild and relaunch the container
+    # the down command also removes the DB volumes
+    - docker-compose down --volumes
+    - docker-compose build
+    - docker-compose up -d
+  only:
+    - tags@4geit/swagger-packages
+

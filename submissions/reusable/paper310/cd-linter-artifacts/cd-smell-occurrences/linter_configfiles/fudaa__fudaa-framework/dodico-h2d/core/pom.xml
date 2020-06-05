@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.fudaa.business.dodico-h2d</groupId>
+        <artifactId>dodico-h2d</artifactId>
+        <version>2.6-SNAPSHOT</version>
+    </parent>
+    <artifactId>h2d-core</artifactId>
+    <name>Core h2d</name>
+    <dependencies>
+        <dependency>
+            <groupId>org.fudaa.business.fudaa-ef</groupId>
+            <artifactId>ef-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.framework.ctulu</groupId>
+            <artifactId>ctulu-gis</artifactId>
+            <scope>test</scope>
+            <type>test-jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.framework.fudaa.fudaa-dico</groupId>
+            <artifactId>dico-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.business.fudaa-ef</groupId>
+            <artifactId>ef-core</artifactId>
+            <scope>test</scope>
+            <type>test-jar</type>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
+

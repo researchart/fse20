@@ -1,0 +1,28 @@
+image: ubuntu
+
+build:
+  stage: build
+  before_script:
+    - apt update && apt -y install g++ make libyaml-cpp-dev
+  script:
+    - make noMEGAlib
+
+debug-build:
+  stage: build
+  before_script:
+    - apt update && apt -y install g++ git make libyaml-cpp-dev libdw-dev
+  script:
+    - make debug-noMEGAlib
+
+pages:
+  only:
+    refs:
+      - master
+  stage: deploy
+  script:
+    - apt update && apt -y install make autoconf g++ doxygen doxygen-doc doxygen-latex doxygen-gui libyaml-cpp-dev
+    - doxygen Doxyfile
+  artifacts:
+    paths:
+      - public
+

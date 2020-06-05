@@ -1,0 +1,110 @@
+image: docker:latest
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - release
+  - staging
+  - production
+
+variables:
+  DOCKER_DRIVER: overlay
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t $CI_REGISTRY_IMAGE:$CI_BUILD_REF .
+    - docker push $CI_REGISTRY_IMAGE:$CI_BUILD_REF
+  except:
+    - tags
+
+test1:
+  image: $CI_REGISTRY_IMAGE:$CI_BUILD_REF
+  services: []
+  before_script: []
+  stage: test
+  script:
+    - echo "test1"
+  except:
+    - tags
+
+test2:
+  image: $CI_REGISTRY_IMAGE:$CI_BUILD_REF
+  services: []
+  before_script: []
+  stage: test
+  script:
+    - echo "test2"
+  except:
+    - tags
+
+# Non-master branches and tags will be released with :<ref_name> as the tag
+release-by-name:
+  stage: release
+  script:
+    - docker pull $CI_REGISTRY_IMAGE:$CI_BUILD_REF
+    - docker tag $CI_REGISTRY_IMAGE:$CI_BUILD_REF $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+    - docker push $CI_REGISTRY_IMAGE:$CI_BUILD_REF
+  except:
+    - master
+
+# Master will be released with :latest as the tag
+release-master:
+  stage: release
+  script:
+    - docker pull $CI_REGISTRY_IMAGE:$CI_BUILD_REF
+    - docker tag $CI_REGISTRY_IMAGE:$CI_BUILD_REF $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - master
+
+# Depends on CLOUDSDK_CORE_PROJECT, CLOUDSDK_CONTAINER_CLUSTER, and CLOUDSDK_COMPUTE_ZONE being set
+.gcloud: &gcloud
+  - echo $GCLOUD_SERVICE_KEY | base64 --decode -i > ~/gcloud-service-key.json
+  - gcloud auth activate-service-account --key-file ~/gcloud-service-key.json
+  - gcloud --quiet container clusters get-credentials $CLOUDSDK_CONTAINER_CLUSTER
+
+.prod_deploy: &prod_deploy
+  image: google/cloud-sdk
+  stage: production
+  environment: production
+  before_script: *gcloud
+  script:
+    - kubectl patch deployment $PRODUCTION_SERVICE_NAME -p '{"spec":{"template":{"spec":{"containers":[{"name":"'"$PRODUCTION_SERVICE_NAME"'","image":"'"$CI_REGISTRY_IMAGE:$CI_BUILD_REF"'"}]}}}}'
+
+.staging_deploy: &staging_deploy
+  image: google/cloud-sdk
+  stage: staging
+  environment: staging
+  before_script: *gcloud
+  script:
+    - kubectl patch deployment $STAGING_SERVICE_NAME -p '{"spec":{"template":{"spec":{"containers":[{"name":"'"$STAGING_SERVICE_NAME"'","image":"'"$CI_REGISTRY_IMAGE:$CI_BUILD_REF"'"}]}}}}'
+
+auto-deploy-master:
+  <<: *staging_deploy
+  only:
+    - master
+
+auto-deploy-tags:
+  <<: *prod_deploy
+  only:
+    - tags
+
+deploy to staging:
+  <<: *staging_deploy
+  when: manual
+  except:
+    - master
+    - tags
+
+deploy to production:
+  <<: *prod_deploy
+  when: manual
+  only:
+    - master
+

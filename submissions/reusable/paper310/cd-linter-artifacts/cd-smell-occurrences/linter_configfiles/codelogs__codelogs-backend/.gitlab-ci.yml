@@ -1,0 +1,44 @@
+image: rfcardenas/codelogs-btool-ic
+
+stages:
+    - build
+    - package
+    - deploy
+
+compilacion:
+  stage: build
+  script: |
+      mvn --quiet compile
+      chown codelogs:codelogs /root/.netrc &&
+      chown codelogs:codelogs -R /root/.cache &&
+      chown codelogs:codelogs -R /root/
+      chown codelogs:codelogs -R $CI_PROJECT_DIR
+  artifacts:
+    untracked: true
+    expire_in: 1 hrs 30 min
+    paths:
+      - target/
+
+empaquetado:
+  dependencies:
+    - compilacion
+  artifacts:
+    untracked: true
+    expire_in: 1 hrs 30 min
+    paths:
+      - target/
+  stage: package
+  script: | 
+    mvn --quiet package -Pprod -DskipTests
+
+deployheroku:
+  dependencies:
+    - empaquetado
+  stage: deploy
+  script: |
+    /root/scripts/heroku.sh $USER_HEROKU $PSW_HEROKU &&
+    heroku git:remote -a $HEROKU_APP_GIT
+    heroku plugins:install heroku-cli-deploy
+    heroku deploy:jar --jar target/*.war
+
+

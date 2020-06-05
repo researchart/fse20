@@ -1,0 +1,162 @@
+image: $CONTAINER_RELEASE_IMAGE
+
+stages:
+  - build
+  - test
+  - deploy
+  - tag_latest
+
+variables:
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
+  POSTGRES_PASSWORD: password
+  POSTGRES_DB: root
+  POSTGRES_USER: root
+  DATABASE_URL: postgres://root:password@postgres/root
+  GIT_STRATEGY: none
+  MINIO_ACCESS_KEY: access_key
+  MINIO_SECRET_KEY: secret_key
+  AWS_ENABLED: "true"
+  AWS_KEY: access_key
+  AWS_SECRET: secret_key
+  AWS_ENDPOINT: http://minio:9000
+
+build:
+  stage: build
+  image: docker:latest
+  variables:
+    GIT_STRATEGY: clone
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $CI_REGISTRY_IMAGE
+    - docker build --cache-from $CI_REGISTRY_IMAGE -t $CONTAINER_RELEASE_IMAGE .
+    - docker push $CONTAINER_RELEASE_IMAGE
+
+helm_lint:
+  stage: test
+  image: aronwolf/helm-doctl
+  variables:
+    GIT_STRATEGY: clone
+  script:
+    - helm lint -f values.yaml chart/
+
+traceroute:
+  stage: test
+  services:
+    - postgres:latest
+  script:
+    - cd /app
+    - FAIL_ON_ERROR=1 DATABASE_URL=postgres://root:password@postgres/root rake traceroute
+
+rspec:
+  stage: test
+  services:
+    - postgres:latest
+  variables:
+    COVERAGE: "true"
+  artifacts:
+    paths:
+      - coverage/
+    expire_in: 30 days
+  script:
+    - cd /app
+    - rspec
+    - mv /app/coverage/ $CI_PROJECT_DIR
+
+eslint:
+  stage: test
+  script:
+    - cd /app
+    - yarn eslint
+
+rubocop:
+  stage: test
+  script:
+    - cd /app
+    - rubocop
+
+mocha:
+  stage: test
+  script:
+    - cd /app
+    - yarn test
+
+cucumber:
+  stage: test
+  variables:
+    GIT_STRATEGY: clone
+    DOCKER_HOST: tcp://docker:2375
+  image:
+    name: docker/compose:1.24.1
+    entrypoint: ["/bin/sh", "-c"]
+  services:
+    - docker:dind
+  script:
+    - export IMAGE=$CONTAINER_RELEASE_IMAGE
+    - docker-compose -f docker-compose.gitlab.yml run payment mix ecto.setup
+    - docker-compose -f docker-compose.gitlab.yml run app bash -c "RAILS_ENV=production rake db:setup"
+    - docker-compose -f docker-compose.gitlab.yml up -d
+    - docker-compose -f docker-compose.gitlab.yml run app cucumber
+
+deploy:
+  stage: deploy
+  image: aronwolf/helm-doctl
+  allow_failure: true
+  variables:
+    GIT_STRATEGY: clone
+  environment:
+    name: production
+    url: http://cost-manager.com
+  script:
+    - doctl kubernetes cluster kubeconfig save webcloudpower
+    - helm init --upgrade
+    - kubectl delete jobs -n cmc-production --all
+    - helm upgrade cmc-production chart --install --wait --force
+        -f values.yaml
+        --set image.tag=$CI_COMMIT_SHA
+        --set image.repository=$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG
+        --set postgresql.postgresqlPassword=$DB_PASSWORD
+        --set postgresql.postgresqlPostgresPassword=$DB_PASSWORD
+        --set admin_password=$ADMIN_PASSWORD
+        --set webAws.key=$WEB_AWS_KEY
+        --set webAws.secret=$WEB_AWS_SECRET
+        --set webDeployment.sentryDsn=$SENTRY_DSN
+        --set mailer.password=$MAILER_PASSWORD
+        --namespace cmc-production
+  only:
+    - master
+
+tag_latest:
+  stage: tag_latest
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $CONTAINER_RELEASE_IMAGE
+    - docker tag $CONTAINER_RELEASE_IMAGE $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - master
+
+pages:
+  stage: deploy
+  image: alpine:latest
+  variables:
+    GIT_STRATEGY: none
+  dependencies:
+    - rspec
+  script:
+    - mv coverage/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+  except:
+    - schedules
+  except:
+    - schedules
+

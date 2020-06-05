@@ -1,0 +1,24 @@
+image: php:7.1.1
+
+test:
+    script:
+     - echo '#!/bin/bash' > lint.sh
+     - echo 'for file in `find ./v2`' >> lint.sh
+     - echo 'do' >> lint.sh
+     - echo '    EXTENSION="${file##*.}"' >> lint.sh
+     - echo '    if [ "$EXTENSION" == "php" ] || [ "$EXTENSION" == "phtml" ]' >> lint.sh
+     - echo '    then' >> lint.sh
+     - echo '        RESULTS=`php -l $file`' >> lint.sh
+     - echo '        if [ "$RESULTS" != "No syntax errors detected in $file" ]' >> lint.sh
+     - echo '        then' >> lint.sh
+     - echo '            echo "$file is not valid."' >> lint.sh
+     - echo '            exit 1' >> lint.sh
+     - echo '        else' >> lint.sh
+     - echo '            echo "$file is valid!"' >> lint.sh
+     - echo '        fi' >> lint.sh
+     - echo '    fi' >> lint.sh
+     - echo 'done' >> lint.sh
+     - cat lint.sh
+     - chmod +x lint.sh
+     - ./lint.sh
+

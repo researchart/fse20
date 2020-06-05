@@ -1,0 +1,71 @@
+variables:
+  DOCKER_DRIVER: overlay2
+  TESTER_IMAGE_CURRENT: $CI_REGISTRY_IMAGE/tester:$CI_COMMIT_SHA
+  TESTER_IMAGE_LATEST: $CI_REGISTRY_IMAGE/tester:latest
+
+image: docker:stable
+
+services:
+  - docker:stable-dind
+
+before_script:
+  - echo $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin registry.gitlab.com
+
+.build:
+  stage: build
+  variables:
+    TARGET_IMAGE: "$CI_REGISTRY_IMAGE/debpack-$BASE_IMAGE"
+  script:
+    - docker pull $TARGET_IMAGE || true
+    - docker build --pull --cache-from $TARGET_IMAGE --build-arg BASE_IMAGE=$BASE_IMAGE --tag $TARGET_IMAGE -f Dockerfile .
+    - docker push $TARGET_IMAGE
+
+.test:
+  stage: test
+  image: $TESTER_IMAGE_CURRENT
+  variables:
+    AGENTS_HOME: "$CI_PROJECT_DIR"
+  script:
+    - ./run $BASE_IMAGE ./tests/run_tests
+
+build tester:
+  stage: build
+  script:
+    - docker pull $TESTER_IMAGE_LATEST || true
+    - docker build --pull --cache-from $TESTER_IMAGE_LATEST --tag $TESTER_IMAGE_CURRENT --tag $TESTER_IMAGE_LATEST -f tests/Dockerfile tests
+    - docker push $TESTER_IMAGE_CURRENT
+    - docker push $TESTER_IMAGE_LATEST
+
+# ubuntu bionic
+build ubuntu:bionic:
+  extends: .build
+  variables:
+    BASE_IMAGE: "ubuntu:bionic"
+
+test ubuntu:bionic:
+  extends: .test
+  variables:
+    BASE_IMAGE: "ubuntu:bionic"
+
+# ubuntu xenial
+build ubuntu:xenial:
+  extends: .build
+  variables:
+    BASE_IMAGE: "ubuntu:xenial"
+
+test ubuntu:xenial:
+  extends: .test
+  variables:
+    BASE_IMAGE: "ubuntu:xenial"
+
+# debian stretch
+build debian:stretch:
+  extends: .build
+  variables:
+    BASE_IMAGE: "debian:stretch"
+
+test debian:stretch:
+  extends: .test
+  variables:
+    BASE_IMAGE: "debian:stretch"
+

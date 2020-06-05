@@ -1,0 +1,320 @@
+# Notes:
+# Branch front/* will run test-frontend
+# Branch back/* will run build-backend
+# Branch product/* will run build-backend, build-frontend, package-product
+# Branch full/* will run build-backend, test-frontend, build-frontend, e2e-product, package-product, chromium-cypress
+# Branch master will run build-backend, test-frontend, build-frontend, build-frontend-pages, package-product-master, pages, e2e-product, chromium-cypress
+# Other branches will run build-backend, test-frontend, build-frontend, e2e-product, package-product
+# Tags will run build-backend, build-frontend, release-product
+
+# Runs tests and debug procedure detailed EOF
+
+stages:
+  - build
+  - package
+  - integration
+
+variables:
+  # it is also referenced in ci/settings.xml
+  M2_STAGING_DIRECTORY: staging
+  M2_CACHED_REPOSITORY: m2cache
+  YARN_CACHE_DIRECTORY: yarncache
+
+.mvn-java-8: &mvn-java-8
+  image: maven:3-jdk-8-alpine
+  before_script:
+    - source ci/mvn-helpers.sh
+  after_script:
+    - source ci/mvn-helpers.sh
+    - maven ch.ringler.tools:m2cachecleanup:1.0.4:cleanup-cache
+  cache:
+    key: mvn-java-8
+    paths:
+      - $M2_CACHED_REPOSITORY
+  tags:
+    - docker
+
+
+.node-10: &node-java-yarn
+  image: registry.gitlab.com/linagora/node-java-yarn-docker:n10-j8
+  before_script:
+    # see https://github.com/yarnpkg/yarn/issues/986 or https://github.com/yarnpkg/yarn/issues/988 for optimizing
+    - yarn config set cache-folder $PWD/$YARN_CACHE_DIRECTORY --global
+    - yarn global add spa-http-server
+    - du -hs $PWD/$YARN_CACHE_DIRECTORY || true
+    - cd frontend
+    - export PATH=`yarn bin`:$PATH
+    - time yarn --frozen-lockfile --link-duplicates --non-interactive
+    - yarn run webdriver-manager update --versions.chrome=73.0.3683.68
+    - ./node_modules/protractor/bin/webdriver-manager update --versions.chrome=73.0.3683.68
+    - du -hs node_modules || true
+    - cd ..
+  cache:
+    key: node-yarn
+    paths:
+      - $YARN_CACHE_DIRECTORY
+  tags:
+    - docker
+
+
+pages:
+  image: alpine:3.6
+  variables:
+    GIT_STRATEGY: none
+  stage: package
+  allow_failure: true
+  only:
+    # pages are only built and deployed from master
+    - master
+  dependencies:
+    - build-backend
+    - build-frontend-pages
+  script:
+    - mv frontend-demo public
+    - mv backend-apidocs public/apidocs
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - public
+  tags:
+    - docker
+
+
+build-backend:
+  <<: *mvn-java-8
+  stage: build
+  except:
+    # we don't want to build nor test the backend in front/*
+    - /^front\/.*$/
+  script:
+    # let's lock the version used for SNAPSHOT dependencies to
+    # ensure they are the same in the other jobs
+    - maven -pl backend -am versions:lock-snapshots
+    # deploy to the staging directory
+    # ignore liquibase info logs flooding (to prevent gitlab log size hitting its default limit)
+    # See issue https://gitlab.com/linagora/petals-cockpit/issues/544
+    - maven_build -pl backend -am deploy | grep -vE "^INFO  \[.*\] liquibase.*$"
+    # build the docs
+    - maven -pl backend -am com.webcohesion.enunciate:enunciate-slim-maven-plugin:docs && mv backend/target/site/apidocs backend-apidocs || true # this can fail
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - backend-apidocs
+      - $M2_STAGING_DIRECTORY
+  tags:
+    - docker
+
+check-frontend:
+  <<: *node-java-yarn
+  stage: build
+  except:
+    - tags
+    # we don't want to check the frontend in back/* and product/*
+    - /^back\/.*$/
+    - /^product\/.*$/
+  script:
+    - cd frontend
+    # copyright and lint
+    - time yarn run check
+  tags:
+    - docker
+
+test-frontend:
+  <<: *node-java-yarn
+  stage: build
+  except:
+    - tags
+    # we don't want to test the frontend in back/* and product/*
+    - /^back\/.*$/
+    - /^product\/.*$/
+  script:
+    - cd frontend
+    # unit tests
+    - time yarn run test:ci
+    # e2e
+    # tests protractor
+    - time yarn run e2e:ci --port 4200 --webdriver-update false
+    # build the frontend ldap mode
+    - time yarn run build:ldap:ci
+    # serve the frontend
+    - nohup http-server --push-state --silent -p 4200 dist &
+    # save the PID as we run it in background
+    - echo $! > pid-nohup.txt
+    - sleep 5
+    - time yarn cypress:e2e-ldap
+    - kill -9 $(cat pid-nohup.txt)
+    - rm pid-nohup.txt
+    # build the frontend no ldap mode
+    - time yarn run build:no-ldap:ci
+    # serve the frontend
+    - nohup http-server --push-state --silent -p 4200 dist &
+    # save the PID as we run it in background
+    - echo $! > pid-nohup.txt
+    - sleep 5
+    - time yarn cypress:e2e-no-ldap
+    - kill -9 $(cat pid-nohup.txt)
+    - rm pid-nohup.txt
+  # Protractor tests are unstable and may fail unexpectedly
+  # this workaround has to be removed once we stop relying on protractor
+  retry: 1
+  tags:
+    - docker
+
+
+build-frontend:
+  <<: *node-java-yarn
+  stage: build
+  except:
+    # we don't want to build the frontend, only test it (with test-frontend) in front/*
+    - /^front\/.*$/
+    # we don't want to build the frontend in back/*
+    - /^back\/.*$/
+  script:
+    - cd frontend
+    # build the final frontend for the product
+    - time yarn run build:product:ci && mv dist ../frontend-dist
+    - du -hs ../frontend-dist
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - frontend-dist
+  tags:
+    - docker
+
+
+build-frontend-pages:
+  <<: *node-java-yarn
+  stage: build
+  only:
+    # pages are only built and deployed from master
+    - master
+  script:
+    - cd frontend
+    # build the demo for the gitlab pages
+    - time yarn run build:demo:ci && mv dist ../frontend-demo || true # this can fail
+    - du -hs ../frontend-demo || true
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - frontend-demo
+  tags:
+    - docker
+
+
+.build-product: &build-product
+  <<: *mvn-java-8
+  stage: package
+  dependencies:
+    - build-backend
+    - build-frontend
+  script:
+    - mv frontend-dist frontend/dist
+    - maven dependency:purge-local-repository --non-recursive -DmanualInclude="org.ow2.petals:petals-cockpit-server,org.ow2.petals:petals-cockpit-parent" -DreResolve=false -DsnapshotsOnly=true
+    - maven -pl cockpit verify antrun:run@build-product-dist
+    - export COCKPIT_VERSION=`ls cockpit/target/petals-cockpit-*-capsule.jar | sed -E 's/.*petals-cockpit-(.*)-capsule.jar/\1/'`
+    # see https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/1664
+    - echo $COCKPIT_VERSION > version.txt
+    - mv cockpit/target/dist petals-cockpit-$COCKPIT_VERSION
+  tags:
+    - docker
+
+
+release-product:
+  <<: *build-product
+  only:
+    - tags
+  artifacts:
+    name: petals-cockpit-$(cat version.txt)
+    paths:
+      - petals-cockpit-*
+  tags:
+    - docker
+
+
+package-product-master:
+  <<: *build-product
+  only:
+    - master
+  artifacts:
+    name: petals-cockpit-$(cat version.txt)-${CI_BUILD_REF:0:7}
+    paths:
+      - petals-cockpit-*
+  tags:
+    - docker
+
+
+package-product:
+  <<: *build-product
+  except:
+    # covered by package-product-master
+    - master
+    # covered by release-product
+    - tags
+    # we don't want to build the final product in front/* and back/*
+    - /^front\/.*$/
+    - /^back\/.*$/
+  artifacts:
+    expire_in: 1 week
+    name: petals-cockpit-$(cat version.txt)-${CI_BUILD_REF:0:7}
+    paths:
+      - petals-cockpit-*
+  tags:
+    - docker
+
+###  For now, we don't use e2e-product. It will be refactored later ..
+
+# e2e-product:
+#   <<: *node-java-yarn
+#   stage: integration
+#   except:
+#     # we don't want to test the final product in front/*, back/* and product/*
+#     - /^front\/.*$/
+#     - /^back\/.*$/
+#     - /^product\/.*$/
+#     - tags
+#   dependencies:
+#     # one or the other
+#     - package-product
+#     - package-product-master
+#   # not able to connect to JMI using docker, for now e2e test are without petals
+#   # services:
+#   #   - petals/petals-esb-test
+#   variables:
+#     COCKPIT_CONFIG: e2e/e2e-backend-config.yml
+#   script:
+#     # TODO reuse script?
+#     - export JAR=$(ls -1 petals-cockpit-*/lib/petals-cockpit-*.jar 2>/dev/null)
+#     - export COCKPIT="java -ea -jar $JAR"
+#     - time $COCKPIT db migrate $COCKPIT_CONFIG --migrations e2e/migrations.xml
+#     - nohup $COCKPIT server $COCKPIT_CONFIG  > e2e/logs/cockpit-e2e-run.out.log 2> e2e/logs/cockpit-e2e-run.err.log &
+#     - cd frontend
+#     - sleep 2
+#     - time yarn run e2e:product --webdriver-update false
+#   # Protractor tests are unstable and may fail unexpectedly
+#   # this workaround has to be removed if we stop relying on protractor
+#   artifacts:
+#     expire_in: 1 week
+#     name: ${CI_JOB_NAME}-backendLogs-${CI_BUILD_REF:0:7}
+#     paths:
+#     - e2e/logs/
+#   retry: 1
+#   tags:
+#     - docker
+
+
+### Test gitlab ci
+
+# Install with apt: gitlab-ci-multi-runner (& maybe docker.io)
+#  git commit changes locally
+#  in cockpit root directory:
+#    > gitlab-ci-multi-runner exec docker {job-name}
+
+# To test with local docker images
+#  in Dockerfile image directory, builds local image:
+#    > docker build . -t {custom-image-name}:{image-tag}
+#  in cockpit root directory:
+#  change local gitlab-ci script with temporary image
+#  run using local image
+#    > gitlab-ci-multi-runner exec docker --docker-pull-policy=never {job-name}
+
+

@@ -1,0 +1,29 @@
+image: golang:latest
+
+variables:
+    REPO_NAME: gitlab.com/diamondburned/go-nhentai
+    ARTIFACTS_DIR: artifacts
+
+before_script:
+    - mkdir -p ${GOPATH}/src/${REPO_NAME}
+    - mkdir -p ${CI_PROJECT_DIR}/${ARTIFACTS_DIR}
+    - cp -r ${CI_PROJECT_DIR}/* ${GOPATH}/src/${REPO_NAME}/
+    - cd ${GOPATH}/src/${REPO_NAME}
+    - go get -u github.com/gdamore/tcell
+    - go get -u github.com/anaskhan96/soup
+
+stages:
+    - build
+
+compile:
+    stage: build
+    script:
+      - go build -o ${CI_PROJECT_DIR}/${ARTIFACTS_DIR}/go-nhentai
+      - go clean
+      - GOARCH="arm64" go build -o ${CI_PROJECT_DIR}/${ARTIFACTS_DIR}/go-nhentai-arm64
+      - go clean
+      - GOOS="windows" go build -o ${CI_PROJECT_DIR}/${ARTIFACTS_DIR}/go-nhentai.exe
+    artifacts:
+      paths:
+        - ${ARTIFACTS_DIR}
+

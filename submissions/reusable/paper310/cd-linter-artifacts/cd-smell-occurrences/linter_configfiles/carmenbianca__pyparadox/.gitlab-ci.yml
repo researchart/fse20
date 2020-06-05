@@ -1,0 +1,18 @@
+pyqt5:
+    script: TOXENV=pyqt5 tox
+    type: test
+
+flake8:
+    script: TOXENV=flake8 tox
+    type: test
+    allow_failure: true
+
+coverage:
+    script: TOXENV=coverage tox
+    type: test
+    allow_failure: true
+
+sphinx:
+    script: TOXENV=sphinx tox
+    type: test
+

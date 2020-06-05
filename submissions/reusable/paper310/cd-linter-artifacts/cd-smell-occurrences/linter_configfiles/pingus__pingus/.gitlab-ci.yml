@@ -1,0 +1,106 @@
+# Pingus - A free Lemmings clone
+# Copyright (C) 2018 Ingo Ruhnke <grumbel@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+image: ubuntu:latest
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+  - apt-get -qq update
+  - apt-get -qq -y install lsb-release
+  - lsb_release -a
+  - apt-get -qq -y install
+    clang-6.0
+    g++-8
+    cmake
+    build-essential
+    desktop-file-utils
+    appstream-util
+    libc++-dev
+    libboost-dev
+    libboost-filesystem-dev
+    libboost-system-dev
+    libboost-signals-dev
+    libsdl2-dev
+    libsdl2-image-dev
+    libsdl2-mixer-dev
+    libjsoncpp-dev
+    libpng-dev
+    software-properties-common
+
+.build_pingus_template: &build_pingus
+  stage: build
+  script:
+    - mkdir build
+    - cd build
+    - cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWARNINGS=ON -DWERROR=ON -DBUILD_TESTS=ON -DBUILD_EXTRA=ON
+    - make VERBOSE=1
+    - make test VERBOSE=1 ARGS="-V"
+
+build:gcc:release:
+  <<: *build_pingus
+  variables:
+    CXX: g++-8
+    BUILD_TYPE: Release
+
+build:clang:release:
+  <<: *build_pingus
+  variables:
+    CXX: clang++-6.0
+    BUILD_TYPE: Release
+
+build:gcc:debug:
+  <<: *build_pingus
+  variables:
+    CXX: g++-8
+    BUILD_TYPE: Debug
+
+build:clang:debug:
+  <<: *build_pingus
+  variables:
+    CXX: clang++-6.0
+    BUILD_TYPE: Debug
+
+build:flatpak:
+  stage: build
+  script:
+    - add-apt-repository -y ppa:alexlarsson/flatpak
+    - apt-get -qq update
+    - apt-get -qq -y install flatpak flatpak-builder
+    - flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+    - flatpak install -y flathub org.freedesktop.Platform org.freedesktop.Sdk
+    - flatpak-builder --repo=build-flatpak-repo/ build-flatpak/ org.seul.pingus.Pingus.json
+    - flatpak build-bundle build-flatpak-repo/ pingus.flatpak org.seul.pingus.Pingus
+  artifacts:
+    paths:
+      - pingus.flatpak
+      - build-flatpak-repo
+
+# pages:
+#   stage: deploy
+#   dependencies:
+#     - build:flatpak
+#   script:
+#     - mkdir public.tmp/
+#     - mv -v build-flatpak-repo public.tmp/flatpakrepo
+#     - mv -v public.tmp public
+#   artifacts:
+#     paths:
+#     - public
+
+# EOF #
+

@@ -1,0 +1,96 @@
+variables:
+  CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+
+stages:
+  - test
+  - build
+  - scan
+  - deploy
+
+test:
+  stage: test
+  image: node:8.12.0-alpine
+  script: 
+    - npm i
+    - npm test
+
+build:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker image build -t $CONTAINER_IMAGE:$CI_BUILD_REF -t $CONTAINER_IMAGE:latest .
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker image push $CONTAINER_IMAGE:latest
+    - docker image push $CONTAINER_IMAGE:$CI_BUILD_REF
+  only:
+  - master
+
+image_scanning_clair:
+  stage: scan
+  image: docker:stable
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  script:
+    - docker run -d --name db arminc/clair-db:latest
+    - docker run -p 6060:6060 --link db:postgres -d --name clair --restart on-failure arminc/clair-local-scan:v2.0.1
+    - apk add -U wget ca-certificates
+    - docker pull $CONTAINER_IMAGE:$CI_BUILD_REF
+    - wget https://github.com/arminc/clair-scanner/releases/download/v8/clair-scanner_linux_amd64
+    - mv clair-scanner_linux_amd64 clair-scanner
+    - chmod +x clair-scanner
+    - touch clair-whitelist.yml
+    - while( ! wget -q -O /dev/null http://docker:6060/v1/namespaces ) ; do sleep 1 ; done
+    - retries=0
+    - echo "Waiting for clair daemon to start"
+    - while( ! wget -T 10 -q -O /dev/null http://docker:6060/v1/namespaces ) ; do sleep 1 ; echo -n "." ; if [ $retries -eq 10 ] ; then echo " Timeout, aborting." ; exit 1 ; fi ; retries=$(($retries+1)) ; done
+    - ./clair-scanner -c http://docker:6060 --ip $(hostname -i) -r gl-container-scanning-report.json -l clair.log -w clair-whitelist.yml $CONTAINER_IMAGE:$CI_BUILD_REF || true
+    - cat gl-container-scanning-report.json
+  artifacts:
+    paths: [gl-container-scanning-report.json]
+  only:
+  - master
+
+image_scanning_microscan:
+  stage: scan
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker build --build-arg=token=$MICROSCANNER_TOKEN -f Dockerfile.microscanner --no-cache . > microscanner-report.html.tmp
+    - sed -n '/<html/,/<\/html>/p' microscanner-report.html.tmp > microscanner-report.html
+  artifacts:
+    paths: [microscanner-report.html]
+  only:
+  - master
+
+deploy-swarm:
+  stage: deploy
+  image: alpine:3.8
+  script:
+    - apk add --update curl
+    - curl -XPOST $WWW_WEBHOOK
+  only:
+  - master
+
+deploy-kube:
+  stage: deploy
+  environment: test
+  image: dtzar/helm-kubectl:2.12.3
+  script:
+    - kubectl config set-cluster sophia-cluster --server=${KUBE_URL} --certificate-authority="${KUBE_CA_PEM_FILE}"
+    - kubectl config set-credentials sophia-admin --token=${KUBE_TOKEN}
+    - kubectl config set-context sophia-context --cluster=sophia-cluster --user=sophia-admin --namespace ${KUBE_NAMESPACE}
+    - kubectl config use-context sophia-context
+    - kubectl get pods
+    - helm upgrade --reuse-values --set image.tag=$CI_BUILD_REF sophia k8s-chart
+    - helm status sophia
+  only:
+    refs:
+      - master
+    kubernetes: active
+

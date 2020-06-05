@@ -1,0 +1,6 @@
+before_script:
+  - apt-get update -qq && apt-get install -y -q scons sqlite3 liballegro5-dev liballegro-acodec5-dev liballegro-audio5-dev liballegro-dialog5-dev liballegro-image5-dev liballegro-physfs5-dev liballegro-ttf5-dev pkg-config
+Ankh:
+  script:
+    - scons
+

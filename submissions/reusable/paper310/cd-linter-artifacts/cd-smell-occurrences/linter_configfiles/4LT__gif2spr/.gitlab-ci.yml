@@ -1,0 +1,30 @@
+image: 4lt4/gif2spr-build
+
+stages:
+    - build
+
+build-linux:
+    stage: build
+    script:
+        - make
+
+build-windows:
+    stage: build
+    script:
+        - make TARGET_PLAT=win32 win-gui
+    artifacts:
+        name: "gif2spr-$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+        paths:
+            - gif2spr.exe
+            - gif2spr-gui.exe
+            - LICENSE.txt
+            - LICENSE_3rd_party
+            - README.md
+            - THANKS.md
+
+# run tests using the binary built before
+# test:
+#   stage: test
+#   script:
+#     - ./runmytests.sh
+

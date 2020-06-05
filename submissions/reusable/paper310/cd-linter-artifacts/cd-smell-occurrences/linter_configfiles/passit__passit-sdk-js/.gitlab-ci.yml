@@ -1,0 +1,21 @@
+image: node:8
+
+before_script:
+  - yarn
+
+test:
+  script:
+    - yarn run lint
+    - yarn test
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - node_modules/.bin/typedoc --ignoreCompilerErrors --out public/ passit_sdk/sdk.ts
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

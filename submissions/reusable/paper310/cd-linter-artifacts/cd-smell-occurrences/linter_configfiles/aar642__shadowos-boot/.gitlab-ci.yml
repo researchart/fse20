@@ -1,0 +1,57 @@
+ipxe_build:
+  stage: "build"
+  script:
+     - git clone http://git.ipxe.org/ipxe.git
+     - cd ipxe/src
+     - patch -p2 < $CI_PROJECT_DIR/ipxe.patch
+     - make bin/ipxe.usb EMBED=$CI_PROJECT_DIR/shadow.ipxe
+     - make bin/ipxe.iso EMBED=$CI_PROJECT_DIR/shadow.ipxe
+     - make bin-x86_64-efi/ipxe.efi EMBED=$CI_PROJECT_DIR/shadow.ipxe
+     - make bin-x86_64-efi/ipxe.usb EMBED=$CI_PROJECT_DIR/shadow.ipxe
+     - mkdir tmp_mount
+     - mkdir -p tmp_hybrid/EFI/BOOT/
+     - mkdir -p tmp_efi/EFI/BOOT/
+     - fuseiso bin/ipxe.iso tmp_mount
+     - cp -R tmp_mount/* tmp_hybrid/
+     - fusermount -u tmp_mount
+     - cp bin-x86_64-efi/ipxe.efi tmp_efi/EFI/BOOT/bootx64.efi
+     - cp bin-x86_64-efi/ipxe.efi tmp_hybrid/EFI/BOOT/bootx64.efi
+     - genisoimage -o $CI_PROJECT_DIR/ShadowBoot-efi_$CI_COMMIT_REF_NAME.iso tmp_efi
+     - genisoimage -o $CI_PROJECT_DIR/ShadowBoot-hybrid_$CI_COMMIT_REF_NAME.iso tmp_hybrid
+     - mv bin-x86_64-efi/ipxe.efi $CI_PROJECT_DIR/ShadowBoot_$CI_COMMIT_REF_NAME.efi
+     - mv bin/ipxe.iso $CI_PROJECT_DIR/ShadowBoot_$CI_COMMIT_REF_NAME.iso
+     - mv bin/ipxe.usb $CI_PROJECT_DIR/ShadowBoot_LEGACY_$CI_COMMIT_REF_NAME.img
+     - mv bin-x86_64-efi/ipxe.usb $CI_PROJECT_DIR/ShadowBoot_EFI_$CI_COMMIT_REF_NAME.img
+  tags:
+     - shadow
+     - bionic
+     - ubuntu
+  artifacts:
+    name: "IPXE-$CI_COMMIT_REF_NAME"
+    paths:
+      - $CI_PROJECT_DIR/shadow_bg.png
+      - $CI_PROJECT_DIR/boot.php
+      - $CI_PROJECT_DIR/ShadowBoot_$CI_COMMIT_REF_NAME.efi
+      - $CI_PROJECT_DIR/ShadowBoot_EFI_$CI_COMMIT_REF_NAME.img
+      - $CI_PROJECT_DIR/ShadowBoot_LEGACY_$CI_COMMIT_REF_NAME.img
+      - $CI_PROJECT_DIR/ShadowBoot_$CI_COMMIT_REF_NAME.iso
+      - $CI_PROJECT_DIR/ShadowBoot-efi_$CI_COMMIT_REF_NAME.iso
+      - $CI_PROJECT_DIR/ShadowBoot-hybrid_$CI_COMMIT_REF_NAME.iso
+    expire_in: 2 days
+
+deploy_stable:
+  stage: deploy
+  environment: Stable
+  script:
+    - scp $CI_PROJECT_DIR/boot.php stable@172.20.1.251:/var/www/gap.shadow.touchepasletruc.com/html/boot.php
+    - scp $CI_PROJECT_DIR/shadow_bg.png stable@172.20.1.251:/var/www/gap.shadow.touchepasletruc.com/html/shadow_bg.png
+    - scp $CI_PROJECT_DIR/ShadowBoot_$CI_COMMIT_REF_NAME.efi stable@172.20.1.251:/var/www/gap.shadow.touchepasletruc.com/html/shadow.efi
+  tags:
+     - shadow
+     - bionic
+     - ubuntu
+  when: manual
+  only:
+    - master
+    - tags
+

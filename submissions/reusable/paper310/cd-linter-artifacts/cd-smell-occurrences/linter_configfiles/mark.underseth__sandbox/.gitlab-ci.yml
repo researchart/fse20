@@ -1,0 +1,16 @@
+image: ruby:2.1
+
+before_script:
+  - curl -fsSL https://testspace-client.s3.amazonaws.com/testspace-linux.tgz | tar -zxvf- -C /usr/local/bin
+  - testspace config url http://$TS_TOKEN:@$TS_ORG.stridespace.com
+
+after_script:
+  - testspace test.xml
+
+stages:
+- test
+
+job1:
+  script:
+    - testspace -v
+

@@ -1,0 +1,72 @@
+image: elixir:latest
+
+stages:
+  - setup
+  - compile
+  - test
+  - build
+  - publish
+  - deploy
+
+before_script:
+  - make init
+
+get-dependencies:
+  stage: setup
+  script:
+    - make deps
+  artifacts:
+    expire_in: 30 minutes
+    paths:
+      - deps
+      - mix.lock
+
+compile-for-test:
+  stage: compile
+  dependencies:
+    - get-dependencies
+  variables:
+    MIX_ENV: test
+  script:
+    - make compile
+  artifacts:
+    expire_in: 30 minutes
+    untracked: true
+
+compile-for-production:
+  stage: compile
+  dependencies:
+    - get-dependencies
+  variables:
+    MIX_ENV: prod
+  script:
+    - make compile
+  artifacts:
+    expire_in: 30 minutes
+    untracked: true
+
+lint:
+  stage: test
+  dependencies:
+    - get-dependencies
+    - compile-for-test
+  variables:
+    MIX_ENV: test
+  allow_failure: true
+  script:
+    - make lint
+
+tests:
+  stage: test
+  dependencies:
+    - get-dependencies
+    - compile-for-test
+  services:
+    - elasticsearch:5
+  variables:
+    MIX_ENV: test
+  coverage: '/\[TOTAL\]\s+(\d+\.\d+)%/'
+  script:
+    - export $(cat .env | xargs)
+    - make test
+

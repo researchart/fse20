@@ -1,0 +1,16 @@
+# https://hub.docker.com/_/openjdk/
+image: openjdk:8
+
+build:
+  script: "./gradlew build --stacktrace"
+  artifacts:
+    expire_in: 1 month
+    paths:
+    - build/libs/
+    - build/distributions/
+
+# https://gitlab.com/gitlab-com/support-forum/issues/537#note_3951687
+before_script:
+  - apt-get update
+  - apt-get install -y openjfx --no-install-recommends
+

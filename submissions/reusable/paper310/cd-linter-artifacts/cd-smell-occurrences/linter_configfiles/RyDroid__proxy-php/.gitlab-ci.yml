@@ -1,0 +1,36 @@
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided this notice is
+# preserved.  This file is offered as-is, without any warranty.
+# Names of contributors must not be used to endorse or promote products
+# derived from this file without specific prior written permission.
+
+
+# See YAML format https://en.wikipedia.org/wiki/YAML
+# See GitLab CI (Continuous Integration) https://docs.gitlab.com/ce/ci/
+
+
+before_script:
+  - apt-get update -qy
+  - apt-get install -y make
+  - make install-tools-from-apt
+  - make install-pear-from-apt
+  - make install-phpcs-from-pear
+
+stages:
+  - tests
+
+build:
+  stage: tests
+  script:
+    - make all
+    - make clean
+    - make doc
+    - make archives
+    - make dist
+    - make tar-xz
+    - make tar-bz2
+    - make tar-gz
+    - make zip
+    - make 7z
+    - make clean
+

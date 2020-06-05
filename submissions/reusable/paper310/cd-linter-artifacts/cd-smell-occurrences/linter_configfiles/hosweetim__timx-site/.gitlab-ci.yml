@@ -1,0 +1,154 @@
+image: node:10
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - test
+  - post_test
+  - build
+  - deploy
+  - post_deploy
+
+test:
+  stage: test
+  script:
+    - curl https://sdk.cloud.google.com | bash /dev/stdin --disable-prompts
+    - source /root/google-cloud-sdk/path.bash.inc
+    - echo $CLOUDSTORAGE_TEST_KEY_FILE > /tmp/$CI_PIPELINE_ID.json
+    - gcloud auth activate-service-account --key-file /tmp/$CI_PIPELINE_ID.json
+    - bash scripts/download_env_file.sh "test"
+    - npm ci
+    - npm run lint
+    - npm run test:report -- --forceExit --detectOpenHandles
+    - rm /tmp/$CI_PIPELINE_ID.json
+  variables:
+    MONGO_INITDB_ROOT_USERNAME: test
+    MONGO_INITDB_ROOT_PASSWORD: test
+    GOOGLE_APPLICATION_CREDENTIALS: /tmp/$CI_PIPELINE_ID.json
+  services:
+    - mongo:3.6
+  dependencies: []
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    paths:
+      - reports/
+    reports:
+      junit: reports/unit_test/report.xml
+
+shellcheck_lint:
+  stage: test
+  image: docker:latest
+  services:
+    - docker:dind
+  dependencies: []
+  script:
+    - docker run -v "$(pwd):/mnt" koalaman/shellcheck scripts/*.sh
+
+dockerfile_lint:
+  stage: test
+  image: docker:latest
+  services:
+    - docker:dind
+  dependencies: []
+  script:
+    - docker run --rm -i hadolint/hadolint < Dockerfile
+    - docker run --rm --privileged -v $(pwd):/root/
+      projectatomic/dockerfile-lint
+      dockerfile_lint -f Dockerfile
+
+upload_to_sonarqube:
+  stage: post_test
+  script:
+    - npm ci
+    - npm run sonar-scanner
+  dependencies:
+    - test
+  only:
+    - master 
+
+build_nuxt:
+  stage: build
+  script:
+    - npm ci
+    - npm run build 
+  dependencies: []
+  artifacts:
+    paths:
+    - dist/
+    - static/
+
+build_bitbucket_dashboard:
+  stage: build
+  script:
+    - git clone https://github.com/sweetim/bitbucket_pipeline_dashboard
+    - cd bitbucket_pipeline_dashboard
+    - npm install
+    - npm run build
+  dependencies: []
+  artifacts:
+    paths:
+    - bitbucket_pipeline_dashboard/dist/ 
+
+deploy_production:
+  stage: deploy
+  image: google/cloud-sdk
+  script:
+    - mv bitbucket_pipeline_dashboard/dist/ static/bitbucket
+    - echo $DEPLOY_KEY_FILE_PRODUCTION > /tmp/$CI_PIPELINE_ID.json
+    - gcloud auth activate-service-account --key-file /tmp/$CI_PIPELINE_ID.json
+    - bash scripts/download_env_file.sh "production"
+    - gcloud --quiet --project "${PROJECT_ID_PRODUCTION}" app deploy
+    - rm /tmp/$CI_PIPELINE_ID.json
+    - rm .env
+  dependencies:
+    - build_nuxt
+    - build_bitbucket_dashboard
+  only:
+    - master
+
+deploy_image_to_gitlab_registry:
+  stage: deploy
+  image: docker:latest
+  script:
+    - docker login -u gitlab-ci-token -p "${CI_JOB_TOKEN}" registry.gitlab.com
+    - docker build -t registry.gitlab.com/hosweetim/timx-site .
+    - docker push registry.gitlab.com/hosweetim/timx-site
+  dependencies: []
+  services:
+    - docker:dind
+  only:
+    - master
+
+deploy_image_to_dockerhub:
+  stage: deploy
+  image: docker:latest
+  script:
+    - docker login -u "${DOCKERHUB_USER}" -p "${DOCKERHUB_PASSWORD}"
+    - docker build -t timx/timx-site .
+    - docker push timx/timx-site
+  dependencies: []
+  services:
+    - docker:dind
+  only:
+    - master
+
+clean_up_gae_versions:
+  stage: post_deploy
+  image: google/cloud-sdk
+  script:
+    - echo $DEPLOY_KEY_FILE_PRODUCTION > /tmp/$CI_PIPELINE_ID.json
+    - gcloud auth activate-service-account --key-file /tmp/$CI_PIPELINE_ID.json
+    - gcloud config set project "${PROJECT_ID_PRODUCTION}"
+    - bash scripts/clean_up_gae.sh 5
+    - rm /tmp/$CI_PIPELINE_ID.json
+  dependencies: []
+  only:
+    - master
+
+generate_release_note:
+  script:
+    - ./scripts/generate_release.sh "${CI_PROJECT_NAME}" "${CI_COMMIT_TAG}" "${GITLAB_ACCESS_KEY}"  "${CI_PROJECT_ID}"
+  when: manual
+

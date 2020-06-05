@@ -1,0 +1,91 @@
+---
+image: docker:git
+services:
+- docker:dind
+
+.job_template_test_hotsite: &job_def_test_hotsite
+  image: registry.gitlab.com/osinfs/containerize:base-hugo-0.17
+  before_script:
+    - hugo version
+
+stages:
+- test
+- build:hugo
+- release
+- deploy
+
+variables:
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:hugo-$CI_BUILD_REF_NAME
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  - 'curl -u "${C_ACCESS_KEY}:${C_SECRET_KEY}"
+      -X POST -H "Accept: application/json" -H "Content-Type: application/json" -d "{}"
+      "http://${C_SERVER_URL}:${C_SERVER_URL_PORT}/v1/projects/${HOMOLOG_PROJECT_ID}/services/${HOMOLOG_SERVICE_ID}/?action=finishupgrade"'
+  - 'curl -u "${C_ACCESS_KEY}:${C_SECRET_KEY}"
+      -X POST -H "Accept: application/json" -H "Content-Type: application/json" -d "{}"
+      "http://${C_SERVER_URL}:${C_SERVER_URL_PORT}/v1/projects/${PRODUCTION_PROJECT_ID}/services/${PRODUCTION_SERVICE_ID}/?action=finishupgrade"'
+
+test config:
+  <<: *job_def_test_hotsite
+  stage: test
+  script:
+    - hugo --verbose --config config.toml
+
+test contentbuild:
+  <<: *job_def_test_hotsite
+  stage: test
+  script:
+    - hugo
+
+build to homolog:
+  stage: build:hugo
+  script:
+    - docker build -f Dockerfile-hugo -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+  only:
+    - branches
+  except:
+    - master
+  environment: homolog
+
+build to realease:
+  stage: build:hugo
+  script:
+    - 'sed -e "s/#Ganalytics/Ganalytics/" -i config.toml'
+    - docker build -f Dockerfile-hugo -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+  only:
+    - tags
+  environment: production
+
+release-image:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - tags
+  environment: production
+
+deploy to homolog:
+  stage: deploy
+  script:
+    - 'curl -u "${C_ACCESS_KEY}:${C_SECRET_KEY}" -X POST -H "Accept: application/json" -H "Content-Type: application/json" -d "{ \"inServiceStrategy\": { \"launchConfig\": { \"environment\": { \"HUGO_BASE_URL\": \"${HOMOLOG_URL}\", \"HUGO_BUILD_DRAFTS\": \"-D\" }, \"imageUuid\": \"docker:${CONTAINER_TEST_IMAGE}\" } } }" "http://${C_SERVER_URL}:${C_SERVER_URL_PORT}/v1/projects/${HOMOLOG_PROJECT_ID}/services/${HOMOLOG_SERVICE_ID}/?action=upgrade"'
+  only:
+    - /beta\d+/
+  except:
+    - master
+    - tags
+  environment: homolog
+
+deploy to production:
+  stage: deploy
+  script:
+    - 'curl -u "${C_ACCESS_KEY}:${C_SECRET_KEY}" -X POST -H "Accept: application/json" -H "Content-Type: application/json" -d "{ \"inServiceStrategy\": { \"launchConfig\": { \"environment\": { \"HUGO_BASE_URL\": \"${PRODUCTION_URL}\", \"HUGO_BASE_URL_PORT\": \"80\" }, \"imageUuid\": \"docker:${CONTAINER_TEST_IMAGE}\" } } }" "http://${C_SERVER_URL}:${C_SERVER_URL_PORT}/v1/projects/${PRODUCTION_PROJECT_ID}/services/${PRODUCTION_SERVICE_ID}/?action=upgrade"'
+  only:
+    - tags
+  environment: production
+

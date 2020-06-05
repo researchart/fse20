@@ -1,0 +1,70 @@
+image: node:10
+
+stages:
+    - test
+    - deploy
+
+cache:
+    paths:
+        - node_modules/
+
+test_node_4:
+    stage: test
+    image: node:4
+    script:
+        - npm install
+        - npm test
+
+test_node_5:
+    stage: test
+    image: node:5
+    script:
+        - npm install
+        - npm test
+
+test_node_6:
+    stage: test
+    image: node:6
+    script:
+        - npm install
+        - npm test
+
+test_node_7:
+    stage: test
+    image: node:7
+    script:
+        - npm install
+        - npm test
+
+test_node_8:
+    stage: test
+    image: node:8
+    script:
+        - npm install
+        - npm test
+
+test_node_9:
+    stage: test
+    image: node:9
+    script:
+        - npm install
+        - npm test
+
+test_node_10:
+    stage: test
+    script:
+        - npm install
+        - npm test
+
+publish:
+    stage: deploy
+    environment:
+        name: npm
+        url: https://www.npmjs.com/package/cryptography
+    only:
+        - tags
+        - triggers
+    script:
+        - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+        - npm publish
+

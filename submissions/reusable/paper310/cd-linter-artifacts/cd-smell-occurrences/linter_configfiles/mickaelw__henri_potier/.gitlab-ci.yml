@@ -1,0 +1,11 @@
+image: node:8-slim
+
+stages:
+  - unit-tests
+
+Unit-Tests:
+  stage: unit-tests
+  script:
+    - yarn
+    - yarn test
+

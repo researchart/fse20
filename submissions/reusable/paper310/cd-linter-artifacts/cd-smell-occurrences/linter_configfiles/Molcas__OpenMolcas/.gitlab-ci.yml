@@ -1,0 +1,364 @@
+# Some useful templates:
+# sources: list of files that require a rebuild
+# compile-jobs: rules for when to run compile jobs
+# test-jobs: rules for when to run test jobs
+
+.template: &sources
+  changes:
+    - .gitlab-ci.yml
+    - .configs.yml
+    - .gitmodules
+    - basis_library/**/*
+    - CMakeLists.txt
+    - cmake/**/*
+    - data/**/*
+    - sbin/**/*
+    - src/**/*
+    - test/**/*
+    - Tools/**/*
+
+.template: &compile-jobs
+  rules:
+    # not on tags
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    # not on master
+    - if: '$CI_PROJECT_PATH == "Molcas/OpenMolcas" && $CI_COMMIT_REF_NAME == "master"'
+      when: never
+    # merge requests
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME'
+      when: on_success
+    # api, trigger, web
+    - if: '$CI_PIPELINE_SOURCE == "api" || $CI_PIPELINE_SOURCE == "trigger" || $CI_PIPELINE_SOURCE == "web"'
+      when: on_success
+    # branches, if changes in the source
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      <<: *sources
+      when: on_success
+
+.template: &test-jobs
+  rules:
+    # not on master
+    - if: '$CI_PROJECT_PATH == "Molcas/OpenMolcas" && $CI_COMMIT_REF_NAME == "master"'
+      when: never
+    # merge requests
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME'
+      when: on_success
+    # api, trigger, web
+    - if: '$CI_PIPELINE_SOURCE == "api" || $CI_PIPELINE_SOURCE == "trigger" || $CI_PIPELINE_SOURCE == "web"'
+      when: on_success
+    # dev/external branch, if changes in the source
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == "dev/external"'
+      <<: *sources
+      when: on_success
+
+# There can only be a single "include" per file
+include:
+  # Configurations defined in an external file
+  - "/.configs.yml"
+  # Jobs for building the documentation
+  - "/doc/.gitlab-ci.yml"
+
+# Define templates for "sub-jobs"
+# - install-key: install the SSH key to access private repositories
+# - compile: compile OpenMolcas with CMake
+# - run-tests: run the verification suite
+
+.template: &install-key
+  before_script:
+    # Install ssh-agent if not already installed
+    - >
+      which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )
+    # Run ssh-agent (inside the build environment)
+    - eval $(ssh-agent -s)
+    # Add the SSH key stored in the ssh_key file (created by the runner)
+    - >
+      ssh-add /ssh_key || true
+    # Disable host key checking
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - >
+      [ -f /.dockerenv ] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config && chmod 644 ~/.ssh/config
+
+.template: &compile
+  stage: build
+  interruptible: true
+  #<<: *install-key
+  script:
+    # special pre-script that may be needed in some installations
+    # (not using before_script because it would be overwritten)
+    - |
+      if [ -n "${pre_compile_script}" ] ; then
+        eval "${pre_compile_script}"
+      fi
+    # clone molcas-extra if specified and copy some files
+    # so they can be included in the artifacts
+    # (artifacts must be relative to the default directory)
+    - |
+      if [ -n "${extra}" ] ; then
+        git clone --depth 1 git@git.teokem.lu.se:molcas-extra ${extra}
+        mkdir molcas-extra
+        cp -a ${extra}/sbin/molcas.driver ${extra}/test molcas-extra/
+      fi
+    # get submodules
+    - |
+      if [ -z "${submodules}" ] ; then export submodules="External/lapack" ; fi
+      for s in ${submodules} ; do
+        git submodule update --init ${s}
+      done
+    - mkdir build
+    - cd build
+    - >
+      cp /license.dat . || true
+    # save the CMake configuration from a variable and add extra path
+    - |
+      echo "${cache_file}" > flags.cmake
+      if [ -n "${extra}" ] ; then
+        echo 'set (EXTRA "$ENV{extra}" CACHE PATH "location of molcas-extra")' >> flags.cmake
+      fi
+    - cmake -C flags.cmake ..
+    - |
+      if [ -n "${pre_make_script}" ] ; then
+        eval "${pre_make_script}"
+      fi
+    - make #VERBOSE=1
+    - pymolcas verify 000 -k
+    # some clean up to reduce artifact size
+    - >
+      shopt -s globstar ; rm -rf **/CMakeFiles
+    # special post-script that may be needed in some installations
+    # (not using after_script because it would be overwritten)
+    - cd ..
+    - |
+      if [ -n "${post_compile_script}" ] ; then
+        eval "${post_compile_script}"
+      fi
+  artifacts:
+    paths:
+      - build/
+      - molcas-extra/
+    expire_in: 1 day
+    when: always
+  <<: *compile-jobs
+
+.template: &run-tests
+  stage: test
+  interruptible: true
+  script:
+    # special pre-script that may be needed in some installations
+    # (not using before_script because it would be overwritten)
+    - |
+      if [ -n "${pre_run_script}" ] ; then
+        eval "${pre_run_script}"
+      fi
+    # install/restore extra files that were included in the artifacts
+    - |
+      if [ -n "${extra}" ] ; then
+        sbin/install_driver.sh molcas-extra/molcas.driver
+        mkdir -p ${extra}
+        cp -a molcas-extra/test ${extra}
+      fi
+    - sbin/install_pymolcas.sh build/Tools/pymolcas/pymolcas_
+    - cd build
+    # default if no tests specified is .all
+    - |
+      if [ -z "${tests}" ] ; then export tests=".all" ; fi
+    # run only a subset of the tests if specified
+    - |
+      if [ -n "${CI_NODE_INDEX}" ] ; then
+        pymolcas verify --flatlist ${tests} > filelist
+        if ( ! which python && which python3 ) ; then
+          sed -i -e 's/env python/env python3/' ../Tools/verify/split_tests.py
+          sed -i -e 's/env python/env python3/' ../Tools/verify/get_keywords.py
+        fi
+        ../Tools/verify/split_tests.py filelist ${CI_NODE_TOTAL} ${CI_NODE_INDEX} > fl
+        pymolcas verify --status --postproc "\$MOLCAS_SOURCE/Tools/verify/get_keywords.py \$project.out keylist" --fromfile fl
+      else
+        pymolcas verify --status --postproc "\$MOLCAS_SOURCE/Tools/verify/get_keywords.py \$project.out keylist" ${tests}
+      fi
+    # special post-script that may be needed in some installations
+    # (not using after_script because it would be overwritten)
+    - |
+      if [ -n "${post_run_script}" ] ; then
+        eval "${post_run_script}"
+      fi
+  after_script:
+    - |
+      cp -L build/test/result result
+      cp -Lr build/test/failed failed
+      cp -L build/test/tmp/keylist keylist
+  artifacts:
+    paths:
+      - result
+      - failed/
+      - keylist
+    expire_in: 1 month
+    when: always
+  <<: *test-jobs
+
+# A special job for compiling the tinker interface
+# By adding "tinker" as a dependency, other jobs can use it
+
+tinker:
+  stage: build
+  image: ${CI_REGISTRY}/molcas/dockerfiles/gcc-7:latest
+  interruptible: true
+  variables:
+    # A patch to the tinker patch to make it work in low memory conditions
+    patch_to_patch: |
+                    diff -Nu -x '*~' -x '*.o' 6.3.3/source_orig/sizes.i 6.3.3/source/sizes.i
+                    --- 6.3.3/source_orig/sizes.i   2015-04-14 13:58:10.122343730 +0200
+                    +++ 6.3.3/source/sizes.i        2015-04-15 13:48:53.796041225 +0200
+                    @@ -64,7 +64,7 @@
+                           integer maxele,maxamino,maxnuc
+                           integer maxbnd,maxang,maxtors
+                           integer maxbitor
+                    -      parameter (maxatm=100000)
+                    +      parameter (maxatm=1000)
+                           parameter (maxval=8)
+                           parameter (maxgrp=1000)
+                           parameter (maxref=10)
+  before_script:
+    - >
+      if ( ! which patch ) ; then apt-get install -y --no-install-recommends patch ; fi
+  script:
+    # Use backup if the tinker website is down
+    - >
+      sed -i -e 's/wget.*/& || \\/' -e '/wget/a git clone --depth 1 https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/Molcas/Mirrors/Tinker.git ; mv Tinker/${TINKERVERSION}.tar.gz .' Tools/patch2tinker/get_tinker
+    # Apply the low-memory patch
+    - |
+      eval `grep TINKERVERSION= Tools/patch2tinker/get_tinker`
+      eval `grep PATCH= Tools/patch2tinker/get_tinker`
+      echo "${patch_to_patch}" >> Tools/patch2tinker/${PATCH}
+    - >
+      echo "y" | Tools/patch2tinker/get_tinker
+  after_script:
+    - |
+      mkdir build
+      cp -Lr tinker build
+  artifacts:
+    paths:
+      - build/
+    expire_in: 1 day
+  <<: *compile-jobs
+  # Due to a possible bug with gfortran-7, this fails intermittently, so retry several times
+  retry: 2
+
+# Define the actual jobs, each job has a "build" and a "test" stage,
+# the latter depends on the former.
+
+build:plain:
+  extends: .plain
+  <<: *compile
+test:plain:
+  extends: .plain
+  <<: *run-tests
+  needs:
+    - build:plain
+    - tinker
+  parallel: 2
+
+build:options:
+  extends: .options
+  <<: *compile
+test:options:
+  extends: .options
+  <<: *run-tests
+  needs:
+    - build:options
+    - tinker
+  parallel: 2
+
+build:pgi:
+  extends: .pgi
+  <<: *compile
+test:pgi:
+  extends: .pgi
+  <<: *run-tests
+  needs:
+    - build:pgi
+    - tinker
+  parallel: 2
+
+build:sun:
+  extends: .sun
+  <<: *compile
+test:sun:
+  extends: .sun
+  <<: *run-tests
+  needs:
+    - build:sun
+    - tinker
+  parallel: 2
+
+build:intel:
+  extends: .intel
+  <<: *compile
+test:intel:
+  extends: .intel
+  <<: *run-tests
+  needs:
+    - build:intel
+  parallel: 2
+  tags:
+    - docker
+
+build:intel13:
+  extends: .intel13
+  <<: *compile
+test:intel13:
+  extends: .intel13
+  <<: *run-tests
+  needs:
+    - build:intel13
+
+# Disable NAG, since the runner is unavailable
+#build:nag:
+#  extends: .nag
+#  <<: *compile
+#test:nag:
+#  extends: .nag
+#  <<: *run-tests
+#  needs:
+#    - build:nag
+#    - tinker
+
+build:garble:
+  extends: .garble
+  <<: *compile
+test:garble:
+  extends: .garble
+  <<: *run-tests
+  needs:
+    - build:garble
+    - tinker
+  parallel: 4
+
+build:bounds:
+  extends: .bounds
+  <<: *compile
+test:bounds:
+  extends: .bounds
+  <<: *run-tests
+  needs:
+    - build:bounds
+  parallel: 4
+
+build:debug:
+  extends: .debug
+  <<: *compile
+#test:debug:
+#  extends: .debug
+#  <<: *run-tests
+#  needs:
+#    - build:debug
+
+build:qcmaquis:
+  extends: .qcmaquis
+  <<: *compile
+test:qcmaquis:
+  extends: .qcmaquis
+  <<: *run-tests
+  needs:
+    - build:qcmaquis
+
+

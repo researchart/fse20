@@ -1,0 +1,33 @@
+image: java:openjdk-8-jdk
+ 
+before_script:
+  - apt-get --quiet update --yes
+  - apt-get --quiet install --yes wget tar unzip lib32stdc++6 lib32z1
+  - wget --quiet --output-document=android-sdk.tgz https://dl.google.com/android/android-sdk_r24.4.1-linux.tgz
+  - tar --extract --gzip --file=android-sdk.tgz
+  - echo y | android-sdk-linux/tools/android --silent update sdk --no-ui --all --filter android-20
+  - echo y | android-sdk-linux/tools/android --silent update sdk --no-ui --all --filter platform-tools
+  - echo y | android-sdk-linux/tools/android --silent update sdk --no-ui --all --filter build-tools-20.0.0
+  - echo y | android-sdk-linux/tools/android --silent update sdk --no-ui --all --filter extra-android-m2repository
+ # - echo y | android-sdk-linux/tools/android --silent update sdk --no-ui --all --filter extra-google-google_play_services ### disabling gplay services
+  - echo y | android-sdk-linux/tools/android --silent update sdk --no-ui --all --filter extra-google-m2repository
+  - export ANDROID_HOME=$PWD/android-sdk-linux
+  - chmod u+x ./gradlew
+ 
+build:
+  script:
+    - ./gradlew assemble lint
+  artifacts:
+    paths:
+    - app/build/outputs/
+    
+# from http://blog.goddchen.de/2016/04/configuration-for-gitlab-ci-android-projects/
+#
+#
+# maybe this hack only downloads APKs if needed (from https://stackoverflow.com/questions/36270413/add-apk-to-zip-gitlab-ci-artifacts-gitlab-ci-yml-configuration)
+##      artifacts:
+##          name: "${CI_BUILD_NAME}_${CI_BUILD_REF_NAME}"
+##          paths:
+##              - app/*.apk
+
+

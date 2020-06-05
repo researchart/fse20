@@ -1,0 +1,81 @@
+# https://docs.gitlab.com/ce/ci/yaml/
+stages:
+  #- reset-cache
+  - check-style
+  - test-code
+  - test-coverage
+
+# reset:
+#   stage: reset-cache
+#   image: node:7.10.1
+#   script:
+#     - npm cache clean -f
+#     - rm -fr node_modules
+#     - mkdir node_modules
+#   cache:
+#     untracked: true
+#     paths:
+#       - node_modules
+
+check:
+  stage: check-style
+  image: node:7.10.1
+  variables:
+    NODE_ENV: development
+  before_script:
+    - npm install npm@5.2.0
+    - node_modules/.bin/npm install eslint@4.7.0
+    - node --version
+    - node_modules/.bin/npm --version
+  script:
+    - node_modules/.bin/eslint test/**/*.js
+    - node_modules/.bin/eslint src/**/*.js
+  cache:
+    untracked: true
+    paths:
+      - node_modules
+  except:
+    - tags
+
+test:
+  stage: test-code
+  image: node:7.10.1
+  variables:
+    NODE_ENV: test
+  before_script:
+    - npm install npm@5.2.0
+    - node_modules/.bin/npm install
+    - node --version
+    - node_modules/.bin/npm --version
+  script:
+    - node_modules/.bin/gulp test
+  cache:
+    untracked: true
+    paths:
+      - node_modules
+  except:
+    - tags
+
+coverage:
+  stage: test-coverage
+  image: node:7.10.1
+  variables:
+    NODE_ENV: test
+  before_script:
+    - npm install npm@5.2.0
+    - node_modules/.bin/npm install
+    - node --version
+    - node_modules/.bin/npm --version
+  script:
+    - node_modules/.bin/npm test
+  cache:
+    untracked: true
+    paths:
+      - node_modules
+  artifacts:
+    untracked: true
+    paths:
+      - coverage
+  except:
+    - tags
+

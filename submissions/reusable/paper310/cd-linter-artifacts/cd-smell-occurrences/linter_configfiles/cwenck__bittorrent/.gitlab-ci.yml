@@ -1,0 +1,12 @@
+before_script:
+    - apt-get update
+    - wget -q https://github.com/Snaipe/Criterion/releases/download/v2.3.2/criterion-v2.3.2-linux-x86_64.tar.bz2
+    - bzip2 -d criterion-v2.3.2-linux-x86_64.tar.bz2
+    - tar -xf criterion-v2.3.2-linux-x86_64.tar
+    - cp -r criterion-v2.3.2/include/criterion /usr/include
+    - cp criterion-v2.3.2/lib/* /usr/lib
+test:
+    script:
+        - make clean test && ./test
+        - make gitlab-coverage
+

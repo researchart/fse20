@@ -1,0 +1,39 @@
+test:
+  image: php:5.6
+  script:
+    - bash .gitlab-ci.sh
+    - vendor/bin/phpunit --colors --coverage-text |& tee report/report.md
+
+
+  artifacts:
+    paths:
+      - report/
+
+staging:
+  type: deploy
+  image: ruby:2.2.4
+  dependencies:
+  - test
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - apt-get install rubygems-integration
+  - gem install dpl
+  - dpl --provider=heroku --app=batique-staging --api-key=0ed5e2a2-11f9-43d3-98ad-425ee0680012
+  only:
+  - develop
+
+production:
+  type: deploy
+  image: ruby:2.2
+  dependencies:
+  - test
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - apt-get install rubygems-integration
+  - gem install dpl
+  - dpl --provider=heroku --app=batique --api-key=0ed5e2a2-11f9-43d3-98ad-425ee0680012
+  only:
+  - master
+

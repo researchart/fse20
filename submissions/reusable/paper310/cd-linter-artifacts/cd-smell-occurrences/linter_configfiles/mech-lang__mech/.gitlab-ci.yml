@@ -1,0 +1,14 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+image: "rust:latest"
+
+test:cargo:
+  script:
+  - rustup default nightly-2020-02-01
+  - rustup show
+  - rustc --version && cargo --version
+  - rustup component add rust-src
+  - cargo test --all
+  - cargo bench --all
+

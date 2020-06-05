@@ -1,0 +1,29 @@
+image: python:alpine
+
+test:
+  type: test
+  script:
+    - apk add --no-cache postgresql-dev gcc musl-dev
+    - pip install -r requirements.txt
+    - echo "testing"
+
+staging:
+  type: deploy
+  environment: staging
+  script:
+    - apk add --no-cache ruby ruby-rdoc ruby-irb curl ca-certificates git
+    - gem install dpl --no-doc
+    - dpl --provider=heroku --api-key=$HEROKU_PRODUCTION_API_KEY --app=$HEROKU_APP_STAGING_NAME
+  except:
+    - tags
+
+production:
+  type: deploy
+  environment: production
+  script:
+    - apk add --no-cache ruby ruby-rdoc ruby-irb curl ca-certificates git
+    - gem install dpl --no-doc
+    - dpl --provider=heroku --api-key=$HEROKU_PRODUCTION_API_KEY --app=$HEROKU_APP_NAME
+  only:
+    - tags
+

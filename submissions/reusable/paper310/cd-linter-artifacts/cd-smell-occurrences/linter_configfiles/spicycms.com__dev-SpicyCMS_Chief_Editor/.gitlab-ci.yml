@@ -1,0 +1,101 @@
+variables:
+  SERVER_DOMAIN: chief-editor.test.spicycms.com
+  REVIEW_APP_DOMAIN: $CI_BUILD_REF_SLUG.$SERVER_DOMAIN
+  REVIEW_APP: cms_chief_editor_review_$CI_BUILD_REF_SLUG
+  DEMO_APP_DOMAIN: $SERVER_DOMAIN
+  DEMO_NET: cms_chief_editor_demo_net
+  DEMO_APP: cms_chief_editor_demo
+  DEMO_APP_DB: cms_chief_editor_db_demo
+  APP_IMAGE: $CI_REGISTRY_IMAGE:$CI_BUILD_REF_SLUG
+  SLACK_URL: https://hooks.slack.com/services/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
+
+stages:
+  - build
+  - review
+  - demo
+  - production
+
+build:
+  stage: build
+  before_script:
+    - git submodule sync
+    - git submodule update --init -- SpicyCMS_Chief_Editor
+  script: 
+    - echo "image name is $APP_IMAGE"
+    - docker build 
+        --tag $APP_IMAGE 
+        .
+
+review:
+  stage: review
+  environment:
+    name: review
+    url: https://$REVIEW_APP_DOMAIN
+  script: 
+    - if [[ $(docker ps)    == *$REVIEW_APP* ]] ; then docker stop $REVIEW_APP ; fi
+    - if [[ $(docker ps -a) == *$REVIEW_APP* ]] ; then docker rm   $REVIEW_APP ; fi
+    - docker run 
+        --detach
+        --name $REVIEW_APP
+        --env VIRTUAL_HOST=$REVIEW_APP_DOMAIN 
+        --env DB_BACKEND=django.db.backends.sqlite3
+        --env DB_NAME=dev.db
+        --env CREATE_NEW_DB=1
+        --env INIT_TEST_DATA=0
+        --env DEBUG=True 
+        $APP_IMAGE 
+    # TODO: Проверка на статус
+    # - curl -I $REVIEW_APP_DOMAIN 2>/dev/null | head -n 1 | cut -d$' ' -f2
+    - echo "url is $REVIEW_APP_DOMAIN"
+    - SLACK_MSG="REVIEW app is started on https://$REVIEW_APP_DOMAIN \nmessage - $(git log -1 --pretty=%B)"
+    - SLACK_PAYLOAD="payload={\"text\":\"$SLACK_MSG\"}"
+    - curl -X POST -d "$SLACK_PAYLOAD" $SLACK_URL
+
+demo:
+  stage: demo
+  environment:
+    name: demo
+    url: https://$DEMO_APP_DOMAIN
+  only: 
+    - master
+  before_script:
+    # Create special network for ireg containers
+    - if [[ $(docker network ls) != *$DEMO_NET* ]] ; then docker network create $DEMO_NET ; fi
+    # Remove old container
+    - if [[ $(docker ps)    == *$DEMO_APP* ]] ; then docker stop $DEMO_APP ; fi
+    - if [[ $(docker ps -a) == *$DEMO_APP* ]] ; then docker rm   $DEMO_APP ; fi
+    # Remove old db container
+    - if [[ $(docker ps)    == *$DEMO_APP_DB* ]] ; then docker stop $DEMO_APP_DB ; fi
+    - if [[ $(docker ps -a) == *$DEMO_APP_DB* ]] ; then docker rm   $DEMO_APP_DB ; fi
+    # Run db
+    - docker run
+        --detach
+        --name $DEMO_APP_DB
+        --network $DEMO_NET
+        --env POSTGRES_PASSWORD=postgres
+        postgres
+  script: 
+    - docker run 
+        --detach
+        --name $DEMO_APP
+        --env VIRTUAL_HOST=$DEMO_APP_DOMAIN 
+        --env DB_BACKEND=django.db.backends.postgresql_psycopg2
+        --env DB_HOST=$DEMO_APP_DB
+        --env DB_NAME=postgres
+        --env DB_LOGIN=postgres
+        --env DB_PASS=postgres
+        --env DB_PORT=5432
+        --env CREATE_NEW_DB=1
+        --env INIT_TEST_DATA=0
+        --env DEBUG=False 
+        $APP_IMAGE 
+    - docker network connect 
+        $DEMO_NET 
+        $DEMO_APP
+    # TODO: Проверка на статус
+    # - curl -I $DEMO_APP_DOMAIN 2>/dev/null | head -n 1 | cut -d$' ' -f2
+    - echo "url is $DEMO_APP_DOMAIN"
+    - SLACK_MSG="DEMO app is started on https://$DEMO_APP_DOMAIN"
+    - SLACK_PAYLOAD="payload={\"text\":\"$SLACK_MSG\"}"
+    - curl -X POST -d "$SLACK_PAYLOAD" $SLACK_URL
+

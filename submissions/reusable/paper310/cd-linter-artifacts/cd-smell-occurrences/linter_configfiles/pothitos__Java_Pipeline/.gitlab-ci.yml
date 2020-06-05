@@ -1,0 +1,27 @@
+# Using the official OpenJDK Docker image as default
+image: openjdk
+
+# Columns of the pipeline
+stages:
+  - build
+  - test
+
+# Compilation job
+build:
+  stage: build
+  script:
+    - javac -Xlint Calculator.java
+  # Pass below artifacts to the next jobs
+  artifacts:
+    paths:
+      - Calculator.class
+
+# Module testing
+module tests:
+  stage: test
+  script:
+    - test $(java Calculator 1 + 1) = 2
+    - test $(java Calculator 100 - 10) = 90
+    - test $(java Calculator 25 \* 5) = 125
+    - (! java Calculator 30 / 5) # Should fail as division is unsupported
+

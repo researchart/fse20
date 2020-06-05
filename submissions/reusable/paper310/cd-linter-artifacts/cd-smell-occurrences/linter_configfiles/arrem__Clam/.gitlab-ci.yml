@@ -1,0 +1,32 @@
+image: maven:latest
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  
+cache:
+  paths:
+    - .m2/repository
+
+# 1. Build stage - test that the project compiles.
+kt-validate:
+  stage: build
+  script:
+    - mvn test-compile
+
+# 2. Test stage - run all unit tests.
+kt-test:
+  stage: test
+  script:
+    - mvn test
+    - cat target/site/jacoco/index.html || true
+
+# 3. Deploy stage - build and upload .jar file.
+kt-deploy:
+  stage: deploy
+  script:
+    - mvn package
+  artifacts:
+    name: "$CI_JOB_NAME"
+    paths:
+      - target/*.jar
+

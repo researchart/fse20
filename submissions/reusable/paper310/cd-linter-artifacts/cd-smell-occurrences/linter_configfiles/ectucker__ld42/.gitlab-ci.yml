@@ -1,0 +1,34 @@
+image: google/dart:1.24.3
+
+cache:
+  untracked: true
+  key: $CI_BUILD_REF_NAME
+  paths:
+    - packages/
+    - web/packages/
+    - .pub_cache/
+
+stages:
+  - build
+
+before_script:
+  - export PUB_CACHE=$PWD/.pub_cache/
+  - pub version
+  - pub get
+  - pub upgrade
+
+pages:
+  stage: build
+  script:
+    - pub build
+    - rm -r -f public
+    - mkdir -p public
+    - mv -v build/web/* public
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master
+  tags:
+    - docker
+

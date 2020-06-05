@@ -1,0 +1,78 @@
+# Global config
+image: node:4
+
+stages:
+  - generate
+  - build
+  - publish
+
+cache:
+  paths:
+    - gen/node_modules/
+
+# Templates
+.template:tag-docker: &tag-docker
+  tags:
+    - docker
+
+.template:publish-npm: &publish-npm
+  <<: *tag-docker
+  stage: publish
+  dependencies:
+    - build:pack
+  script:
+    - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
+    - npm publish --ignore-scripts --tag $tag ./build/*.tgz
+
+
+# Jobs
+generate:
+  <<: *tag-docker
+  stage: generate
+  image: java:8
+  artifacts:
+    expire_in: '1 hour'
+    paths:
+      - gen
+  script:
+    - prerelease="-ci.$CI_BUILD_REF"
+    - if [ $CI_BUILD_REF_NAME = "develop" ]; then prerelease="-dev.$CI_BUILD_ID"; fi
+    - if [ -n "$CI_BUILD_TAG" ]; then prerelease=''; fi
+    - 'sed -i -r "s/\"npmVersion\": \"([0-9\.]+)-local\",/\"npmVersion\": \"\1$prerelease\",/" config.json'
+    - if grep -q -- "-local" config.json; then echo "Version wasn't changed"; exit 1; fi
+    - ./scripts/generate.sh
+
+build:pack:
+  <<: *tag-docker
+  stage: build
+  artifacts:
+    expire_in: '1 day'
+    paths:
+      - build
+  dependencies:
+    - generate
+  script:
+    - npm config set unsafe-perm true # The node image runs as root, but we still need to run prepublish scripts.
+    - mkdir build
+    - node ./scripts/update-generated-code.js
+    - cd gen
+    - npm install
+    - npm pack
+    - cp *.tgz ../build/
+
+publish:npm-dev:
+  <<: *publish-npm
+  variables:
+    tag: dev
+  environment: dev
+  only:
+    - develop@janslow/gitlab-swagger-client
+
+publish:npm-latest:
+  <<: *publish-npm
+  variables:
+    tag: latest
+  environment: latest
+  only:
+    - tags@janslow/gitlab-swagger-client
+

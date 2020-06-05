@@ -1,0 +1,39 @@
+# shell-runner configuration
+
+# prepare gitlab-ci
+before_script:
+- wget http://getcomposer.org/composer.phar
+- php -d memory_limit=-1 composer.phar install --dev --prefer-source
+- replace "_MYSQL_HOST_" "$MYSQL_HOST" -- tests/configuration.php.dist
+- replace "_MYSQL_DATABASE_" "$MYSQL_DATABASE" -- tests/configuration.php.dist
+- replace "_MYSQL_USER_" "$MYSQL_USER" -- tests/configuration.php.dist
+- replace "_MYSQL_PASSWORD_" "$MYSQL_PASSWORD" -- tests/configuration.php.dist
+
+# define types/stages
+types:
+- test
+
+# testing with php 5.x jobs
+test-php55_job:
+  type: test
+  image: php:5.5
+  script:
+  - php55 -d memory_limit=-1 vendor/bin/phpunit --colors --debug --bootstrap=tests/bootstrap.php --coverage-text
+  allow_failure: false
+
+test-php56_job:
+  type: test
+  image: php:5.6
+  script:
+  - php56 -d memory_limit=-1 vendor/bin/phpunit --colors --debug --bootstrap=tests/bootstrap.php --coverage-text
+  allow_failure: false
+
+test-php70_job:
+  type: test
+  image: php:7.0
+  script:
+  - php70 -d memory_limit=-1 vendor/bin/phpunit --colors --debug --bootstrap=tests/bootstrap.php --coverage-text
+  allow_failure: false
+
+
+

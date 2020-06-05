@@ -1,0 +1,40 @@
+before_script:
+- bash ci/docker_install.sh > /dev/null
+
+# Install composer
+- curl -sS https://getcomposer.org/installer | php
+
+# copy custom php.ini
+- cp ci/custom_php.ini /usr/local/etc/php/conf.d/custom.ini
+
+# Install all project dependencies
+- php composer.phar install
+
+cache:
+  paths:
+  - vendor/
+
+# PHP version 5.6.*
+test:5.6:
+  image: php:5.6
+  script:
+  - phpunit --configuration phpunit.xml.dist
+
+# PHP version 7.0.*
+test:7.0:
+  image: php:7.0
+  script:
+  - phpunit --configuration phpunit.xml.dist
+
+# PHP version 7.1.*
+test:7.1:
+  image: php:7.1
+  script:
+  - phpunit --configuration phpunit.xml.dist
+
+# PHP version 7.2.*
+test:7.2:
+  image: php:7.2
+  script:
+  - phpunit --configuration phpunit.xml.dist
+

@@ -1,0 +1,43 @@
+stages:
+  - lint
+  - build
+  - test
+
+image: debian:testing
+
+lint:
+  stage: lint
+  script:
+  - apt update && apt install -y pylint3
+  - find . -iname "*.py" | xargs pylint3
+
+build:
+  stage: build
+  script:
+  - apt update && apt install -y python3-setuptools python3-docopt
+  - python3 setup.py install
+  - genfo --help
+
+.template: &template
+  stage: test
+  script:
+  - apt update && apt install -y $PYTHON_VERSION python3-docopt flac
+  - python3 genfo.py "%n - %t" tests/ template.nfo tests/ci.nfo
+  - diff tests/output.nfo tests/ci.nfo
+
+test:3.5:
+  <<: *template
+  image: debian:9
+  variables:
+    PYTHON_VERSION: python3.5
+
+test:3.6:
+  <<: *template
+  variables:
+    PYTHON_VERSION: python3.6
+
+test:3.7:
+  <<: *template
+  variables:
+    PYTHON_VERSION: python3.7
+

@@ -1,0 +1,13 @@
+image: golang:1.7-alpine
+
+stages:
+  - test
+
+test:
+  stage: test
+  before_script:
+    # Required as kevin tests are in their own package
+    - apk update && apk upgrade && apk add --no-cache bash git openssh
+    - go get gitlab.com/kylehqcom/kevin
+  script: go test
+

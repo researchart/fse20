@@ -1,0 +1,58 @@
+image: registry.gitlab.com/tvaughan/gitlab-ci-docker-builder:latest
+
+services:
+  - docker:dind
+  - postgres:12
+
+variables:
+  POSTGRES_USER: starterkit
+  POSTGRES_PASS: starterkit
+
+stages:
+  - test
+  - create-ami
+  - deploy-ami
+
+test:
+  stage: test
+  environment:
+    name: testing
+  script:
+    - make build
+    - | # TODO: Cannot use GitLab CI variables in `variables:` section.
+      export STARTERKIT_DATABASE_HOSTNAME=$POSTGRES_PORT_5432_TCP_ADDR
+      export STARTERKIT_DATABASE_TCP_PORT=$POSTGRES_PORT_5432_TCP_PORT
+      export STARTERKIT_DATABASE_USERNAME=$POSTGRES_USER
+      export STARTERKIT_DATABASE_PASSWORD=$POSTGRES_PASS
+      make lint
+    - | # TODO: Cannot use GitLab CI variables in `variables:` section.
+      export STARTERKIT_DATABASE_HOSTNAME=$POSTGRES_PORT_5432_TCP_ADDR
+      export STARTERKIT_DATABASE_TCP_PORT=$POSTGRES_PORT_5432_TCP_PORT
+      export STARTERKIT_DATABASE_USERNAME=$POSTGRES_USER
+      export STARTERKIT_DATABASE_PASSWORD=$POSTGRES_PASS
+      make test
+    - make push
+
+create-ami:
+  stage: create-ami
+  environment:
+    name: production
+  script:
+    - make create-ami
+  only:
+    - master
+  artifacts:
+    paths:
+    - packer-*-manifest.json
+
+deploy-ami:
+  stage: deploy-ami
+  environment:
+    name: production
+  script:
+    - make deploy-ami
+  only:
+    - master
+  dependencies:
+    - create-ami
+

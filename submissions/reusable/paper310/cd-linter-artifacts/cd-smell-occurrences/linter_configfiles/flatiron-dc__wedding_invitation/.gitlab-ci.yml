@@ -1,0 +1,13 @@
+variables:
+  AWS_DEFAULT_REGION: us-east-2
+  GIT_STRATEGY: clone
+stages:
+  - deploy
+
+s3-branch-deployment:
+  stage: deploy
+  image: garland/aws-cli-docker
+  retry: 2
+  script:
+    - aws s3 sync . s3://wedding.flatiron-dc.com/$CI_COMMIT_REF_NAME/ --delete --grants read=uri=http://acs.amazonaws.com/groups/global/AllUsers --exclude "*.git/*"
+

@@ -1,0 +1,13 @@
+types:
+  - test
+
+master-test:
+  type: test
+  script:
+    - git checkout master
+    - git pull
+    - npm install
+    - mocha -t 10000 test/test.js
+  only:
+    - master
+

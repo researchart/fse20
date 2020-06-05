@@ -1,0 +1,45 @@
+image: debian:buster
+
+before_script:
+- apt-get -qq update
+- apt-get install -y curl
+- apt-get -qq install -y gnupg2 python2.7 python2.7-dev build-essential make gcc g++ libicu-dev fakeroot git jq libsecret-1-dev pkg-config
+- curl -sL https://deb.nodesource.com/setup_10.x | bash -
+- apt-get install -y nodejs
+- npm install -g npm
+- npm set progress=false
+
+stages:
+- test
+- docs
+- pack
+
+tests:
+  stage: test
+  script:
+  - GRANAX_USE_SYSTEM_TOR=1 npm install --unsafe-perm
+  - npm run coverage
+
+pages:
+  stage: docs
+  script:
+  - GRANAX_USE_SYSTEM_TOR=1 npm install --unsafe-perm
+  - npm run generate-docs
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+release:
+  stage: pack
+  script:
+  - GRANAX_USE_SYSTEM_TOR=1 npm install --unsafe-perm
+  - npm run make-all
+  artifacts:
+    name: "orc-$CI_COMMIT_REF_NAME-debian"
+    paths:
+    - out/make/@deadcanaries
+  only: 
+  - tags
+

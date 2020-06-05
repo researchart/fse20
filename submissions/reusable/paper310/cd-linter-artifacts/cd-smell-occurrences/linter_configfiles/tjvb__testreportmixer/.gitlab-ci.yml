@@ -1,0 +1,48 @@
+# Composer stores all downloaded packages in the vendor/ directory.
+# Do not use the following if the vendor/ directory is commited to
+# your git repository.
+cache:
+  paths:
+  - vendor/
+
+before_script:
+# Install git, the php image doesn't have installed
+- apt-get update -yqq
+- apt-get install git -yqq
+
+# Install composer
+- curl -sS https://getcomposer.org/installer | php
+# Install Xdebug
+- pecl install xdebug
+# Enable Xdebug
+- docker-php-ext-enable xdebug
+
+test:
+  image: php:7.0
+  script:
+  - php composer.phar validate
+  - php composer.phar install
+  - vendor/bin/phpcs --standard=PSR2 src/
+  - vendor/bin/phpmd src/ text codesize,naming,design,unusedcode
+  
+# We test PHP7.0
+test:7.0:
+  image: php:7.0
+  script:
+  - php composer.phar install
+  - vendor/bin/phpunit --configuration phpunit.xml --coverage-text --colors=never
+
+# We test PHP7.1
+test:7.1:
+  image: php:7.1
+  script:
+  - php composer.phar install
+  - vendor/bin/phpunit --configuration phpunit.xml --coverage-text --colors=never
+
+# We test PHP7.2
+test:7.2:
+  image: php:7.2
+  script:
+  - php composer.phar install
+  - vendor/bin/phpunit --configuration phpunit.xml --coverage-text --colors=never
+

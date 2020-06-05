@@ -1,0 +1,31 @@
+# https://hub.docker.com/r/library/python/tags/
+image: python:3.7
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+# Pip's cache doesn't store the python packages
+# https://pip.pypa.io/en/stable/reference/pip_install/#caching
+#
+# If you want to also cache the installed packages, you have to install
+# them in a virtualenv and cache it as well.
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+before_script:
+  - apt-get update
+  - apt-get -y install libgirepository1.0-dev libpoppler-glib-dev
+  - python -V
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+
+test:
+  script:
+  - pip install git+https://github.com/pygobject/pycairo.git
+  - pip install -r requirements-test.txt
+  - PYTHONPATH=. pytest -vv
+  - pip install .
+

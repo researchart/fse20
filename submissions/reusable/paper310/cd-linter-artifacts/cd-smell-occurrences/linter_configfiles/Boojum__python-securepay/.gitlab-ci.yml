@@ -1,0 +1,7 @@
+before_script:
+ - apt-get update -qq && apt-get install -y -q python2.7 python3.4 python-tox python-lxml python3-lxml
+test:
+  stage: test
+  script:
+  - tox -e py27,py34
+

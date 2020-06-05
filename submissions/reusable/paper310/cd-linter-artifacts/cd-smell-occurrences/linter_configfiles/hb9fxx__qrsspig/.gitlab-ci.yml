@@ -1,0 +1,853 @@
+image: debian:buster
+
+variables: &global_variables
+  VERSION: 0.7.0
+  DEBREVISION: 1
+  IMAGEVERSION: 0.7.0
+
+stages:
+  - build
+  - test
+  - report
+  - package-src
+  - package-bin
+  - package-test
+  - package-bundle
+
+build:linux:
+  stage: build
+  script:
+    - apt-get update -qq && apt-get install -y -qq build-essential clang cmake
+    - apt-get install -y -qq libboost-filesystem-dev libfftw3-dev libliquid-dev libyaml-cpp-dev
+    - apt-get install -y -qq libairspy-dev libasound-dev gr-osmosdr libhackrf-dev liblimesuite-dev libpulse-dev librtlsdr-dev
+    - apt-get install -y -qq libgd-dev
+    - apt-get install -y -qq libcurl4-openssl-dev libssh-dev
+    - mkdir -p build
+    - cd build
+    - cmake -DCMAKE_INSTALL_PREFIX=. -DWITH_INPUT_AIRSPY=ON -DWITH_INPUT_GROSMOSDR=ON -DWITH_INPUT_LIMESDR=ON ..
+    - make -j 4
+    - make -j 4 install
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - build/bin/
+      - build/lib/
+
+build:tar:
+  stage: build
+  only:
+    - staging
+    - master
+  script:
+    - apt-get update -qq && apt-get install -y -qq xz-utils
+    - mkdir -p build/deb/qrsspig-${VERSION}
+    - cp -a cmake debian etc src systemd CMakeLists.txt ChangeLog LICENSE README.md THANKS qrsspig.yaml.template build/deb/qrsspig-${VERSION}
+    - cd build/deb
+    - tar cJf qrsspig_${VERSION}.orig.tar.xz qrsspig-${VERSION}
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - build/deb/qrsspig-${VERSION}
+      - build/deb/qrsspig_${VERSION}.orig.tar.xz
+
+unittests:
+  stage: test
+  script:
+    - apt-get update -qq && apt-get install -y -qq libboost-filesystem1.67.0 libyaml-cpp0.6 libfftw3-bin libgd3
+    - apt-get install -y -qq librtlsdr0 libhackrf0 libasound2 liblimesuite18.06-1 gr-osmosdr libairspy0 pulseaudio
+    - apt-get install -y -qq libliquid1d
+    - apt-get install -y -qq libcurl4 libssh-4
+    - sed -i "s/load-module module-native-protocol-unix/load-module module-native-protocol-unix auth-anonymous=1/g" /etc/pulse/system.pa
+    - pulseaudio --system --daemonize
+    - ./build/bin/qrsspig --runtests
+    - ./build/bin/qrsspig --listmodules --listdevices
+
+unittests:valgrind:
+  stage: test
+  allow_failure: true
+  script:
+    - apt-get update -qq && apt-get install -y -qq libboost-filesystem1.67.0 libyaml-cpp0.6 libfftw3-bin libgd3
+    - apt-get install -y -qq librtlsdr0 libhackrf0 libasound2 liblimesuite18.06-1 gr-osmosdr libairspy0 pulseaudio
+    - apt-get install -y -qq libliquid1d
+    - apt-get install -y -qq libcurl4 libssh-4
+    - apt-get install -y -qq valgrind
+    - sed -i "s/load-module module-native-protocol-unix/load-module module-native-protocol-unix auth-anonymous=1/g" /etc/pulse/system.pa
+    - pulseaudio --system --daemonize
+    - valgrind --leak-check=full --error-exitcode=42 --xml=yes --xml-file=valgrind1.xml ./build/bin/qrsspig --runtests
+    - valgrind --leak-check=full --error-exitcode=42 --suppressions=valgrind.supp --gen-suppressions=all --xml=yes --xml-file=valgrind2.xml ./build/bin/qrsspig --listmodules --listdevices
+  artifacts:
+    when: on_failure
+    expire_in: 1 day
+    paths:
+      - valgrind1.xml
+      - valgrind2.xml
+
+unittests:cppcheck:
+  stage: test
+  allow_failure: true
+  image: registry.gitlab.com/hb9fxx/qrsspig/cppcheck:1.87
+  script:
+    - cppcheck --quiet --force --enable=all --suppressions-list=cppcheck.supp --xml --xml-version=2 --error-exitcode=42 src 2> cppcheck.xml
+  artifacts:
+    when: always
+    expire_in: 1 day
+    paths:
+      - cppcheck.xml
+
+report:cppcheck:
+  stage: report
+  allow_failure: true
+  image: registry.gitlab.com/hb9fxx/qrsspig/cppcheck:1.87
+  script:
+    - mkdir -p reports/cppcheck/
+    - cppcheck-htmlreport --file=cppcheck.xml --report-dir=reports/cppcheck/ --source-dir=.
+  artifacts:
+    when: on_success
+    expire_in: 1 day
+    paths:
+      - reports/cppcheck/
+
+.package_build_source: &package_build_source
+  stage: package-src
+  only:
+  - staging
+  - master
+  dependencies:
+  - build:tar
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_${DIST}:${IMAGEVERSION}
+  script:
+  - cd build/deb
+  - mkdir ${DIST}
+  - mv qrsspig* ${DIST}/
+  - cd ${DIST}/qrsspig-${VERSION}
+  - cp debian/control.${DIST} debian/control
+  - sed -i "s/RELEASED/${DIST}/g" debian/changelog
+  - gpg --no-tty --import <(echo "$GPG_PRIVATE_KEY")
+  - debuild -eDEB_BUILD_OPTIONS="parallel=${PARALLEL}" -i -S
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - build/deb/${DIST}/qrsspig-${VERSION}
+    - build/deb/${DIST}/qrsspig_${VERSION}.orig.tar.xz
+    - build/deb/${DIST}/qrsspig_${VERSION}-${DEBREVISION}.debian.tar.xz
+    - build/deb/${DIST}/qrsspig_${VERSION}-${DEBREVISION}.dsc
+    - build/deb/${DIST}/qrsspig_${VERSION}-${DEBREVISION}_source.build*
+    - build/deb/${DIST}/qrsspig_${VERSION}-${DEBREVISION}_source.changes
+
+.package_build_binary:
+  script: &package_build_binary
+    - cd build/deb/${DIST}/qrsspig-${VERSION}
+    - gpg --no-tty --import <(echo "$GPG_PRIVATE_KEY")
+    - debuild -eDEB_BUILD_OPTIONS="parallel=${PARALLEL}" -i -b
+
+.package_binary_paths:
+  paths: &package_binary_paths
+    - build/deb/${DIST}/qrsspig*_${VERSION}-${DEBREVISION}_${ARCH}.*deb
+    - build/deb/${DIST}/qrsspig_${VERSION}-${DEBREVISION}_${ARCH}.build*
+    - build/deb/${DIST}/qrsspig_${VERSION}-${DEBREVISION}_${ARCH}.changes
+
+.package_test: &package_test
+  stage: package-test
+  only:
+  - staging
+  - master
+
+  script:
+  - apt-get update -qq && apt-get install -y -qq gdebi pulseaudio
+  - sed -i "s/load-module module-native-protocol-unix/load-module module-native-protocol-unix auth-anonymous=1/g" /etc/pulse/system.pa
+  - pulseaudio --system --daemonize
+  - gdebi -nq build/deb/${DIST}/qrsspig_${VERSION}-${DEBREVISION}_${ARCH}.deb
+  - qrsspig --runtests
+  - qrsspig --listmodules --listdevices
+
+# var substitution not supported in image key yet
+.package_test_debian: &package_test_debian
+  <<: *package_test
+  image: debian:{DIST}}
+
+.package_test_raspbian: &package_test_raspbian
+  <<: *package_test
+  image: resin/rpi-raspbian:{DIST}}
+
+.package_test_ubuntu: &package_test_ubuntu
+  <<: *package_test
+  image: ubuntu:{DIST}}
+
+package:source:jessie:
+  <<: *package_build_source
+  variables:
+    <<: *global_variables
+    DIST: jessie
+    PARALLEL: 4
+
+package:binary:jessie:amd64:
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: jessie
+    PARALLEL: 4
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:jessie
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_jessie:${IMAGEVERSION}
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:jessie:armhf:
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: jessie
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:jessie
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_armhf_jessie:${IMAGEVERSION}
+  tags:
+    - armhf
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:test:jessie:amd64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: jessie
+  dependencies:
+  - package:binary:jessie:amd64
+  image: debian:jessie
+
+package:test:jessie:armhf:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: jessie
+  dependencies:
+  - package:binary:jessie:armhf
+  image: resin/rpi-raspbian:jessie
+  tags:
+    - armhf
+
+package:source:stretch:
+  <<: *package_build_source
+  variables:
+    <<: *global_variables
+    DIST: stretch
+    PARALLEL: 4
+
+package:binary:stretch:amd64:
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: stretch
+    PARALLEL: 4
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:stretch
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_stretch:${IMAGEVERSION}
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:stretch:armhf:
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: stretch
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:stretch
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_armhf_stretch:${IMAGEVERSION}
+  tags:
+    - armhf
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:stretch:arm64:
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: stretch
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:stretch
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_arm64_stretch:${IMAGEVERSION}
+  tags:
+    - arm64
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:test:stretch:amd64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: stretch
+  dependencies:
+  - package:binary:stretch:amd64
+  image: debian:stretch
+
+package:test:stretch:armhf:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: stretch
+  dependencies:
+  - package:binary:stretch:armhf
+  image: resin/rpi-raspbian:stretch
+  tags:
+  - armhf
+
+package:test:stretch:arm64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: stretch
+  dependencies:
+  - package:binary:stretch:arm64
+  image: debian:stretch
+  tags:
+  - arm64
+
+package:source:buster:
+  <<: *package_build_source
+  variables:
+    <<: *global_variables
+    DIST: buster
+    PARALLEL: 4
+
+package:binary:buster:amd64:
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: buster
+    PARALLEL: 4
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:buster
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_buster:${IMAGEVERSION}
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:buster:armhf:
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: buster
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:buster
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_armhf_buster:${IMAGEVERSION}
+  tags:
+    - armhf
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:buster:arm64:
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: buster
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:buster
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_arm64_buster:${IMAGEVERSION}
+  tags:
+    - arm64
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:test:buster:amd64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: buster
+  dependencies:
+  - package:binary:buster:amd64
+  image: debian:buster
+
+package:test:buster:armhf:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: buster
+  dependencies:
+  - package:binary:buster:armhf
+  image: resin/rpi-raspbian:buster
+  tags:
+  - armhf
+
+package:test:buster:arm64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: buster
+  dependencies:
+  - package:binary:buster:arm64
+  image: debian:buster
+  tags:
+  - arm64
+
+package:source:xenial:
+  <<: *package_build_source
+  variables:
+    <<: *global_variables
+    DIST: xenial
+    PARALLEL: 4
+
+package:binary:xenial:amd64:
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: xenial
+    PARALLEL: 4
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:xenial
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_xenial:${IMAGEVERSION}
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:xenial:armhf:
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: xenial
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:xenial
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_armhf_xenial:${IMAGEVERSION}
+  tags:
+    - armhf
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:xenial:arm64:
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: xenial
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:xenial
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_arm64_xenial:${IMAGEVERSION}
+  tags:
+    - arm64
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:test:xenial:amd64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: xenial
+  dependencies:
+  - package:binary:xenial:amd64
+  image: ubuntu:xenial
+
+package:test:xenial:armhf:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: xenial
+  dependencies:
+  - package:binary:xenial:armhf
+  image: ubuntu:xenial
+  tags:
+  - armhf
+
+package:test:xenial:arm64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: xenial
+  dependencies:
+  - package:binary:xenial:arm64
+  image: ubuntu:xenial
+  tags:
+  - arm64
+
+package:source:bionic:
+  <<: *package_build_source
+  variables:
+    <<: *global_variables
+    DIST: bionic
+    PARALLEL: 4
+
+package:binary:bionic:amd64:
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: bionic
+    PARALLEL: 4
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:bionic
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_bionic:${IMAGEVERSION}
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:bionic:armhf:
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: bionic
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:bionic
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_armhf_bionic:${IMAGEVERSION}
+  tags:
+    - armhf
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:bionic:arm64:
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: bionic
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:bionic
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_arm64_bionic:${IMAGEVERSION}
+  tags:
+    - arm64
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:test:bionic:amd64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: bionic
+  dependencies:
+  - package:binary:bionic:amd64
+  image: ubuntu:bionic
+
+package:test:bionic:armhf:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: bionic
+  dependencies:
+  - package:binary:bionic:armhf
+  image: ubuntu:bionic
+  tags:
+  - armhf
+
+package:test:bionic:arm64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: bionic
+  dependencies:
+  - package:binary:bionic:arm64
+  image: ubuntu:bionic
+  tags:
+  - arm64
+
+package:source:disco:
+  <<: *package_build_source
+  variables:
+    <<: *global_variables
+    DIST: disco
+    PARALLEL: 4
+
+package:binary:disco:amd64:
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: disco
+    PARALLEL: 4
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:disco
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_disco:${IMAGEVERSION}
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:disco:armhf:
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: disco
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:disco
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_armhf_disco:${IMAGEVERSION}
+  tags:
+    - armhf
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:disco:arm64:
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: disco
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:disco
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_arm64_disco:${IMAGEVERSION}
+  tags:
+    - arm64
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:test:disco:amd64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: disco
+  dependencies:
+  - package:binary:disco:amd64
+  image: ubuntu:disco
+
+package:test:disco:armhf:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: disco
+  dependencies:
+  - package:binary:disco:armhf
+  image: ubuntu:disco
+  tags:
+  - armhf
+
+package:test:disco:arm64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: disco
+  dependencies:
+  - package:binary:disco:arm64
+  image: ubuntu:disco
+  tags:
+  - arm64
+
+package:source:eoan:
+  <<: *package_build_source
+  variables:
+    <<: *global_variables
+    DIST: eoan
+    PARALLEL: 4
+
+package:binary:eoan:amd64:
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: eoan
+    PARALLEL: 4
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:eoan
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_eoan:${IMAGEVERSION}
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:eoan:armhf:
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: eoan
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:eoan
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_armhf_eoan:${IMAGEVERSION}
+  tags:
+    - armhf
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:binary:eoan:arm64:
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: eoan
+    PARALLEL: 1
+  stage: package-bin
+  only:
+    - staging
+    - master
+  dependencies:
+    - package:source:eoan
+  image: registry.gitlab.com/hb9fxx/qrsspig/build_arm64_eoan:${IMAGEVERSION}
+  tags:
+    - arm64
+  script: *package_build_binary
+  artifacts:
+    expire_in: 1 week
+    paths: *package_binary_paths
+
+package:test:eoan:amd64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: amd64
+    DIST: eoan
+  dependencies:
+  - package:binary:eoan:amd64
+  image: ubuntu:eoan
+
+package:test:eoan:armhf:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: armhf
+    DIST: eoan
+  dependencies:
+  - package:binary:eoan:armhf
+  image: ubuntu:eoan
+  tags:
+  - armhf
+
+package:test:eoan:arm64:
+  <<: *package_test
+  variables:
+    <<: *global_variables
+    ARCH: arm64
+    DIST: eoan
+  dependencies:
+  - package:binary:eoan:arm64
+  image: ubuntu:eoan
+  tags:
+  - arm64
+
+package:bundle:
+  stage: package-bundle
+  only:
+    - staging
+    - master
+  script:
+    - apt-get update -qq && apt-get install -y -qq xz-utils
+    - cd build/deb
+    - tar cJf qrsspig_${VERSION}-${DEBREVISION}.tar.xz jessie stretch buster xenial bionic disco eoan
+    - mv qrsspig_${VERSION}-${DEBREVISION}.tar.xz ../../
+  artifacts:
+    paths:
+      - qrsspig_${VERSION}-${DEBREVISION}.tar.xz
+      - cppcheck.xml
+      - valgrind1.xml
+      - valgrind2.xml
+

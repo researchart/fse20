@@ -1,0 +1,59 @@
+stages:
+  - test
+  - build
+  - deploy
+
+test-backend-games:
+  image: mcr.microsoft.com/dotnet/core/sdk:2.2
+  stage: test
+  script:
+    - cd backend-games
+    - dotnet test
+
+test-frontend:
+  image: node:lts-alpine
+  stage: test
+  script:
+    - cd frontend
+    - npm install --silent
+    - npx react-scripts test --watchAll=false
+
+build-backend-games:
+  image: mcr.microsoft.com/dotnet/core/sdk:2.2
+  stage: build
+  dependencies:
+    - test-backend-games
+  script:
+    - cd backend-games
+    - dotnet publish -c Release -o out
+  artifacts:
+    paths:
+      - backend-games/EternalGroveApi/out
+    expire_in: 30 mins
+
+build-frontend:
+  image: node:lts-alpine
+  stage: build
+  dependencies:
+    - test-frontend
+  script:
+    - cd frontend
+    - npm install --silent
+    - npx react-scripts build
+  artifacts:
+    paths:
+      - frontend/build
+    expire_in: 30 mins
+
+deploy-frontend:
+  image: python:latest
+  stage: deploy
+  dependencies:
+    - build-frontend
+  script:
+    - pip install awscli
+    - aws s3 rm s3://www.eternalgrove.net/ --recursive
+    - aws s3 cp frontend/build s3://www.eternalgrove.net/ --grants read=uri=http://acs.amazonaws.com/groups/global/AllUsers --recursive
+  only:
+    - release
+

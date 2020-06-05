@@ -1,0 +1,20 @@
+image: cnam/make-builder:latest
+
+variables:
+  DOCKER_DRIVER: overlay
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+build:
+  stage: build
+  after_script:
+      - make clean
+  tags:
+    - docker
+  script:
+    - make test release IMAGE=registry.gitlab.com/leanlabsio/kanban TAG=${CI_BUILD_REF:0:12} REGISTRY_USERNAME=gitlab-ci-token REGISTRY_PASSWORD=$CI_BUILD_TOKEN
+

@@ -1,0 +1,76 @@
+<!--
+
+    This Source Code Form is subject to the terms of the Mozilla Public License,
+    v. 2.0. If a copy of the MPL was not distributed with this file, You can
+    obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+    the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
+
+    Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+    graphic logo is a trademark of OpenMRS Inc.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+   <parent>
+      <groupId>org.openmrs</groupId>
+      <artifactId>openmrs</artifactId>
+      <version>2.1.0-SNAPSHOT</version>
+   </parent>
+   <modelVersion>4.0.0</modelVersion>
+   <groupId>org.openmrs.test</groupId>
+   <artifactId>openmrs-test</artifactId>
+   <packaging>pom</packaging>
+   <name>openmrs-test</name>
+   <description>The test dependencies for openmrs</description>
+   <dependencies>
+      <dependency>
+         <groupId>org.springframework</groupId>
+         <artifactId>spring-test</artifactId>
+      </dependency>
+      <dependency>
+         <groupId>com.h2database</groupId>
+         <artifactId>h2</artifactId>
+      </dependency>
+      <dependency>
+         <groupId>junit</groupId>
+         <artifactId>junit</artifactId>
+      </dependency>
+      <dependency>
+         <groupId>org.databene</groupId>
+         <artifactId>databene-benerator</artifactId>
+      </dependency>
+      <dependency>
+         <groupId>org.dbunit</groupId>
+         <artifactId>dbunit</artifactId>
+      </dependency>
+      <dependency>
+         <groupId>xmlunit</groupId>
+         <artifactId>xmlunit</artifactId>
+      </dependency>
+      
+		<dependency>	
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-module-junit4</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-api-mockito</artifactId>
+		</dependency>
+		<dependency>
+		    <groupId>org.hamcrest</groupId>
+		    <artifactId>hamcrest-core</artifactId>
+		</dependency>
+		<dependency>
+		    <groupId>org.hamcrest</groupId>
+		    <artifactId>hamcrest-library</artifactId>
+		</dependency>
+		<dependency>
+		    <groupId>com.carrotsearch</groupId>
+		    <artifactId>junit-benchmarks</artifactId>
+		</dependency>
+   </dependencies>
+</project>
+

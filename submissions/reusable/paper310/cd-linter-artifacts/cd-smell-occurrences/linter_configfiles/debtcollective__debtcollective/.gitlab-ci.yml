@@ -1,0 +1,79 @@
+image: registry.gitlab.com/debtcollective/debtcollective/ci:latest
+
+variables:
+  REDIS_HOST: "redis"
+  POSTGRES_HOST: "postgres"
+  POSTGRES_USER: "postgres"
+
+cache:
+  untracked: true
+  key: "node_modules"
+  paths:
+    - node_modules/
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  services:
+    - redis:3.0.6
+    - postgres:9.6.2
+  before_script:
+    - wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs923/ghostscript-9.23-linux-x86_64.tgz
+    - cp config/config.sample.js config/config.js
+    - cp config/knexfile.sample.js knexfile.js
+  script:
+    - yarn
+    - yarn build
+    - yarn test
+    - yarn report
+
+deploy_staging:
+  stage: deploy
+  before_script:
+    # install ssh-agent
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+      # run ssh-agent
+    - eval $(ssh-agent -s)
+      # add ssh key stored in SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p $HOME/.ssh
+    - chmod 700 $HOME/.ssh
+    # - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    # Staging as well as production are behing ELBs
+    # ELBs don't forward things like ssh (for security reasons)
+    # We are using a non standard port and an Elastic IP for this instead
+    - ssh-keyscan -H -p 12345 34.212.243.114 >> $HOME/.ssh/known_hosts
+    - ssh-keyscan -H 'gitlab.com' >> $HOME/.ssh/known_hosts
+  script:
+    - pm2 deploy ecosystem.json staging
+  environment: staging
+  only:
+    - master
+
+deploy_production:
+  stage: deploy
+  before_script:
+    # install ssh-agent
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+      # run ssh-agent
+    - eval $(ssh-agent -s)
+      # add ssh key stored in SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p $HOME/.ssh
+    - chmod 700 $HOME/.ssh
+    # - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    # Staging as well as production are behing ELBs
+    # ELBs don't forward things like ssh (for security reasons)
+    # We are using a non standard port and an Elastic IP for this instead
+    - ssh-keyscan -H -p 12345 34.209.207.52 >> $HOME/.ssh/known_hosts
+    - ssh-keyscan -H 'gitlab.com' >> $HOME/.ssh/known_hosts
+  script:
+    - pm2 deploy ecosystem.json production
+  environment: production
+  when: manual
+  only:
+    - master
+

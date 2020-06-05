@@ -1,0 +1,18 @@
+# Copyright (C) 2017-2019 Ahmed Charles - acharles@outlook.com
+# Distributed under the MIT License.
+#    (See accompanying file LICENSE.txt or copy at
+#          http://opensource.org/licenses/MIT)
+
+test:
+  # Official language image: https://hub.docker.com/r/library/rust/tags/
+  image: "rust:1.33" # use a specific version.
+
+  before_script:
+  - rustup component add rustfmt-preview clippy-preview
+
+  script:
+  - rustc --version && cargo --version
+  - cargo test --verbose --jobs 1
+  - cargo fmt --all -- --check
+  - cargo clippy --all
+

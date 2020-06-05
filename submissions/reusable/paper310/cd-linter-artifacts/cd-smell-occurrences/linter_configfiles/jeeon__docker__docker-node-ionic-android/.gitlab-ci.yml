@@ -1,0 +1,93 @@
+#################################
+# GitLab Continuous Integration #
+#################################
+
+stages:
+  - build
+  - tag
+
+image: docker:latest
+
+services:
+  - docker:dind
+
+variables:
+  CONTAINER_REPO: jeeon/node-ionic-android
+  CONTAINER_TAG_6_DEFAULT: 6-default
+  CONTAINER_TAG_6_ALPINE: 6-alpine
+  CONTAINER_TAG_8_DEFAULT: 8-default
+  CONTAINER_TAG_8_ALPINE: 8-alpine
+  CONTAINER_TAG_10_DEFAULT: 10-default
+  CONTAINER_TAG_10_ALPINE: 10-alpine
+  CONTAINER_TAG_LATEST: latest
+
+before_script:
+  - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+
+#------------------
+# Common Templates
+#------------------
+
+.job_build_template: &job_build_template
+  stage: build
+  only:
+    - master
+  script:
+    - apk add --no-cache m4
+    - m4 $CONTAINER_TAG/Dockerfile.m4 > $CONTAINER_TAG/Dockerfile
+    - docker build -t $CONTAINER_REPO:$CONTAINER_TAG $CONTAINER_TAG
+    - docker push $CONTAINER_REPO:$CONTAINER_TAG
+
+.job_tag_template: &job_tag_template
+  stage: tag
+  only:
+    - master
+  script:
+    - docker pull $CONTAINER_REPO:$CONTAINER_TAG_SOURCE
+    - docker tag $CONTAINER_REPO:$CONTAINER_TAG_SOURCE $CONTAINER_REPO:$CONTAINER_TAG_TARGET
+    - docker push $CONTAINER_REPO:$CONTAINER_TAG_TARGET
+
+#-------
+# Build
+#-------
+
+job_build_6_default:
+  <<: *job_build_template
+  variables:
+    CONTAINER_TAG: "$CONTAINER_TAG_6_DEFAULT"
+
+job_build_6_alpine:
+  <<: *job_build_template
+  variables:
+    CONTAINER_TAG: "$CONTAINER_TAG_6_ALPINE"
+
+job_build_8_default:
+  <<: *job_build_template
+  variables:
+    CONTAINER_TAG: "$CONTAINER_TAG_8_DEFAULT"
+
+job_build_8_alpine:
+  <<: *job_build_template
+  variables:
+    CONTAINER_TAG: "$CONTAINER_TAG_8_ALPINE"
+
+job_build_10_default:
+  <<: *job_build_template
+  variables:
+    CONTAINER_TAG: "$CONTAINER_TAG_10_DEFAULT"
+
+job_build_10_alpine:
+  <<: *job_build_template
+  variables:
+    CONTAINER_TAG: "$CONTAINER_TAG_10_ALPINE"
+
+#-----
+# Tag
+#-----
+
+job_build_latest:
+  <<: *job_tag_template
+  variables:
+    CONTAINER_TAG_SOURCE: "$CONTAINER_TAG_10_DEFAULT"
+    CONTAINER_TAG_TARGET: "$CONTAINER_TAG_LATEST"
+

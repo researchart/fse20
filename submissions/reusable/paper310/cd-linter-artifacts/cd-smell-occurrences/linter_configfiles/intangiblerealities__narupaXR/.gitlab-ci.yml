@@ -1,0 +1,16 @@
+# see https://hub.docker.com/_/mono/
+image: mono:latest
+
+before_script:
+  - apt-get update && apt-get -y install doxygen
+
+pages:
+  script:
+  - chmod +x build_docs.sh && ./build_docs.sh
+  - mv Documentation/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

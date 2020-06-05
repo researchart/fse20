@@ -1,0 +1,9 @@
+image: python:3.6-alpine
+
+before_script:
+  - apk add --update --no-cache libsodium-dev gcc musl-dev
+  - pip install .
+
+test:
+  script: python -m unittest discover
+

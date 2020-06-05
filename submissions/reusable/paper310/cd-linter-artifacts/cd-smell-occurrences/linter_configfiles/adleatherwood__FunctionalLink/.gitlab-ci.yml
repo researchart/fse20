@@ -1,0 +1,67 @@
+image: mcr.microsoft.com/dotnet/core/sdk:3.0
+
+stages:
+  - test
+  - release
+
+branch::test:
+  stage: test
+  except:
+    - /master/
+  script: |
+    dotnet test -v minimal /p:CollectCoverage=true
+
+master::release:
+  stage: release
+  only:
+    - /master/
+  script: |
+    echo ----------------------------------------------- TESTING
+
+    dotnet test -v minimal -c Release /p:CollectCoverage=true
+
+    echo ----------------------------------------------- VERSIONING
+
+    SEMVER=`./.3rd/release next-version` || true
+    echo VERSION := $SEMVER
+    if [ "$SEMVER" ]
+    then
+      sed -i -- "s/1\.0\.0\.0/${SEMVER}/g" ./FunctionalLink/FunctionalLink.csproj
+    else
+      echo "NO VERSION CHANGE -> SKIPPING VERSIONING"
+    fi
+
+    echo ---------------------------------------------- BUILDING
+
+    if [ "$SEMVER" ]
+    then
+      cd FunctionalLink
+      dotnet pack -c Release
+      cd ..
+    else
+      echo "NO VERSION CHANGE -> SKIPPING BUILD"
+    fi
+
+    echo ---------------------------------------------- PUBLISHING
+
+    if [ "$SEMVER" ]
+    then
+      cd ./FunctionalLink/bin/Release
+      NUGET_PKG=$(ls *.nupkg)
+      echo PACKAGE := $NUGET_PKG
+      dotnet nuget push $NUGET_PKG -k $NUGET_KEY -s https://api.nuget.org/v3/index.json
+      cd ../../..
+    else
+      echo "NO VERSION CHANGE -> SKIPPING PUBLISH"
+    fi
+
+    echo ---------------------------------------------- TAGGING
+
+    if [ "$SEMVER" ]
+    then
+      ./.3rd/release changelog
+      ./.3rd/release commit-and-tag --create-tag-pipeline CHANGELOG.md
+    else
+      echo "NO VERSION CHANGE -> SKIPPING TAGGING"
+    fi
+

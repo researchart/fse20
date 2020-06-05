@@ -1,0 +1,32 @@
+image: php
+
+before_script:
+    - apt-get -qq update 
+    - apt-get -y -qq install  git unzip
+    - curl -Lo /usr/local/bin/composer https://getcomposer.org/composer.phar
+    - chmod +x /usr/local/bin/composer
+    - composer install --prefer-dist -n -q
+
+phpcs:
+    allow_failure: true
+    script:
+        - curl -OL https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar
+        - php phpcs.phar --standard=psr2 src/
+        
+phpmd:
+    script:
+        - apt-get -qq -y update
+        - apt-get -qq -y install libbz2-dev 
+        - docker-php-ext-install bz2
+        - curl -OL http://static.phpmd.org/php/latest/phpmd.phar
+        - php phpmd.phar src/ text cleancode,codesize,controversial,design,naming        
+
+test:
+    script:
+        - ./vendor/bin/phpunit
+
+test:5:
+    image: php:5
+    script:
+        - ./vendor/bin/phpunit
+

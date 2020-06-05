@@ -1,0 +1,43 @@
+py3.7_development_ase:
+  script:
+    - apt-get update -qy
+    - apt-get install -qy python3-pip python3-numpy python3-scipy gettext openmpi-bin libopenmpi-dev
+    - cd ..
+    - echo $PWD
+    # Clone the latest ASE
+    - git clone https://gitlab.com/ase/ase.git
+    - cd ase
+    - pip3 install --user .
+    # using 'install from source' instructions
+    - export PATH=$PATH:$HOME/.local/bin
+    - echo $PATH
+    - cd $CI_PROJECT_DIR
+    - pip3 install --user .
+    - ls -lh $HOME/.local/bin
+    # tests
+    - cd Test
+    - python3 --version
+    - python3 TestAll.py
+    - export OMPI_MCA_btl_vader_single_copy_mechanism=none
+    - mpirun --allow-run-as-root --oversubscribe -np 2 asap-python TestAll.py --parallel
+
+py3.7_pypi_ase:
+  script:
+    - apt-get update -qy
+    - apt-get install -qy python3-pip python3-numpy python3-scipy gettext openmpi-bin libopenmpi-dev
+    - cd ..
+    - echo $PWD
+    - pip3 install ase
+    # using 'install from source' instructions
+    - export PATH=$PATH:$HOME/.local/bin
+    - echo $PATH
+    - cd $CI_PROJECT_DIR
+    - pip3 install --user .
+    - ls -lh $HOME/.local/bin
+    # tests
+    - cd Test
+    - python3 --version
+    - python3 TestAll.py
+    - export OMPI_MCA_btl_vader_single_copy_mechanism=none
+    - mpirun --allow-run-as-root --oversubscribe -np 2 asap-python TestAll.py --parallel
+

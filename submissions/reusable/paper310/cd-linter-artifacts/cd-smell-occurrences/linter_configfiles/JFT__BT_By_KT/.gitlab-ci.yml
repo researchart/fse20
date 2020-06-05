@@ -1,0 +1,151 @@
+stages:
+  - registry_update
+  - format_check
+  - build
+  - test
+  - coverage
+
+variables:
+    # Set the last part of the BT-Deps registry to a different BT-Deps branch/tag if you need to work on both BT-Deps and bt_by_kt
+    BT_DEPS_REGISTRY: "registry.gitlab.com/jft/bt-deps/upgrade-debian-image"
+    # Set this to the tag of the image build by BT-Deps which should be used.
+    # If the image isn't inside the registry run the sheduled job to copy the image to the bt_by_kt registry
+    BT_DEPS_IMAGE_TAG: "614da6ce2d4bcd67b4a3a69e8a19527c380b42af"
+    # Set this to the name the image should have inside the by_by_kt registry.
+    # WARNING: choosing a tag which already exists will overwrite the old tag!
+    BT_BY_KT_IMAGE_TAG: "BT_Deps_614da6ce2d4bcd67b4a3a69e8a19527c380b42af"
+
+.prepare_deps: &prepare_deps |
+  set -e
+  ln -s /BT-Deps/lib "$CI_PROJECT_DIR/lib" && ln -s /BT-Deps/include "$CI_PROJECT_DIR/include"
+
+.clang: &clang
+  image:
+    name: "$CI_REGISTRY_IMAGE/clang_deps:$BT_BY_KT_IMAGE_TAG"
+
+.shared_linux: &shared_linux
+  <<: *clang
+
+.analysis: &analysis
+  image:
+    name: "$CI_REGISTRY_IMAGE/analysis:$BT_BY_KT_IMAGE_TAG"
+
+.gcc: &gcc
+  image:
+    name: "$CI_REGISTRY_IMAGE/gcc_deps:$BT_BY_KT_IMAGE_TAG"
+
+.shared_linux_build: &shared_linux_build
+  stage: build
+  script:
+    - *prepare_deps
+    - mkdir build && cd build
+    - cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+    - cmake --build . -- -j $(nproc)
+  artifacts:
+    expire_in: 1 hour
+    paths:
+      - build/*
+
+clang_format_check:
+  <<: *analysis
+  stage: format_check
+  script:
+   - $CI_PROJECT_DIR/CI/clang_format_check.sh "$CI_PROJECT_DIR"
+
+
+clang:debug:
+  <<: *shared_linux_build
+  <<: *clang
+  variables:
+    BUILD_TYPE: Debug
+
+clang:release:
+  <<: *shared_linux_build
+  <<: *clang
+  variables:
+    BUILD_TYPE: Release
+
+
+gcc:debug:
+  <<: *shared_linux_build
+  <<: *gcc
+  variables:
+    BUILD_TYPE: Debug
+
+gcc:release:
+  <<: *shared_linux_build
+  <<: *gcc
+  variables:
+    BUILD_TYPE: Release
+
+
+clang:test:
+  <<: *shared_linux
+  stage: test
+  dependencies:
+    - clang:debug
+  script:
+    - *prepare_deps
+    - cd build
+    - ./unittests_battleTanksd # run tests and generate coverage report
+  artifacts:
+    paths:
+      - build/*
+    expire_in: 1 hour
+
+clang:coverage:
+  <<: *analysis
+  stage: coverage
+  allow_failure: true
+  dependencies:
+    - clang:test
+  script:
+    - cd build
+    # Uploading report to CodeCov
+    - bash <(curl -s https://codecov.io/bash) -g /usr/include || echo "Error in codecov.io uploader"
+    # generate lcov html report (for codacy and saved as artifact).
+    # Must call cmake again because the build image doesn't have
+    #   lcov and thus the target otherwise doesn't exist.
+    - *prepare_deps
+    - cmake -DCMAKE_BUILD_TYPE=Debug ..
+    - make BattleTanksStandalone_lcov_coverage
+    - sh $CI_PROJECT_DIR/CI/codacy_upload.sh
+  artifacts:
+    paths:
+      - build/coverage_report
+      - build/coverage_report.lcov
+    when: always
+    expire_in: 30 days
+
+
+
+# Job to get the used docker image from bt-debs. Only activated if called via sheduled job to speed up build times,
+# as the image rarely changes
+pull_bt-deps:
+  stage: registry_update
+  image: docker:stable
+  services:
+    - docker:dind
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - docker login -u gitlab+deploy-token-4527 -p $BT_DEPS_REGISTRY_TOKEN registry.gitlab.com
+    - docker pull "$BT_DEPS_REGISTRY/clang_deps:$BT_DEPS_IMAGE_TAG"
+    - docker pull "$BT_DEPS_REGISTRY/gcc_deps:$BT_DEPS_IMAGE_TAG"
+    - docker pull "$BT_DEPS_REGISTRY/analysis:$BT_DEPS_IMAGE_TAG"
+    - docker logout registry.gitlab.com
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    # re-tag image for this repository's registry
+    - docker tag "$BT_DEPS_REGISTRY/clang_deps:$BT_DEPS_IMAGE_TAG" "$CI_REGISTRY_IMAGE/clang_deps:$BT_BY_KT_IMAGE_TAG"
+    - docker push "$CI_REGISTRY_IMAGE/clang_deps:$BT_BY_KT_IMAGE_TAG"
+    - docker tag "$BT_DEPS_REGISTRY/gcc_deps:$BT_DEPS_IMAGE_TAG" "$CI_REGISTRY_IMAGE/gcc_deps:$BT_BY_KT_IMAGE_TAG"
+    - docker push "$CI_REGISTRY_IMAGE/gcc_deps:$BT_BY_KT_IMAGE_TAG"
+    - docker tag "$BT_DEPS_REGISTRY/analysis:$BT_DEPS_IMAGE_TAG" "$CI_REGISTRY_IMAGE/analysis:$BT_BY_KT_IMAGE_TAG"
+    - docker push "$CI_REGISTRY_IMAGE/analysis:$BT_BY_KT_IMAGE_TAG"
+  only:
+    variables:
+      - $JOB_PULL_BT_DEPS_IMAGE
+  tags:
+    - docker
+
+

@@ -1,0 +1,66 @@
+stages:
+  - test
+  - docker
+  - binary
+  - pages
+
+shellcheck:
+  stage: test
+  image: ubuntu:bionic
+  script:
+    - apt-get -qq update
+    - apt-get -qq -y install shellcheck
+    - shellcheck entrypoint.sh
+
+docker:
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  stage: docker
+  image: docker:latest
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY/$(echo $CI_PROJECT_NAMESPACE | tr '[:upper:]' '[:lower:]')/$CI_PROJECT_NAME:$CI_COMMIT_REF_SLUG .
+    - docker push $CI_REGISTRY/$(echo $CI_PROJECT_NAMESPACE | tr '[:upper:]' '[:lower:]')/$CI_PROJECT_NAME:$CI_COMMIT_REF_SLUG
+
+.binary: &binary
+  stage: binary
+  image: golang:latest
+  script:
+    - go get github.com/signal-golang/textsecure
+    - cd /go/src/github.com/signal-golang/textsecure/cmd/textsecure/
+    - go build
+    - mv textsecure ${CI_PROJECT_DIR}/signal-${GOARCH}${GOARM}
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/signal-*
+
+amd64:
+  <<: *binary
+  variables:
+    GOARCH: "amd64"
+
+arm7:
+  <<: *binary
+  variables:
+    GOARCH: "arm"
+    GOARM: "7"
+
+pages:
+  image: alpine:latest
+  variables:
+    HUGO: '0.62.1'
+  script:
+    - apk --no-cache add git openssl
+    - wget https://github.com/spf13/hugo/releases/download/v${HUGO}/hugo_${HUGO}_Linux-64bit.tar.gz
+    - tar xf hugo_${HUGO}_Linux-64bit.tar.gz && cp hugo /usr/bin/
+    - hugo version
+    - git submodule update --init
+    - cd docs
+    - hugo
+    - mv public ${CI_PROJECT_DIR}
+  artifacts:
+    paths:
+      - ${CI_PROJECT_DIR}/public
+

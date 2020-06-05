@@ -1,0 +1,36 @@
+image: node
+
+before_script:
+  - which npm
+  - npm -v
+  - 'which ssh-agent || (apt-get update -y && apt-get install openssh-client -y)'
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo "$SSH_PRIVATE_KEY")
+  - echo "Successfully added ssh key with passphrase!"
+  - mkdir -p ~/.ssh
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+compile:
+  stage: build
+  script:
+    - pwd
+    - echo "Get typescript for build"
+    - npm install typescript -g
+    - which tsc
+    - tsc -v
+    - echo "Get deps and compile"
+    - npm install --silent
+    - tsc
+
+publish:
+  stage: deploy
+  environment: production
+  only:
+    - master
+  script:
+    - pwd
+    - echo "Trigger a deploy."
+    - echo "ecosystem.config.js..."
+    - cat ecosystem.config.js
+    - npm i -g pm2
+    - pm2 deploy ecosystem.config.js production
+

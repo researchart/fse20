@@ -1,0 +1,28 @@
+image: blueoakinteractive/php-ci:7.1.9
+
+before_script:
+  # Build the site using composer.
+  - composer install --prefer-dist --no-interaction --no-progress
+
+  # Drush cannot be used as a dev dependency because of
+  # symfony component version conflicts.
+  - composer global require drush/drush
+
+  - cp $CI_PROJECT_DIR/.boi_ci.example.yml $CI_PROJECT_DIR/.boi_ci.yml
+  - bin/boi_ci gitlab:init-ci
+
+stages:
+  - test
+  - deploy
+
+# Deploy the site to 'master' on pantheon.
+job_test_all:
+  stage: test
+  script:
+    - vendor/bin/phpunit tests
+
+job_deploy_packagist:
+  stage: deploy
+  script:
+    - curl -XPOST -H 'content-type:application/json' "https://packagist.org/api/update-package?username=andyg5000&apiToken=$PACKAGIST_KEY" -d'{"repository":{"url":"https://gitlab.com/blueoakinteractive/boi_ci"}}'
+

@@ -1,0 +1,26 @@
+image: ubuntu
+
+make-pkgs:
+  when: manual
+  stage: build
+  before_script:
+  - apt -y update && apt -y install dpkg-dev
+  script:
+  - mkdir -p public/debs
+  - cp debs/* public/debs
+  - cd public && dpkg-scanpackages -m . | gzip -c > Packages.gz
+  artifacts:
+    paths:
+    - public
+    expire_in: 1 day
+
+pages:
+  stage: deploy
+  script:
+  - echo 'Nothing to do...'
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

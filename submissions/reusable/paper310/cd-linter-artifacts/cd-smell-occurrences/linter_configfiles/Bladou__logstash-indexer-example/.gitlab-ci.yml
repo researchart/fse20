@@ -1,0 +1,9 @@
+before_script:
+    - logstash-plugin install --development
+    - cp -r patterns /etc/logstash/patterns
+
+logstash-2.3.2:
+    image: "logstash:2.3.2"
+    script:
+        - ./tests/bin/run-tests.sh all y
+

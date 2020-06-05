@@ -1,0 +1,17 @@
+image: clojure:latest
+
+variables:
+  POSTGRES_DB: checked-test
+  DATABASE_URL: "postgresql://postgres@postgres:5432/checked-test"
+
+services:
+  - postgres:9.3
+    
+before_script:
+  - lein deps
+  - lein migratus migrate
+
+test: 
+  script: 
+    - lein test
+

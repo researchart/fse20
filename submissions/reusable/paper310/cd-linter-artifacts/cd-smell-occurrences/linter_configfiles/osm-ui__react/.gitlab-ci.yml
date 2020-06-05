@@ -1,0 +1,77 @@
+image: node:8
+
+
+stages:
+  - prepare
+  - check
+  - build
+
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  untracked: true
+  paths:
+    - node_modules
+
+
+before_script:
+  - npm install
+
+
+install:
+  stage: prepare
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+  script:
+    - npm install
+
+
+lint:
+  stage: check
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    policy: pull
+  script:
+    - npm run lint
+
+test-format:
+  stage: check
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    policy: pull
+  script:
+    - npm run test-format
+
+test-ci:
+  stage: check
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    policy: pull
+  script:
+    - npm run load-data
+    - npm run test-ci
+
+build:
+  stage: build
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    policy: pull
+  script:
+    - npm run load-data
+    - npm run build-dist
+
+
+pages:
+  stage: build
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    policy: pull
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+  script:
+    - npm run load-data
+    - npm run build-storybook
+

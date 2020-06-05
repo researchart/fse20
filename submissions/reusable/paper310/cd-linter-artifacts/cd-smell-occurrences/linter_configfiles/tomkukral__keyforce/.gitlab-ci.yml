@@ -1,0 +1,76 @@
+# required variables
+# REGISTRY_USERNAME
+# REGISTRY_PASSWORD
+
+variables:
+  GO_PROJECT: gitlab.com/tomkukral/keyforce
+  REGISTRY_IMAGE: docker.io/tomkukral/keyforce
+  REGISTRY_SERVER: docker.io
+  IMAGE_GO_BUILDER: golang:1.11
+
+stages:
+  - prepare
+  - test
+  - publish
+  - release
+
+.job: &job
+  tags: [docker]
+  cache:
+    policy: pull
+    paths:
+      - vendor/
+
+unittest:
+  <<: *job
+  stage: test
+  image: ${IMAGE_GO_BUILDER}
+  script:
+    - go test ./...
+
+build:
+  <<: *job
+  stage: test
+  image: ${IMAGE_GO_BUILDER}
+  artifacts:
+    name: "$CI_COMMIT_SHA"
+    paths:
+      - build_out/
+    expire_in: 4 week
+  script:
+    - CGO_ENABLED=0 go build -o build_out/keyforce
+
+container:
+  <<: *job
+  stage: publish
+  image: docker:latest
+  services:
+    - docker:dind
+  dependencies:
+    - build
+  script:
+    - docker info
+    - docker login -u "${REGISTRY_USERNAME}" -p "${REGISTRY_PASSWORD}" "${REGISTRY_SERVER}"
+    - echo "$CI_BUILD_REF" > VERSION
+    - docker build -t "${REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}" .
+    - docker push "${REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}"
+    - docker logout "${REGISTRY_SERVER}"
+
+release:
+  <<: *job
+  stage: release
+  only:
+    - master
+  image: docker:latest
+  services:
+    - docker:dind
+  dependencies:
+    - container
+  script:
+    - docker info
+    - docker login -u "${REGISTRY_USERNAME}" -p "${REGISTRY_PASSWORD}" "${REGISTRY_SERVER}"
+    - docker pull "${REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}"
+    - docker tag "${REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}" "${REGISTRY_IMAGE}:latest"
+    - docker push "${REGISTRY_IMAGE}:latest"
+    - docker logout "${REGISTRY_SERVER}"
+

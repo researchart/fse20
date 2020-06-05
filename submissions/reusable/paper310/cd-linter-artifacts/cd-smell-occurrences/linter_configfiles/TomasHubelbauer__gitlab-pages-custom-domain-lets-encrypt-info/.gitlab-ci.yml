@@ -1,0 +1,18 @@
+image: python:2.7-alpine
+pages:
+  stage: deploy
+  script:
+  - pip install markdown2
+  - mkdir public
+  - cd public
+  - markdown2 ../README.md > index.html --extras fenced-code-blocks,header-ids,toc
+  - echo -e "<!DOCTYPE html><html><head><meta charset='utf8' /><title>GitLab Pages Custom Domain</title><base href='https://gitlab-pages-custom-domain-lets-encrypt.info/'><script>if (location.protocol !== 'https:') location = location.href.replace(/^http:/, 'https:')</script></head><body>\n$(cat index.html)\n</body></html>" > index.html
+  - mkdir -p .well-known/acme-challenge/
+  # Let's Encrypt
+  - echo "08PIwq_nRrejyzcrnEKIa45BSIEokONUUDqZqRL9mDU.sw_5kQJ6fLWbKJzNjiVMHAflmIq4NmnbqZ5UoW7I1cQ" > .well-known/acme-challenge/08PIwq_nRrejyzcrnEKIa45BSIEokONUUDqZqRL9mDU
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

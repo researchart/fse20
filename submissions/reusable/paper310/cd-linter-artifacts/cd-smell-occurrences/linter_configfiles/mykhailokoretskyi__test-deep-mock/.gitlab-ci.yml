@@ -1,0 +1,12 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+build:
+  stage: build
+  tags:
+    - docker
+  script:
+    - docker run -v $CI_PROJECT_DIR:/app -w /app -i perl /app/sbin/build.sh
+

@@ -1,0 +1,70 @@
+stages:
+  - build
+  - test
+
+.build: &build_template
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  tags:
+    - dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN ${DOCKER_TAG}
+    - docker build -t ${CONTAINER_BUILD_IMAGE} -f ${APP_DIRECTORY}/Dockerfile .
+    - docker push ${CONTAINER_BUILD_IMAGE}
+
+build-example-1:
+  <<: *build_template
+  variables:
+    APP_DIRECTORY: example-1
+    CONTAINER_BUILD_IMAGE: ${DOCKER_TAG}:${APP_DIRECTORY}
+
+build-example-2:
+  <<: *build_template
+  variables:
+    APP_DIRECTORY: example-2
+    CONTAINER_BUILD_IMAGE: ${DOCKER_TAG}:${APP_DIRECTORY}
+
+.test: &test_template
+  image: docker:latest
+  stage: test
+  services:
+    - docker:dind
+  tags:
+    - dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN ${DOCKER_TAG}
+    - docker pull ${CONTAINER_TEST_IMAGE}
+    - docker run ${CONTAINER_TEST_IMAGE} pytest
+
+test-example-1:
+  <<: *test_template
+  variables:
+    CONTAINER_TEST_IMAGE: ${DOCKER_TAG}:example-1
+
+test-example-2:
+  <<: *test_template
+  variables:
+    CONTAINER_TEST_IMAGE: ${DOCKER_TAG}:example-2
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN ${DOCKER_TAG}
+    - docker run -d --name redis-${CI_BUILD_ID} redis
+    - docker pull ${CONTAINER_TEST_IMAGE}
+    - docker run --link redis-${CI_BUILD_ID}:redis ${CONTAINER_TEST_IMAGE} pytest
+
+non-dockerized-build-and-test-example-2:
+  image: centos
+  services:
+    - redis
+  stage: build
+  script:
+    - yum install -y python-devel python-virtualenv
+    - virtualenv .
+    - source bin/activate
+    - pip install --upgrade pip
+    - cd example-2
+    - pip install -r requirements.txt
+    - env
+    - pytest
+

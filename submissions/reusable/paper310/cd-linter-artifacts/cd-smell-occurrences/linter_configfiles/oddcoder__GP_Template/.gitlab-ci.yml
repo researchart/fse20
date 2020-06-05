@@ -1,0 +1,61 @@
+Ubuntu:
+  image: ubuntu:latest
+  script:
+    - export DEBIAN_FRONTEND=noninteractive 
+    - apt-get -y update
+    - apt-get -y install pandoc make zip
+    - apt-get install -y texlive-xetex
+    - make zip
+  artifacts:
+    paths:
+      - "build/pdf/*"
+      - "build/*.zip"
+    expire_in: 2 week
+
+#TODO If you are not sue Delete everything starting from this line till the end
+# of the file, You are welcome
+
+Debian:
+  image: debian:latest
+  script:
+    - export DEBIAN_FRONTEND=noninteractive 
+    - apt-get -y update
+    - apt-get -y install pandoc make zip
+    - apt-get install -y texlive-xetex
+    - make zip
+  artifacts:
+    paths:
+      - "build/pdf/*"
+      - "build/*.zip"
+    expire_in: 2 week
+
+Fedora:
+  image: fedora:latest
+  script:
+    - dnf -y update && dnf clean all
+    - dnf -y install texlive-collection-latexextra texlive-collection-basic
+    - dnf -y install texlive-collection-latexrecommended make zip pandoc  
+    - dnf -y install texlive-collection-bibtexextra texlive-collection-latex 
+    - dnf -y install texlive-xetex-def texlive-collection-xetex texlive-xetex
+    - make zip
+  artifacts:
+    paths:
+      - "build/pdf/*"
+      - "build/*.zip"
+    expire_in: 2 week
+
+Mint:
+  image: vcatechnology/linux-mint:latest
+  script:
+    - export DEBIAN_FRONTEND=noninteractive 
+    - apt-get -y update
+    - apt-get -y install pandoc make zip
+    - apt-get install -y texlive-xetex
+    - make zip
+  artifacts:
+    paths:
+      - "build/pdf/*"
+      - "build/*.zip"
+    expire_in: 2 week
+
+

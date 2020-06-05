@@ -1,0 +1,31 @@
+image: daewok/lisp-devel
+
+# stages:
+  # - test
+  # - build
+
+before_script:
+  - apt-get update -qy
+  - apt-get install -y git-core
+  - make install
+
+test:
+  stage: test
+  allow_failure: true  # pb with prove-asdf...
+  only:
+    - tags
+  script:
+    - make test
+
+build:
+  stage: build
+  only:
+    # Only when a new tag is pushed.
+    - tags
+  script:
+    - make build
+  artifacts:
+    paths:
+      # Include the version number ?
+      - replic
+

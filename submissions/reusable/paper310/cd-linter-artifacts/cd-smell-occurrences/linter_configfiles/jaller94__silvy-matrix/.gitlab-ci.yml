@@ -1,0 +1,15 @@
+image: node:11.9.0
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - test
+
+jest:
+  stage: test
+  script:
+   - npm ci
+   - npm test
+

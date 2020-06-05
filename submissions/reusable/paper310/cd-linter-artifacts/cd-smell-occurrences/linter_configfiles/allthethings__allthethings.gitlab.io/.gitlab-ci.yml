@@ -1,0 +1,268 @@
+image: registry.gitlab.com/gitlab-examples/kubernetes-deploy
+
+stages:
+  - 📦 build
+  - ✅ unit-test
+  - 🔐 security-test
+  - 💻 integration-test
+  - 📄 docs
+  - 🚀 deploy
+
+docker:
+  image: docker:stable
+  stage: 📦 build
+  services:
+    - docker:dind
+  script:
+    - cd build-images
+    - cd docker-maven
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t registry.gitlab.com/allthethings/allthethings.gitlab.io/docker-maven:$CI_COMMIT_REF_NAME .
+    - docker push registry.gitlab.com/allthethings/allthethings.gitlab.io/docker-maven:$CI_COMMIT_REF_NAME
+    
+.suse:
+  stage: 📦 build
+  script: 
+    - echo "Hello SUSE"
+  tags:
+    - suse
+
+msbuild:
+  stage: 📦 build
+  script: 
+    - cd csharp-msbuild
+    - echo %username%
+    - echo %path%
+    - '"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\msbuild.exe" /consoleloggerparameters:ErrorsOnly /maxcpucount /nologo /property:Configuration=Release /verbosity:quiet "helloworld.csproj"'
+  artifacts:
+    paths:
+      - HelloWorld.exe
+  tags:
+    - windows
+
+nodejs:
+  stage: 📦 build
+  image: node:latest
+  script:
+    - cd node
+    - npm install
+  artifacts:
+    paths:
+      - node/node_modules
+
+freeBASIC:
+  stage: 📦 build
+  image: alpine
+  script: 
+    - apk add --update wget ncurses5-libs libc6-compat make gcc ncurses-libs musl-dev ncurses-dev
+    - ln -s /usr/lib/libncurses.so.5 /usr/lib/libtinfo.so.5
+    - wget --quiet https://sourceforge.net/projects/fbc/files/Binaries%20-%20Linux/FreeBASIC-1.05.0-linux-x86_64.tar.gz
+    - tar xvfz FreeBASIC-1.05.0-linux-x86_64.tar.gz
+    - cd FreeBASIC-1.05.0-linux-x86_64
+    - ./install.sh -i
+    - cd ..
+    - /usr/local/bin/fbc freebasic/helloworld.bas
+  artifacts:
+    paths:
+      - freebasic/helloworld
+
+FORTRAN:
+  stage: 📦 build
+  image: alpine
+  script: 
+    - apk add --update gfortran musl-dev
+    - gfortran -o fortran/helloworld fortran/helloworld.f
+  artifacts:
+    paths:
+      - fortran/helloworld
+
+asm:
+  stage: 📦 build
+  image: alpine
+  script: 
+    - apk add --update nasm binutils
+    - nasm -f elf asm/helloworld.asm
+    - ld -m elf_i386 -s -o asm/helloworld asm/helloworld.o
+  artifacts:
+    paths:
+      - asm/helloworld
+
+ada:
+  stage: 📦 build
+  image: alpine
+  script: 
+    - apk add --update gcc-gnat musl-dev
+    - gnatmake -o ada/helloworld ada/helloworld.ada
+  artifacts:
+    paths:
+      - ada/helloworld
+
+c➕➕:
+  image: alpine
+  stage: 📦 build
+  script: 
+    - apk add --update make
+    - apk add --update g++
+    - cd c++
+    - make Hello
+    - ./Hello
+  artifacts:
+    paths:
+      - c++/Hello
+
+ruby:
+  stage: 📦 build
+  image: docker:latest
+  services:
+   - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p "$CI_BUILD_TOKEN" "$CI_REGISTRY"
+    - cd ruby
+    - docker build -t "$CI_REGISTRY_IMAGE/ruby:$CI_COMMIT_REF_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE/ruby:$CI_COMMIT_REF_NAME"
+
+java:maven:
+  stage: 📦 build
+  image: maven:latest
+  script:
+    - cd java
+    - cd maven
+    - mvn package
+    - cd target
+    - java -jar example-app-1.0-SNAPSHOT.jar
+  artifacts:
+    paths:
+      - java/maven/target/*
+
+java:gradle:
+  stage: 📦 build
+  image: gradle:latest
+  script:
+    - cd java
+    - cd gradle
+    - ./gradlew build
+    - ./gradlew run
+  artifacts:
+    paths:
+      - java/gradle/build/libs/*
+
+java:spring-boot:
+  stage: 📦 build
+  image: maven:3.5-jdk-8-slim
+  script:
+    - cd java
+    - cd spring-boot
+    - mvn package
+  artifacts:
+    paths:
+      - java/spring-boot/target/*
+      
+trigger-downstream:
+  stage: 🚀 deploy
+  script:
+  - curl --request POST --form "token=$CI_JOB_TOKEN" --form ref=master https://gitlab.com/api/v4/projects/gitlab-com%2Fcustomer-success%2Fdemos%2Fkitchen-trap/trigger/pipeline
+
+ut:spring-boot:
+  stage: ✅ unit-test
+  image: maven:3.5-jdk-8-slim
+  script:
+    - cd java
+    - cd spring-boot
+    - mvn test
+
+it:spring-boot:
+  stage: 💻 integration-test
+  image: maven:3.5-jdk-8-slim
+  script:
+    - cd java
+    - cd spring-boot
+    - mvn integration-test
+
+# run tests using the binary built before
+test:
+  stage: ✅ unit-test
+  script:
+    - echo "Foo"
+
+deploy-node: 
+  stage: 🚀 deploy
+  script:
+    - echo "Not yet"
+  environment:
+    name: nodeprod
+    url: http://node.$KUBE_DOMAIN
+
+deploy-maven:
+  image: maven:3.3.9-jdk-8
+  stage: 🚀 deploy
+  script:
+    - cd java
+    - cd maven
+    - 'cp ci_settings.xml /root/.m2/settings.xml'
+    - 'sed -i "s/CI_JOB_TOKEN/${CI_JOB_TOKEN}/g" /root/.m2/settings.xml'
+    - 'sed -i "s/PROJECT_ID/${CI_PROJECT_ID}/g" pom.xml'
+    - 'mvn deploy'
+##  only:
+##    - master
+
+sast:
+  stage: 🔐 security-test
+  image: registry.gitlab.com/allthethings/allthethings.gitlab.io/docker-maven:$CI_COMMIT_REF_NAME
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:dind
+  script:
+    - cd ruby
+    - export SAST_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run 
+        --env SAST_CONFIDENCE_LEVEL="${SAST_CONFIDENCE_LEVEL:-3}" 
+        --env SAST_DISABLE_REMOTE_CHECKS="${SAST_DISABLE_REMOTE_CHECKS:-false}" 
+        --volume "$PWD:/code" 
+        --volume /var/run/docker.sock:/var/run/docker.sock 
+        "registry.gitlab.com/gitlab-org/security-products/sast:$SAST_VERSION" /app/bin/run /code
+  artifacts:
+    paths: [gl-sast-report.json]
+
+dependency_scanning:
+  image: docker:latest
+  stage: 🔐 security-test
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:dind
+  script:
+    - cd java
+    - cd maven
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env DEP_SCAN_DISABLE_REMOTE_CHECKS="${DEP_SCAN_DISABLE_REMOTE_CHECKS:-false}" \
+        --volume "$PWD:/code" \
+        --volume /var/run/docker.sock:/var/run/docker.sock \
+        "registry.gitlab.com/gitlab-org/security-products/dependency-scanning:$SP_VERSION" /code
+  artifacts:
+    paths: [gl-dependency-scanning-report.json]
+
+dast:
+  image: registry.gitlab.com/gitlab-org/security-products/zaproxy
+  stage: 🔐 security-test
+  variables:
+    website: "http://brendanoleary.com"
+  script:
+    - mkdir /zap/wrk/
+    - /zap/zap-baseline.py -J gl-dast-report.json -t $website || true
+    - cp /zap/wrk/gl-dast-report.json .
+  artifacts:
+    paths: [gl-dast-report.json]
+
+pages: 
+  image: alpine:latest
+  stage: 📄 docs
+  script: 
+    - echo "Lolz I don't do anything"
+  artifacts:
+    paths:
+    - public
+

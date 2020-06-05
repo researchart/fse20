@@ -1,0 +1,17 @@
+image: ubuntu:xenial
+job_name:
+  script: &build_script
+  - apt-get update -qyy
+  - apt-get install -qyy git
+  - git clone https://github.com/Skyrimus/arm-eabi-4.8-google-mt6580
+  - git clone https://github.com/Skyrimus/DarkTornado_pixi3_5_3.18.35
+  - ls
+  - pwd
+  - cd /../../
+  - ls
+job_name: 
+  stage: test
+  tags:
+    - gitlab-org
+  script: *build_script
+

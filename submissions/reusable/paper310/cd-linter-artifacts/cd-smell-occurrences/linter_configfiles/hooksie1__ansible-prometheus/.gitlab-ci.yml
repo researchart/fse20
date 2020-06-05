@@ -1,0 +1,10 @@
+prometheus-check:
+  script:
+    - mkdir -p roles/prometheus
+    - mv $(ls --ignore roles) roles/prometheus/
+    - cp roles/prometheus/tests/test.yml test.yml
+    - cp roles/prometheus/tests/inventory inventory
+    - ansible-playbook --syntax-check -i inventory test.yml --list-tasks
+    - ansible-playbook -i inventory test.yml --list-tasks
+
+

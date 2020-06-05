@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>net.rizon</groupId>
+	<artifactId>moo</artifactId>
+	<version>3.0</version>
+	
+	<packaging>pom</packaging>
+
+	<name>moo</name>
+	<url>https://gitlab.com/rizon/moo</url>
+
+	<scm>
+		<connection>scm:git:https://gitlab.com/rizon/moo.git</connection>
+	</scm>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+		<guice.version>4.0</guice.version>
+	</properties>
+
+	<modules>
+		<module>moo</module>
+		<module>test</module>
+
+		<module>antiidle</module>
+		<module>commands</module>
+		<module>commits</module>
+		<module>core</module>
+		<module>dnsbl</module>
+		<module>dnsblstats</module>
+		<module>fun</module>
+		<module>grafana</module>
+		<module>grapher</module>
+		<module>logging</module>
+		<module>mxbl</module>
+		<module>osflood</module>
+		<module>proxyscan</module>
+		<module>random</module>
+		<module>servermonitor</module>
+		<module>tickets</module>
+		<module>vote</module>
+		<module>watch</module>
+		<module>wiki</module>
+	</modules>
+	
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.google.code.gson</groupId>
+				<artifactId>gson</artifactId>
+				<version>2.2.2</version>
+			</dependency>
+			<dependency>
+				<groupId>com.google.inject</groupId>
+				<artifactId>guice</artifactId>
+				<version>${guice.version}</version>
+			</dependency>
+
+			<!-- test dependencies -->
+			<dependency>
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId>
+				<version>4.10</version>
+			</dependency>
+			<dependency>
+				<groupId>org.mockito</groupId>
+				<artifactId>mockito-all</artifactId>
+				<version>1.10.19</version>
+			</dependency>
+			<dependency>
+				<groupId>com.google.inject.extensions</groupId>
+				<artifactId>guice-testlib</artifactId>
+				<version>${guice.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.3</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>com.github.koraktor</groupId>
+				<artifactId>mavanagaiata</artifactId>
+				<version>0.7.2</version>
+				<executions>
+					<execution>
+						<id>git</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>commit</goal>
+							<goal>branch</goal>
+							<goal>tag</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>2.6</version>
+					<configuration>
+						<archive>
+							<manifestEntries>
+								<Author>Adam &lt;Adam@rizon.net&gt;</Author>
+								<Git-Branch>${mvngit.branch}</Git-Branch>
+								<Git-Tag>${mvngit.tag}</Git-Tag>
+								<Git-Revision>${mvngit.commit.id}</Git-Revision>
+								<Git-Revision-Short>${mvngit.commit.abbrev}</Git-Revision-Short>
+								<Git-Author>${mvngit.commit.author.name}</Git-Author>
+								<Git-Author-Email>${mvngit.commit.author.email}</Git-Author-Email>
+							</manifestEntries>
+						</archive>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+</project>
+

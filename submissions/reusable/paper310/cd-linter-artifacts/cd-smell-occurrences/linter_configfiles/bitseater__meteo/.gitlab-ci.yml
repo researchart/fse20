@@ -1,0 +1,94 @@
+---
+## METEO CI
+##
+## https://gitlab.com/bitseater/meteo
+##
+## (C) Carlos Suárez <bitseater@gmail.com> - 2019
+
+stages:
+  - build
+  - package
+
+variables:
+  METEO_REPO: "https://gitlab.com/bitseater/meteo.git"
+  DEPENS: "build-essential git meson ninja-build valac desktop-file-utils libgtk-3-dev libsoup2.4-dev libjson-glib-dev libgeocode-glib-dev libwebkit2gtk-4.0-dev libappindicator3-dev"
+  DEPENS_RPM: "@development-tools fedora-packager rpmdevtools git gcc wget meson ninja-build vala vala-devel gtk3-devel libsoup-devel json-glib-devel geocode-glib-devel webkit2gtk3-devel libappindicator-gtk3-devel libappstream-glib"
+
+.build_template: &build_definition
+  stage: build
+  script:
+    - meson --prefix /usr/ build
+    - ninja -C build install
+
+.debpkg_template: &debpkg_template
+  stage: package
+  before_script:
+    - apt-get update -y
+    - apt-get install -y $DEPENS
+  script:
+    - git clone $METEO_REPO
+    - cd meteo && dpkg-checkbuilddeps && dpkg-buildpackage
+  only:
+    - tags
+  artifacts:
+    when: on_success
+    paths:
+      - ./*.deb
+
+## DEBIAN
+
+build:debian:
+ <<: *build_definition
+ image: debian:10
+ before_script:
+   - apt-get update -y
+   - apt-get -y install $DEPENS
+
+package:debian:
+  image: debian:10
+  dependencies:
+    - build:debian
+  <<: *debpkg_template
+  
+## UBUNTU
+
+build:ubuntu:
+  <<: *build_definition
+  image: ubuntu:bionic
+  before_script:
+    - apt-get update -y
+    - apt-get -y install $DEPENS
+  
+## FEDORA
+
+build:fedora:
+  <<: *build_definition
+  image: fedora:30
+  before_script:
+    - dnf install $DEPENS_RPM -y
+
+## SNAP
+
+package:snap:
+  image: ubuntu:18.04
+  stage: package
+
+  before_script:
+    - apt-get update -y
+    - apt-get -y install snapcraft
+
+  script:
+    - snapcraft
+    - echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > snapcraft.login
+    - snapcraft login --with snapcraft.login
+    - snapcraft push *.snap --release beta
+
+  allow_failure: false
+  
+  only:
+    - tags
+
+  artifacts:
+    paths: ['./*.snap']
+    expire_in: 90 days
+

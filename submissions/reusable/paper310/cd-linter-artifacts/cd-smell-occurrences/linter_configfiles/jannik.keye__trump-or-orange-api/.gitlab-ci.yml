@@ -1,0 +1,27 @@
+image: node:latest
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - deploy
+
+deploy:
+  type: deploy
+  stage: deploy
+  environment:
+    name: heroku
+    url: https://trump-or-orange-api.herokuapp.com/
+  image: node:latest
+  script:
+    - npm install
+    - npm run build
+    - apt-get update -qy
+    - apt-get install ruby -y -q
+    - apt-get install ruby-dev -y -q
+    - gem install dpl
+    - dpl --provider=heroku --app=trump-or-orange-api --api-key=$HEROKU_API_KEY --skip-cleanup
+  only:
+    - master
+

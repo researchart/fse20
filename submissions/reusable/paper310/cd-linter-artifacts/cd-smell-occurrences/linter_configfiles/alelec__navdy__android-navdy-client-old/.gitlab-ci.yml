@@ -1,0 +1,22 @@
+image: registry.gitlab.com/alelec/docker-android-build
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - pushd build
+    - export JP
+    - . ./update_version.sh
+    - java -jar apktool_2.3.2.jar b .. -o navdy_raw.apk
+    - zipalign -f -p 4 navdy_raw.apk navdy_aligned.apk
+    - apksigner sign --ks navdy_alelec.jks --ks-pass=env:JP --out navdy_1.3.1681-alelec-${GITHASH}.apk navdy_aligned.apk
+    - mv navdy_1.3.1681-alelec-${GITHASH}.apk ../
+    - popd
+    - ls ./navdy_*.apk
+  artifacts:
+    paths:
+      - ./navdy_*.apk
+
+

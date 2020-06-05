@@ -1,0 +1,13 @@
+variables:
+  BASE_VERSION: '0.1'
+  MAINTAINER: 'Alexander Teseyko <alexteko@gmail.com>'
+  DESC: 'Service monitor'
+
+build:
+  script:
+    - rm -rf *.deb
+    - rm -rf var/www/monitor.home/bower_components
+    - yarn install --modules-folder var/www/monitor.home/bower_components
+    - fpm --after-install after_install.sh -s dir -t deb -n monitor-home -v $BASE_VERSION-$CI_JOB_ID -d supervisor -m "$MAINTAINER" --description "$DESC" etc var usr
+    - ~/add_repository.sh
+

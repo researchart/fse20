@@ -1,0 +1,30 @@
+image: node:latest
+
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+  - npm install
+
+test:
+  stage: test
+  script:
+  - npm run test
+
+pages:
+  stage: deploy
+  script:
+  - npm run jsdoc
+  - npm run build
+  - mkdir -p .public/docs 
+  - cp -r docs .public/docs
+  - cp -r build .public
+  - mv public react_public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

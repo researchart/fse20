@@ -1,0 +1,46 @@
+image: ubuntu:xenial
+
+cache:
+  key: apt-cache
+  paths:
+  - apt-cache/
+
+before_script:
+  - export APT_CACHE_DIR=`pwd`/apt-cache && mkdir -pv $APT_CACHE_DIR
+  - apt-get update -yq && apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y qt5-qmake qtbase5-dev qtchooser pkg-config libqt5xmlpatterns5-dev libsignon-qt5-dev signon-plugins-dev
+  - apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y dbus-test-runner lcov gcovr
+
+build_amd64:
+  stage: build
+  script:
+    - export QT_SELECT=qt5
+    - mkdir build
+    - cd build
+    - qmake CONFIG+=debug CONFIG+=coverage ..
+    - make -j 4
+  artifacts:
+    paths:
+      - ./
+
+test_amd64:
+  stage: test
+  script:
+    - cd build
+    - make coverage-html
+  dependencies:
+    - build_amd64
+  artifacts:
+    paths:
+      - ./
+
+pages:
+  stage: deploy
+  script:
+    - mkdir public
+    - cp -a build/coverage-html public/coverage
+  dependencies:
+    - test_amd64
+  artifacts:
+    paths:
+      - public
+

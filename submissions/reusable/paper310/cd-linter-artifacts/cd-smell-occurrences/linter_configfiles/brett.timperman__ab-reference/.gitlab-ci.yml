@@ -1,0 +1,31 @@
+stages:
+  - build
+  - deploy
+
+build:
+  image: docker
+  services:
+    - docker:dind
+  stage: build
+  script:
+    - ./dockerfiles/build.sh
+    - docker login -u btimperman -p $HUB_PASSWORD
+    - ./dockerfiles/push.sh
+
+deploy:
+  stage: deploy
+  image: btimperman/env:ucp-compose
+  variables:
+    COMPOSE_PROJECT_NAME: ab
+    COMPOSE_FILE: docker-compose.prod.yml
+  script:
+    - export COMPOSE_PROJECT_NAME=ab
+    - export COMPOSE_FILE=docker-compose.prod.yml
+    - docker-compose down
+    - docker-compose pull
+    - docker-compose up -d
+    - export COMPOSE_PROJECT_NAME=registrator
+    - export COMPOSE_FILE=registrators.yml
+    - docker-compose down
+    - docker-compose up -d
+

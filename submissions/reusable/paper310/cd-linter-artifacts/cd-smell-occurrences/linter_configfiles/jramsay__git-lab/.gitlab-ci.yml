@@ -1,0 +1,22 @@
+image: golang:1.12
+
+stages:
+  - test
+  - cache
+
+cache:
+  paths:
+    - .cache
+
+before_script:
+  - mkdir -p .cache
+  - export GOPATH="$CI_PROJECT_DIR/.cache"
+  - go mod vendor
+
+unit_tests:
+  stage: test
+  script:
+    - go test -coverprofile=coverage.txt -covermode=atomic ./...
+  after_script:
+    - bash <(curl -s https://codecov.io/bash) -t "${CODECOV_TOKEN}"
+

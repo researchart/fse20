@@ -1,0 +1,35 @@
+image: library/node:9.11.1
+stages:
+  - setup
+  - build
+  - deploy
+
+install: 
+  stage: setup
+  script: npm i
+  artifacts:
+    paths:
+      - node_modules
+
+lint:
+  stage: build 
+  script: npm run lint
+
+webPackBuild:
+  stage: build
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist
+
+pages:
+  stage: deploy
+  script:
+    - cp -r dist public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

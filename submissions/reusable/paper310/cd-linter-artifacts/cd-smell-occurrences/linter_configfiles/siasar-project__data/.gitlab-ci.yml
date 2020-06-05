@@ -1,0 +1,52 @@
+stages:
+  - lint
+  - build
+  - migrate
+  - deploy
+
+before_script:
+  - npm install
+
+lint:
+  stage: lint
+  script:
+    - npm run lint
+
+build:
+  stage: build
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+
+migrate staging:
+  variables:
+    NODE_ENV: production
+  stage: migrate
+  tags:
+    - staging
+  environment: staging
+  script:
+    - npm run db:reset
+    - npm run migrate:all
+  only:
+    - staging
+  artifacts:
+    paths:
+      - node_modules
+
+deploy staging:
+  variables:
+    NODE_ENV: production
+  stage: deploy
+  tags:
+    - staging
+  environment: staging
+  script:
+    - sudo rsync -ah --delete ./dist/ ./node_modules /var/www/data
+    - sudo chown -R apache:apache /var/www/data
+    - sudo systemctl restart data.service
+  only:
+    - staging
+

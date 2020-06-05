@@ -1,0 +1,83 @@
+before_script:
+  - apt-get update -qq
+
+  - apt-get install -y git
+  # https://askubuntu.com/a/1013396
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y fsharp
+
+stages:
+  - buildAndInstall
+  - compileScripts
+  - test
+  - package
+
+buildAndInstall-1804:
+  image: ubuntu:18.04
+  stage: buildAndInstall
+  script:
+    - ./configure.sh
+    - make
+    - make install
+
+buildAndInstall-1904:
+  image: ubuntu:19.04
+  stage: buildAndInstall
+  script:
+    - ./configure.sh
+    - make
+    - make install
+
+compileScripts-1804:
+  image: ubuntu:18.04
+  stage: compileScripts
+  script:
+    - ./configure.sh && make install
+    - ./ci-build.fsx
+
+compileScripts-1904:
+  image: ubuntu:19.04
+  stage: compileScripts
+  script:
+    - ./configure.sh && make install
+    - ./ci-build.fsx
+
+test-1804:
+  image: ubuntu:18.04
+  stage: test
+  script:
+    - ./configure.sh && make install
+    - ./test.fsx
+    - ./testProcessConcurrency.fsx
+
+test-1904:
+  image: ubuntu:19.04
+  stage: test
+  script:
+    - ./configure.sh && make install
+    - ./test.fsx
+    - ./testProcessConcurrency.fsx
+
+package-1804:
+  image: ubuntu:18.04
+  stage: package
+  script:
+    - apt-get install -y snapcraft
+    - ./snap_build.sh
+
+  artifacts:
+    paths:
+      - fsx*.snap
+    expire_in: 50days
+
+package-1904:
+  image: ubuntu:19.04
+  stage: package
+  script:
+    - apt-get install -y snapcraft
+    - ./snap_build.sh
+
+  artifacts:
+    paths:
+      - fsx*.snap
+    expire_in: 50days
+

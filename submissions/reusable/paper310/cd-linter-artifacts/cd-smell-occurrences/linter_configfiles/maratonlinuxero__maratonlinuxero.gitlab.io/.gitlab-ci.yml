@@ -1,0 +1,28 @@
+image: ruby:2.3
+
+variables:
+  JEKYLL_ENV: production
+
+before_script:
+  - bundle install
+
+pages:
+  stage: deploy
+  script:
+  - bundle exec jekyll build -d public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+pages-test:
+  stage: deploy
+  script:
+  - bundle exec jekyll build -d export
+  artifacts:
+    paths:
+    - export
+  except:
+  - master
+

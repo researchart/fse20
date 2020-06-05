@@ -1,0 +1,97 @@
+before_script:
+  - chmod +x master-sample-web/gradlew
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+  - export TZ='Asia/Tokyo'
+  - date +\"%Y%m%d-%H%M\" > exectime.txt
+
+stages:
+  - check-test-build
+  - deploy
+
+.web-checkstyle:
+  image: java:8
+  tags:
+    - docker
+  script: 
+    - master-sample-web/gradlew -b master-sample-web/build.gradle clean checkstyleMain checkstyleTest
+  stage: check-test-build
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+
+.web-spotbugs:
+  image: java:8
+  tags:
+    - docker
+  script: 
+    - master-sample-web/gradlew -b master-sample-web/build.gradle clean spotbugsMain spotbugsTest
+  stage: check-test-build
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+
+.web-test:
+  image: java:8
+  tags:
+    - docker
+  script: 
+    - master-sample-web/gradlew -b master-sample-web/build.gradle clean testReport jacocoMergedReport
+    - awk -F',' 'NR>=2{m+=$4; n+=$5}END{printf("Coverage Total %.2f%%\n", n*100/(n+m))}' master-sample-web/build/reports/jacoco/jacocoMergedReport/jacocoMergedReport.csv
+  stage: check-test-build
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+
+.web-build:
+  image: java:8
+  tags:
+    - docker
+  script: 
+    - master-sample-web/gradlew -b master-sample-web/build.gradle clean build
+    - awk -F',' 'NR>=2{m+=$4; n+=$5}END{printf("Coverage Total %.2f%%\n", n*100/(n+m))}' master-sample-web/build/reports/jacoco/jacocoMergedReport/jacocoMergedReport.csv
+  stage: check-test-build
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+
+
+job-web-checkstyle:
+  extends: .web-checkstyle
+  except:
+    - master
+    - /^develop.*$/
+
+job-web-spotbugs:
+  extends: .web-spotbugs
+  except:
+    - master
+    - /^develop.*$/
+
+job-web-test:
+  extends: .web-test
+  except:
+    - master
+    - /^develop.*$/
+
+job-web-build:
+  extends: .web-build
+  only:
+    - master
+    - /^develop.*$/
+  artifacts:
+    name: "web$(cat exectime.txt)"
+    paths:
+      - master-sample-web/build/reports
+      - master-sample-web/build/javadoc
+      - web/build/libs
+    expire_in: 1 week
+
+

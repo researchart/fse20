@@ -1,0 +1,21 @@
+image: golang:1.11
+
+stages:
+  - build
+  - test
+
+before_script:
+  - go get github.com/pkg/browser
+  - go get gitlab.com/golang-commonmark/markdown
+
+build:
+  stage: build
+  script:
+    - go build ./...
+
+test:
+  stage: test
+  script:
+    - test -z "$(gofmt -l . | tee /dev/stderr)"
+    - go test ./...
+

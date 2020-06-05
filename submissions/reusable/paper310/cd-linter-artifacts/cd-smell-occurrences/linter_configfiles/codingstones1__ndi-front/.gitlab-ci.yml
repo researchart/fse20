@@ -1,0 +1,37 @@
+image: node:latest
+before_script:
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+
+cache:
+  paths:
+    - node_modules/
+
+
+build_image_prod:
+  only:
+    - master
+  script:
+    - npm install
+    - sudo npm install -g @angular/cli
+    - npm run build
+    - docker build -t registry.gitlab.com/codingstones1/ndi-front:stable .
+    - docker push registry.gitlab.com/codingstones1/ndi-front:stable
+    - git clone https://gitlab.com/codingstones1/ndi-playbook
+    - ansible-playbook -i ndi-playbook/Inventories/prod/hosts ndi-playbook/Playbooks/deploy_front_prod.yaml
+
+
+build_image_dev:
+  only:
+    - dev
+  script:
+    - npm install
+    - sudo npm install -g @angular/cli
+    - npm run build:dev
+    - docker build -t registry.gitlab.com/codingstones1/ndi-front:latest .
+    - docker push registry.gitlab.com/codingstones1/ndi-front:latest
+    - git clone https://gitlab.com/codingstones1/ndi-playbook
+    - ansible-playbook -i ndi-playbook/Inventories/dev/hosts ndi-playbook/Playbooks/deploy_front_dev.yaml
+
+
+

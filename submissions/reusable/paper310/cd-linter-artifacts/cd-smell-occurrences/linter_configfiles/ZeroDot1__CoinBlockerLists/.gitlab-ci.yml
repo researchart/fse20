@@ -1,0 +1,15 @@
+pages:
+  stage: deploy
+  script:
+  - echo 'CoinBlockerLists Update . . .'
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  - find public -type f -regex '.*\.\(htm\|html\|txt\|md\|js\|css\|plain\|png\)$' -exec gzip -9 -f -kvr {} \;
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+  - echo 'CoinBlockerLists Update . . . . . DONE!'
+

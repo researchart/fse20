@@ -1,0 +1,23 @@
+publish:
+  image: clickable/ci-16.04-armhf
+  only:
+    - tags
+  script:
+    - clickable clean build
+    - clickable publish "$CI_COMMIT_MESSAGE"
+  artifacts:
+    paths:
+      - build/all/app/*.click
+    expire_in: 1 week
+
+build:
+  image: clickable/ci-16.04-armhf
+  except:
+    - tags
+  script:
+    - clickable clean build
+  artifacts:
+    paths:
+      - build/all/app/*.click
+    expire_in: 1 week
+

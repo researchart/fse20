@@ -1,0 +1,122 @@
+stages:
+  - build
+  - pkg
+  - unit
+  - raven
+  - upload
+  - deploy-pkg
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+make:
+  stage: build
+  variables:
+    DEBUILD_ARGS: --prepend-path /usr/lib/go-1.13/bin
+    TOOL_ARGS: apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes
+  before_script:
+    - echo "deb http://deb.debian.org/debian/ testing main" > /etc/apt/sources.list.d/testing.list
+    - apt-get update
+    - apt-get install -qy sudo devscripts dpkg-sig gnupg curl
+    - mk-build-deps --install --tool="$TOOL_ARGS" debian/control
+    - go mod vendor
+    - go install ./vendor/github.com/golang/protobuf/protoc-gen-go
+    - export PATH="$PATH:$GOBIN"
+  script:
+    - ./build-deb.sh
+    - go test -race $(go list -e ./... | grep -v vendor/ | grep -v utils/ | grep -v test/ ) -v
+    - make
+    - make generic-shell
+    - make minnow-shell
+    - make ahi-shell
+    - make generic
+    - make minnow
+    - make ahi
+  after_script:
+    - chown -R gitlab-runner:gitlab-runner build/
+  artifacts:
+    paths:
+      - build
+  tags:
+    - merge
+    - docker
+    - buster
+
+functions:
+  stage: unit
+  script:
+    - go test -v test/unit/sledc_test.go
+    - go test -v test/unit/yaml_test.go
+  dependencies:
+    - make
+  tags:
+    - merge
+    - docker
+    - go
+
+create-containers:
+  stage: unit
+  before_script:
+    - touch pkg/*.pb.go
+  script:
+    - make containers
+  dependencies:
+    - make
+  tags:
+    - merge
+    - shell
+
+dogfood:
+  stage: raven
+  before_script:
+    - cd test/integration/dogfood
+    - make
+  script:
+    - sudo ./run.sh
+  after_script:
+    - cd test/integration/dogfood
+    - make clean
+    - sudo rvn destroy
+  dependencies:
+    - make
+    - functions
+  tags:
+    - merge
+    - shell
+
+repos:
+  stage: upload
+  only:
+    - tags
+    - master
+  script:
+    - docker login -u $CI_QUAY_LOGIN -p $CI_QUAY_TOKEN quay.io
+    - docker login -u $CI_HUB_LOGIN -p $CI_HUB_TOKEN
+    - PUSH=1 make containers
+  dependencies:
+    - make
+    - create-containers
+  tags:
+    - merge
+    - shell
+
+deploy-pkg:
+  stage: upload
+  only:
+    - master
+  before_script:
+    - apt-get update
+    - apt-get install -y devscripts dpkg-sig gnupg curl
+    - 'curl -H "PRIVATE-TOKEN: $REPO_READ_TOKEN" "$DEB_PUB_SCRIPT_URL" > add-deb.sh'
+    - 'chmod +x add-deb.sh'
+    - echo $MERGETB_GPG_KEY | base64 -di | gpg --import
+    - echo $MERGETB_GPG_PUBKEY | base64 -di | gpg --import
+  script: 
+    - find . -name "*.deb" | xargs -n 1 dpkg-sig -k $MERGETB_GPG_KEY_ID --sign builder
+    - find . -name "*.deb" | xargs -n 1 ./add-deb.sh
+  dependencies:
+    - make
+  tags:
+    - merge
+    - docker
+    - buster
+

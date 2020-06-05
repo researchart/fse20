@@ -1,0 +1,21 @@
+before_script:
+  - apt-get update -qy
+  - apt-get install -y python-dev python-pip bridge-utils qemu
+  - pip install setuptools --upgrade
+  - python setup.py install
+
+irati-test:
+  script:
+  - python examples/vpn.py
+
+pages:
+  stage: deploy
+  script:
+  - pip install sphinx sphinx_rtd_theme
+  - sphinx-build doc/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

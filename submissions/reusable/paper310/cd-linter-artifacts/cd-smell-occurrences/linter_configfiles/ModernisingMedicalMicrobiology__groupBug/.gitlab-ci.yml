@@ -1,0 +1,11 @@
+py36_nose:
+  stage: test
+  image: python:3.6
+  script:
+    - apt-get update -q -y
+    - pip install -r requirements.txt
+    - nosetests -c .noserc -q --with-coverage --cover-html-dir=build --cover-html --cover-package=groupBug/
+  artifacts:
+    paths:
+      - htmlcov/
+

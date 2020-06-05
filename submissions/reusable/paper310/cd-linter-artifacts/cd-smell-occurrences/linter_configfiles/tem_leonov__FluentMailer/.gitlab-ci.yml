@@ -1,0 +1,56 @@
+stages:
+  - test
+  - publish
+  
+test job:
+  stage: test
+  script:
+    - echo "Restoring NuGet Packages..."
+    - 'c:\nuget\nuget.exe restore "FluentMailer.sln"'
+    - ''
+    - echo "Build..."
+    - C:\Windows\Microsoft.NET\Framework64\v4.0.30319\msbuild.exe /consoleloggerparameters:ErrorsOnly /maxcpucount /nologo /property:Configuration=Release /verbosity:quiet "FluentMailer.sln"
+  tags: 
+    - msbuild
+    - dotnet
+    - nuget
+  only:
+    - /^release/.+$/
+    - /^hotfix/.+$/
+
+publish job:
+  stage: publish
+  script:  
+    - echo "Restoring NuGet Packages..."
+    - 'c:\nuget\nuget.exe restore "FluentMailer.sln"'
+    - ''
+    - echo "Build..."
+    - C:\Windows\Microsoft.NET\Framework64\v4.0.30319\msbuild.exe /consoleloggerparameters:ErrorsOnly /maxcpucount /nologo /property:Configuration=Release /verbosity:quiet "FluentMailer.sln"
+    - ''
+    - echo 'Copying files into publish folders...'
+    - mkdir FluentMailer\lib
+    - copy FluentMailer\bin\Release\FluentMailer.dll FluentMailer\lib\
+    - mkdir FluentMailer.Unity\lib
+    - copy FluentMailer.Unity\bin\Release\FluentMailer.Unity.dll FluentMailer.Unity\lib\
+    - mkdir FluentMailer.Factory\lib
+    - copy FluentMailer.Factory\bin\Release\FluentMailer.Factory.dll FluentMailer.Factory\lib\
+    - ''
+    - echo 'Creating Nuget Packages...'
+    - C:\nuget\nuget.exe pack FluentMailer\Package.nuspec
+    - C:\nuget\nuget.exe pack FluentMailer.Unity\Package.nuspec
+    - C:\nuget\nuget.exe pack FluentMailer.Factory\Package.nuspec
+    - echo 'Publishing into Nuget repository...'
+    - C:\nuget\nuget.exe push *.nupkg
+  artifacts:
+    paths:
+      - FluentMailer\lib\*.dll
+      - FluentMailer.Unity\lib\*.dll
+      - FluentMailer.Factory\lib\*.dll
+  tags: 
+    - msbuild
+    - dotnet
+    - nuget
+  only: 
+    - master
+    - tags
+

@@ -1,0 +1,228 @@
+## PRO TIP : Test your modifications locally with:
+## $ gitlab-ci-multi-runner exec docker {name_of_the_job}
+
+
+variables:
+    PGDATA: /var/lib/postgresql/data
+    PGUSER: postgres
+    EXTDIR: /usr/share/postgresql/11/extension/
+    PSQL: psql -v ON_ERROR_STOP=1
+    POSTGRES_DB: nice_marmot
+    POSTGRES_USER: runner
+    POSTGRES_PASSWORD: plop
+
+image: postgres:11
+
+
+##
+## We run most tests on the postgres instance inside the docker image.
+## We need to launch manually the instance because the entrypoint is skipped.
+##
+before_script:
+    - mkdir -p $PGDATA
+    - mkdir -p $EXTDIR
+    - chown postgres $PGDATA
+    - gosu postgres initdb
+    - gosu postgres pg_ctl start
+
+
+# PostgreSQL 9.5 is not supported
+make9.5:
+  stage: build
+  image: postgres:9.5
+  script:
+    - apt-get update && apt-get install -y make gcc postgresql-server-dev-9.5 pgxnclient
+    - pgxn install ddlx
+    - make extension
+    - make install
+    - psql -c "ALTER SYSTEM SET session_preload_libraries = 'anon'"
+    - psql -c "SELECT pg_reload_conf();"
+    - make installcheck || diff results tests/expected
+  artifacts:
+    paths:
+        - anon*
+        - regression.*
+        - results/
+    expire_in: 1 day
+  when: manual
+  allow_failure: yes
+
+make9.6:
+  stage: build
+  image: postgres:9.6
+  script:
+    - apt-get update && apt-get install -y make gcc postgresql-server-dev-9.6 pgxnclient
+    - pgxn install ddlx
+    - make extension
+    - make install
+    - psql -c "ALTER SYSTEM SET session_preload_libraries = 'anon'"
+    - psql -c "SELECT pg_reload_conf();"
+    - make installcheck || diff results tests/expected
+  artifacts:
+    paths:
+        - anon*
+        - regression.*
+        - results/
+    expire_in: 1 day
+
+make10:
+  stage: build
+  image: postgres:10
+  script:
+    - apt-get update && apt-get install -y make gcc postgresql-server-dev-10 pgxnclient
+    - pgxn install ddlx
+    - make extension
+    - make install
+    - psql -c "ALTER SYSTEM SET session_preload_libraries = 'anon'"
+    - psql -c "SELECT pg_reload_conf();"
+    - export PG_TEST_EXTRA=''
+    - make installcheck || diff results tests/expected
+  artifacts:
+    paths:
+        - anon*
+        - regression.*
+        - results/
+    expire_in: 1 day
+
+make11:
+  stage: build
+  image: postgres:11
+  script:
+    - apt-get update && apt-get install -y make gcc postgresql-server-dev-11 pgxnclient
+    - pgxn install ddlx
+    - make extension
+    - make install
+    - psql -c "ALTER SYSTEM SET session_preload_libraries = 'anon'"
+    - psql -c "SELECT pg_reload_conf();"
+    - export PG_TEST_EXTRA='masking_PG11+'
+    - make installcheck || diff results tests/expected
+  artifacts:
+    paths:
+        - anon*
+        - regression.*
+        - results/
+    expire_in: 1 day
+
+make12:
+  stage: build
+  image: postgres:12
+  script:
+    - apt-get update && apt-get install -y make gcc git postgresql-server-dev-12 pgxnclient
+    - pgxn install ddlx
+#    - git clone https://github.com/lacanoid/pgddl.git
+#    - make -C pgddl && make -C pgddl install
+    - make extension
+    - make install
+    - psql -c "ALTER SYSTEM SET session_preload_libraries = 'anon'"
+    - psql -c "SELECT pg_reload_conf();"
+    - export PG_TEST_EXTRA='masking_PG11+'
+    - make installcheck || diff results tests/expected
+  artifacts:
+    paths:
+        - anon*
+        - regression.*
+        - results/
+    expire_in: 1 day
+
+make11-centos:
+  stage: build
+  image: centos:7
+  before_script:
+    - echo 'ignoring global before_script'
+  script:
+    - yum -y install https://download.postgresql.org/pub/repos/yum/11/redhat/rhel-7-x86_64/pgdg-centos11-11-2.noarch.rpm
+    - yum -y install git make gcc postgresql11 postgresql11-server postgresql11-devel pgxnclient python-setuptools
+    - /usr/pgsql-11/bin/pg_config
+    - export PATH="$PATH:/usr/pgsql-11/bin"
+    - pgxn install ddlx
+    - cd /tmp
+    - git clone https://gitlab.com/dalibo/postgresql_anonymizer.git anonymizer
+    - cd anonymizer
+    - make
+    - make install
+  when: manual
+
+standalone12:
+  stage: build
+  services:
+    - postgres:12
+  before_script:
+    - echo "disable the before_script"
+  script:
+    - apt-get update && apt-get install -y make git postgresql-server-dev-all
+    - make anon_standalone_PG12.sql
+    - export PGPASSWORD=$POSTGRES_PASSWORD
+    - $PSQL -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f anon_standalone_PG12.sql
+
+standalone11:
+  stage: build
+  services:
+    - postgres:11
+  before_script:
+    - echo "disable the before_script"
+  script:
+    - apt-get update && apt-get install -y make git postgresql-server-dev-all
+    - make anon_standalone_PG11.sql
+    - export PGPASSWORD=$POSTGRES_PASSWORD
+    - $PSQL -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f anon_standalone_PG11.sql
+
+
+
+##
+## T E S T
+##
+
+demo:
+  stage: test
+  script:
+    - apt-get update && apt-get install -y make gcc postgresql-server-dev-11 postgresql-contrib-11  pgxnclient
+    - pgxn install ddlx
+    - make extension
+    - make install
+    - psql -c "ALTER SYSTEM SET session_preload_libraries = 'anon'"
+    - psql -c "SELECT pg_reload_conf();"
+    - make demo
+  when: manual
+  artifacts:
+    paths:
+        - demo/*.out
+    expire_in: 1 day
+
+pgxn:
+  stage: deploy
+  image: alpine
+  before_script:
+    - echo 'Disable before_script.'
+  script:
+    - apk update && apk add make git zip
+    - make pgxn
+  artifacts:
+    paths:
+      - anon*
+      - _pgxn/
+    expire_in: 1 day
+  only:
+    - master
+
+test_pgxn:
+  stage: deploy
+  script:
+    - apt-get update && apt-get install -y make gcc postgresql-server-dev-11 pgxnclient
+    - pgxn install postgresql_anonymizer
+  when: manual
+
+test_yum_centos7_pg12:
+  stage: deploy
+  image: centos:7
+  before_script:
+    - echo 'ignoring global before_script'
+  script:
+    - yum -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+    - yum -y install postgresql12-contrib postgresql_anonymizer12
+    - mkdir -p $PGDATA
+    - chown postgres $PGDATA
+    - su postgres -c /usr/pgsql-12/bin/initdb $PGDATA
+    - su postgres -c "/usr/pgsql-12/bin/pg_ctl start"
+    - su postgres -c "psql -c 'CREATE EXTENSION anon CASCADE;'"
+  when: manual
+

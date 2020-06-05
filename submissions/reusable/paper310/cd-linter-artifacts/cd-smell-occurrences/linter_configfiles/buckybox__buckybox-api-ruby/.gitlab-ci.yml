@@ -1,0 +1,21 @@
+# Official language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/ruby/tags/
+image: ruby:2.3
+
+cache:
+  paths:
+    - vendor/ruby # cache gems in between builds
+
+before_script:
+  - ruby -v
+  - gem install bundler --no-ri --no-rdoc
+  - bundle install -j $(nproc) --path vendor
+
+rubocop:
+  script:
+  - rubocop
+
+rspec:
+  script:
+  - rspec
+

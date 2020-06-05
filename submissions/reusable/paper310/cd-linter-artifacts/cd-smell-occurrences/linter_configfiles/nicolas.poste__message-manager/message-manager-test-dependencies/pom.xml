@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>message-manager</artifactId>
+        <groupId>com.talanlabs</groupId>
+        <version>2.2-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>message-manager-test-dependencies</artifactId>
+    <name>Message Manager Dependencies for Tests</name>
+    <packaging>pom</packaging>
+    <dependencies>
+        <dependency>
+            <groupId>org.mortbay.jetty</groupId>
+            <artifactId>jetty</artifactId>
+        </dependency>
+    </dependencies>
+    <profiles>
+        <profile>
+            <id>useTests</id>
+            <activation>
+                <property>
+                    <name>!maven.test.skip</name>
+                </property>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>com.talanlabs</groupId>
+                    <artifactId>message-manager-server</artifactId>
+                    <version>${project.version}</version>
+                    <type>test-jar</type>
+                </dependency>
+                <dependency>
+                    <groupId>com.talanlabs</groupId>
+                    <artifactId>message-manager-engine</artifactId>
+                    <version>${project.version}</version>
+                    <type>test-jar</type>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+</project>
+

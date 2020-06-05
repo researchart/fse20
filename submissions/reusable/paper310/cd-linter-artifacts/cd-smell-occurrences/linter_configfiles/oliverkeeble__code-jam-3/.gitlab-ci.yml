@@ -1,0 +1,27 @@
+# Most of the teams should not have to change this file
+# unless there is an incompatibility in dependencies
+# which is preventing the CI from passing.
+#
+# This should not occur if you are only linting as dependencies
+# are not used while linting.
+#
+# If there is an issue where the build is not passsing *because of
+# the python version* you can change it below.
+#
+# This uses the Python images from the Docker hub.
+#
+# python:latest is 3.7 at time of commit.
+
+image: python:latest
+
+before_script:
+  # Print out Python information for debugging and install pipenv
+  - python -V
+  - pip install pipenv
+
+test:
+  script:
+  # Sync the development dependencies (flake8 & plugins) and run our lint task (see Pipfile)
+  - pipenv sync --dev
+  - pipenv run lint
+

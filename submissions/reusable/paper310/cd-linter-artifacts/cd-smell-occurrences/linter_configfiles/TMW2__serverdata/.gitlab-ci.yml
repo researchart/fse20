@@ -1,0 +1,219 @@
+stages:
+- build
+- test
+- fail
+- ok
+
+before_script:
+  - uname -a
+image: debian:jessie
+
+variables:
+  GET_SOURCES_ATTEMPTS: "5"
+  ARTIFACT_DOWNLOAD_ATTEMPTS: "5"
+  MYSQL_ROOT_PASSWORD: root
+  packetver: "20170517"
+
+.build_test:
+  stage: build
+
+  script:
+  - export CC=gcc-6
+  - ./.tools/jobs/install.sh "mysql-client
+    gcc-6
+    git-core
+    make autoconf automake autopoint
+    libtool libmysqlclient-dev libz-dev libpcre3-dev"
+  - ./.tools/jobs/cloneall.sh
+  - ./.tools/jobs/build.sh "--enable-packetver=${packetver} --enable-epoll --enable-debug --enable-sanitize=full --disable-manager --enable-Werror --enable-buildbot" "--enable-werror --enable-lto --enable-sanitize"
+  image: debian:jessie
+  services:
+  - mysql:latest
+
+.mysql_init_latest:
+  stage: build
+  script:
+  - ./.tools/jobs/install.sh "mysql-client"
+  - ./.tools/jobs/clonedata.sh
+  - ./.tools/jobs/initdb.sh mysql
+  image: debian:jessie
+  services:
+  - mysql:latest
+
+.mysql_init_5.5:
+  stage: build
+  script:
+  - ./.tools/jobs/install.sh "mysql-client"
+  - ./.tools/jobs/clonedata.sh
+  - ./.tools/jobs/initdb.sh mysql
+  image: debian:jessie
+  services:
+  - mysql:5.5
+
+mysql_init_5.6:
+  stage: build
+  script:
+  - ./.tools/jobs/install.sh "mysql-client"
+  - ./.tools/jobs/clonedata.sh
+  - ./.tools/jobs/initdb.sh mysql
+  image: debian:jessie
+  services:
+  - mysql:5.6
+
+mysql_init_5.7:
+  stage: build
+  script:
+  - ./.tools/jobs/install.sh "mysql-client"
+  - ./.tools/jobs/clonedata.sh
+  - ./.tools/jobs/initdb.sh mysql
+  image: debian:jessie
+  services:
+  - mysql:5.7
+
+mariadb_init_latest:
+  stage: build
+  script:
+  - ./.tools/jobs/install.sh "mysql-client"
+  - ./.tools/jobs/clonedata.sh
+  - ./.tools/jobs/initdb.sh mariadb
+  image: debian:jessie
+  services:
+  - mariadb:latest
+
+mariadb_init_10.0:
+  stage: build
+  script:
+  - ./.tools/jobs/install.sh "mysql-client"
+  - ./.tools/jobs/clonedata.sh
+  - ./.tools/jobs/initdb.sh mariadb
+  image: debian:jessie
+  services:
+  - mariadb:10.0
+
+.mariadb_init_5.5:
+  stage: build
+  script:
+  - ./.tools/jobs/install.sh "mysql-client"
+  - ./.tools/jobs/clonedata.sh
+  - ./.tools/jobs/initdb.sh mariadb
+  image: debian:jessie
+  services:
+  - mariadb:5.5
+
+.mysql_run_latest:
+  stage: test
+  script:
+  - export CC=gcc-4.9
+  - ./.tools/jobs/install.sh "mysql-client
+    gcc-4.9
+    git-core
+    make autoconf automake autopoint
+    libtool libmysqlclient-dev libz-dev libpcre3-dev"
+  - ./.tools/jobs/cloneall.sh
+  - ./.tools/jobs/initdb.sh mysql
+  - ./.tools/jobs/build.sh "--enable-packetver=${packetver} --enable-epoll --enable-debug --enable-sanitize=full --disable-manager --enable-Werror --enable-buildbot" "--enable-werror --enable-lto --enable-sanitize"
+  - ./.tools/jobs/runserver.sh mysql
+  image: debian:jessie
+  services:
+  - mysql:latest
+
+mysql_run_5.7:
+  stage: test
+  script:
+  - export CC=gcc-4.9
+  - ./.tools/jobs/install.sh "mysql-client
+    gcc-4.9
+    git-core
+    make autoconf automake autopoint
+    libtool libmysqlclient-dev libz-dev libpcre3-dev"
+  - ./.tools/jobs/cloneall.sh
+  - ./.tools/jobs/initdb.sh mysql
+  - ./.tools/jobs/build.sh "--enable-packetver=${packetver} --enable-epoll --enable-debug --enable-sanitize=full --disable-manager --enable-Werror --enable-buildbot" "--enable-werror --enable-lto --enable-sanitize"
+  - ./.tools/jobs/runserver.sh mysql
+  image: debian:jessie
+  services:
+  - mysql:5.7
+
+.mariadb_run_latest:
+  stage: test
+  script:
+  - export CC=gcc-4.9
+  - export HERCCPPFLAGS=" -Wno-format-overflow"
+  - ./.tools/jobs/install.sh "mysql-client
+    gcc-4.9
+    git-core
+    make autoconf automake autopoint
+    libtool libmysqlclient-dev libz-dev libpcre3-dev"
+  - ./.tools/jobs/cloneall.sh
+  - ./.tools/jobs/initdb.sh mariadb
+  - ./.tools/jobs/build.sh "--enable-packetver=${packetver} --enable-epoll --enable-debug --enable-sanitize=full --disable-manager --enable-Werror --enable-buildbot" "--enable-werror --enable-lto --enable-sanitize"
+  - ./.tools/jobs/runserver.sh mariadb
+  image: debian:jessie
+  services:
+  - mariadb:latest
+
+mariadb_run_valgrind_latest:
+  stage: test
+  script:
+  - export CC=gcc-6
+  - ./.tools/jobs/install.sh "mysql-client
+    gcc-6
+    git-core
+    make autoconf automake autopoint
+    libtool libmariadbclient-dev libz-dev libpcre3-dev
+    valgrind"
+  - ./.tools/jobs/cloneall.sh
+  - ./.tools/jobs/initdb.sh mariadb
+  - ./.tools/jobs/build.sh "--enable-packetver=${packetver} --enable-epoll --enable-debug --disable-manager --enable-Werror --enable-buildbot" "--enable-werror"
+  - ./.tools/jobs/runservervalgrind.sh mariadb
+  image: debian:stretch
+  services:
+  - mariadb:latest
+
+licensecheck:
+  stage: test
+  script:
+  - ./.tools/jobs/licensecheck.sh
+  image: debian:jessie
+
+newlines:
+  stage: test
+  script:
+  - ./.tools/jobs/install.sh "dos2unix git-core"
+  - ./.tools/jobs/newlines.sh
+  image: debian:unstable
+  artifacts:
+    untracked: true
+    when: always
+    expire_in: 3 week
+
+spaces:
+  stage: test
+  script:
+  - ./.tools/jobs/install.sh "sed git-core"
+  - cd npc
+  - ../.tools/jobs/spaces.sh
+  image: debian:unstable
+  artifacts:
+    untracked: true
+    when: always
+    expire_in: 3 week
+
+ok_job:
+  stage: ok
+  script:
+  - pwd
+  - echo $CI_BUILD_REF_NAME
+  when: on_success
+  variables:
+    GIT_STRATEGY: none
+
+fail_job:
+  stage: fail
+  script:
+  - pwd
+  - echo $CI_BUILD_REF_NAME
+  when: on_failure
+  variables:
+    GIT_STRATEGY: none
+

@@ -1,0 +1,26 @@
+image: python:alpine
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive  # For cloning pelican plugins.
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache"
+
+cache:
+  paths:
+    - .cache/  # Pip package download cache.
+    - venv/  # Pip install directory for dependencies.
+
+pages:
+  before_script:
+    - apk update && apk add g++  # For building libsass.
+    - python --version  # Print Python version for debugging.
+    # Set up virtualenv for caching dependencies.
+    - pip install virtualenv && virtualenv venv && source venv/bin/activate
+    - pip install -r requirements.txt
+  script:
+    - pelican -o public -s publishconf.py  # Generate the site.
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master
+

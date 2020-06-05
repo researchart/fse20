@@ -1,0 +1,229 @@
+variables:
+  IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  PROJ_A_ID: 4624510
+  PROJ_B_ID: 4624517
+  PROJ_RETRY_ID: 6955857
+  PROJ_TEST_ID: 8223553
+  REF: master
+  # set via secret variables
+  API_TOKEN: "$PERSONAL_ACCESS_TOKEN"
+  PROJ_A_PIPELINE_TOKEN: "$PROJ_A_PIPELINE_TOKEN"
+  PROJ_B_PIPELINE_TOKEN: "$PROJ_B_PIPELINE_TOKEN"
+  PROJ_RETRY_PIPELINE_TOKEN: "$PROJ_RETRY_PIPELINE_TOKEN"
+  PROJ_TEST_PIPELINE_TOKEN: "$PROJ_TEST_PIPELINE_TOKEN"
+
+
+stages:
+  - build
+  - test
+  - release
+
+
+build-sha:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build --pull -t $IMAGE .
+    - docker push $IMAGE
+
+
+# Run UT on all branches/forks/everywhere, todo: increase --fail-under value in the future
+unit tests:
+  stage: test
+  image: $IMAGE
+  script: |
+    coverage run -m unittest test_trigger.py
+    coverage report -m --fail-under 89 trigger.py
+    coverage html
+  artifacts:
+    paths:
+      - htmlcov
+    expire_in: 1 week
+
+pages:
+  stage: release
+  only:
+    - master
+  dependencies:
+    - unit tests
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 year
+  script:
+    - mv htmlcov/ public/
+
+
+# Run IT only on the main project with all necessary secrets configured
+.integration-test-template:
+  stage: test
+  image: $IMAGE
+  only:
+    variables:
+      - $CI_PROJECT_PATH == "finestructure/pipeline-trigger"
+
+
+basic integration test:
+  extends: .integration-test-template
+  script:
+    - trigger -a "$API_TOKEN" -p "$PROJ_B_PIPELINE_TOKEN" -t $REF $PROJ_B_ID
+
+project name integration test:
+  #  # polyfill for a GitLab EE feature https://docs.gitlab.com/ee/ci/multi_project_pipelines.html
+  #  trigger:
+  #    project: finestructure/pt-proj-b
+  #    branch: master
+  extends: .integration-test-template
+  script:
+    - trigger -a "$API_TOKEN" -p "$PROJ_B_PIPELINE_TOKEN" -t master finestructure/pt-proj-b
+
+
+env variables & job output integration test:
+  extends: .integration-test-template
+  script:
+    - trigger -a "$API_TOKEN" -p "$PROJ_A_PIPELINE_TOKEN" -t $REF -e foo1=bar2 -e foo2=bar3 -o $PROJ_A_ID
+
+
+host & url integration test:
+  extends: .integration-test-template
+  script:
+    # test both with and without protocol prefix
+    - trigger -a "$API_TOKEN" -p "$PROJ_B_PIPELINE_TOKEN" -t $REF -h gitlab.com -u /api/v4/projects $PROJ_B_ID
+    - trigger -a "$API_TOKEN" -p "$PROJ_B_PIPELINE_TOKEN" -t $REF -h https://gitlab.com -u /api/v4/projects $PROJ_B_ID
+
+
+detch integration test:
+  extends: .integration-test-template
+  script:
+    - trigger -d -p "$PROJ_B_PIPELINE_TOKEN" -t $REF $PROJ_B_ID
+
+
+retry integration test:
+  extends: .integration-test-template
+  script: |
+    # https://gitlab.com/finestructure/pt-proj-retry.git is a project that randomly failes with a rate of 50%
+    # In order to test retry behaviour, we run it until it fails and then run until it succeeds.
+    max_retries=20
+    cmd="trigger -a "$API_TOKEN" -p "$PROJ_RETRY_PIPELINE_TOKEN" -t $REF -r $PROJ_RETRY_ID"
+
+    echo
+    echo "## Trying until we get first faiure"
+    echo
+    attempt=1
+    until ! $cmd
+    do
+      if [ $attempt -le $max_retries ]; then
+        echo "Attempt $attempt failed, retrying ..."
+        attempt=$((attempt+1))
+      else
+        echo "Max retries exceeded - exiting"
+        exit 1
+      fi
+    done
+
+    echo
+    echo "## Trying until we get first success"
+    echo
+    attempt=1
+    until $cmd
+    do
+      if [ $attempt -le $max_retries ]; then
+        echo "Attempt $attempt failed, retrying ..."
+        attempt=$((attempt+1))
+      else
+        echo "Max retries exceeded - exiting"
+        exit 1
+      fi
+    done
+
+
+retry pid integration test:
+  extends: .integration-test-template
+  script: |
+    pid=25900902  # known existing pipeline id in proj-b
+    trigger -a "$API_TOKEN" -p "$PROJ_B_PIPELINE_TOKEN" -t $REF --pid $pid $PROJ_B_ID
+
+
+manual pass integration test:
+  extends: .integration-test-template
+  script:
+    - trigger -a "$API_TOKEN" -p "$PROJ_B_PIPELINE_TOKEN" -t manual --on-manual pass $PROJ_B_ID
+
+
+manual play integration test:
+  extends: .integration-test-template
+  script:
+    - trigger -a "$API_TOKEN" -p "$PROJ_B_PIPELINE_TOKEN" -t manual --on-manual play $PROJ_B_ID
+
+
+issue 14 integration test:
+  extends: .integration-test-template
+  script: |
+    # test for https://gitlab.com/finestructure/pipeline-trigger/issues/14
+    apk add --no-cache curl
+
+    echo -e "\nPushing failing commit ..."
+    _=$(./tests/commit.sh "$API_TOKEN" $PROJ_TEST_ID ./tests/fail.json)
+
+    echo -e "\nFirst trigger call (expected to fail, just to get a pipeline id) ..."
+    res=$(
+      trigger -a "$API_TOKEN" -p "$PROJ_TEST_PIPELINE_TOKEN" -t $REF $PROJ_TEST_ID || echo -e "\nfailed as expected"
+    )
+    echo -e "\nFirst trigger done:\n$res"
+
+    # could use something a bit more elegant than this
+    pid=$(echo $res | python -c "import re, sys; print(re.match('.+ Waiting for pipeline (\d+) to finish .+', sys.stdin.read()).groups()[0])")
+    echo -e "\nPID from first run: $pid"
+
+    # test the result we've received from first trigger
+    echo "$res" | grep "failed as expected$" > /dev/null 2&>1
+
+    echo -e "\nPushing succeeding commit ..."
+    _=$(./tests/commit.sh "$API_TOKEN" $PROJ_TEST_ID ./tests/succeed.json)
+
+    echo -e "\nSecond trigger call, now with -f flag (expected to retry new pipeline and succeed) ..."
+    trigger -a "$API_TOKEN" -p "$PROJ_TEST_PIPELINE_TOKEN" -t $REF --pid $pid $PROJ_TEST_ID
+
+
+issue 20 integration test:
+  # test for https://gitlab.com/finestructure/pipeline-trigger/issues/20
+  extends: .integration-test-template
+  script:
+    - trigger -a "$API_TOKEN" -p "$PROJ_B_PIPELINE_TOKEN" -t $REF --verifyssl false $PROJ_B_ID
+
+
+.release_template: &release_template
+  stage: release
+  image: docker:latest
+  services:
+    - docker:dind
+
+
+.image_release: &image_release
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $IMAGE
+    - docker tag $IMAGE $RELEASE_IMAGE
+    - docker push $RELEASE_IMAGE
+
+
+release-latest:
+  only:
+    - master
+  variables:
+    RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
+  <<: *release_template
+  <<: *image_release
+
+
+release-tag:
+  only:
+    - tags
+  variables:
+    RELEASE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+  <<: *release_template
+  <<: *image_release
+

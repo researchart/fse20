@@ -1,0 +1,15 @@
+image: alpine
+
+pages:
+  stage: deploy
+  script:
+  - mkdir public
+  - cp -r dist public
+  - cp index.html public
+  - cp items.json public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

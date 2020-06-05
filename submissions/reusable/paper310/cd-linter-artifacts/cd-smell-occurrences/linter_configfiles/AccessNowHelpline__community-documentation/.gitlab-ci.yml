@@ -1,0 +1,60 @@
+image: ruby:2.6
+
+cache:
+  paths:
+  - .apt
+  - vendor
+
+pages:
+  before_script:
+    - export LC_ALL="C.UTF-8"
+    - export LANG="en_US.UTF-8"
+    - export LANGUAGE="en_US.UTF-8"
+    # Configure apt chaching
+    - echo $CI_PROJECT_DIR
+    - export APT_DIR=$CI_PROJECT_DIR/.apt && export APT_STATE_LISTS=$APT_DIR/lists && export APT_CACHE_ARCHIVES=$APT_DIR/archives
+    - printf "dir::state::lists    ${APT_STATE_LISTS};\ndir::cache::archives    ${APT_CACHE_ARCHIVES};\n" > /etc/apt/apt.conf
+    - mkdir -p "${APT_STATE_LISTS}/partial" && mkdir -p "${APT_CACHE_ARCHIVES}/partial"
+    - apt-get update -y && apt-get install -yq rsync
+    - eval $(ssh-agent -s)
+# [old, removed] key is encoded via base64, hence we have to decode it 
+# [old, removed]    - ssh-add <(echo "$SSH_PRIVATE_KEY" | base64 -d)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+# next command is suggested here: https://stackoverflow.com/questions/25689231/getting-gitlab-ci-to-clone-private-repositories
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  stage: deploy
+  script:
+  - gem install bundler
+  - bundle config set path 'vendor'
+  - bundle install
+  - bundle exec jekyll build -d public
+  #- scp -r public/* git@communitydocs.accessnow.org:./communitydocs/
+  - rsync -av --delete public/ git@communitydocs.accessnow.org:./communitydocs
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+# job2:
+#   before_script:
+#     - eval $(ssh-agent -s)
+#     - ssh-add <(echo "$SSH_KEY")
+#     - mkdir -p ~/.ssh
+#     - chmod 700 ~/.ssh
+#     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+#   stage: deploy
+#   script:
+#     - git clone git@gitlab.com:AccessNowHelpline/shared-documentation.git
+#     - cd shared-documentation
+#     - git config --local user.email "docs@accessnow.org"
+#     - git config --local user.name "Access Now Helpline"
+#     - git checkout drafts
+#     - cp ../pages/mydoc/* pages/mydoc/
+#     - git add pages/mydoc/*
+#     - if [ $(git status --porcelain | wc -l) -ne 0 ]; then git commit -a -m "automatic push from confidential repository" && git push; fi    
+#   only:
+#     - master
+

@@ -1,0 +1,11 @@
+image: perl:latest
+stages:
+  - test
+
+before_script:
+  - "cpanm --installdeps ."
+
+test:
+  script:
+    - "prove -l"
+

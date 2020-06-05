@@ -1,0 +1,44 @@
+# Gitlab CI based on their template
+# this file can be used as a reference on how to build syncopoli
+#
+# some notes:
+#
+# for local ndk-bundle, download ndk and set ANDROID_NDK_HOME and ANDROID_NDK to ndk-bundle directory
+
+image: openjdk:8-jdk
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  ANDROID_SDK_TARGET: "25"
+  ANDROID_BUILD_TOOLS: "27.0.3"
+  ANDROID_SDK_TOOLS: "4333796"
+  GRADLE_VERSION: "4.4.1"
+
+before_script:
+  - apt-get -qq update --yes
+  - apt-get -qq install --yes wget tar unzip lib32stdc++6 lib32z1 build-essential
+  - wget --quiet https://dl.google.com/android/repository/sdk-tools-linux-${ANDROID_SDK_TOOLS}.zip
+  - unzip -qq sdk-tools-linux-${ANDROID_SDK_TOOLS}.zip -d sdk-tools-linux
+  - $(yes | sdk-tools-linux/tools/bin/sdkmanager --licenses > /dev/null) || true
+  - sdk-tools-linux/tools/bin/sdkmanager --install ndk-bundle > /dev/null
+  - export ANDROID_HOME=$PWD/sdk-tools-linux
+  - export PATH=$PATH:$PWD/sdk-tools-linux/platform-tools/
+  - chmod +x ./gradlew
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - ./gradlew assembleDebug
+  artifacts:
+    paths:
+    - app/build/outputs/apk/debug/app-debug.apk
+
+unitTests:
+  stage: test
+  script:
+    - ./gradlew test
+

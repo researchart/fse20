@@ -1,0 +1,11 @@
+build:
+  image: golang:1-alpine
+  script:
+    - apk add gcc libc-dev
+    - mkdir -pv "$GOPATH/src/gitlab.com/dtjm/linky"
+    - cp -rv "$CI_PROJECT_DIR"/* "$GOPATH/src/gitlab.com/dtjm/linky/"
+    - cd "$GOPATH/src/gitlab.com/dtjm/linky/"
+    - go build -v main.go
+  variables:
+    CGO_CFLAGS: '-DSQLITE_ENABLE_FTS5'
+

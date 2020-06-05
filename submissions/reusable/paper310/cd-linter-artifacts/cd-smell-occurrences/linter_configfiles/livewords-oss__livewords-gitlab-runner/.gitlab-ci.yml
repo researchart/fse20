@@ -1,0 +1,36 @@
+image: docker:latest
+
+services:
+- docker:dind
+
+stages:
+- build
+- test
+- release
+
+variables:
+  CONTAINER_TEST_IMAGE: registry.gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}:${CI_COMMIT_REF_NAME}
+  CONTAINER_RELEASE_IMAGE_NAME: registry.gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}
+  CONTAINER_NAME: test_container_${CI_COMMIT_SHA}
+
+before_script:
+  - docker login -u gitlab-ci-token -p ${CI_BUILD_TOKEN} registry.gitlab.com
+
+build:
+  stage: build
+  script:
+    - ash -v ./build.sh
+
+test:
+  stage: test
+  script:
+    - ash -v ./test.sh
+
+release_image:
+  stage: release
+  script:
+    - ash ./release.sh
+  only:
+    - master
+    - /alpine-v[0-9]+\.[0-9]+\.[0-9]+/ # gitlab runner tag format
+

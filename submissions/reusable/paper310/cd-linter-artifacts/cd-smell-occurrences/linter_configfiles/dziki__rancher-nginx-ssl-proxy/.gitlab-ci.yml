@@ -1,0 +1,15 @@
+stages:
+  - build
+
+build:
+  image: docker:latest
+  services:
+    - docker:dind
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - export CONTAINER_TAG="${CI_COMMIT_TAG:-${CI_COMMIT_REF_SLUG}}"
+  script:
+    - docker build -t $CI_REGISTRY/$CI_PROJECT_PATH:$CONTAINER_TAG .
+    - docker push $CI_REGISTRY/$CI_PROJECT_PATH:$CONTAINER_TAG
+

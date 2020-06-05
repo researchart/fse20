@@ -1,0 +1,35 @@
+before_script:
+    - git fetch --tags
+    - export V=1 MAKEFLAGS="-j$(mk/nproc.sh)"
+
+build:debian:
+    stage: build
+    image: registry.gitlab.com/craigbarnes/dockerfiles/vala-debian
+    script:
+        - make USE_LOCAL_DISCOUNT=1
+        - cat build/version.txt
+        - du -h showdown
+        - make install
+        - apt-get update && apt-get -y install libmarkdown2-dev
+        - make
+        - ldd showdown | grep libmarkdown
+        - du -h showdown
+        - make install
+
+pages:
+    stage: build
+    image: registry.gitlab.com/craigbarnes/dockerfiles/flatpak
+    artifacts: {paths: [public]}
+    only: [master]
+    script:
+        - echo "$GPG_PRIVATE_KEY" | gpg --import -
+        - echo "$GPG_PUBLIC_KEY" > pubkey.asc
+        - mkdir -p public/
+        - flatpak-builder --gpg-sign=43705BA1 --repo=public/flatpak/
+          build/flatpak/ io.gitlab.craigbarnes.Showdown.json
+        - flatpak build-update-repo --gpg-sign=43705BA1 public/flatpak/
+        - cp res/showdown.svg showdown.flatpakref public/
+        - flatpak -v remote-add --gpg-import=pubkey.asc showdown public/flatpak/
+        - flatpak -y -v install showdown io.gitlab.craigbarnes.Showdown
+        - flatpak info io.gitlab.craigbarnes.Showdown
+

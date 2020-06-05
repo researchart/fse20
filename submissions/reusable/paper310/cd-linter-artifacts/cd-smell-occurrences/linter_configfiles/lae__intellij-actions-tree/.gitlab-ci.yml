@@ -1,0 +1,15 @@
+image: openjdk:13
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+build:
+  stage: build
+  script:
+    - ./gradlew clean build
+
+build-intellij-2019.3:
+  stage: build
+  script:
+    - ./gradlew clean build -PintellijVersion=2019.3
+

@@ -1,0 +1,56 @@
+stages:
+  - build
+  - deploy
+
+build:frontend:
+  image: node:latest
+  stage: build
+  script:
+    - node --version
+    - npm --version
+    - cd web
+    - npm install
+    - npx parcel build index.html --public-url ./
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - web/dist/
+  cache:
+    key: frontend
+    paths:
+      - web/node_modules/
+
+build:backend:
+  image: rustlang/rust:nightly
+  stage: build
+  script:
+    - rustc --version
+    - cargo --version
+    - cd api
+    - cargo build --release --bin river-rss
+    - cargo build --release --bin migrate
+    - mkdir -p dist/
+    - cp ./src/ci/service_start.sh ../target/release/migrate ../target/release/river-rss dist/
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - api/dist/
+  cache:
+    key: backend
+    paths:
+      - target/
+
+deploy:
+  image: alpine
+  stage: deploy
+  only:
+    - master
+  script:
+    - apk add --no-cache rsync openssh
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" >> ~/.ssh/id_dsa
+    - chmod 600 ~/.ssh/id_dsa
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    - rsync -avz ./api/dist/ "$BACKEND_DEPLOY_DESTINATION"
+    - rsync -avz ./web/dist/ "$FRONTEND_DEPLOY_DESTINATION"
+

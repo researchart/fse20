@@ -1,0 +1,25 @@
+########################################################################
+# This file uses Gitlab CI to do four things:
+# 1. Deploy the repo to Gitlab Pages (as static HTML).
+# 2. Deploy the repo to a webhost using FTP.
+# 3. Backup the repo to B2 using RClone.
+# 4. Push all images to Backblaze, which will store them for use with
+#    cloudflare as a CDN.
+# Make sure to set all config variables in the Gitlab CI repo settings
+#########################################################################
+
+# custom image
+image: debian
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

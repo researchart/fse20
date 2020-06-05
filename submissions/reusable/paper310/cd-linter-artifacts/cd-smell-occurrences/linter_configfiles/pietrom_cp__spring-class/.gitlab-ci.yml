@@ -1,0 +1,33 @@
+image: gradle:4.5.1-jdk9
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+stages:
+  - build
+  - test
+
+before_script:
+  - export GRADLE_USER_HOME="$(pwd)/.gradle"
+
+cache:
+  paths:
+    - .gradle/caches
+
+build:
+  stage: build
+  script:
+    - gradle assemble
+  artifacts:
+    paths:
+      - "**/build/classes"
+      - "**/build/libs/*.jar"
+    #expire_in: 1 week
+  #only:
+  #  - master
+
+test:
+  stage: test
+  script:
+    - gradle check
+

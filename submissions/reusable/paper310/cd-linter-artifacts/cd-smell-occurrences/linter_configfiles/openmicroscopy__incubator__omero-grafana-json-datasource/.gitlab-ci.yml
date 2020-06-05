@@ -1,0 +1,27 @@
+image: continuumio/miniconda:4.5.4
+
+stages:
+  - test
+  - package
+
+test:
+  stage: test
+  script:
+    - conda install -c bioconda -y -q python-omero
+    - pip install -r requirements-test.txt
+    - flake8
+    - pytest
+
+docker:
+  stage: package
+  image: docker:stable
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+

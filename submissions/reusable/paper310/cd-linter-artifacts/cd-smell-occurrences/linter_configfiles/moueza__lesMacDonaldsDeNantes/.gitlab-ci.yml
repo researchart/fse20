@@ -1,0 +1,97 @@
+stages:
+  - test
+  - build
+  - deploy
+#from https://gitlab.com/help/ci/environments
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq apache2
+  #- ruby -v
+  #- which ruby
+  #- gem install bundler --no-ri --no-rdoc
+  #- bundle install --jobs $(nproc)  "${FLAGS[@]}"
+  - service apache2 start
+  
+indexPage:
+  script:
+    #must contain 8h20
+    #TODO 3 stages
+    #cp local to www
+    curl http://localhost/public/index.html
+    
+
+faillingjobmoi:
+  script:
+    #must contain 8h20
+    #TODO 3 stages
+    #cp local to www
+    exit 1
+    
+    
+
+#rubocop:
+#  script:
+#    - bundle exec rubocop
+
+
+
+
+testecho:
+  stage: test
+  script: echo "Running tests"
+
+testko:
+  stage: test
+  script: exit 1
+
+build0:
+  stage: build
+  script: echo "Building the app"
+
+deploy_staging:
+  stage: deploy
+  script:
+    - echo "Deploy to staging server"
+  environment:
+    name: staging
+    url: https://staging.example.com
+  only:
+  - master
+
+deploy_prod:
+  stage: deploy
+  script:
+    - echo "Deploy to prod server npm for cycle analytics  https://gitlab.com/help/ci/environments"
+  environment:
+    name: production
+    url: https://firebaseHosting.example.com
+  only:
+  - master
+
+#https://gitlab.com/help/ci/environments
+deploy_review:
+  #Docker
+  stage: deploy
+  script:
+    - echo "Deploy a review app"
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://$CI_ENVIRONMENT_SLUG.example.com
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+
+
+stop_review:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - echo "Remove review app"
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+

@@ -1,0 +1,22 @@
+# This file is a template, and might need editing before it works on your project.
+# Template project: https://gitlab.com/pages/jekyll
+# Docs: https://docs.gitlab.com/ce/pages/
+image: node:latest
+
+before_script:
+  - yarn
+
+pages:
+  cache:
+    paths:
+    - node_modules/
+
+  script:
+  - yarn docs:build
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+

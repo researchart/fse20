@@ -1,0 +1,10 @@
+image: maven:3.3.9-jdk-8
+
+stages:
+    - test
+
+unit_tests:
+    stage: test
+    script:
+        mvn clean install
+

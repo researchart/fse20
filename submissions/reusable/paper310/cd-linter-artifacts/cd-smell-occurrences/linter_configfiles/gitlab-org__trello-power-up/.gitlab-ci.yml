@@ -1,0 +1,18 @@
+image: node
+
+eslint:
+  stage: test
+  script:
+  - yarn install
+  - yarn run eslint
+
+pages:
+  stage: deploy
+  script:
+  - echo 'Deploying to production..'
+  artifacts:
+    paths:
+    - public
+  only:
+  - production
+

@@ -1,0 +1,50 @@
+image: fedora:latest
+
+cache:
+  paths:
+  - /var/cache/dnf
+
+before_script:
+   - mkdir output
+#   - dnf --assumeyes install python3 dnf distribution-gpg-keys squashfs-tools
+
+build_fedora:
+  image: fedora:latest
+  stage: build
+  script:
+    - dnf --assumeyes install python3 dnf distribution-gpg-keys squashfs-tools
+    - source /etc/os-release; ./mkrpmdistcoresnap -d $ID -r $VERSION_ID -n -o ./output
+  artifacts:
+    expire_in: 14d
+    paths:
+      - ./output/*.snap
+  tags:
+    - shared
+
+build_mageia:
+  image: mageia:latest
+  stage: build
+  script:
+    - dnf --assumeyes install python3 dnf distribution-gpg-keys squashfs-tools
+    - source /etc/os-release; ./mkrpmdistcoresnap -d $ID -r $VERSION_ID -n -o ./output
+  artifacts:
+    expire_in: 14d
+    paths:
+      - ./output/*.snap
+  tags:
+    - shared
+
+build_opensuse:
+  image: opensuse/leap:latest
+  stage: build
+  script:
+    - zypper refresh
+    - zypper --non-interactive install python3 dnf distribution-gpg-keys squashfs
+    - source /etc/os-release; ./mkrpmdistcoresnap -d $ID -r $VERSION_ID -n -o ./output
+  artifacts:
+    expire_in: 14d
+    paths:
+      - ./output/*.snap
+  tags:
+    - shared
+

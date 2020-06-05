@@ -1,0 +1,21 @@
+---
+image: python:alpine
+
+pages:
+  script:
+    - pip install mkdocs
+    - pip install mkdocs-material
+    - mkdocs build
+    - mv site public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+lint_yaml_files:
+  script:
+    - pip install yamllint
+    - find . -type f -name '*.yml' | sed 's|\./||g' | egrep -v '(\.kitchen/|\[warning\]|\.molecule/)' | xargs yamllint -c yamllint.conf -f parsable
+...
+

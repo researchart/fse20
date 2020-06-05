@@ -1,0 +1,24 @@
+# PHP Image from Docker (7.3)
+image: php:7.3
+
+# Cached files
+cache:
+  paths:
+  - vendor/
+
+before_script:
+# Install git, the php image doesn't have installed
+- apt-get update -yqq
+- apt-get install git -yqq
+
+# Install composer
+- curl -sS https://getcomposer.org/installer | php
+
+# Install all project dependencies
+- php composer.phar install
+
+# Launch Test
+test:luna:
+  script:
+  - vendor/bin/phpunit --configuration phpunit.xml --colors="always"
+

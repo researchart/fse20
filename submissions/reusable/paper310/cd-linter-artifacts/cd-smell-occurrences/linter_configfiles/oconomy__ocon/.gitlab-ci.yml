@@ -1,0 +1,56 @@
+variables:
+  BUILD_DIR: cmake/build
+  INSTALL_PREFIX: /tmp/ocon
+
+stages:
+  - build
+  - test
+  - install
+  - examples
+
+build:
+  stage: build
+  tags:
+  - ocon
+  script:
+  - mkdir -p $BUILD_DIR && cd $BUILD_DIR
+  - cmake -DCMAKE_INSTALL_PREFIX:PATH=$INSTALL_PREFIX ../..
+  - make -j2
+  artifacts:
+    paths:
+    - $BUILD_DIR
+
+test:
+  stage: test
+  tags:
+  - ocon
+  dependencies:
+  - build
+  script:
+  - $BUILD_DIR/test/ocon_tester --gtest_output="xml:report.xml"
+  artifacts:
+    reports:
+      junit: report.xml
+
+install:
+  stage: install
+  tags:
+  - ocon
+  dependencies:
+  - build
+  script:
+  - cd $BUILD_DIR
+  - make install -j2
+
+examples:
+  stage: examples
+  tags:
+  - ocon
+  script:
+  - cd examples
+  - mkdir -p $BUILD_DIR && cd $BUILD_DIR
+  - cmake ../.. -DCMAKE_PREFIX_PATH="/usr/local;$INSTALL_PREFIX"
+  - make
+  - bicycle/bicycle_tester
+  - pendulum/pendulum
+

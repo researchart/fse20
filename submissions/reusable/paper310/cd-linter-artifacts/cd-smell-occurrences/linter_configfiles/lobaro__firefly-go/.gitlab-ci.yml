@@ -1,0 +1,38 @@
+image: golang:1.7
+
+before_script:
+  - export CURRENT_BUILD_PATH=$(pwd)
+  - export GOPATH=$CURRENT_BUILD_PATH/gopath
+
+stages:
+  - prepare
+  - build
+
+job_gopath:
+  stage: prepare
+  script:
+    - go get -u github.com/jarcoal/httpmock
+  artifacts:
+    paths:
+      - gopath/
+
+job_build:win:
+  stage: build
+  script:
+    - env GOOS=windows GOARCH=386 go build -o build/firefly-go-win-x86 -i ./firefly/
+  dependencies:
+    - job_gopath
+  artifacts:
+    paths:
+      - build/
+      
+job_build:linux:
+  stage: build
+  script:
+    - env GOOS=linux GOARCH=386 go build -o build/firefly-go-linux-x86 -i ./firefly/
+  dependencies:
+    - job_gopath
+  artifacts:
+    paths:
+      - build/
+

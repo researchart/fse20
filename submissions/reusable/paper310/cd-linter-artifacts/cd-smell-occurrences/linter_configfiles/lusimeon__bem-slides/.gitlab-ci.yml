@@ -1,0 +1,19 @@
+image: "node:latest"
+
+stages:
+    - pages
+    
+pages:
+    stage: pages
+    script:
+        - npm install --only=dev
+        - npm install --global grunt-cli
+        - grunt
+        - mkdir public
+        - mv {img,css,js,lib,plugin}/ index.html public/
+    artifacts:
+        paths:
+            - public/
+    only:
+        - master
+

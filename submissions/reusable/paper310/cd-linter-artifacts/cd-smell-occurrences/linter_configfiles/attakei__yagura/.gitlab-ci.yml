@@ -1,0 +1,98 @@
+stages:
+  - lint
+  - test
+  - build-package
+  - build-docker
+
+image: python:3.6-slim
+
+
+flake8:
+  stage: lint
+  except:
+    - tags
+  script:
+    - pip install -r requirements/dev.txt
+    - flake8
+
+.pytest: &pytest
+  stage: test
+  except:
+    - tags
+  script:
+    - pip install -r requirements/dev.txt
+    - pytest
+
+pytest-cp36:
+  <<: *pytest
+  image: python:3.6-slim
+
+pytest-cp37:
+  <<: *pytest
+  image: python:3.7-slim
+
+
+migration-test:
+  stage: test
+  except:
+    - tags
+  variables:
+    DJANGO_SETTINGS_MODULE: migration_testing
+  script:
+    - pip install yagura django-bulma  # TODO: Remove django-bulma after merged
+    - cp yagura/tests/migration_testing.py ./
+    - ./manage.py migrate
+    - pip uninstall -y yagura
+    - pip install -e .
+    - ./manage.py migrate
+  allow_failure: true
+
+build-testpypi-packages:
+  stage: build-package
+  only:
+    - master
+    - /^release\/.*$/
+  variables:
+    DJANGO_SETTINGS_MODULE: yagura.settings.base
+  script:
+    - if [ "$CI_PROJECT_NAMESPACE" != "attakei" ] ; then exit 0; fi
+    - bin/gen-pypirc
+    - bin/gen-devver
+    - pip install -r requirements/packaging.txt -r requirements.txt
+    - apt-get update
+    - apt-get install -y gettext
+    - python manage.py compilemessages
+    - python setup.py sdist bdist_wheel
+    - twine upload -r testpypi dist/*
+
+package-to-pypi:
+  stage: build-package
+  only:
+    - tags
+  variables:
+    DJANGO_SETTINGS_MODULE: yagura.settings.base
+  script:
+    - if [ "$CI_PROJECT_NAMESPACE" != "attakei" ] ; then exit 0; fi
+    - bin/gen-pypirc
+    - pip install -r requirements/packaging.txt -r requirements.txt
+    - apt-get update
+    - apt-get install -y gettext
+    - python manage.py compilemessages
+    - python setup.py sdist bdist_wheel
+    - twine upload dist/*
+
+build-public-docker-image:
+  stage: build-docker
+  only:
+    - tags
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - if [ "$CI_PROJECT_NAMESPACE" != "attakei" ] ; then exit 0; fi
+    - IMAGE_TAG=${CI_COMMIT_REF_NAME/\//-}
+    - docker build -t attakei/yagura:$IMAGE_TAG .
+    - docker build -t attakei/yagura:$IMAGE_TAG-mysqlclient --build-arg USE_MYSQLCLIENT=1 .
+    - echo $DOCKER_HUB_TOKEN | docker login -u attakei --password-stdin
+    - docker push attakei/yagura
+

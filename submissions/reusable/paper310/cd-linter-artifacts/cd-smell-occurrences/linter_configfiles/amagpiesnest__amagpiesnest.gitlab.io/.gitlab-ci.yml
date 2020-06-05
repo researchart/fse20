@@ -1,0 +1,15 @@
+image: alpine:latest
+
+pages:
+  stage: deploy
+  script:
+  - echo 'Nothing to do...'
+  - mkdir public
+  - mv -vf www.amagpiesnest.com/* public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+

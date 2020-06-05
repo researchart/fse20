@@ -1,0 +1,44 @@
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:8
+
+before_script:
+  - npm install
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+    - node_modules/
+
+stages:
+  - test
+  - build
+  - deploy
+
+test:
+  stage: test
+  script:
+    - npm install -g codecov
+    - npm run lint
+    - npm test && codecov --token=731120e2-5bab-4af3-84dc-787ed80b6980
+
+build:
+  stage: build
+  script: npm run build
+
+deploy_staging:
+  stage: deploy
+  script:
+    - npm run build
+    - git config --global user.email "kuypplan@gmail.com" && git config --global user.name "Deco A5"
+    - git add . && git commit -m "automated deployment"
+    - git remote add heroku https://heroku:71f4bf41-21db-4472-a626-8cbde006ef43@git.heroku.com/deco-stage.git
+    - git push -f heroku HEAD:master
+  environment:
+    name: staging
+    url: https://deco-stage.herokuapp.com/
+  only:
+    - sit_uat_react
+    - master
+

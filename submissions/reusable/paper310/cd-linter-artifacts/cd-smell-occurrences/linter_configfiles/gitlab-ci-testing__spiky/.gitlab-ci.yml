@@ -1,0 +1,15 @@
+image: node:latest
+
+before_script:
+- ci/install-chrome
+- npm install
+
+cache:
+  paths:
+  - node_modules/
+
+test:
+  script:
+  # Run npm test in virtual display mode
+  - xvfb-run -a npm test
+

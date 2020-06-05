@@ -1,0 +1,15 @@
+image: python:3.6
+stages:
+  - test
+  - publish
+before_script:
+  - python3 -m venv workflow
+  - pip install -U pip
+  - source workflow/bin/activate
+  - pip install -U wheel setuptools
+  - pip install -r requirements_test.txt
+test-django-sqlite:
+  stage: test
+  script:
+    - make coverage
+

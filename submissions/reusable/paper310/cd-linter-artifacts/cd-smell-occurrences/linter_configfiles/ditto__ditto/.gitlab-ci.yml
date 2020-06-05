@@ -1,0 +1,16 @@
+image: microsoft/dotnet:1.1-sdk
+
+build-and-test:
+  script:
+  - ./install
+  - test/all
+  - ./ditto --help
+
+pages:
+  image: alpine:latest
+  script:
+  - cp -R docs/ public/
+  artifacts:
+    paths: [public]
+  only: [master]
+

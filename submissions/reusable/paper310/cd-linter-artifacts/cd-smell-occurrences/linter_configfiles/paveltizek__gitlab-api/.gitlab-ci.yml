@@ -1,0 +1,34 @@
+image: geertw/docker-php-ci:7.1
+
+
+        
+stages:
+    - test
+    - install
+    - deploy
+        
+        
+check_php_syntax:
+    stage: test
+    script:
+        - find ./ -name "*.php" -print0 | xargs -0 -n1 -P4 php -l
+        
+run:
+    stage: install
+    before_script:
+        - php -v
+    script:
+        - composer install
+
+deploy:
+    stage: deploy
+    script:
+        - curl -XPOST -H'content-type:application/json' 'https://packagist.org/api/update-package?username=paveltizek&apiToken=hfFRKKj-cOLs4VZc4xGQ' -d'{"repository":{"url":"https://packagist.org/packages/paveltizek/gitlab-api"}}'
+    environment:
+        name: production
+        url: https://packagist.org/packages/paveltizek/gitlab-api
+
+cache:
+  paths:
+    - vendor/
+

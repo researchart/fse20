@@ -1,0 +1,43 @@
+before_script:
+  - pip install -r test-requirements.txt
+
+stages:
+  - lint
+  - test
+  - deploy
+
+lint:
+  stage: lint
+  image: python:3.6
+  script: tox -epep8
+
+test_python34:
+  stage: test
+  image: python:3.4
+  script: tox -epy34
+
+test_python35:
+  stage: test
+  image: python:3.5
+  script: tox -epy35
+
+test_python36:
+  stage: test
+  image: python:3.6
+  script: tox -epy36
+
+pages:
+  stage: deploy
+  image: python:3.6
+  script:
+    - pip install sphinx
+    - pip install .
+    - cd docs/
+    - make html
+    - mv _build/html/ ../public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

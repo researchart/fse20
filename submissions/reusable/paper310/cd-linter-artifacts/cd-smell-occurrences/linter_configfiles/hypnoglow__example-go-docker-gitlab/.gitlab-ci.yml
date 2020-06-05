@@ -1,0 +1,51 @@
+variables:
+  PACKAGE_PATH: /go/src/gitlab.com/hypnoglow/example-go-docker-gitlab
+
+stages:
+  - dep
+  - test
+  - build
+
+# A hack to make Golang-in-Gitlab happy
+.anchors:
+  - &inject-gopath
+      mkdir -p $(dirname ${PACKAGE_PATH})
+      && ln -s ${CI_PROJECT_DIR} ${PACKAGE_PATH}
+      && cd ${PACKAGE_PATH}
+
+dep:
+  stage: dep
+  image: golang:1.10-alpine3.7
+  before_script:
+    - apk add --no-cache curl git
+    - curl -sSL https://github.com/golang/dep/releases/download/v0.5.0/dep-linux-amd64 -o /go/bin/dep
+    - chmod +x /go/bin/dep
+    - *inject-gopath
+  script:
+    - dep ensure -v -vendor-only
+  artifacts:
+    name: "vendor-$CI_PIPELINE_ID"
+    paths:
+      - vendor/
+    expire_in: 1 hour
+
+test:
+  stage: test
+  dependencies:
+    - dep
+  image: golang:1.10-alpine3.7
+  before_script:
+    - *inject-gopath
+  script:
+    - go test ./...
+
+build:
+  stage: build
+  dependencies:
+    - dep
+  image: docker:17
+  services:
+    - docker:dind
+  script:
+    - docker build -t app .
+

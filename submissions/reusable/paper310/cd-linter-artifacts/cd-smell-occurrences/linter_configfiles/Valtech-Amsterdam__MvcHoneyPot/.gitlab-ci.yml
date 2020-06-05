@@ -1,0 +1,105 @@
+image: mono:onbuild
+
+### Global configuration: ###
+
+variables:
+#  nuget: '"c:\nuget\nuget.exe"'
+#  msbuild: '"c:\Program Files (x86)\MSBuild\14.0\bin\msbuild.exe"'
+  CI_DEBUG_TRACE: "false"
+  vendorName: 'Labs'
+  companyName: 'Valtech.Amsterdam'
+  xbuildTags: '/nologo /verbosity:verbose /toolsversion:4.0 /p:DebugSymbols=true /p:DebugType=full /p:ExcludeGeneratedDebugSymbol=false'
+  nugetPackTags: '-symbols -noninteractive'
+  nugetPushTags: '${NugetAPIKey} -Source ${NugetSource} -NonInteractive -ConfigFile Nuget.config'
+
+stages:
+  - build
+  - deploy
+
+before_script:
+  - 'nuget restore "${CI_PROJECT_NAME}.sln" -ConfigFile "${CI_PROJECT_DIR}/Nuget.config"'
+  
+### Templates ###
+
+.buld_template: &buld_template
+  stage: build
+  cache:
+    paths:
+    - packages/
+
+.deploy_template: &deploy_template
+  <<: *buld_template
+  stage: deploy
+  artifacts:
+    expire_in: 1 week
+
+.alpha_constraint: &alpha_constraint /^(release\/)[0-9]+\.[0-9]+\.[0-9]+$/
+
+### Automatic build scripts ###
+
+autobuild:
+  <<: *buld_template
+  script:
+  - 'xbuild "${CI_PROJECT_NAME}.sln" /p:Configuration=Debug /t:Rebuild ${xbuildTags}'
+#  - 'find ./ -printf "%TY-%Tm-%Td\t%s\t%p\n"'
+  except:
+    - *alpha_constraint
+    - tags
+
+### Alpha package ###    
+    
+alpha-build:
+  <<: *buld_template
+  environment: alpha
+  script:
+  - 'xbuild "${CI_PROJECT_NAME}.sln" /p:Configuration=Debug /t:Rebuild ${xbuildTags}'
+  only:
+    - *alpha_constraint
+
+alpha-deploy:
+  # I might make this manual
+  <<: *deploy_template
+  environment: 
+    name: alpha
+  #  url: https://www.nuget.org/packages/${companyName}.${vendorName}.${CI_PROJECT_NAME}/$(echo ${CI_BUILD_REF_NAME} | cut -c9-).${CI_BUILD_ID}-alpha/
+  script:
+  - 'echo ${CI_BUILD_REF_NAME}'
+  - 'echo $(echo ${CI_BUILD_REF_NAME} | cut -c9-)'
+  - 'xbuild "${CI_PROJECT_NAME}.sln" /p:Configuration=Debug /t:Rebuild ${xbuildTags}'
+  - 'nuget pack "./src/${CI_PROJECT_NAME}/${CI_PROJECT_NAME}.nuspec" -version $(echo ${CI_BUILD_REF_NAME} | cut -c9-).${CI_BUILD_ID}-alpha ${nugetPackTags}'
+  - 'nuget push ./${companyName}.${vendorName}.${CI_PROJECT_NAME}.$(echo ${CI_BUILD_REF_NAME} | cut -c9-).${CI_BUILD_ID}-alpha.nupkg ${nugetPushTags}'
+  artifacts:
+    paths:
+    - './${companyName}.${vendorName}.${CI_PROJECT_NAME}.$(echo ${CI_BUILD_REF_NAME} | cut -c9-).${CI_BUILD_ID}-alpha.nupkg'
+    - './${companyName}.${vendorName}.${CI_PROJECT_NAME}.$(echo ${CI_BUILD_REF_NAME} | cut -c9-).${CI_BUILD_ID}-alpha.symbols.nupkg'
+  only:
+    - *alpha_constraint
+
+### Final package ###
+
+final-build:
+  <<: *buld_template
+  environment: final
+  script:
+  - 'xbuild "${CI_PROJECT_NAME}.sln" /p:Configuration=Release /t:Rebuild ${xbuildTags}'
+  only:
+    - tags
+
+final-deploy:
+  <<: *deploy_template
+  environment: 
+    name: final
+    url: https://www.nuget.org/packages/Valtech.Amsterdam.Labs.MvcHoneyPot/
+#    url: https://www.nuget.org/packages/${companyName}.${vendorName}.${CI_PROJECT_NAME}/${CI_BUILD_TAG}.${CI_BUILD_ID}/
+  script:
+  - 'echo "${CI_BUILD_TAG}.${CI_BUILD_ID}"'
+  - 'xbuild "${CI_PROJECT_NAME}.sln" /p:Configuration=Release /t:Rebuild ${xbuildTags}'
+  - 'nuget pack "./src/${CI_PROJECT_NAME}/${CI_PROJECT_NAME}.nuspec" -version ${CI_BUILD_TAG}.${CI_BUILD_ID} ${nugetPackTags}'
+  - 'nuget push ./${companyName}.${vendorName}.${CI_PROJECT_NAME}.${CI_BUILD_TAG}.${CI_BUILD_ID}.nupkg ${nugetPushTags}'
+  artifacts:
+    paths:
+    - './${companyName}.${vendorName}.${CI_PROJECT_NAME}.${CI_BUILD_TAG}.${CI_BUILD_ID}.nupkg'
+    - './${companyName}.${vendorName}.${CI_PROJECT_NAME}.${CI_BUILD_TAG}.${CI_BUILD_ID}.symbols.nupkg'
+  only:
+  - tags
+

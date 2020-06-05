@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.marcowillemart.common</groupId>
+        <artifactId>common-parent</artifactId>
+        <version>1.1.0-SNAPSHOT</version>
+        <relativePath>../common-parent</relativePath>
+    </parent>
+
+    <artifactId>common-projection</artifactId>
+
+    <name>Common Projection</name>
+    <description>Add support for projections.</description>
+
+    <properties>
+        <main.basedir>${project.basedir}/..</main.basedir>
+    </properties>
+
+    <dependencies>
+        <!-- Common Event -->
+        <dependency>
+            <groupId>com.marcowillemart.common</groupId>
+            <artifactId>common-event</artifactId>
+        </dependency>
+
+        <!-- Common Test -->
+        <dependency>
+            <groupId>com.marcowillemart.common</groupId>
+            <artifactId>common-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Spring Framework -->
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-rest-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+        </dependency>
+
+        <!-- Hibernate -->
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-core</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
+

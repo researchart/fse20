@@ -1,0 +1,25 @@
+image: ubuntu
+
+before_script:
+  - 'which python3 || ( apt-get update -y && apt-get install python3.7 python3.7-dev python3.7-venv python3-pip -y )'
+  - 'apt-get install -y ansible libffi-dev libssl-dev'
+  - 'apt-get install -y pkg-config libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libswscale-dev libavresample-dev libavfilter-dev'
+  - 'python3.7 -m pip --version'
+  - 'python3.7 -m pip install homeassistant==0.104.2'
+
+stages:
+  - test
+
+hass_check_config:
+  stage: test
+  script:
+    - ansible --version
+    - echo $ANSIBLE_VAULT_PASSWORD > .vault_password.txt
+    - ansible-vault decrypt secrets.yaml --vault-password-file .vault_password.txt
+    - sed -i '/^home_assistant_directory/chome_assistant_directory:\ .gitlab-ci' ./secrets.yaml
+    - sed -i '/^homeassistant_db_file/chomeassistant_db_file:\ .gitlab-ci\/blankfile' ./secrets.yaml
+    - sed -i '/^ssl_cert/cssl_cert:\ .gitlab-ci\/blankfile' ./secrets.yaml
+    - sed -i '/^ssl_key/cssl_key:\ .gitlab-ci\/blankfile' ./secrets.yaml
+    - sed -i '/^  service_account/c\ \ service_account:\ \!include .gitlab-ci\/service_account.json' ./configuration.yaml
+    - hass -c . --script check_config
+

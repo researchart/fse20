@@ -1,0 +1,92 @@
+image: ruby:2.7
+
+stages:
+  - test
+  - qa
+
+include:
+  - template: Code-Quality.gitlab-ci.yml
+
+rubocop:
+  stage: test
+  cache:
+    paths:
+      - /usr/local/bundle/
+  script:
+    - gem install rubocop
+    - rubocop
+
+validate_yaml:
+  stage: test
+  script:
+    - ruby -Iyaml -e 'require "yaml"; YAML.load_file("./scripts/projects.yml")'
+    - ruby -Iyaml -e 'require "yaml"; YAML.load_file("./scripts/test_projects.yml")'
+
+.check:
+  stage: qa
+  script:
+    - ./scripts/check_images.rb $CI_JOB_NAME
+    
+12-8-stable:
+  extends: .check
+
+12-7-stable:
+  extends: .check
+
+12-6-stable:
+  extends: .check
+
+12-5-stable:
+  extends: .check
+  
+12-4-stable:
+  extends: .check
+  
+12-3-stable:
+  extends: .check
+  
+12-2-stable:
+  extends: .check
+  
+12-1-stable:
+  extends: .check
+
+12-0-stable:
+  extends: .check
+
+11-11-stable:
+  extends: .check
+
+11-10-stable:
+  extends: .check
+
+11-9-stable:
+  extends: .check
+
+11-8-stable:
+  extends: .check
+
+11-7-stable:
+  extends: .check
+
+11-6-stable:
+  extends: .check
+
+11-5-stable:
+  extends: .check
+
+11-4-stable:
+  extends: .check
+
+11-3-stable:
+  extends: .check
+
+11-2-stable:
+  extends: .check
+
+11-1-stable:
+  extends: .check
+
+11-0-stable:
+  extends: .check
+

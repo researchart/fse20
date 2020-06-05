@@ -1,0 +1,22 @@
+stages:
+  - unit_testing
+  - npm_publish
+
+before_script:
+  - export NPM_API_KEY=$NPM_API_KEY
+  - echo "//registry.npmjs.org/:_authToken=$NPM_API_KEY" > ~/.npmrc
+
+unit_testing:
+  image: node:latest
+  stage: unit_testing
+  script:
+    - npm install
+    - npm test
+
+npm_publish:
+  image: node:latest
+  stage: npm_publish
+  when: manual
+  script:
+    - npm publish
+

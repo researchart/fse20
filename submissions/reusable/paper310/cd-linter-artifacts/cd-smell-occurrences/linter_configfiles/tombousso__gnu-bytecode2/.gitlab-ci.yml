@@ -1,0 +1,21 @@
+image: fedora:latest
+
+stages:
+    - build_and_test
+
+build_script:
+    stage: build_and_test
+    script:
+        - dnf update -y
+        - dnf install automake -y
+        - dnf install make -y
+        - dnf install texinfo -y
+        - dnf install java-1.8.0-openjdk-devel -y
+        - dnf install git -y
+        - dnf install ant -y
+        - dnf install gcc -y
+        - ./buildKawa
+        - cd Kawa-git
+        - make check
+
+

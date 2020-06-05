@@ -1,0 +1,13 @@
+image: node:10.18.0-alpine
+
+before_script:
+    - "apk add git"
+    - "yarn install --frozen-lockfile"
+
+stages:
+    - build
+
+yarn-build:
+    stage: build
+    script: "yarn build"
+

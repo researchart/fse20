@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2018 Michael Pöhn <michael@poehn.at>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+test:                                                                                                     
+  image: debian:stretch
+  script:
+    - apt update -y
+    - apt dist-upgrade -y
+    - apt install -y --no-install-recommends flake8
+    - tests/run-tests
+
+reuse:
+  image: fsfe/reuse:latest
+  script:
+    - reuse lint
+

@@ -1,0 +1,182 @@
+image: "dev.gitlab.org:5005/gitlab/gitlab-build-images:release-tools"
+
+stages:
+  - test
+  - deploy
+  - automation
+  - chatops
+
+cache: &global-cache
+  key: "ruby-25"
+  paths:
+    - vendor/ruby
+
+# templates -------------------------------------------------------------------
+
+.except-automation: &except-automation
+  except:
+    - schedules
+    - triggers
+
+.with-bundle: &with-bundle
+  before_script:
+    - bundle install --jobs=$(nproc) --retry=3 --path=vendor
+
+# test ------------------------------------------------------------------------
+
+include:
+  - template: Dependency-Scanning.gitlab-ci.yml
+  - template: SAST.gitlab-ci.yml
+
+sast:
+  <<: *except-automation
+  variables:
+    SAST_EXCLUDED_PATHS: 'vendor/**'
+
+dependency_scanning:
+  <<: *except-automation
+  variables:
+    DS_EXCLUDED_PATHS: "spec/fixtures/**/*"
+
+rubocop:
+  <<: *except-automation
+  <<: *with-bundle
+  stage: test
+  script:
+    - bundle exec rubocop
+
+specs:
+  <<: *except-automation
+  <<: *with-bundle
+  stage: test
+  script:
+    - git config --global user.email "you@example.com"
+    - git config --global user.name "Your Name"
+    - bundle exec rspec
+  artifacts:
+    paths:
+      - coverage/assets
+      - coverage/index.html
+
+# deploy ----------------------------------------------------------------------
+
+pages:
+  <<: *except-automation
+  stage: deploy
+  script:
+    - mkdir -p public/
+    - mv coverage/ public/
+  dependencies:
+    - specs
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master
+
+# automation ------------------------------------------------------------------
+
+release-managers:
+  <<: *with-bundle
+  stage: automation
+  script:
+    - source scripts/setup_ssh.sh
+    - bundle exec rake release_managers:sync
+  only:
+    refs:
+      - schedules
+    variables:
+      - $RELEASE_MANAGERS
+  cache:
+    <<: *global-cache
+    policy: pull
+
+feature-freeze:
+  <<: *with-bundle
+  stage: automation
+  script:
+    - bundle exec rake freeze
+  only:
+    refs:
+      - schedules
+    variables:
+      - $FEATURE_FREEZE_WEBHOOK_URL
+
+close-expired-qa-issues:
+  <<: *with-bundle
+  stage: automation
+  script:
+    - bundle exec rake close_expired_qa_issues
+  only:
+    refs:
+      - schedules
+    variables:
+      - $CLOSE_EXPIRED_QA_ISSUES
+
+validate-security-merge-requests:
+  <<: *with-bundle
+  stage: automation
+  script:
+    - bundle exec rake security:validate
+  only:
+    refs:
+      - schedules
+    variables:
+      - $VALIDATE_SECURITY_MERGE_REQUESTS
+
+auto_deploy:prepare:
+  <<: *with-bundle
+  stage: automation
+  script:
+    - bundle exec rake 'auto_deploy:prepare'
+  only:
+    refs:
+      - schedules
+    variables:
+      - $CREATE_AUTO_DEPLOY_BRANCH_SCHEDULE == "true"
+
+auto_deploy:pick:
+  <<: *with-bundle
+  stage: automation
+  script:
+    - bundle exec rake 'auto_deploy:pick'
+  only:
+    variables:
+      - $CHERRY_PICK_AUTO_DEPLOY_BRANCH_SCHEDULE == "true"
+
+auto_deploy:tag:
+  <<: *with-bundle
+  stage: automation
+  script:
+    - bundle exec rake 'auto_deploy:tag'
+  only:
+    variables:
+      - $PASSING_BUILD_AUTO_DEPLOY_SCHEDULE == "true"
+
+track-deployment:
+  <<: *with-bundle
+  stage: automation
+  script:
+    - bundle exec rake "release:track_deployment[$DEPLOY_ENVIRONMENT, $DEPLOY_STATUS, $DEPLOY_VERSION]"
+  only:
+    variables:
+      - $TRACK_DEPLOYMENT == "true"
+
+# chatops ---------------------------------------------------------------------
+
+chatops:
+  <<: *with-bundle
+  stage: chatops
+  script:
+    - source scripts/setup_ssh.sh
+    - source scripts/setup_git.sh
+    - ./bin/chatops $TASK
+  only:
+    refs:
+      - triggers
+    variables:
+      - $TASK
+  cache:
+    <<: *global-cache
+    policy: pull
+

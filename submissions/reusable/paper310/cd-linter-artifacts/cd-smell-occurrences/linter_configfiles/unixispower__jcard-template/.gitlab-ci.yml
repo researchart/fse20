@@ -1,0 +1,14 @@
+image: jekyll/minimal:3.8
+
+pages:
+  stage: deploy
+  script:
+  - jekyll build -d public
+  - page_files=$(find public -name "*.html" -not -name index.html)
+  - for file in $page_files; do mv $file ${file%.*}; done
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

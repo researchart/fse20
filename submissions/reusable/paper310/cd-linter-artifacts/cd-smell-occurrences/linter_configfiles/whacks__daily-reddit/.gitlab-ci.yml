@@ -1,0 +1,6 @@
+# https://stackoverflow.com/questions/33430487/how-to-use-gitlab-ci-to-build-a-java-maven-project
+image: maven:3.5.0-jdk-8
+
+job1:
+  script: "mvn clean integration-test -B"   # -DrunIT
+

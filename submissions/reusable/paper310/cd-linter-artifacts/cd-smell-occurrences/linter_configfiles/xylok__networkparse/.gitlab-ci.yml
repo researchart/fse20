@@ -1,0 +1,44 @@
+image: docker:stable
+services:
+  - docker:stable-dind
+
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  TEST_TAG: $CI_COMMIT_REF_SLUG-test
+  RELEASE_TAG: $CI_COMMIT_REF_SLUG-rel
+  NETWORKPARSE_IMAGE_BASE: $CI_REGISTRY_IMAGE/networkparse
+
+  ARCHIVE_DIR: build-archive
+
+before_script:
+  - '[ -z ${DOCKER_HOST+x} ] && export DOCKER_HOST="tcp://localhost:2375"'
+  - echo "$CI_JOB_TOKEN" | docker login -u gitlab-ci-token --password-stdin "$CI_REGISTRY"
+
+  - export NETWORKPARSE_LATEST_IMAGE=$NETWORKPARSE_IMAGE_BASE:latest
+  - export NETWORKPARSE_TEST_IMAGE=$NETWORKPARSE_IMAGE_BASE:$TEST_TAG
+  - export NETWORKPARSE_RELEASE_IMAGE=$NETWORKPARSE_IMAGE_BASE:$RELEASE_TAG
+
+build:
+  stage: build
+  script: ./ci-scripts/build-image.sh
+
+test:
+  stage: test
+  script: ./ci-scripts/test-package.sh
+
+publish-package:
+  stage: deploy
+  only:
+    - master
+  script: ./ci-scripts/publish-package.sh
+
+publish-docs:
+  stage: deploy
+  only:
+    - master
+  script: ./ci-scripts/publish-docs.sh
+

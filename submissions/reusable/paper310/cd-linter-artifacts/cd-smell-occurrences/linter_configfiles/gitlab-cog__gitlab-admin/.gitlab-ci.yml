@@ -1,0 +1,56 @@
+image: ruby:2.4
+
+before_script:
+  - ruby -v
+  - which ruby
+  - gem install bundler --no-ri --no-rdoc
+  # - bundle install --path vendor --jobs $(nproc)  "${FLAGS[@]}"
+  - bundle install --jobs $(nproc)  "${FLAGS[@]}"
+
+.cachable: &cachable
+  cache:
+    paths:
+      - vendor
+
+rspec:
+  <<: *cachable
+  script:
+    - bundle exec rspec -f d -c -b
+
+rubocop:
+  # <<: *cachable
+  script:
+  - $CI_JOB_NAME
+
+.docker: &docker
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay
+  stage: test
+  before_script:
+    - 'eval $(grep -e "^version: " config.yaml | sed -e "s/version: /BUNDLE_VERSION=/")'
+    - export DOCKER_REPOSITORY="gitlab/cog"
+    - export TAG="$DOCKER_REPOSITORY:$BUNDLE_VERSION"
+    - echo "TAG VERSION $TAG"
+    - docker build -t "$TAG" .
+  services:
+  - docker:dind
+
+test_dockerfile:
+  <<: *docker
+  script:
+    - docker build ./
+  except:
+    - master
+
+deploy_dockerfile:
+  <<: *docker
+  stage: deploy
+  script:
+    - docker login -u "$DOCKER_HUB_USERNAME" -p "$DOCKER_HUB_PASSWORD"
+    - docker push "$TAG" 
+    - docker tag "$TAG" "$DOCKER_REPOSITORY:latest"
+    - docker push "$DOCKER_REPOSITORY:latest"
+  only:
+    - master
+

@@ -1,0 +1,25 @@
+image: "ruby:2.3"
+
+rspec:
+  stage: test
+  script:
+    - gem install bundler --no-ri --no-rdoc
+    - bundle install --jobs $(nproc)  "${FLAGS[@]}"
+    - bundle exec rspec
+  artifacts:
+    paths:
+      - coverage/
+
+pages:
+  stage: deploy
+  dependencies:
+    - rspec
+  script:
+    - mkdir public
+    - mv coverage/ public/coverage
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

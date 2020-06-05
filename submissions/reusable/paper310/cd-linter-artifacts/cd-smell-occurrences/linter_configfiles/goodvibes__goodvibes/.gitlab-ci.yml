@@ -1,0 +1,45 @@
+debian-gcc:
+  image: registry.gitlab.com/goodvibes/goodvibes/debian:sid
+  stage: build
+  script:
+    - bash -x ./.gitlab-ci/build.sh
+
+debian-clang:
+  image: registry.gitlab.com/goodvibes/goodvibes/debian:sid
+  stage: build
+  only: [ tags ]
+  variables:
+    CC: clang
+  script:
+    - bash -x ./.gitlab-ci/build.sh
+
+fedora-gcc:
+  image: registry.gitlab.com/goodvibes/goodvibes/fedora:30
+  stage: build
+  only: [ tags ]
+  script:
+    - bash -x ./.gitlab-ci/build.sh
+
+fedora-clang:
+  image: registry.gitlab.com/goodvibes/goodvibes/fedora:30
+  stage: build
+  only: [ tags ]
+  variables:
+    CC: clang
+  script:
+    - bash -x ./.gitlab-ci/build.sh
+
+debian-gcc-no-ui:
+  image: registry.gitlab.com/goodvibes/goodvibes/debian:sid
+  stage: build
+  only: [ tags ]
+  script:
+    - bash -x ./.gitlab-ci/build.sh -Dui-enabled=false
+
+debian-gcc-no-feat-hotkeys:
+  image: registry.gitlab.com/goodvibes/goodvibes/debian:sid
+  stage: build
+  only: [ tags ]
+  script:
+    - bash -x ./.gitlab-ci/build.sh -Dfeat-hotkeys=false
+

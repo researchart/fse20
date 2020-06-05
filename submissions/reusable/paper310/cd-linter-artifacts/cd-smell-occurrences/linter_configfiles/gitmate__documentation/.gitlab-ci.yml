@@ -1,0 +1,28 @@
+image: python:3
+
+pages:
+  script:
+  - pip install -r requirements.txt
+  - mkdocs build
+  - mv site public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+code_check:
+  image: python:3.5-alpine
+  script:
+  - pip install 'coala-bears[alldeps]'
+  - coala --ci
+  except:
+  - master
+
+tests:
+  script:
+  - pip install -r requirements.txt
+  - mkdocs build
+  except:
+  - master
+

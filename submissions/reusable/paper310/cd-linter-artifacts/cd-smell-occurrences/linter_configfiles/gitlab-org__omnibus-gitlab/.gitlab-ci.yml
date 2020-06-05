@@ -1,0 +1,168 @@
+stages:
+  - prepare-assets
+  - trigger-package
+  - trigger-docker
+  - trigger-ha-validate
+  - trigger-qa
+  - check
+  - prepare
+  - tests
+  - post-test
+  - gitlab_com:package
+  - gitlab_com:upload_deploy
+  - package-and-image
+  - scan-dependencies
+  - staging_upload
+  - package-and-image-release
+  - validate
+  - metrics
+  - slow_jobs
+  - raspbian-release
+  - aws-marketplace-release
+  - notification_fail
+
+variables:
+  BUILDER_IMAGE_REGISTRY: "dev.gitlab.org:5005/cookbooks/gitlab-omnibus-builder"
+  PUBLIC_BUILDER_IMAGE_REGISTRY: "registry.gitlab.com/gitlab-org/gitlab-omnibus-builder"
+  BUILDER_IMAGE_REVISION: "0.0.59"
+  # The registry to pull the assets image from
+  ASSET_REGISTRY: "${CI_REGISTRY}"
+  ASSET_SYNC_EXISTING_REMOTE_FILES: "keep"
+  ASSET_SYNC_GZIP_COMPRESSION: "true"
+  ASSET_PATH: "assets-${CI_COMMIT_REF_SLUG}"
+  COMPILE_ASSETS: "false"
+  RUBY_IMAGE: "ruby:2.5"
+  BUNDLE_PATH__SYSTEM: "false"
+  # Format of the auto-deploy tag for auto-deploy builds.
+  # https://gitlab.com/gitlab-org/release/docs/blob/master/general/deploy/auto-deploy.md#auto-deploy-tagging
+  AUTO_DEPLOY_TAG_REGEX: '^\d+\.\d+\.\d+\+[^ ]{7,}\.[^ ]{7,}$'
+  # Default environment for auto-deploy
+  AUTO_DEPLOY_ENVIRONMENT: 'pre'
+  MAX_PACKAGE_SIZE_MB: "850"
+
+### For services that need a docker daemon
+.docker_job: &docker_job
+  image: "${BUILDER_IMAGE_REGISTRY}/ruby_docker:${BUILDER_IMAGE_REVISION}"
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_HOST: tcp://docker:2375
+  services:
+    - docker:19.03.0-dind
+  tags:
+    - docker
+
+### Measure memory usage
+.measure_memory_script_artifacts: &measure_memory_script_artifacts
+  extends: .docker_job
+  variables:
+    OUTPUT_DIR: "tmp/measure_omnibus_memory"
+  script:
+    - mkdir -p ${OUTPUT_DIR}
+    - bundle exec rake docker:measure_memory DEBUG_OUTPUT_DIR=${OUTPUT_DIR} >> "${OUTPUT_DIR}/memory_on_boot_metrics.txt"
+  allow_failure: true
+  artifacts:
+    paths:
+      - ${OUTPUT_DIR}
+
+before_script:
+  - export CE_ONLY=(Raspberry)
+  - export EE_ONLY=(SLES HA-Validate)
+  - for job in "${CE_ONLY[@]}"; do
+      if [[ "${CI_JOB_NAME}" =~ ${job} ]]; then
+        if ./support/is_gitlab_ee.sh; then
+          echo "EE build found. ${CI_JOB_NAME} is run only on CE builds";
+          exit 0 ;
+        fi;
+      fi;
+    done
+  - for job in "${EE_ONLY[@]}"; do
+      if [[ "${CI_JOB_NAME}" =~ ${job} ]]; then
+        if ! ./support/is_gitlab_ee.sh; then
+          echo "CE build found. ${CI_JOB_NAME} is run only on EE builds";
+          exit 0 ;
+        fi;
+      fi;
+    done
+  - echo $NIGHTLY
+  - mkdir -p ~/.ssh
+  - mkdir -p ~/.aws
+  - mkdir -p cache
+  - if [ -n "$DEV_GITLAB_SSH_KEY" ]; then
+      echo "$DEV_GITLAB_SSH_KEY" > ~/.ssh/id_rsa;
+      cp support/known_hosts ~/.ssh/known_hosts;
+      chmod -R 0600 ~/.ssh/;
+    fi
+  - bundle install -j $(nproc) --binstubs --path gems --without rubocop
+  # If ALTERNATIVE_SOURCES are used, the public mirror for omnibus will be used.
+  # This will alter Gemfile.lock file. As part of the build pipeline, we are
+  # checking whether the state of the repository is unchanged during the build
+  # process, by comparing it with the last commit (So that no unexpected monsters
+  # show up). So, an altered Gemfile.lock file will fail on this
+  # check. Hence we do a git commit as part of the pipeline if
+  # ALTERNATIVE_SOURCES is used.
+  - if [ -n "$ALTERNATIVE_SOURCES" ]; then
+        git config --global user.email "packages@gitlab.com"
+        && git config --global user.name "GitLab Inc.";
+        git add Gemfile.lock || true ;
+        git commit -m "Updating Gemfile.lock" || true;
+    fi
+  - if [ -n "$NIGHTLY" ]; then export STAGING_REPO=nightly-builds; fi
+
+fetch-assets:
+  extends: .docker_job
+  stage: prepare-assets
+  script:
+    - export VERSION=${GITLAB_REF_SLUG-$(bundle exec rake build:version)}
+    - support/fetch_assets "${VERSION}"
+  artifacts:
+    paths:
+      - ${ASSET_PATH}
+  only:
+    refs:
+      - schedules@gitlab-org/omnibus-gitlab
+      - branches@gitlab/omnibus-gitlab
+      - tags@gitlab/omnibus-gitlab
+      - triggers
+      - pipelines
+  except:
+    variables:
+      - $COMPILE_ASSETS == "true"
+      - $DEPS_PIPELINE
+      # Format of the auto-deploy tag
+      - $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+\+[^ ]{7,}\.[^ ]{7,}$/
+
+include:
+  - '/gitlab-ci-config/gitlab-com.yml'
+  - '/gitlab-ci-config/dev-gitlab-org.yml'
+
+.notify:
+  before_script:
+    - apk update && apk add git curl bash
+  image: "alpine"
+  stage: notification_fail
+
+notify:slack-fail:
+  extends:
+    - .notify
+  script:
+    - ./support/notify_slack.sh "#g_distribution" "Build on \`$CI_COMMIT_REF_NAME\` failed! See <https://dev.gitlab.org/gitlab/omnibus-gitlab/pipelines/"$CI_PIPELINE_ID">"
+  when: on_failure
+  only:
+    - master@gitlab-org/omnibus-gitlab
+    - /.*-stable(-ee)?$/@gitlab-org/omnibus-gitlab
+  except:
+    - triggers@gitlab-org/omnibus-gitlab
+  dependencies: []
+
+notify:slack-fail:scheduled-master:
+  extends:
+    - .notify
+  script:
+    - ./support/notify_slack.sh "#qa-master" "☠️ Scheduled omnibus-build against master failed! ☠️ See $CI_PIPELINE_URL (triggered from $TOP_UPSTREAM_SOURCE_JOB)"
+  only:
+    refs:
+      - pipelines@gitlab-org/build/omnibus-gitlab-mirror
+    variables:
+      - $TOP_UPSTREAM_SOURCE_JOB && $TOP_UPSTREAM_SOURCE_REF == 'master'
+  when: on_failure
+

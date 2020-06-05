@@ -1,0 +1,34 @@
+image: java:openjdk-8-jdk
+
+before_script:
+  - apt-get --quiet update --yes
+  - apt-get --quiet install --yes wget tar unzip lib32stdc++6 lib32z1
+  - wget --quiet --output-document=android-sdk.tgz https://dl.google.com/android/android-sdk_r24.4.1-linux.tgz
+  - tar --extract --gzip --file=android-sdk.tgz
+  - android-sdk-linux/tools/android list sdk -e
+  - echo y | android-sdk-linux/tools/android update sdk -s -u -a -t platform-tools
+  - echo y | android-sdk-linux/tools/android update sdk -s -u -a -t tools
+  - echo y | android-sdk-linux/tools/android update sdk -s -u -a -t build-tools-24.0.1
+  - echo y | android-sdk-linux/tools/android update sdk -s -u -a -t android-24
+  - echo y | android-sdk-linux/tools/android update sdk -s -u -a -t extra-android-m2repository
+  - echo y | android-sdk-linux/tools/android update sdk -s -u -a -t extra-google-google_play_services
+  - echo y | android-sdk-linux/tools/android update sdk -s -u -a -t extra-android-support &&
+  - echo y | android-sdk-linux/tools/android update sdk -s -u -a -t extra-google-m2repository &&
+  - echo y | android-sdk-linux/tools/android update sdk -s -u -a -t extra-google-play_licensing &&
+  - echo y | android-sdk-linux/tools/android update sdk -s -u -a -t sys-img-x86-android-24 &&
+  - echo y | android-sdk-linux/tools/android update sdk -s -u -a -t addon-google_apis-google-24
+  - export ANDROID_HOME=$PWD/android-sdk-linux
+
+test:
+  script:
+    - ./gradlew wrapper
+    - ./gradlew dependencyUpdates
+    - ./gradlew lint
+    - ./gradlew assembleDebug
+    - ./gradlew check
+  artifacts:
+    name: "${CI_BUILD_NAME}_${CI_BUILD_REF_NAME}"
+    paths:
+      - build/
+      - app/build/
+

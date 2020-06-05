@@ -1,0 +1,59 @@
+image: registry.gitlab.com/gitlab-examples/openshift-deploy
+
+variables:
+  # Application deployment domain
+  KUBE_DOMAIN: ruby-openshift-example.tanukionline.com
+
+build:
+  stage: build
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+  script:
+    - command build
+  only:
+    - branches
+
+staging:
+  stage: deploy
+  variables:
+    CI_ENVIRONMENT_URL: http://${CI_ENVIRONMENT_SLUG}.ruby-openshift-example.tanukionline.com
+  script:
+    - command deploy
+  environment:
+    name: staging
+    url: http://$CI_ENVIRONMENT_SLUG.ruby-openshift-example.tanukionline.com
+  only:
+    - master
+
+review:
+  stage: deploy
+  variables:
+    CI_ENVIRONMENT_URL: http://${CI_ENVIRONMENT_SLUG}.ruby-openshift-example.tanukionline.com
+  script:
+    - command deploy
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: http://$CI_ENVIRONMENT_SLUG.ruby-openshift-example.tanukionline.com
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+
+stop_review:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - command remove_deploy
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+

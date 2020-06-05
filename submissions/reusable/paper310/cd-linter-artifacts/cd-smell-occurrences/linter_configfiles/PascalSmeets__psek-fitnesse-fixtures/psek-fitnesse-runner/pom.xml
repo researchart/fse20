@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>psek-fitnesse-fixtures</artifactId>
+        <groupId>nl.psek.fitnesse</groupId>
+        <version>1.2.2-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>psek-fitnesse-runner</artifactId>
+    <groupId>nl.psek.fitnesse</groupId>
+    <packaging>jar</packaging>
+    <version>1.2.2-SNAPSHOT</version>
+    <name>psek-fitnesse-runner</name>
+
+    <developers>
+        <developer>
+            <name>Ronald Mathies</name>
+        </developer>
+        <developer>
+            <name>Pascal Smeets</name>
+            <organization>psek.nl</organization>
+        </developer>
+    </developers>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>nl.psek.fitnesse</groupId>
+            <artifactId>psek-fitnesse-fixtures-util</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fitnesse</groupId>
+            <artifactId>fitnesse</artifactId>
+        </dependency>
+
+
+        <!--<dependency>-->
+        <!--<groupId>org.reflections</groupId>-->
+        <!--<artifactId>reflections</artifactId>-->
+        <!--</dependency>-->
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven-jar-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+
+    </build>
+
+</project>
+

@@ -1,0 +1,35 @@
+image: maven:latest
+
+clean-compile:
+  stage: build
+  before_script:
+    - mvn clean
+  script:
+    - mvn compile
+
+test:
+  script: mvn test
+  only:
+    - api
+    - external
+
+verify:
+  stage: test
+  script: mvn verify
+  only:
+    refs:
+      - schedules
+      - merge_requests
+
+deploy:
+  stage: deploy
+  script: push production
+  only:
+    kubernetes: active
+    changes:
+    - Dockerfile
+    - docker/scripts/*
+    - dockerfiles/**/*
+    variables:
+      - $RELEASE == "staging"
+      - $CI_COMMIT_MESSAGE =~ /skip-end-to-end-tests/

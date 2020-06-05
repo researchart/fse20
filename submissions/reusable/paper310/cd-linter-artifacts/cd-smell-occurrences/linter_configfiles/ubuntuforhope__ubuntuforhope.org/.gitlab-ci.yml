@@ -1,0 +1,61 @@
+# Use existing nikola docker image
+image: paddyhack/nikola
+
+stages:
+    - setup
+    - compile
+    - build
+
+# Get the theme ready
+theme-setup:
+    stage: setup
+    script:
+        # Install needed packages for npm
+        - apk add --no-cache nodejs
+
+        # Fetch the theme files
+        - cd themes/bootstrap4/sass
+        - npm install --unsafe-perm
+
+    # Store the theme "data" for the next job
+    artifacts:
+        paths:
+            - themes
+
+# Compile sass to css
+sass-compile:
+    stage: compile
+    script:
+        # Install needed packages for sass
+        - apk add --no-cache ruby ruby-rdoc ruby-irb ca-certificates nodejs
+        - gem install sass
+        - nikola plugin --install=sass
+
+        # Build sass first to prevent bundles from being created before it is done
+        - nikola build -s prepare_sass_sources
+        - nikola build -s build_sass
+
+    # Store css file for the next job
+    artifacts:
+        paths:
+            - output
+
+# Test the build when new code is pushed
+build-test:
+    stage: build
+    script:
+        - nikola build
+    except:
+        - master
+
+# Build the output when merge request are accepted
+build:
+    stage: build
+    script:
+        - nikola build
+    artifacts:
+        paths:
+            - output
+    only:
+        - master
+

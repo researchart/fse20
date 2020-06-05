@@ -1,0 +1,45 @@
+image: docker:stable
+services:
+- docker:dind
+
+
+stages:
+- build
+- test
+- release
+- deploy
+
+
+variables:
+  REPO: registry.gitlab.com/christophs/aws_adfs
+  CONTAINER_TEST_IMAGE: $REPO:$CI_COMMIT_REF_NAME
+  CONTAINER_LATEST_IMAGE: $REPO:latest
+  
+
+
+build:
+  stage: build
+
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build --no-cache -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+# test adfs auth command:
+#   image: $CONTAINER_TEST_IMAGE
+#   stage: test
+#   script:
+#     - auth
+    
+
+    
+latest-image:
+  stage: release
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_LATEST_IMAGE
+    - docker push $CONTAINER_LATEST_IMAGE
+  only:
+    - master
+

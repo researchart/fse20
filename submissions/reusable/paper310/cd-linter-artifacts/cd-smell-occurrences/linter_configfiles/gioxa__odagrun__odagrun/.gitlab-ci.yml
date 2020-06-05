@@ -1,0 +1,521 @@
+stages:
+  - cache
+  - build
+  - test
+  - build-image
+  - review
+  - review_starter
+  - staging
+  - release-image
+  - production
+  - cleanup
+
+variables:
+  GIT_STRATEGY: none
+  WORK_SPACES: |
+                - name: pipeline
+                  scope: pipeline
+                  strategy: pull
+                  mandatory: True
+  ODAGRUN_POD_SIZE: micro
+  #CI_PROJECT_PATH_SLUG: "deployctl-deployctl"
+  DEPLOY_DOMAIN_APP: "gioxapp.com"
+  #
+  # Prodduction deployment url and https
+  DEPLOY_DOMAIN: "downloads.odagrun.com"
+  DEPLOY_CONFIG_HTTPS: "True"
+  #
+  #Deployment locations
+  DEPLOY_RELEASE_PATH: '["output/","output/dist/"]'
+  #
+  # Extra links for release page, besides the <*.url> files
+  DEPLOY_hrefs: '[ "website": "http://www.odagrun.com"]'
+  #
+  #DEPLOY_DEBUG_ON: "true"
+  #
+  # Label Meta data for image
+  ##########################
+  ODAGRUN_IMAGE_LICENSE: MIT
+  ODAGRUN_IMAGE_VENDOR: Gioxa Ltd
+  ODAGRUN_IMAGE_REFNAME: odagrun
+  ODAGRUN_IMAGE_TITLE: Building Docker Images Without Docker from GitLAB on Openshift as non-root with OCI labels.
+  ODAGRUN_IMAGE_URL: https://www.odagrun.com
+  DOCKER_NAMESPACE: gioxa
+
+image: scratch
+
+refresh_cache:
+  stage: cache
+  retry: 2
+  variables:
+    GIT_STRATEGY: clone
+    GIT_CACHE_STRATEGY: push-pull
+    WORK_SPACES: |
+                  - name: pipeline
+                    scope: pipeline
+                    environment:
+                    - ODAGRUN_GITVERSION
+                    - ODAGRUN_IMAGE_VERSION
+                    - ODAGRUN_IMAGE_DESCRIPTION
+                    - ODAGRUN_IMAGE_DOCUMENTATION
+                    - ODAGRUN_TEMPLATE_IMAGE
+                    - BASE_DEPLOY_URL
+                    path: /builds
+                    strategy: push
+  script:
+    # provide ODAGRUN_GITVERSION, Image Info everywhere
+    - copy --from_text="$ODAGRUN_GITVERSION" --to_var=ODAGRUN_IMAGE_VERSION
+    - >-
+         copy
+         --if_value="${CI_COMMIT_TAG}"
+         --from_text="https://${DEPLOY_DOMAIN}/${ODAGRUN_COMMIT_TAG_SLUG}"
+         --to_var=BASE_DEPLOY_URL
+    - >-
+         copy
+         --if_zero="${CI_COMMIT_TAG}"
+         --if_zero="${CI_COMMIT_REF_NAME#master}"
+         --from_text="http://master.${CI_PROJECT_PATH_SLUG}.${DEPLOY_DOMAIN_APP}"
+         --to_var=BASE_DEPLOY_URL
+    - >-
+         copy
+         --if_zero="${BASE_DEPLOY_URL}"
+         --from_text="https://${DEPLOY_DOMAIN}/latest"
+         --to_var=BASE_DEPLOY_URL
+    - >-
+         copy --from_text="$BASE_DEPLOY_URL/files/manual/manual.html" --to_var=ODAGRUN_IMAGE_DOCUMENTATION
+    - >-
+         copy
+         --if_zero="${CI_COMMIT_TAG}"
+         --if_zero="${CI_COMMIT_REF_NAME#master}"
+         --from_text="${DOCKER_NAMESPACE}/${ODAGRUN_IMAGE_REFNAME}:master"
+         --to_var=ODAGRUN_TEMPLATE_IMAGE
+    - >-
+         copy
+         --if_value="${CI_COMMIT_TAG}"
+         --from_text="${DOCKER_NAMESPACE}/${ODAGRUN_IMAGE_REFNAME}:latest"
+         --to_var=ODAGRUN_TEMPLATE_IMAGE
+    - >-
+         copy
+         --if_zero="${CI_COMMIT_TAG}"
+         --if_value="${CI_COMMIT_REF_NAME#master}"
+         --from_text="${DOCKER_NAMESPACE}/${ODAGRUN_IMAGE_REFNAME}:review"
+         --to_var=ODAGRUN_TEMPLATE_IMAGE   
+    - copy --to_var=ODAGRUN_IMAGE_DESCRIPTION --substitute --from_file=full_description.md
+  tags:
+    - odagrun
+
+build:
+  image: gioxa/build-image-4-odagrun
+  stage: build
+  variables:
+    ODAGRUN_POD_SIZE: large
+  retry: 2
+  script:
+    - ./autogen.sh
+    - >
+        ./configure
+        LIBS=-ldl
+        LDFLAGS=-static
+        CFLAGS='-Wl,-static -Wall -Werror -Wextra -Wformat-security -Wformat=2 -Wunused-value -Wchar-subscripts -Wno-missing-field-initializers -D_FORTIFY_SOURCE=1 -O -fdata-sections -ffunction-sections -Wl,--gc-sections -Wl,-s -fdiagnostics-color=always'
+    - export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+    - make -j$(nproc)> /dev/null
+    - make DESTDIR=$PWD install
+    - mkdir output
+    - cp usr/local/bin/oc-* output/
+    - make clean
+    - mkdir -pv rootfs
+    - cp -v output/oc-* rootfs/
+    - mkdir -pv rootfs/etc/pki/tls/certs
+    - mkdir -pv rootfs/bin-runner
+    - cp -v /etc/pki/tls/certs/ca-bundle.crt rootfs/etc/pki/tls/certs/ca-bundle.crt
+    - chmod -Rv 777  rootfs
+    - >
+        registry_push
+        --rootfs
+        --config
+        --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_PIPELINE_ID
+  artifacts:
+    paths:
+      - output/
+  tags:
+  - odagrun
+
+build_dist:
+  image: gioxa/build-image-4-odagrun
+  stage: build
+  retry: 2
+  variables:
+    ODAGRUN_POD_SIZE: nano
+  script:
+    - ./autogen.sh
+    - ./configure
+    - make dist > /dev/null
+    - rm -rf output
+    - mkdir -pv output/dist
+    - ls -la
+    - mv -v *.tar.gz output/dist
+    - ls -la output/dist
+    - make clean
+  artifacts:
+    paths:
+      - output
+  tags:
+    - odagrun
+
+build_check:
+  image: gioxa/build-image-4-odagrun
+  stage: build
+  retry: 2
+  variables:
+    ODAGRUN_POD_SIZE: small
+  script:
+    - ./autogen.sh
+    - ./configure
+    - make -j$(($(nproc)/3+1)) check
+  tags:
+    - odagrun
+  artifacts:
+    paths:
+      - tests/*.log
+    when: on_failure
+
+
+# wait for build image to contain lcov package
+build_cov:
+  image: gioxa/build-image-4-odagrun
+  stage: build
+  retry: 2
+  coverage: '/lines[\.]{6}: (\d+.\d+\%) \(/'
+  dependencies: []
+  variables:
+    ODAGRUN_POD_SIZE: small
+  script:
+    - rm -f src/*.gcno
+    - rm -f src/*.gcda
+    - rm -f tests/*.gcno
+    - rm -f tests/*.gcda
+    - ./autogen.sh
+    - ./configure  --enable-code-coverage
+    - make clean > /dev/null
+    - make -j$(($(nproc)/3+1)) check-code-coverage
+    - mkdir -pv output
+    - mv  tests/odagrun-coverage output/
+    - cp tests/coverage.url output/coverage.url
+  tags:
+    - odagrun
+  artifacts:
+    paths:
+      - output
+
+build_docs:
+  image: gioxa/pandoc-centos
+  stage: build
+  retry: 2
+  dependencies: []
+  variables:
+    ODAGRUN_POD_SIZE: nano
+  script:
+    - mkdir -pv output/manual
+    # substitute version and data
+    - copy --to_file=Docs/start_s.md --from_file=Docs/start.md --substitute
+    # substitude ODAGRUN_TEMPLATE_IMAGE, and copy to output
+    - copy --to_file=output/install_odagrun.yml --from_file=openshift/install_odagrun.in.yml --substitute
+    - copy --to_file=output/uninstall_template.yml --from_file=openshift/uninstall_template.in.yml --substitute
+    - copy --from_file=openshift/service_template.yml --to_file=output/service_template.yml
+     # move template's into a variable
+    - copy --to_var=install_odagrun_openshift --from_file=output/install_odagrun.yml
+    - copy --to_var=service_template_openshift --from_file=output/service_template.yml
+    - copy --to_var=uninstall_template_openshift --from_file=output/uninstall_template.yml
+     # substitute install with template variables
+    - copy --to_file=Docs/install.md --from_file=Docs/install.in.md --substitute
+    - copy --to_file=Docs/meta.yaml --from_file=Docs/meta.yaml.in --substitute
+    # put css in place
+    - cp -v  Docs/odagrun.css output/manual/odagrun.css
+    # put *.png to output 
+    - cp -vr Docs/*.png output/manual/
+    - cp -vr Docs/*.svg output/manual/
+    # pandoc
+    - >-
+      pandoc
+      -s
+      --highlight-style pygments
+      --toc
+      --toc-depth=2
+      -c odagrun.css
+      -o output/manual/manual.html
+      Docs/start_s.md
+      Docs/intro.md
+      Docs/install.md
+      Docs/podsize.md
+      Docs/dependencies.md
+      Docs/artifacts.md
+      Docs/git_cache.md
+      Docs/work_spaces.md
+      Docs/variables.md
+      Docs/registry.md
+      Docs/copy.md
+      Docs/dockerHub.md
+      Docs/Quay_api.md
+      Docs/ImageStream.md
+      Docs/MicroBadger.md
+    # Create link User_Guide to manual/manual.html
+    - copy --from_text="manual/manual.html" --to_file=output/User_Guide.url
+  tags:
+    - odagrun
+  artifacts:
+    paths:
+      - output
+
+# create and push image to ImageStream:
+.build_rootfs:
+  image: centos
+  stage: build-image
+  dependencies:
+    - build
+  variables:
+    ODAGRUN_POD_SIZE: medium
+  retry: 2
+  before_script:
+    - mkdir -pv rootfs
+    - cp -v output/oc-* rootfs/
+    - mkdir -pv rootfs/etc/pki/tls/certs
+    - mkdir -pv rootfs/bin-runner
+    - cp -v /etc/pki/tls/certs/ca-bundle.crt rootfs/etc/pki/tls/certs/ca-bundle.crt
+    - chmod -Rv 777  rootfs
+  tags:
+    - odagrun
+  script:
+    - copy --from_text="$ODAGRUN_IMAGE_VERSION" --to_term
+    - copy --from_text="$ODAGRUN_IMAGE_DESCRIPTION" --to_term
+    - registry_push --rootfs --config --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_PIPELINE_ID
+
+reviewb:
+  stage: review
+  script:
+    - deployctl release
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: http://$CI_ENVIRONMENT_SLUG.$CI_PROJECT_PATH_SLUG.$DEPLOY_DOMAIN_APP
+    on_stop: stop_reviewb
+  only:
+    - branches
+  except:
+    - tags
+    - master
+  tags:
+   - deployctl-gioxapp.com
+  allow_failure: true
+
+reviewb-image:
+  stage: review
+  dependencies: []
+  retry: 1
+  script:
+    - >
+       registry_push
+       --from_image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_PIPELINE_ID
+       --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:review
+       --skip_label
+  only:
+    - branches
+  except:
+    - tags
+    - master
+  allow_failure: true
+  tags:
+   - odagrun
+
+stop_reviewb:
+  stage: review
+  dependencies: []
+  image: scratch
+  script:
+    - deployctl delete
+  when: manual
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    action: stop
+  only:
+    - branches
+  except:
+    - tags
+    - master
+  tags:
+    - deployctl-gioxapp.com
+
+reviewm:
+  stage: review
+  script:
+    - deployctl release
+  environment:
+    name: master
+    url: http://master.$CI_PROJECT_PATH_SLUG.$DEPLOY_DOMAIN_APP
+    on_stop: stop_reviewm
+  only:
+    - master
+  except:
+    - tags
+  tags:
+    - deployctl-gioxapp.com
+
+stop_reviewm:
+  stage: review
+  dependencies: []
+  script:
+    - deployctl delete
+  when: manual
+  environment:
+    name: master
+    action: stop
+  only:
+    - master
+  except:
+    - tags
+  tags:
+    - deployctl-gioxapp.com
+  allow_failure: true
+
+reviewm-image:
+  stage: review
+  dependencies: []
+  retry: 2
+  script:
+    - DockerHub_set_description --image="$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME"
+    - >
+       registry_push
+       --from_image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_PIPELINE_ID
+       --image="$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:master"
+       --skip_label
+    - >
+       registry_push
+       --from_image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_PIPELINE_ID
+       --GLR
+       --reference=master
+       --skip_label
+    - QUAY_set_description --image="quay.io/$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME"
+    - > 
+       registry_push
+       --from_image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_PIPELINE_ID
+       --image="quay.io/$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:master"
+       --skip_label
+  only:
+    - master
+  except:
+    - tags
+  tags:
+   - odagrun
+
+.review-image-starter:
+  stage: review_starter
+  image: scratch
+  dependencies: []
+  variables:
+    WORK_SPACES: |
+                   []
+  retry: 2
+  script:
+    - >
+       registry_push
+       --from_image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_PIPELINE_ID
+       --name=review
+       --ISR
+       --skip_label
+  tags:
+    - odagrun-review
+  allow_failure: true
+
+
+Release_Staging:
+  stage: staging
+  environment:
+    name: staging
+    url: http://staging.$CI_PROJECT_PATH_SLUG.$DEPLOY_DOMAIN_APP
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - deployctl release
+  only:
+    - tags
+  except:
+    - branches
+  tags:
+    - deployctl-gioxapp.com
+
+release-image:
+  stage: release-image
+  dependencies: []
+  retry: 1
+  script:
+    - >
+        registry_push
+        --from_image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_PIPELINE_ID
+        --reference=$CI_COMMIT_TAG
+        --GLR
+        --skip_label
+    - registry_tag_image --GLR --reference=$CI_COMMIT_TAG --tag=latest
+  only:
+    - tags
+  except:
+    - branches
+  when: manual
+  tags:
+   - odagrun
+  allow_failure: false
+
+release-image:docker:
+  stage: production
+  dependencies: []
+  retry: 1
+  script:
+    - DockerHub_set_description --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME
+    - > 
+        registry_push
+        --from_image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_PIPELINE_ID
+        --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_COMMIT_TAG
+        --skip_label
+    - registry_tag_image --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_COMMIT_TAG --tag=latest
+    - QUAY_set_description --image="quay.io/$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME"
+    - >
+       registry_push
+       --from_image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_PIPELINE_ID
+       --image=quay.io/$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_COMMIT_TAG
+       --skip_label
+    - registry_tag_image --image=quay.io/$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:$CI_COMMIT_TAG --tag=latest
+  only:
+   - tags
+  except:
+    - branches
+  tags:
+   - odagrun
+
+Release_production:
+  stage: production
+  environment:
+    name: production
+    url: http://$DEPLOY_DOMAIN/$CI_BUILD_REF_SLUG
+  script:
+    - deployctl release
+  only:
+    - tags
+  except:
+    - branches
+  tags:
+    - deployctl-gioxapp.com
+  allow_failure: false
+
+cleanup:
+  dependencies: []
+  variables:
+    WORK_SPACES: |
+                  - name: pipeline
+                    scope: pipeline
+                    strategy: clean
+  script:
+    - DockerHub_delete_tag --allow-fail --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME --tag=$CI_PIPELINE_ID
+    - MicroBadger_Update  --allow-fail --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME
+  stage: cleanup
+  allow_failure: true
+  when: always
+  tags:
+     - odagrun
+

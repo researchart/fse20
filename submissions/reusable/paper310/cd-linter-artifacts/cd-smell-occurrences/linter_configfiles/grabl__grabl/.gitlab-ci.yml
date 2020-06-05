@@ -1,0 +1,62 @@
+image: openjdk:8-jdk
+
+# GRADLE_OPTS: Disable the Gradle daemon for Continuous Integration servers as
+#   correctness is usually a priority over speed in CI environments.
+# GRADLE_USER_HOME: redirect the gradle user home to cache the wrapper and
+#   dependencies.
+variables:
+    GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+    GRADLE_USER_HOME: "./.gradle"
+
+# Default cache
+cache:
+  paths:
+    - .gradle
+
+# The assemble task actually builds the project.
+# If it fails here, the tests can't run.
+build:
+  stage: build
+  script:
+    - ./gradlew clean assemble
+  allow_failure: false
+
+apidocs:
+  stage: build
+  script:
+    - ./gradlew -Prelease.useLastTag=true groovydoc
+  artifacts:
+    name: apidocs
+    expire_in: 31d
+    paths:
+      - build/docs/
+  only:
+    - master@grabl/grabl
+
+# Use the generated build output to run the tests.
+test:
+  stage: test
+  script:
+    - ./gradlew check
+  artifacts:
+    name: reports
+    expire_in: 31d
+    paths:
+      - build/reports/
+
+pages:
+  stage: deploy
+  dependencies:
+    - apidocs
+    - test
+  script:
+    - test ! -d public || mv public .public
+    - mkdir public
+    - mv build/docs/groovydoc public/api
+    - mv build/reports public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master@grabl/grabl
+

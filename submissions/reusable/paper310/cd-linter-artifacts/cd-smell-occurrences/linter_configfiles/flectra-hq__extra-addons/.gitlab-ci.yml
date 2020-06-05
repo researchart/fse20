@@ -1,0 +1,18 @@
+image: ubuntu:xenial
+stages:
+  - test
+job_test_96:
+  stage: test
+  script:
+  - apt-get update && apt-get install -y apt-utils locales git && export TESTS=1 
+  - git clone https://gitlab.com/flectra-hq/developer-quality-tools.git ${CI_PROJECT_DIR}/developer-quality-tools && export PATH=${CI_PROJECT_DIR}/developer-quality-tools/gitlab-ci:${PATH}
+  - ls -alh && gitlab_ci_install_flectra 
+  - su - flectra -c "export PATH=${CI_PROJECT_DIR}/developer-quality-tools/gitlab-ci:${PATH} && gitlab_run_tests"
+job_test_100:
+  stage: test
+  script:
+  - apt-get update && apt-get install -y apt-utils locales git && export TESTS=1 && export POSTGRESQL_VERSION=10
+  - git clone https://gitlab.com/flectra-hq/developer-quality-tools.git ${CI_PROJECT_DIR}/developer-quality-tools && export PATH=${CI_PROJECT_DIR}/developer-quality-tools/gitlab-ci:${PATH}
+  - ls -alh && gitlab_ci_install_flectra 
+  - su - flectra -c "export PATH=${CI_PROJECT_DIR}/developer-quality-tools/gitlab-ci:${PATH} && gitlab_run_tests"
+

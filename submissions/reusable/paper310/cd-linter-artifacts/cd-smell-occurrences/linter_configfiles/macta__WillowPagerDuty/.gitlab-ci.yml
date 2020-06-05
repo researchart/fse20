@@ -1,0 +1,62 @@
+# Docker image
+image: macta/pharo:61_32
+
+variables:
+  PHARO_DIR: "/opt/pharo"
+  PHARO_CACHE_DIR: "$CI_PROJECT_DIR/pharo-cache"
+  PROJECT_NAME: $CI_PROJECT_NAME
+  # the following can/should be overridden as CI Secret variables
+  DOMAIN_LOGIN: "user@domain.com"
+  PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----"
+  CI_CACHE_PHARO: "true"
+  STRIP_IMAGE: "false"
+
+before_script:
+  - echo -e "\e[36m\nGitlab job started $(date)\n"
+  - echo -e "\e[1;34m$CI_PROJECT_NAME - $CI_PROJECT_DIR - $CI_COMMIT_REF_NAME - $SHELL\n\e[0m"
+  - ls -al
+
+# define Gitlab pipeline stages
+stages:
+  - build
+#  - test
+  - deploy
+
+build:
+  stage: build
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}_2018-05-30" # or see: https://docs.gitlab.com/ee/ci/caching/
+    paths:
+      - $PHARO_CACHE_DIR
+  script:
+    - ls -al ./src
+    - source ./scripts/build.sh
+    - ls -al $CI_PROJECT_DIR
+    - ls -al $PHARO_CACHE_DIR
+  artifacts:
+    paths:
+      - build   # included as useful to diagnose issues
+      - deploy
+    when: always
+    # expire_in: 60 minutes
+
+  after_script:
+    - echo -e "\e[1m\nVerifying build status ..."
+    - if [[ -f build/PharoDebug.log ]]; then
+        echo -e "\e[91m\nErrors detected in load process!\n";
+        ls -al build;
+        echo; cat build/PharoDebug.log;
+        echo; cat build/LoadLocal.log;
+      fi
+
+deploy:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none # stop checkout, as using assets in /build
+  script:
+    - source ./build/setup_ssh.sh
+    - ssh $DOMAIN_LOGIN "ls -al"
+    - source ./build/deploy.sh
+  only:
+    - master
+

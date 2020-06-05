@@ -1,0 +1,20 @@
+image: alpine:latest
+
+stages:
+- publish-showcase
+
+pages:
+  stage: publish-showcase
+  script:
+    - mkdir public
+    - cp -r showcase.html public/
+    - cp -r sample.html public/
+    - cp -r pinkpanther.jpg public/
+    - mkdir public/dist/ && cp -r dist/one.min.css public/dist/
+    - mkdir public/dist/assets/ && cp -r dist/assets/* public/dist/assets/
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

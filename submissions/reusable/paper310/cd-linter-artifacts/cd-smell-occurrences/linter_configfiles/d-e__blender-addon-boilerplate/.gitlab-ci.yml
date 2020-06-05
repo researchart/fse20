@@ -1,0 +1,9 @@
+job1:
+
+  script:
+    - rm -f ~/.config/blender/2.78/scripts/addons/toaster
+    - rm -f ~/.config/blender/2.78/scripts/addons/toaster_tests
+    - ln -s `pwd`/toaster/ ~/.config/blender/2.78/scripts/addons
+    - ln -s `pwd`/toaster_tests/ ~/.config/blender/2.78/scripts/addons
+    - blender --addons toaster,toaster_tests --python toaster_tests/run.py --python-exit-code 1
+

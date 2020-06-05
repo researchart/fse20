@@ -1,0 +1,19 @@
+image: node:8.10
+
+cache:
+  paths:
+  - site1/node_modules/
+
+stages:
+  - test
+
+test:site1:
+  stage: test
+  script:
+   - cd site1
+   - npm install yarn
+   - npx yarn install
+   - npx jest
+  tags:
+    - docker
+

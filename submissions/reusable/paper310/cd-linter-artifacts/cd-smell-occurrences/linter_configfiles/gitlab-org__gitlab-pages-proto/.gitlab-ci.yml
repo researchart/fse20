@@ -1,0 +1,15 @@
+image: golang:1.8
+
+before_script:
+  - apt-get update -qq
+  - apt-get install -qq -y rubygems bundler unzip
+
+build:
+  script:
+    - make
+
+check-grpc-proto-clients:
+  script:
+    - "# Check for the mistake of updating .proto files but not regenerating clients"
+    - make check-grpc-proto-clients
+

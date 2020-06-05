@@ -1,0 +1,43 @@
+image: ubuntu:cosmic
+
+stages:
+  - build
+
+build:
+  stage: build
+  cache: {}
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  only:
+    - master
+  before_script:
+    - apt update -qq && apt upgrade -y -qq
+    - apt install -y -qq --no-install-recommends
+      cmake
+      curl
+      g++
+      lcov
+      libboost-filesystem-dev
+      libboost-log-dev
+      libboost-program-options-dev
+      libboost-python-dev
+      libboost-regex-dev
+      libboost-test-dev
+      libssl-dev
+  script:
+    - make -j$(nproc) coverage
+  after_script:
+    - pwd && whoami
+    - pushd build
+      # TODO: `./kovri --help` currently returns non-zero
+    - ./kovri --help 1>&2>/dev/null || ./kovri-util --disable-console-log --help && ./kovri-tests
+    - lcov --directory . --capture --output-file coverage.info
+    - lcov --remove coverage.info
+      "/builds/kovri-project/kovri/deps/cryptopp/*"
+      "/builds/kovri-project/kovri/deps/miniupnp/*"
+      "/builds/kovri-project/kovri/deps/webrtc/*"
+      '/usr/*'
+      --output-file coverage.info
+    - lcov --list coverage.info
+    - bash <(curl -s https://codecov.io/bash) -Z
+

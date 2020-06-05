@@ -1,0 +1,17 @@
+# based on https://rlesur.gitlab.io/bookdown-gitlab-pages
+image: rocker/verse:3.4.3
+
+pages:
+  stage: deploy
+  script:
+    - sudo apt-get update && sudo apt-get -y upgrade --fix-missing  
+    - sudo apt-get -y install bzip2
+    - Rscript -e "install.packages(c('dplyr', 'ggplot2', 'here', 'knitr', 'plyr', 'leaflet', 'webshot'))"
+    - Rscript -e "webshot::install_phantomjs()"
+    - Rscript -e "bookdown::render_book('index.Rmd', 'all', output_dir = 'public')"
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

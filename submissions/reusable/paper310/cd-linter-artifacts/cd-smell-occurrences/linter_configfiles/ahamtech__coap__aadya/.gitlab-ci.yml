@@ -1,0 +1,28 @@
+image: elixir:latest
+
+stages:
+    - test
+    - styles
+cache:
+    paths:
+        - deps/
+        - _build/
+    key: "$CI_JOB_STAGE"
+
+before_script:
+    - mix local.hex --force
+    - mix local.rebar --force
+    - mix deps.get
+
+test:
+    variables:
+        MIX_ENV: "test"
+    stage: test
+    script:
+        - mix test
+
+credo:
+    stage: styles
+    script:
+        - mix credo --ignore refactor list
+

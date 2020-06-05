@@ -1,0 +1,76 @@
+image: python:3.6.3-jessie
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+
+cache:
+  paths:
+    - "$CI_PROJECT_DIR/pip-cache"
+  key: "$CI_PROJECT_ID"
+
+before_script:
+    - apt-get update --fix-missing && apt-get install -y pandoc
+    - pip3 install torch==1.4.0+cpu torchvision==0.5.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+    - pip install pillow
+    - pip install -r develop.txt
+
+stages:
+  - test
+  - deploy
+
+lint:
+  stage: test
+  script:
+    - pycodestyle --max-line-length=250 lightnet/
+    - pycodestyle --max-line-length=250 test/
+
+unittest:
+  stage: test
+  only:
+    - tags
+    - master
+    - develop
+  script:
+    - python -m pytest ./test/
+
+doctest:
+  stage: test
+  only:
+    - tags
+    - master
+    - develop
+  script:
+    - cd docs; make doctest; cd ..
+
+pypi:
+  stage: deploy
+  only:
+    - tags
+  script:
+    - pip install -U twine wheel setuptools
+    - python setup.py sdist bdist_wheel
+    - twine check dist/*
+    - twine upload --skip-existing dist/*
+
+pypitest:
+  stage: deploy
+  only:
+    - master
+  script:
+    - pip install -U twine wheel setuptools
+    - python setup.py sdist bdist_wheel
+    - twine check dist/*
+    - twine upload --skip-existing --repository-url https://test.pypi.org/legacy/ dist/*
+
+pages:
+  stage: deploy
+  only:
+    - tags
+  script:
+    - pip install IPython
+    - cd docs; make html; cd ..
+    - mv docs/.build/html public/
+  artifacts:
+    paths:
+      - public
+

@@ -1,0 +1,24 @@
+image: cage1016/gitlab-ci-gcp:v1.5
+
+before_script:
+  - export CLOUDSDK_CORE_DISABLE_PROMPTS=1
+  - export CLOUDSDK_PYTHON_SITEPACKAGES=1
+  - export GCP_PROJECT=gae-lab-001
+  - export GCP_PROJECT_VERSION=uat
+
+types:
+  - test
+  - deploy
+
+test:
+  stage: test
+  script:
+    - sh ./scripts/tests.sh
+
+deploy:
+  stage: deploy
+  script:
+    - sh ./scripts/deploy.sh
+  only:
+    - master
+

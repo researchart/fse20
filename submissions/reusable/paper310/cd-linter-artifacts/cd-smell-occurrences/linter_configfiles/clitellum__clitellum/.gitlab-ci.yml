@@ -1,0 +1,10 @@
+image: centos/python-35-centos7
+
+before_script:
+  - pip3 install pika pymongo zmq pyyaml fluidity-sm python-dateutil
+
+test:
+  script:
+    - cd /builds/clitellum/clitellum/clitellum/tests
+    - python3 runner_tests.py
+

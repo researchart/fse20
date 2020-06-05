@@ -1,0 +1,37 @@
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:10
+
+stages:
+  - test
+  - deploy
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+  - npm install hexo-cli -g
+  - npm install
+
+test:
+  stage: test
+  script:
+    - hexo generate
+  except:
+    - master
+
+pages:
+  stage: deploy
+  script:
+    - hexo generate
+    - npm install netlify-cli -g
+    - netlify deploy --site $NETLIFY_SITE_ID --auth $NETLIFY_AUTH_TOKEN --prod --dir public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

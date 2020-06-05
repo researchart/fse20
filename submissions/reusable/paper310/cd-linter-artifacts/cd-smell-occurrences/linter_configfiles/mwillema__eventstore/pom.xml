@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+    http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.marcowillemart.common</groupId>
+        <artifactId>common-parent</artifactId>
+        <version>1.1.0-SNAPSHOT</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.marcowillemart.eventstore</groupId>
+    <artifactId>eventstore</artifactId>
+    <version>1.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>EventStore</name>
+    <description>An open-source and functional database in Java.</description>
+
+    <modules>
+        <module>eventstore-api</module>
+        <module>eventstore-bom</module>
+        <module>eventstore-client</module>
+        <module>eventstore-client-embedded</module>
+        <module>eventstore-engine</module>
+        <module>eventstore-server</module>
+        <module>eventstore-starter</module>
+    </modules>
+
+    <properties>
+        <main.basedir>${project.basedir}</main.basedir>
+        <grpc-starter.version>1.1.0-SNAPSHOT</grpc-starter.version>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>sonatype</id>
+            <url>https://oss.sonatype.org/content/groups/public/</url>
+        </repository>
+    </repositories>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- EventStore (Bill Of Materials) -->
+            <dependency>
+                <groupId>com.marcowillemart.eventstore</groupId>
+                <artifactId>eventstore-bom</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- gRPC Client Starter -->
+            <dependency>
+                <groupId>com.marcowillemart.grpc</groupId>
+                <artifactId>grpc-client-starter</artifactId>
+                <version>${grpc-starter.version}</version>
+            </dependency>
+
+            <!-- gRPC Server Starter -->
+            <dependency>
+                <groupId>com.marcowillemart.grpc</groupId>
+                <artifactId>grpc-server-starter</artifactId>
+                <version>${grpc-starter.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+</project>
+

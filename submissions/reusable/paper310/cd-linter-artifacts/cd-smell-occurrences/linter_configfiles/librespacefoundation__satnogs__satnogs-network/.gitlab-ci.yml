@@ -1,0 +1,139 @@
+variables:
+  GITLAB_CI_IMAGE_ALPINE: 'alpine:3.9'
+  GITLAB_CI_IMAGE_DOCKER: 'docker:18.09'
+  GITLAB_CI_IMAGE_NODE: 'node:12.13.1'
+  GITLAB_CI_IMAGE_PYTHON: 'python:3'
+  GITLAB_CI_PYPI_DOCKER_COMPOSE: 'docker-compose~=1.23.0'
+  GITLAB_CI_PYPI_TOX: 'tox~=3.8.0'
+stages:
+  - static
+  - build
+  - test
+  - deploy
+  - trigger
+static_js_css:
+  stage: static
+  image: ${GITLAB_CI_IMAGE_NODE}
+  script:
+    - npm ci
+    - node_modules/.bin/gulp
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - network/static/lib
+static_python:
+  stage: static
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_TOX"
+  script:
+    - tox -e "flake8,isort,yapf,pylint"
+docs:
+  stage: build
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_TOX"
+  script:
+    - rm -rf docs/_build
+    - tox -e "docs"
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - docs/_build/html
+build:
+  stage: build
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  script:
+    - rm -rf dist
+    - python setup.py sdist bdist_wheel
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - dist
+test:
+  stage: test
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_TOX"
+    - apt-get update
+    - apt-get install -y ruby-sass
+  script:
+    - tox -e deps,pytest
+docker:
+  stage: deploy
+  image: ${GITLAB_CI_IMAGE_DOCKER}
+  services:
+    - ${GITLAB_CI_IMAGE_DOCKER}-dind
+  before_script:
+    - apk --update add py-pip
+    - pip install "$GITLAB_CI_PYPI_DOCKER_COMPOSE"
+  script:
+    - |
+      [ -z "$CI_REGISTRY_IMAGE" ] || {
+          CACHE_IMAGE="$CI_REGISTRY_IMAGE/satnogs-network:$CI_COMMIT_REF_NAME}"
+          [ -z "$CI_COMMIT_TAG" ] || CACHE_IMAGE="$CI_REGISTRY_IMAGE/satnogs-network:latest"
+          export CACHE_IMAGE
+      }
+    - docker-compose -f docker-compose.yml -f docker-compose.cache.yml pull cache_image || true
+    - docker-compose -f docker-compose.yml -f docker-compose.cache.yml build --pull
+    - |
+      [ -z "$CI_REGISTRY_IMAGE" ] || {
+          docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+          docker tag satnogs-network:latest $CI_REGISTRY_IMAGE/satnogs-network:$CI_COMMIT_REF_NAME
+          docker push $CI_REGISTRY_IMAGE/satnogs-network:$CI_COMMIT_REF_NAME
+          [ -z "$CI_COMMIT_TAG" ] || {
+              docker tag satnogs-network:latest $CI_REGISTRY_IMAGE/satnogs-network:latest
+              docker push $CI_REGISTRY_IMAGE/satnogs-network:latest
+          }
+      }
+      [ -z "$DOCKERHUB_PASSWORD" ] || {
+          docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASSWORD
+          docker tag satnogs-network:latest librespace/satnogs-network:$CI_COMMIT_REF_NAME
+          docker push librespace/satnogs-network:$CI_COMMIT_REF_NAME
+          [ -z "$CI_COMMIT_TAG" ] || {
+              docker tag satnogs-network:latest librespace/satnogs-network:latest
+              docker push librespace/satnogs-network:latest
+          }
+      }
+  only:
+    refs:
+      - master
+      - tags
+trigger_master:
+  stage: trigger
+  image: ${GITLAB_CI_IMAGE_ALPINE}
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - for trigger in $PIPELINE_TRIGGERS_MASTER; do curl -X POST "$trigger"; done
+  only:
+    refs:
+      - master
+    variables:
+      - $PIPELINE_TRIGGERS_MASTER
+trigger_latest:
+  stage: trigger
+  image: ${GITLAB_CI_IMAGE_ALPINE}
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - for trigger in $PIPELINE_TRIGGERS_LATEST; do curl -X POST "$trigger"; done
+  only:
+    refs:
+      - tags
+    variables:
+      - $PIPELINE_TRIGGERS_LATEST
+pages:
+  stage: deploy
+  image: ${GITLAB_CI_IMAGE_ALPINE}
+  script:
+    - mv docs/_build/html/ public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - tags
+

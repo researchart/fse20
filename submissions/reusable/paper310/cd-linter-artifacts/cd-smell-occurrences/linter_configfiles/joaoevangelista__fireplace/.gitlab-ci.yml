@@ -1,0 +1,50 @@
+image: "ruby:2.3"
+
+services:
+  - rethinkdb:latest
+
+stages:
+  - lint
+  - test
+  - post-test
+  - docs
+
+before_script:
+  - sh ./scripts/install-node.sh
+  - sh ./scripts/gen-keys.sh    # generate secrets on each built and set on env
+  - gem install bundler         # Bundler is not installed with the image
+  - gem install rubocop         # Install rubocop globally
+  - bundle install -j $(nproc)  # Install dependencies
+
+rubocop:
+  stage: lint
+  script:
+  - rubocop
+  tags:
+  - docker
+
+rspec:
+  variables:
+    RETHINKDB_URL: 'rethinkdb://rethinkdb:28015/fireplace_test'
+  stage: test
+  script:
+  - bundle exec rspec
+  tags:
+  - docker
+
+pages:
+  stage: docs
+  script:
+    - sh ./scripts/install-mkdocs.sh
+    - pip install mkdocs-material
+    - mkdocs build
+    - rm -fr public
+    - mv site public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+  tags:
+    - docker
+

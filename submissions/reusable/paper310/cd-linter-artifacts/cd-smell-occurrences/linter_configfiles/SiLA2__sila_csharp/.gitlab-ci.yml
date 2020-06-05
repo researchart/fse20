@@ -1,0 +1,144 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  BUILD_TYPE: "Debug"
+  NUGET_FEED_URL: "https://nexus.unitelabs.ch/repository/nuget-sila-development/"
+
+# Cache downloaded dependencies and plugins between builds.
+cache:
+  paths:
+    - ~/.nuget/packages
+  
+stages:
+  - manual
+  - build
+  - test
+  - package
+  - release
+
+image: mcr.microsoft.com/dotnet/core/sdk:3.0.100-preview7
+
+# Manual Job to setup manual execution of the CI
+start:
+  stage: manual
+  when: manual
+  allow_failure: false
+  script: echo "Starting to validate and verify"
+  except:
+    - master
+
+# Pre-build step: Package and restore Sila2.Tools
+# NOTE: Variable is set as a single string multiline to be able to merge inside `script:` hash
+# Note: Linux dotnet v2.1 and v2.2 do not allow a socket to be bound to multiple times 
+#       at once. Hence testing has to be done for dotnet v3.0
+.pack-tools-and-restore-sln: &pack-tools-and-restore-sln |
+  echo "Changing tests and applications to netcoreapp3.0"
+  grep -rl netcoreapp2.0 . --include \*.csproj | xargs sed -i 's/netcoreapp2.0/netcoreapp3.0/g'
+  echo "Packaging"
+  dotnet build src/Sila2.Tools/Sila2.Tools.csproj
+  dotnet restore --configfile NuGet.config
+
+# Validate C# code that can be compiled on linux
+validate:dotnet:
+  stage: build
+  script:
+    - *pack-tools-and-restore-sln
+    - dotnet build
+    - dotnet build servers/
+
+# Validate C# code builds
+verify:dotnet:
+  stage: test
+  tags:
+    - dotnet
+  script:
+    - *pack-tools-and-restore-sln
+    - ip a
+    - echo "Testing SiLA Implementaions..."
+    - dotnet build examples/HelloSila/HelloSila.ServerApp/HelloSila.ServerApp.csproj
+    - dotnet examples/HelloSila/HelloSila.ServerApp/bin/Debug/netcoreapp3.0/HelloSila.ServerApp.dll --version
+    - dotnet test
+    - dotnet test servers/
+    - echo "Writing out Assmebly version for testing "
+    
+verify:features:
+  stage: test
+  script:
+    - mkdir tmp_test
+    - find . -name '*.sila.xml' -exec tools/generate_proto_and_stub.sh {} tmp_test/ tmp_test/ \;
+
+# Deployment
+# Identify this item with an & anchor to be refered to as an alias with (*)
+.version-with-commit: &version-with-commit-definition
+  before_script:
+    # Append commit id to end of version specifier in Sila2.csproj, such that it's included in the NuGet package
+    - COMMIT_ID=$(git rev-parse --short HEAD)
+    - sed -i -e 's/<\/Sila2Version>/-'"$COMMIT_ID"'<\/Sila2Version>/g' Directory.Build.props
+
+# Make sure that the git tag corresponds to SiLA version
+.validate-tag-version: &validate-tag-version
+  before_script:
+    - version=$(grep -oPm1 "(?<=<Sila2Version>)[^<]+" Directory.Build.props)
+    - tagged_version="${CI_COMMIT_TAG//v}"
+    - if [ "$version" != "$tagged_version" ]; then echo "Sila2 library version $version does not match with tag version $tagged_version" && exit 1; fi
+
+.push-to-nuget: &push-to-nuget
+  script:
+    - echo "Pushing NuGet package to SiLA development feed"
+    - version=$(grep -oPm1 "(?<=<Sila2Version>)[^<]+" Directory.Build.props)
+    - echo "Releasing Sila2.Tools"
+    - dotnet build src/Sila2.Tools/
+    - cp src/Sila2.Tools/*.nupkg .
+    - dotnet nuget push Sila2.Tools.${version}.nupkg -k ${NEXUS_SILA_NUGET_KEY} -s ${NUGET_FEED_URL}
+    - dotnet clean src/Sila2.Tools
+    - echo "Testing Sila2 build with nuget package"
+    - dotnet build --configuration ${BUILD_TYPE}
+    - echo "Releasing rest of library packages"
+    - cp src/Sila2/bin/${BUILD_TYPE}/*.nupkg .
+    - cp src/Sila2.Utils/bin/${BUILD_TYPE}/*.nupkg .
+    - dotnet nuget push Sila2.${version}.nupkg -k ${NEXUS_SILA_NUGET_KEY} -s ${NUGET_FEED_URL}
+    - dotnet nuget push Sila2.Utils.${version}.nupkg -k ${NEXUS_SILA_NUGET_KEY} -s ${NUGET_FEED_URL}
+  artifacts:
+    paths:
+      - ./*.nupkg
+    expire_in: 30 yrs
+
+.push-to-gitlab: &push-to-gitlab
+  after_script:
+    - echo "Copying generated NuGet package to root level"
+    - mkdir -p packages/
+    - find src/ -name '*.nupkg' -type f -exec cp {} packages/ \;
+    - ls -als packages/*
+  artifacts:
+    paths:
+      - packages/
+    expire_in: 4 weeks
+
+.build-sila-library: &build-sila-library
+  script:
+    - echo "Building Sila2 library..."
+    - dotnet build src/Sila2.Tools/
+    - dotnet build --configuration ${BUILD_TYPE}
+
+release-tag-version:
+  # actual releases, manually triggered via tags are made to GitLab artifacts and NuGet Feed
+  stage: release
+  <<: *validate-tag-version
+  <<: *push-to-nuget
+  only:
+    # only release on tagged master refs that are named like v1.2 or v12.3.5
+    - /^v(\d+\.)?(\d+\.)?(\*|\d+)$/
+
+
+release-commit-version:
+  # everything else (master and branch commits) is just released to short-lived GitLab artifacts
+  stage: release
+  <<: *version-with-commit-definition
+  <<: *build-sila-library
+  <<: *push-to-gitlab
+  except:
+    - tagged
+  artifacts:
+    paths:
+      - ./*.nupkg
+    expire_in: 6 mos
+

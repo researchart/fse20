@@ -1,0 +1,106 @@
+image: docker:stable
+
+variables:
+    SERVICE_NAME: client-hybrid
+    IMAGE_NAME: districted/$SERVICE_NAME
+    DOCKER_DRIVER: overlay2
+
+stages:
+    - build-staging
+    - package-staging
+    - deploy-staging
+    - build-prod
+    - package-prod
+    - deploy-prod
+
+services:
+    - docker:dind
+
+cache:
+    paths:
+        - node_modules/
+        - www/
+
+build-staging:
+    image: node:latest
+    stage: build-staging
+    except:
+        - master
+    script:
+        - npm install
+        - ./node_modules/@angular/cli/bin/ng build --progress false -c staging
+    cache:
+        untracked: true
+    artifacts:
+        paths:
+            - www/
+
+package-staging:
+    stage: package-staging
+    only:
+        - staging
+    script:
+        - docker build -t districted/client-hybrid:staging .
+        - echo $DOCKER_REGISTRY_PASSWORD | docker login -u $DOCKER_REGISTRY_LOGIN --password-stdin
+        - docker push $IMAGE_NAME:staging
+        - rm -rf node_modules/
+        - rm -rf www/
+
+deploy-staging:
+    image: ubuntu
+    retry: 2
+    stage: deploy-staging
+    only:
+        - staging
+    script:
+        - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+        - eval $(ssh-agent -s)
+        - echo "$STAGING_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+        - mkdir -p ~/.ssh
+        - chmod 700 ~/.ssh
+        - ssh-keyscan districted.org >> ~/.ssh/known_hosts
+        - chmod 644 ~/.ssh/known_hosts
+        - ssh debian@districted.org "sudo docker service update --force --image $IMAGE_NAME:staging districted-staging-stack_$SERVICE_NAME"
+        - rm -rf www/
+
+build-prod:
+    image: node:latest
+    stage: build-prod
+    only:
+        - master
+    script:
+        - npm install
+        - ./node_modules/@angular/cli/bin/ng build --progress false -c production
+    cache:
+        untracked: true
+    artifacts:
+        paths:
+            - www/
+
+package-prod:
+    stage: package-prod
+    only:
+        - master
+    script:
+        - docker build -t districted/client-hybrid:prod .
+        - echo $DOCKER_REGISTRY_PASSWORD | docker login -u $DOCKER_REGISTRY_LOGIN --password-stdin
+        - docker push $IMAGE_NAME:prod
+        - rm -rf node_modules/
+        - rm -rf www/
+
+deploy-prod:
+    image: ubuntu
+    retry: 2
+    stage: deploy-prod
+    only:
+        - master
+    script:
+        - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+        - eval $(ssh-agent -s)
+        - echo "$STAGING_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+        - mkdir -p ~/.ssh
+        - chmod 700 ~/.ssh
+        - ssh-keyscan districted.org >> ~/.ssh/known_hosts
+        - chmod 644 ~/.ssh/known_hosts
+        - ssh debian@districted.org "sudo docker service update --force --image $IMAGE_NAME:prod districted-prod-stack_$SERVICE_NAME"
+

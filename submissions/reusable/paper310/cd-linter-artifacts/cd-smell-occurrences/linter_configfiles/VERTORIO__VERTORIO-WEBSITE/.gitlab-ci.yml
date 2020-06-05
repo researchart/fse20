@@ -1,0 +1,19 @@
+# Website deployment script for gitlab
+# @author Denis Zholob (deniszholob.com)
+#
+# Runs the build script
+# ====================================== #
+
+image: alpine:latest
+
+pages:
+  stage: deploy
+  script:
+  - sh ./buildscripts/build.sh
+  - echo 'Deploying website...'
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

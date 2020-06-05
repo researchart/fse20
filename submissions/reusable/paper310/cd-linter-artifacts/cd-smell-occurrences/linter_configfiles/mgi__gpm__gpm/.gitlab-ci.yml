@@ -1,0 +1,61 @@
+variables:
+  AWS_REGION: s3-us-west-1
+  BUCKET_NAME: gpm-dist
+  OUTPUT_FOLDER: Windows Applications\builds\Windows GPM\Package
+
+build:
+  tags:
+    - lv2017
+  except:
+    - tags
+  stage: build
+  script:
+    - apply-vipm "Windows Applications\Application\vipm-pkgs.deps"
+    - >-
+      MGISlnExp build "Windows Applications\Windows Applications.lvsln" Release
+      -gitversion Major.Minor.Patch.CommitsSinceVersionSource
+  artifacts:
+    paths:
+      - ${OUTPUT_FOLDER}
+    expire_in: 1 Week
+
+.deploy_release: &deploy_template
+  variables:
+    GIT_STRATEGY: none
+  except:
+    - tags
+  stage: deploy
+
+deploy:
+  <<: *deploy_template
+  tags:
+    - lv2017
+  script:
+    - pip install awscli --upgrade --user
+    - >-
+      aws s3 cp s3://${BUCKET_NAME}/${CI_COMMIT_REF_SLUG}/Packages
+      "${OUTPUT_FOLDER}/Packages" 2> nul && aws s3 cp
+      s3://${BUCKET_NAME}/${CI_COMMIT_REF_SLUG}/Packages.stamps
+      "${OUTPUT_FOLDER}/Packages.stamps" || echo Empty Bucket
+    - >-
+      nipkg feed-create -a "${OUTPUT_FOLDER}" "${OUTPUT_FOLDER}" 2> nul || nipkg
+      feed-create "${OUTPUT_FOLDER}" "${OUTPUT_FOLDER}"
+    - >-
+      aws s3 cp "${OUTPUT_FOLDER}" s3://${BUCKET_NAME}/${CI_COMMIT_REF_SLUG}
+      --recursive --acl public-read
+  environment:
+    name: '${CI_COMMIT_REF_SLUG}'
+    url: 'https://${AWS_REGION}.amazonaws.com/${BUCKET_NAME}/${CI_COMMIT_REF_SLUG}'
+    on_stop: clean_s3
+
+clean_s3:
+  <<: *deploy_template
+  image: 'python:latest'
+  script:
+    - pip install awscli
+    - 'aws s3 rm s3://${BUCKET_NAME}/${CI_COMMIT_REF_SLUG} --recursive'
+  environment:
+    name: '${CI_COMMIT_REF_SLUG}'
+    action: stop
+  when: manual
+

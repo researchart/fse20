@@ -1,0 +1,84 @@
+# This file is a template, and might need editing before it works on your project.
+# use the official gcc image, based on debian
+# can use verions as well, like gcc:5.2
+# see https://hub.docker.com/_/gcc/
+image: gcc
+
+build:
+  stage: build
+  # instead of calling g++ directly you can also use some build toolkit like make
+  # install the necessary build tools when needed
+  before_script:
+    - apt update
+    - apt-get install -y cmake
+    - update-alternatives --install /usr/bin/gfortran gfortran /usr/local/bin/gfortran 999
+    - apt-get install -y libblas-dev liblapack-dev
+    - apt-get install -y doxygen
+    - apt-get install -y lcov
+    - apt-get install -y python python-pip
+    - pip install gcovr
+  script:
+    - mkdir build
+    - cd build
+    - cmake ../ -DCMAKE_BUILD_TYPE=Debug -DBUILD_DOC=True && make
+
+  artifacts:
+    paths:
+      - build/
+      - src/
+      - uni10_api_test/
+
+# run tests using the binary built before
+test:
+  dependencies:
+    - build
+
+  stage: test
+  before_script:
+    - apt update
+    - apt-get install -y cmake
+    - update-alternatives --install /usr/bin/gfortran gfortran /usr/local/bin/gfortran 999
+    - apt-get install -y libblas-dev liblapack-dev
+    - apt-get install -y doxygen
+    - apt-get install -y lcov
+    - apt-get install -y python python-pip
+    - pip install gcovr
+  script:
+    - cd build
+    - cd uni10_api_test &&  ./runUni10Tests
+#    - make uni10_cobertura
+#    - cd ../..
+#    - gcovr --object-directory=build -r .
+  artifacts:
+    paths:
+      - build/
+# deploy to pypi
+deploy_pypi:
+  stage: deploy
+  before_script:
+    - apt update
+    - apt-get install -y cmake
+    - apt-get install -y python python-pip
+    - apt-get install -y libblas-dev liblapack-dev
+    - pip install pybind11
+    - pip install twine
+    - python setup.py sdist
+  script:
+    - echo $TWINE_USERNAME
+    - echo $TWINE_PASSWORD
+    - twine upload dist/*
+  only:
+    - tags
+
+## Publish the documentation
+pages:
+  dependencies:
+    - build
+
+  script:
+    - cp -rf build/doc/html public
+
+  artifacts:
+    paths:
+      - public
+

@@ -1,0 +1,85 @@
+variables:
+  SILENT: ""
+
+.build_template: &build_definition
+  before_script:
+    - cat /etc/os-release
+    - uname -a
+  script:
+    - make $MAKE_OPTIONS
+    - ldd ./array_hash_map_example
+    - ./array_hash_map_example
+    - ./array_hash_map_tests
+
+gcc_debian_jessie_build:
+  <<: *build_definition
+  variables:
+    MAKE_OPTIONS: "USE_ADDRESS_SANITIZER=1"
+  tags:
+    - jessie
+
+gcc_debian_sid_build:
+  <<: *build_definition
+  variables:
+    MAKE_OPTIONS: "USE_ADDRESS_SANITIZER=1"
+  tags:
+    - sid
+
+gcc_ubuntu_zesty_build:
+  <<: *build_definition
+  variables:
+    MAKE_OPTIONS: "USE_ADDRESS_SANITIZER=1"
+  tags:
+    - zesty
+
+gcc_ubuntu_artful_build:
+  <<: *build_definition
+  variables:
+    MAKE_OPTIONS: "USE_ADDRESS_SANITIZER=1"
+  tags:
+    - artful
+
+gcc_arm64_build:
+  <<: *build_definition
+  tags:
+    - arm64
+
+clang_debian_jessie_build:
+  <<: *build_definition
+  variables:
+    CXX: "/usr/bin/clang++"
+    MAKE_OPTIONS: "USE_ADDRESS_SANITIZER=1"
+  tags:
+    - jessie
+
+clang_debian_sid_build:
+  <<: *build_definition
+  variables:
+    CXX: "/usr/bin/clang++"
+    MAKE_OPTIONS: "USE_ADDRESS_SANITIZER=1"
+  tags:
+    - sid
+
+clang_ubuntu_zesty_build:
+  <<: *build_definition
+  variables:
+    CXX: "/usr/bin/clang++"
+    MAKE_OPTIONS: "USE_ADDRESS_SANITIZER=1"
+  tags:
+    - zesty
+
+clang_ubuntu_artful_build:
+  <<: *build_definition
+  variables:
+    CXX: "/usr/bin/clang++"
+    MAKE_OPTIONS: "USE_ADDRESS_SANITIZER=1"
+  tags:
+    - artful
+
+clang_arm64_build:
+  <<: *build_definition
+  variables:
+    CXX: "/usr/bin/clang++"
+  tags:
+    - arm64
+

@@ -1,0 +1,16 @@
+image: debian:stretch
+
+stages:
+    - build
+
+compile:
+    stage: build
+    script:
+        - apt-get update
+        - apt-get install make
+        - make tarball
+    artifacts:
+        paths:
+        - KoboRoot.tgz
+        when: always
+

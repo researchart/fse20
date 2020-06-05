@@ -1,0 +1,17 @@
+stages:
+    - python36
+
+python36:
+    stage: python36
+    image: python:3.6
+    when: always
+    allow_failure: yes
+    script:
+        - apt-get update -q -y
+        - apt-get install -y  python3-dev python3-pip python3-setuptools
+        - pip install -r requirements.txt
+        - python3 setup.py install
+        - superchaind start > /dev/null 2>&1 &
+        - sleep 2
+        - python3 setup.py test
+

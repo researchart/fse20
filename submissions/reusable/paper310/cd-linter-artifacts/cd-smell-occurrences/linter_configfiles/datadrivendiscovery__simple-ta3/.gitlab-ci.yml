@@ -1,0 +1,88 @@
+build_envoy:
+  stage: build
+
+  image: docker:stable
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+  script:
+    - docker login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    - docker build --cache-from="$CI_REGISTRY_IMAGE/envoy:latest" -t "$CI_REGISTRY_IMAGE/envoy:latest" -f envoy.dockerfile .
+    - docker push "$CI_REGISTRY_IMAGE/envoy:latest"
+
+  only:
+    - master
+
+build_simple_ta3:
+  stage: build
+
+  image: docker:stable
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+  script:
+    - docker login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    - docker build --cache-from="$CI_REGISTRY_IMAGE/simple-ta3:latest" -t "$CI_REGISTRY_IMAGE/simple-ta3:latest" -f ta3.dockerfile .
+    - docker push "$CI_REGISTRY_IMAGE/simple-ta3:latest"
+
+  only:
+    - master
+
+build_tests:
+  stage: build
+
+  image: docker:stable
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+  script:
+    - docker login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    - docker build --cache-from="$CI_REGISTRY_IMAGE/tests:latest" -t "$CI_REGISTRY_IMAGE/tests:latest" -f tests.dockerfile .
+    - docker push "$CI_REGISTRY_IMAGE/tests:latest"
+
+  only:
+    - master
+
+build_wait:
+  stage: build
+
+  image: docker:stable
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+  script:
+    - docker login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    - docker build --cache-from="$CI_REGISTRY_IMAGE/wait:latest" -t "$CI_REGISTRY_IMAGE/wait:latest" -f wait.dockerfile .
+    - docker push "$CI_REGISTRY_IMAGE/wait:latest"
+
+  only:
+    - master
+

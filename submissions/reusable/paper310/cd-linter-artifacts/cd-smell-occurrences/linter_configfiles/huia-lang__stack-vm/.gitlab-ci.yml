@@ -1,0 +1,49 @@
+image: rust:latest
+stages:
+  - dependencies
+  - test
+  - release
+
+build:
+  stage: dependencies
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - $HOME/.cargo
+      - target
+  artifacts:
+    paths:
+      - $HOME/.cargo
+      - target
+    expire_in: 60 mins
+  script:
+    - cargo test --no-run --release
+
+cargo test:
+  stage: test
+  dependencies:
+    - build
+  script:
+    - rustc --version && cargo --version
+    - cargo test --jobs 1 --release
+
+cargo clippy:
+  stage: test
+  dependencies:
+    - build
+  before_script:
+    - rustup component add clippy
+  script:
+    - cargo clippy --all-targets --all-features -- -D warnings
+
+cargo publish:
+  stage: release
+  dependencies:
+    - build
+  only:
+    - /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  except:
+    - branches
+  script:
+    - cargo publish --token $CARGO_TOKEN
+

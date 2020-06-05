@@ -1,0 +1,117 @@
+image: python:3.7
+
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+  - release
+
+before_script:
+  - apt -y install libxml2-dev libxslt-dev
+  - pip install poetry
+  - pip install tox
+  - pip install codecov
+
+.code:
+  only:
+    changes:
+      - src/**/*
+      - tests/**/*
+      - pyproject.toml
+      - pylintrc
+      - pytest.ini
+      - tox.ini
+
+lint:bandit:
+  stage: lint
+  extends: .code
+  script: tox -e bandit
+
+lint:flake8:
+  stage: lint
+  extends: .code
+  script: tox -e flake8
+
+lint:markdown:
+  image: ruby:2.6
+  stage: lint
+  before_script:
+    - gem install mdl
+  script:
+    - mdl -s mdl.rb *.md docs/use.md docs/config.md
+  only:
+    changes:
+      - '*.md'
+      - docs/*.md
+
+lint:pylint:
+  stage: lint
+  extends: .code
+  script: tox -e pylint
+
+lint:radon:
+  stage: lint
+  extends: .code
+  script: tox -e radon
+
+test:python35:
+  image: python:3.5
+  stage: test
+  extends: .code
+  script:
+    - tox -e py35
+  retry: 1
+
+test:python36:
+  image: python:3.6
+  stage: test
+  extends: .code
+  script:
+    - tox -e py36
+  retry: 1
+
+test:python37:
+  stage: test
+  extends: .code
+  script:
+    - tox -e py37
+  retry: 1
+
+test:python38:
+  image: python:3.8
+  stage: test
+  extends: .code
+  script:
+    - tox -e py38
+    - codecov --token=$COVERAGE_TOKEN
+  retry: 1
+
+build:package:
+  stage: build
+  script:
+    - tox -e build
+  artifacts:
+    paths:
+      - dist
+    expire_in: 1 week
+
+pages:
+  stage: deploy
+  script:
+    - pip install mkdocs
+    - pip install mkdocs-cinder
+    - mkdocs build -d public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+release:pypi:
+  stage: release
+  script:
+    - poetry publish -u $PYPI_USERNAME -p $PYPI_PASSWORD
+  only:
+    - tags
+

@@ -1,0 +1,16 @@
+stages:
+  - lint
+
+lint-python:
+  stage: lint
+  tags:
+  - dev
+  except:
+  - master
+  script:
+  - |
+    BASE=$(git merge-base origin/master $CI_BUILD_REF)
+    if [[ $(git diff --name-only $BASE..$CI_BUILD_REF  -- '*.py' | wc -l) > 0 ]]; then
+    docker-compose -p $CI_COMMIT_SHA up --exit-code-from flake8  --build flake8;
+    fi
+

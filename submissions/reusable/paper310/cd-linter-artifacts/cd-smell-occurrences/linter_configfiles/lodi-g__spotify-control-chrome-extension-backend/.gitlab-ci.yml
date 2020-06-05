@@ -1,0 +1,25 @@
+image: node:carbon
+
+before_script:
+  - which node
+  - node -v
+  - npm -v
+  - npm install
+
+stages:
+  - deploy
+
+deploy:
+  stage: deploy
+  only:
+    - master
+  before_script:
+    - "which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )"
+    - mkdir -p ~/.ssh
+    - eval $(ssh-agent -s)
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    - ssh-add <(echo "$PRIVATE_KEY")
+    - scp -P22 -r * deploy@vaslyn.epi.codes:/srv/vaslyn.epi.codes/spotify-lyrics/
+    - ssh -p22 deploy@vaslyn.epi.codes 'source $HOME/.nvm/nvm.sh && cd /srv/vaslyn.epi.codes/spotify-lyrics/ && npm install && pm2 restart spotify-lyrics'
+

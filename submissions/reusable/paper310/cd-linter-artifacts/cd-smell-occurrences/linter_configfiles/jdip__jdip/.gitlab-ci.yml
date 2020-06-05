@@ -1,0 +1,65 @@
+image: gradle:jdk8
+# Disable the Gradle daemon for Continuous Integration servers as correctness
+# is usually a priority over speed in CI environments. Using a fresh
+# runtime for each build is more reliable since the runtime is completely
+# isolated from any previous builds.
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+stages:
+  - build
+  - test
+  - package
+
+build:
+  stage: build
+  script:
+    - gradle compileJava
+  artifacts:
+    paths:
+      - jdip_168r1/build
+      - tools/conversion/build
+      - jdipFacade/build
+      - jdip_plugins/exporter/build
+      - jdip_plugins/inspector/build
+      - jdip_plugins/maptool/build
+    expire_in: 1 day
+
+test:
+  stage: test
+  script:
+    - find . -name build -print0 | xargs -0 -I{.} find {.} -exec touch {} +
+    - gradle test
+  artifacts:
+    reports:
+      junit: jdip_168r1/build/test-results/test/TEST-*.xml
+    expire_in: 3 day
+
+package:
+  stage: package
+  only:
+    refs:
+      - master
+      - /^release.*$/
+  dependencies:
+    - build
+  script:
+    - find . -name build -print0 | xargs -0 -I{.} find {.} -exec touch {} +
+    - gradle assemble
+  artifacts:
+    paths:
+      - jdip_168r1/build/distributions/*.zip
+      - jdip_168r1/build/distributions/*.tar
+      - jdip_168r1/build/libs/*.jar
+      - tools/conversion/build/distributions/*.zip
+      - tools/conversion/build/libs/*.jar
+      - jdipFacade/build/libs/*.jar
+      - jdipFacade/build/distributions/*.zip
+      - jdip_plugins/exporter/build/libs/*.jar
+      - jdip_plugins/exporter/build/distributions/*.zip
+      - jdip_plugins/inspector/build/libs/*.jar
+      - jdip_plugins/inspector/build/distributions/*.zip
+      - jdip_plugins/maptool/build/libs/*.jar
+      - jdip_plugins/maptool/build/distributions/*.zip
+    expire_in: 1 week
+

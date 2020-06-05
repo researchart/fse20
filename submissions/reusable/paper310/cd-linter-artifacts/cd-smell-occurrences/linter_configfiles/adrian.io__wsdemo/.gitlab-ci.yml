@@ -1,0 +1,11 @@
+image: java:7
+
+before_script:
+  - apt-get update -y
+  - apt-get install maven -y
+  - mvn -version
+
+test:
+  script:
+    - mvn clean test
+

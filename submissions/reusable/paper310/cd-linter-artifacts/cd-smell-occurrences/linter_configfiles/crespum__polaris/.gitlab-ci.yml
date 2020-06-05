@@ -1,0 +1,53 @@
+variables:
+  GITLAB_CI_IMAGE_PYTHON: 'python:3.7.4'
+  GITLAB_CI_PYPI_TOX: 'tox~=3.8.0'
+  GITLAB_CI_PYPI_TWINE: 'twine~=1.13.0'
+stages:
+  - static
+  - build
+  - test
+  - deploy
+static:
+  stage: static
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_TOX"
+  script:
+    - tox -e "flake8,isort,yapf,pylint"
+build:
+  stage: build
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_TOX"
+  script:
+    - rm -rf dist
+    - tox -e "build"
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - dist
+test:
+  stage: test
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_TOX"
+  script:
+    - tox -e "pytest"
+  coverage: '/^TOTAL.*\s+(\d+\%)$/'
+deploy:
+  stage: deploy
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_TWINE"
+  script:
+    - rm -rf dist
+    - python setup.py bdist_wheel
+    - twine upload -u "$PYPI_USERNAME" -p "$PYPI_PASSWORD" dist/*
+  only:
+    refs:
+      - tags
+    variables:
+      - $PYPI_USERNAME
+      - $PYPI_PASSWORD
+

@@ -1,0 +1,74 @@
+variables:
+  DOCKER_DRIVER: overlay2
+  IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  IMAGESSR: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME-ssr
+
+image: alpine
+
+stages:
+  - build
+  - deploy
+
+# CI_COMMIT_SHA - commit hash (89e7297878bc2c7541e9d2588a47f86b4a045e37)
+# CI_COMMIT_REF_NAME - commit branch name (master)
+client image:
+  image: docker:stable
+  services:
+    - docker:dind
+  stage: build
+  before_script:
+    - apk add --no-cache curl
+    - echo "$CI_JOB_TOKEN" | docker login --username=gitlab-ci-token --password-stdin $CI_REGISTRY
+  script:
+    - docker build --tag $IMAGE -f Dockerfile-nginx .
+    # - docker run -d -p 80:80 $IMAGE
+    # - docker ps
+    # - curl --fail http://docker/
+    # - curl --fail http://docker/contacts
+    - docker push $IMAGE
+
+SSR image:
+  image: docker:stable
+  services:
+    - docker:dind
+  stage: build
+  before_script:
+    - apk add --no-cache curl
+    - echo "$CI_JOB_TOKEN" | docker login --username=gitlab-ci-token --password-stdin $CI_REGISTRY
+  script:
+    - docker build --tag $IMAGESSR -f Dockerfile-node .
+    - docker push $IMAGESSR
+
+
+deploy (staging):
+  cache:
+  stage: deploy
+  image: alpine
+  before_script:
+    - apk add --no-cache openssh gettext; mkdir -p ~/.ssh; echo "$SSH_PRIVATE_KEY" >> ~/.ssh/id_dsa; chmod 600 ~/.ssh/id_dsa; echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  script:
+    - sh deploy/generate_nomad_job.sh master > nomad.job
+    - cat nomad.job
+    - cat nomad.job | ssh root@$DOMAIN "nomad run -"
+  environment:
+    name: staging
+  only:
+    - master
+
+deploy (stable):
+  cache:
+  stage: deploy
+  image: alpine
+  before_script:
+    - apk add --no-cache openssh gettext; mkdir -p ~/.ssh; echo "$SSH_PRIVATE_KEY" >> ~/.ssh/id_dsa; chmod 600 ~/.ssh/id_dsa; echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  script:
+    - sh deploy/generate_nomad_job.sh stable > nomad.job
+    - cat nomad.job
+    - cat nomad.job | ssh root@$DOMAIN "nomad run -"
+  environment:
+    name: stable
+  when: manual
+  only:
+    - tags
+    - stable
+

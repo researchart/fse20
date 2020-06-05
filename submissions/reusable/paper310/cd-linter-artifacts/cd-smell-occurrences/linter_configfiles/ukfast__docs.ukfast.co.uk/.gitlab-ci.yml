@@ -1,0 +1,32 @@
+stages:
+  - build
+  - deploy
+before_script:
+  - pip install Sphinx===1.6.6
+  - pip install recommonmark
+  - pip install sphinxcontrib.youtube
+  - git submodule sync --recursive
+  - git submodule update --init --recursive
+build stage:
+  stage: build
+  script:
+    - ./tests.sh
+    - sphinx-build -nW -b html -d build/doctrees source/ build/html
+    - make build/html/_static/css/app.css
+    - make build/html/_static/app.js
+  tags:
+    - docs
+deploy stage:
+  stage: deploy
+  only:
+    - master
+  script:
+    - eval $(ssh-agent -s)
+    - echo "$deploy_key" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - 'ssh -o StrictHostKeyChecking=no root@46.37.163.252 "cd /opt/docs.ukfast.co.uk/ && git pull"'
+    - 'ssh -o StrictHostKeyChecking=no root@46.37.163.252 "bash /opt/docs.ukfast.co.uk/deploy_docs.sh"'
+  tags:
+    - docs
+

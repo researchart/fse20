@@ -1,0 +1,32 @@
+image: node:6.11
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - lint
+  - test
+  - compile
+
+lint:
+  stage: lint
+  before_script:
+    - npm i
+  script:
+    - npm run lint
+
+test:
+  stage: test
+  before_script:
+    - npm i
+  script:
+    - npm run test
+
+comile:
+  stage: compile
+  before_script:
+    - npm i
+  script:
+    - npm run build
+

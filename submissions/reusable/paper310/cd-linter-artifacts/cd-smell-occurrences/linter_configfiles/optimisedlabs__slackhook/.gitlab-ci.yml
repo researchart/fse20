@@ -1,0 +1,54 @@
+variables:
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+
+stages:
+  - build-linux
+  - test-linux
+  - build-macos
+  - test-macos
+  - coverage-report
+
+cache:
+  paths:
+    - .build/checkouts
+    - .build/dependencies-state.json
+    - .build/repositories
+    - Package.resolved
+
+build-linux:
+  stage: build-linux
+  image: ibmcom/swift-ubuntu:4.2
+  script:
+    - time swift build -c release
+
+test-linux:
+  stage: test-linux
+  image: ibmcom/swift-ubuntu:4.2
+  script:
+    - swift test
+
+build-macos:
+  stage: build-macos
+  tags:
+    - ios
+  script:
+    - time swift build -c release
+
+test-macos:
+  stage: test-macos
+  tags:
+    - ios
+  script:
+    - swift test -Xswiftc -target -Xswiftc x86_64-apple-macosx10.13
+
+coverage-report:
+  stage: coverage-report
+  tags:
+    - ios
+  script:
+    - echo "MACOSX_DEPLOYMENT_TARGET=10.13" > config.xcconfig
+    # Without this config SPM uses a deployment target of 10.10 that will cause failure
+    - swift package generate-xcodeproj --enable-code-coverage --xcconfig-overrides config.xcconfig
+    - xcodebuild -project SlackHook.xcodeproj -scheme SlackHook-Package -derivedDataPath Build/ clean build test
+    - zsh -c "xcrun xccov view --only-targets Build/Logs/Test/**/*.xccovreport"
+

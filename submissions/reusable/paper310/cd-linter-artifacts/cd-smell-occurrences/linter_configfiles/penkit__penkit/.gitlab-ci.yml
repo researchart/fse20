@@ -1,0 +1,14 @@
+gem:
+  stage: "build"
+  image: "ruby:2.3-alpine"
+  script:
+  - gem build penkit
+
+rspec:
+  stage: "test"
+  image: "ruby:2.3-alpine"
+  script:
+  - ruby -v
+  - bundle install
+  - bundle exec rspec
+

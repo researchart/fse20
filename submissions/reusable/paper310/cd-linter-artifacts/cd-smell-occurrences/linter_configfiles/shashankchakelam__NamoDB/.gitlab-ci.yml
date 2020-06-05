@@ -1,0 +1,83 @@
+stages:
+  - prereqs
+  - test_ga
+  - test_workflow
+  - test_api
+#  - schemaspy
+
+setup_runner_job:
+  stage: prereqs
+  script:
+    - echo "Start time is $(date)"
+    - sudo apt-get update -y
+    - sudo apt-get install -y python-dev python-pip
+    - sudo apt-get install -y build-essential libssl-dev libffi-dev libxml2-dev libxslt1-dev
+    - sudo pip install virtualenv
+    - sudo apt-get install -y mysql-server-5.6 mysql-client-5.6 mysql-client-core-5.6 libmysqlclient-dev
+    - cd namo/
+    - ./initialize_test_namo_db.sh
+    - echo "End time is $(date)"
+#  tags:
+#    - pecan
+
+#setup_workflow_runner_job:
+#  stage: prereqs
+#  script:
+#    - echo "Start time is $(date)"
+#    - sudo apt-get update -y
+#    - sudo apt-get install -y python-dev python-pip
+#    - sudo apt-get install -y build-essential libssl-dev libffi-dev
+#    - sudo pip install virtualenv
+#    - sudo apt-get install -y mysql-server-5.6 mysql-client-5.6 mysql-client-core-5.6 libmysqlclient-dev
+#    - cd namo/
+#    - ./initialize_test_namo_db.sh
+#    - echo "End time is $(date)"
+#  tags:
+#    - workflow
+
+test_guest_agent_job:
+  stage: test_ga
+  script:
+    - echo "Start time is $(date)"
+    - cd ga
+    - ./run_tests.sh
+    - echo "End time is $(date)"
+
+test_namo_job:
+  stage: test_workflow
+  script:
+    - echo "Start time is $(date)"
+    - cd namo
+    - ./run_tests.sh
+    - echo "End time is $(date)"
+
+test_apiwebservice_job:
+  stage: test_api
+  script:
+    - echo "Start time is $(date)"
+    - cd apiwebservice
+    - ./run_tests.sh
+    - echo "End time is $(date)"
+
+#validate_yaml_job:
+#  stage: test
+#  script:
+#    - echo "Start time is $(date)"
+#    - cd namo
+#    - ./scripts/mistral_validate_yaml.sh
+#    - echo "End time is $(date)"
+#  tags:
+#    - mistral
+
+#update_schema_spy_job:
+#  stage: schemaspy
+#  script:
+#    - echo "Start time is $(date)"
+#    - java -jar /opt/schemaSpy/schemaSpy.jar -t mysql -o /opt/schemaSpy/schemaSpyOutput -host localhost -db namo -u root -p kaka123 -dp /opt/schemaSpy/mysql-connector-java-5.1.38/mysql-connector-java-5.1.38-bin.jar
+#    - echo "End time is $(date)"
+#  only:
+#    - master
+#  allow_failure: true
+#  tags:
+#    - pecan
+

@@ -1,0 +1,36 @@
+image: debian:buster-slim
+
+test:
+  stage: test
+  script:
+    - echo 'allow-loopback-pinentry' >> ./ROOT/gpg_home_folder/gpg-agent.conf
+    - chmod go-rwx ./ROOT/gpg_home_folder
+    - apt-get update
+    - apt-get install -y python3-gpg python3-venv libcairo2 libglib2.0-0 libpango1.0-0
+    - python3 -m venv --system-site-packages env
+    - source env/bin/activate
+    - pip install wheel
+    - pip install -r requirements.txt -r requirements-dev.txt
+    - cd ROOT
+    - python manage.py makemigrations --check --dry-run
+    - python manage.py migrate
+    - coverage run --branch --source . --omit '*/migrations/*','*/test*' manage.py test --parallel
+  artifacts:
+    paths:
+      - ROOT/.coverage
+
+pages:
+  stage: deploy
+  dependencies:
+    - test
+  script:
+    - apt-get update
+    - apt-get install -y python3-pip
+    - pip3 install "coverage<5.0"
+    - cd ROOT
+    - coverage html --directory=../public
+    - coverage report    
+  artifacts:
+    paths:
+      - public
+

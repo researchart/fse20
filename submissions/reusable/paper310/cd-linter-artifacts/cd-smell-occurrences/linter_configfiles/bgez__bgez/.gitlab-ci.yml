@@ -1,0 +1,22 @@
+image: python:3.6-alpine
+
+stages:
+  - unittest
+
+before_script:
+  - apk add gcc musl-dev
+  - python -m pip install poetry
+  - poetry install
+
+test py3.6:
+  image: python:3.6-alpine
+  stage: unittest
+  script:
+  - poetry run python -m bgez.__test__
+
+test py3.7:
+  image: python:3.7-alpine
+  stage: unittest
+  script:
+  - poetry run python -m bgez.__test__
+

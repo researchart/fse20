@@ -1,0 +1,24 @@
+job:
+  image: ubuntu:16.04
+  script:
+    - export TERM=xterm-256color
+    - echo $TERM
+    - echo -e '\033[31mfox'
+    - echo -e '\033[0;31mfox'
+    - echo -e '\u001b[31mfox'
+    - echo -e "\e[31mfox"
+
+node-job:
+  image: bitnami/node:10-prod
+  script:
+    - export TERM=xterm-256color
+    - echo $TERM
+    - echo -e '\033[31mfox'
+    - echo -e '\033[0;31mfox'
+    - echo -e '\u001b[31mfox'
+    - echo -e "\e[31mfox"
+    - npm install
+    - FORCE_COLOR=1 node index.js
+    - node index.js --color=256
+    - FORCE_COLOR=1 npx snail-runner ls ls
+

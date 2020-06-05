@@ -1,0 +1,49 @@
+image: docker:git
+services:
+    - docker:dind
+
+stages:
+    - build
+    - test
+    - push-latest
+
+variables:
+    DOCKER_IMAGE:        ${CI_REGISTRY_IMAGE}:${CI_BUILD_REF_NAME}
+    DOCKER_LATEST_IMAGE: ${CI_REGISTRY_IMAGE}:latest
+
+#
+# Make sure we are logged into the GitLab container registry for each script.
+#
+before_script:
+    - docker login -u gitlab-ci-token -p ${CI_BUILD_TOKEN} registry.gitlab.com
+
+#
+# Build a docker image using the files in the 'docker/' subdirectory.
+#
+build:
+    stage: build
+    script:
+        - docker build -t ${DOCKER_IMAGE} docker/
+        - docker push ${DOCKER_IMAGE}
+
+#
+# Test the image by compiling a minimal QT application.
+#
+test:
+    stage: test
+    script:
+        - docker pull ${DOCKER_IMAGE}
+        - docker run ${DOCKER_IMAGE} qt-make-test.sh
+
+#
+# Tag the master image as 'latest'.
+#
+push-latest:
+    stage: push-latest
+    script:
+        - docker pull ${DOCKER_IMAGE}
+        - docker tag ${DOCKER_IMAGE} ${DOCKER_LATEST_IMAGE}
+        - docker push ${DOCKER_LATEST_IMAGE}
+    only:
+        - master
+

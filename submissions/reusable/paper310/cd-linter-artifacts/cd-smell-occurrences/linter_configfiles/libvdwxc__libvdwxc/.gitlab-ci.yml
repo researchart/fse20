@@ -1,0 +1,47 @@
+image: registry.gitlab.com/libvdwxc/libvdwxc
+
+compile_library:
+  stage: build
+  tags:
+    - linux
+  script:
+    - autoreconf -i
+    - mkdir build
+    - cd build
+    - ../configure
+    - make
+    - make check
+    - make install
+  artifacts:
+      paths:
+        - build
+
+build_userguide:
+  stage: build
+  tags:
+    - linux
+  script:
+    - sphinx-build doc/userguide/ html/
+  artifacts:
+      paths:
+        - html
+  only:
+    - master
+
+pages:
+  stage: deploy
+  script:
+    - mv html public/
+    - mv doc/google*.html public/
+    - fname=`awk '{split($0, s, "."); print s[1]}' doc/letsencrypt-setup.html`
+    - mkdir -p public/.well-known/acme-challenge/
+    - mv doc/letsencrypt-setup.html public/.well-known/acme-challenge/$fname
+    - ls -l public/.well-known/acme-challenge/
+    - ls -l public/
+    - chmod go-rwX -R public/
+  artifacts:
+      paths:
+        - public
+  only:
+    - master
+

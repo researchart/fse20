@@ -1,0 +1,45 @@
+image: node:latest
+stages:
+- test
+- build
+- deploy
+
+Test code:
+    stage: test
+    script:
+    - npm ci
+    - npm test
+
+Stylelint:
+    stage: test
+    script:
+    - npm i
+    - npx stylelint .
+
+ESLint:
+    stage: test
+    script:
+    - npm i
+    - npx eslint .
+
+Build SCSS:
+    stage: build
+    artifacts:
+        paths:
+        - lib/theme.css
+    script:
+    - npm ci
+    - npm run build-scss
+
+Now Deploy:
+    stage: deploy
+    only:
+    - master
+    script:
+    - npm i --no-save now
+    - npx now deploy --token=$NOW_TOKEN
+    - npx now alias --token=$NOW_TOKEN
+    environment:
+        name: Zeit NOW
+        url: https://listas.now.sh
+

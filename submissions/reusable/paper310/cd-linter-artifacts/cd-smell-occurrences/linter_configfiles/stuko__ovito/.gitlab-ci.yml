@@ -1,0 +1,18 @@
+image: registry.gitlab.com/stuko/ovito/linux_build:latest
+
+test_linux:
+   stage: build
+   tags:
+      - linux
+   script:
+      - mkdir build
+      - cd build
+      - cmake
+           -DCMAKE_BUILD_TYPE=Debug
+           -DOVITO_BUILD_DOCUMENTATION=ON
+           -DCMAKE_INSTALL_PREFIX=../install
+           ..
+      - make -j2 install
+      - ../install/bin/ovito --nogui
+      - ctest --output-on-failure
+

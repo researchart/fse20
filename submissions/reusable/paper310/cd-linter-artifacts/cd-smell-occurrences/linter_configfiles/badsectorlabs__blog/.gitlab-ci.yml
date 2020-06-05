@@ -1,0 +1,61 @@
+variables:
+  # Set git strategy, recursive in case there are submodules
+  GIT_STRATEGY: clone
+  GIT_SUBMODULE_STRATEGY: recursive
+  # Keys and secrets are defined in the project CI settings and exposed as env variables
+  AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+  AWS_DEFAULT_REGION: "us-east-1"
+
+# Define two stages, if the site fails to build it will not be deployed
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: apihackers/pelican  # This image contains everything needed to build a static pelican site
+  artifacts:  # artifacts are files that will be passed to the next CI stage and can be downloaded from the GitLab web
+              # frontend as zips
+    paths:
+      - output  # This is the directory we want to save and pass to the next stage
+    expire_in: 1 week  # Keep it around for a week in case we need to roll back
+  script:  # The script block is the series of commands that will be run in the container defined in `image`
+    - pelican content -o output -s publishconf.py  # Build the site using the publish config into the output directory
+    - ls -lart output
+  only:
+    - master  # Only run this step on the master branch. No reason to spend resources on incomplete feature branches
+
+
+deploy-prod:
+  stage: deploy
+  image: badsectorlabs/aws-compress-and-deploy  # This is a custom image for minifying and working with AWS
+  variables:  # You can set per-stage variables like this
+    DESC: "Prod build, commit: $CI_COMMIT_SHA"  # There are tons of built in env variables during the CI process
+    S3_BUCKET: blog.badsectorlabs.com
+    CLOUDFRONT_DISTRIBUTION_ID: $CLOUDFRONT_DISTRIBUTION  # Again, the secrets are stored in GitLab, not in the code!
+  script:
+    - cd output # Assumes the static site is in 'output' which is automatically created because the last step had
+                # 'output' as an artifact
+    - echo [+] ls before minification
+    - ls -lart .
+    - echo "$DESC" > version.html
+    - echo [+] minifying HTML
+    - find . -iname \*.html | xargs -I {} htmlminify -o {} {}
+    - echo [+] minifying CSS
+    - find . -iname \*.css | xargs -I {} uglifycss --output {} {}
+    - echo [+] minifying JS
+    - find . -iname \*.js | xargs -I {} uglifyjs -o {} {}
+    - echo [+] ls after minification
+    - ls -lart .
+    - echo [+] Syncing all files to $S3_BUCKET
+    - aws s3 sync . s3://$S3_BUCKET --region us-east-2
+    - echo [+] Invalidating Cloudfront cache  # This step is necessary or you wont see the changes until the TTL expires
+    - aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths '/*'
+  environment:  # environments are just ways to control what is deployed where, for a simple blog straight to prod is ok
+    name: master-prod
+  only:
+    - master
+  when: manual  # This causes GitLab to wait until you click the run button before executing this stage
+
+

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+        xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+    <properties>
+        <javaCompiler>1.8</javaCompiler>
+        <targetJdk>1.8</targetJdk>
+    </properties>
+    <parent>
+        <groupId>org.fudaa.framework</groupId>
+        <artifactId>fudaa-framework</artifactId>
+        <version>2.6-SNAPSHOT</version>
+    </parent>
+    <groupId>org.fudaa.soft.fudaa-mesh</groupId>
+    <artifactId>fudaa-mesh</artifactId>
+    <name>Fudaa-Mesh</name>
+    <dependencies>
+        <dependency>
+            <groupId>org.fudaa.business.fudaa-sig</groupId>
+            <artifactId>fudaa-sig</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.framework.ebli</groupId>
+            <artifactId>ebli-1d</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.framework.fudaa</groupId>
+            <artifactId>fudaa-common-courbe</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.framework.ebli</groupId>
+            <artifactId>ebli-3d</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>java3d</groupId>
+            <artifactId>j3d-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>java3d</groupId>
+            <artifactId>j3d-core-utils</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
+

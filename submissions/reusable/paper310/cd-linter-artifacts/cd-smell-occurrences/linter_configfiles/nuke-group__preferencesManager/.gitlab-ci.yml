@@ -1,0 +1,20 @@
+image: alpine
+
+pages:
+  script:
+  - apk --no-cache add py2-pip python-dev
+  - pip install sphinx
+  - pip install sphinx_rtd_theme
+  - pip install m2r
+  - apk --no-cache add make
+  - mkdir public
+  - cd doc
+  - make html
+  - cd ..
+  - mv ./doc/_build/html/* ./public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

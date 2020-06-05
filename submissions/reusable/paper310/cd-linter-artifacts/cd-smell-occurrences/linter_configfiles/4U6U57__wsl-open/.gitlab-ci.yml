@@ -1,0 +1,18 @@
+image: ubuntu:latest
+
+before_script:
+  - apt-get update -yqq
+  - apt-get install -yqq npm nodejs git wget
+
+test:
+  script:
+    - npm install --unsafe-perm=true
+    - npm run lint:sh
+    - npm run lint:md
+    - npm run lint:pkg
+    - npm run unit
+  artifacts:
+    paths:
+      - npm-debug.log
+    expire_in: 1 month
+

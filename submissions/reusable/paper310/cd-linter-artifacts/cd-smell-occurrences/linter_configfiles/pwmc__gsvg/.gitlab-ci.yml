@@ -1,0 +1,54 @@
+# This file is a template, and might need editing before it works on your project.
+# use the official gcc image, based on debian
+# can use verions as well, like gcc:5.2
+# see https://hub.docker.com/_/gcc/
+image: ubuntu:devel
+
+stages:
+     - build
+     - deploy
+
+variables:
+  DEPENDENCIES: gcc gettext gtk-doc-tools meson ninja-build
+                make autoconf
+                valac valadoc libgee-0.8-dev flex bison graphviz graphviz-dev
+                libxml2-dev gnome-common
+                gobject-introspection gir1.2-glib-2.0 libgirepository1.0-dev
+                libisocodes-dev libgraphene-1.0-dev
+                yelp-tools
+                git
+
+  GIT_SUBMODULE_STRATEGY: normal
+
+before_script:
+  - apt update && apt -y install $DEPENDENCIES
+
+build:
+  stage: build
+  script:
+  - meson _build
+  - cd _build
+  - ninja
+  - meson test
+  - ninja install
+  - cd ..
+  artifacts:
+    when: on_failure
+    paths:
+    - _build/meson-logs/testlog.txt
+    expire_in: 1 week
+
+pages:
+  stage: deploy
+  script:
+  - meson _build
+  - cd _build
+  - ninja
+  - mv docs/GSvg-* ../public
+  - cd ..
+  - cp public/index.htm public/index.html
+  artifacts:
+    paths:
+    - public
+
+

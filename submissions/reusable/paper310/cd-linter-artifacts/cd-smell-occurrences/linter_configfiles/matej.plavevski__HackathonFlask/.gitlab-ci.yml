@@ -1,0 +1,38 @@
+stages:
+ - test
+# - build
+
+before_script:
+  - python3 -m venv env
+  - source env/bin/activate
+  - pip3 install -r requirements.txt --quiet
+  
+cache:
+  paths:
+  - env/
+
+Lint:
+  stage: test
+  image: python:3.6
+  script:
+    - source env/bin/activate
+    - pip3 install pylint anybadge --quiet
+    - pylint -f colorized hackathon *.py | tee pylint.txt || true
+    - score=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' pylint.txt)
+    - echo "Pylint score was $score"
+    - mkdir public/
+    - anybadge --value=$score --file=public/pylint.svg pylint
+  artifacts:
+    paths:
+      - public/pylint.svg
+
+Unit Tests:
+  stage: test
+  image: python:3.6
+  script:
+    - source env/bin/activate
+    - pip3 install coverage --quiet
+    - python3 -m unittest
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+
+

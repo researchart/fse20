@@ -1,0 +1,90 @@
+stages:
+  - build
+  - test
+
+test:front:
+  image: registry.gitlab.com/bagage/batimap/ci-test
+  stage: test
+  cache:
+    untracked: true
+    paths:
+      - cache-ci/
+  before_script:
+    - yarn config set cache-folder cache-ci
+  script:
+    - cd front/
+    - yarn
+    - yarn lint
+    - yarn prettier --check
+    - yarn test --karma-config src/karma-ci.conf.js
+  artifacts:
+    reports:
+      junit: front/src/junit_karma.xml
+
+  except:
+    - master
+
+.build_docker_image: &build_docker_image
+  image: docker:stable
+  services:
+    - docker:19.03.6-dind
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  only:
+    - master
+  script:
+    - docker build -t registry.gitlab.com/bagage/batimap/$CONTAINER:$CI_COMMIT_REF_SLUG -f ${BASE_DIR:-$CONTAINER}/$DOCKERFILE ${BASE_DIR:-$CONTAINER}
+    - docker tag registry.gitlab.com/bagage/batimap/$CONTAINER:$CI_COMMIT_REF_SLUG registry.gitlab.com/bagage/batimap/$CONTAINER:latest
+    - docker push registry.gitlab.com/bagage/batimap/$CONTAINER:latest
+    - docker push registry.gitlab.com/bagage/batimap/$CONTAINER:$CI_COMMIT_REF_SLUG
+
+build:ci_test:
+  <<: *build_docker_image
+  variables:
+    CONTAINER: ci-test
+    DOCKERFILE: Dockerfile.ci
+    BASE_DIR: front
+
+build:tiles-cleaner:
+  <<: *build_docker_image
+  variables:
+    CONTAINER: tiles-cleaner
+    DOCKERFILE: Dockerfile
+
+build:postgis:
+  <<: *build_docker_image
+  variables:
+    CONTAINER: postgis
+    DOCKERFILE: Dockerfile
+
+build:imposm:
+  <<: *build_docker_image
+  variables:
+    CONTAINER: imposm
+    DOCKERFILE: Dockerfile
+
+build:imposm-watcher:
+  <<: *build_docker_image
+  variables:
+    CONTAINER: imposm-watcher
+    DOCKERFILE: Dockerfile
+
+build:back:
+  <<: *build_docker_image
+  variables:
+    CONTAINER: back
+    DOCKERFILE: Dockerfile
+
+build:tiles:
+  <<: *build_docker_image
+  variables:
+    CONTAINER: tiles
+    DOCKERFILE: Dockerfile
+
+build:front:
+  <<: *build_docker_image
+  variables:
+    CONTAINER: front
+    DOCKERFILE: Dockerfile.prod
+

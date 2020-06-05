@@ -1,0 +1,47 @@
+image: registry.gitlab.com/berublan/vscode-log-viewer
+
+cache:
+  paths:
+    - node_modules/
+    - .vscode-test/
+
+variables:
+  DISPLAY: ':99.0'
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - yarn install
+    - yarn global add vsce
+    - vsce package
+    - yarn run build
+  artifacts:
+    paths:
+      - node_modules/
+      - out/
+      - dist/
+      - "*.vsix"
+    expire_in: 15 mins
+
+test minimum:
+  stage: test
+  script:
+    - Xvfb -ac $DISPLAY &
+    - yarn run test minimum
+
+test stable:
+  stage: test
+  script:
+    - Xvfb -ac $DISPLAY &
+    - yarn run test stable
+
+test insiders:
+  stage: test
+  script:
+    - Xvfb -ac $DISPLAY &
+    - yarn run test insiders
+

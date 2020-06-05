@@ -1,0 +1,12 @@
+---
+.syntax_checking_tags:
+  tags:
+    - gitlab-org
+
+.ansible_run_tags:
+  tags:
+    - gitlab-org
+
+include:
+  - local: "gitlab-ci/base.yml"
+

@@ -1,0 +1,38 @@
+image: registry.gitlab.com/mindroot/baseimage:latest
+services:
+  - docker:dind
+
+services:
+  - postgres:10.1
+
+variables:
+  DOCKER_DRIVER: overlay
+  DOCKER_HOST: tcp://docker:2375
+  DB_HOST: postgres
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  GEM_HOME: "/gembox"
+  GEM_PATH: "/gembox"
+  BUNDLE_PATH: "/gembox"
+  BUNDLE_APP_CONFIG: "/gembox"
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  script:
+  - bundle check || bundle install
+  - bundle exec rake db:create RAILS_ENV=test
+  - bundle exec rspec
+
+production:
+  stage: deploy
+  script:
+  - export PATH=$PATH:/gembox/bin
+  - gem install dpl
+  - dpl --provider=heroku --app=mind-quests --api-key=$HEROKU_PRODUCTION_API_KEY
+  only:
+  - master
+

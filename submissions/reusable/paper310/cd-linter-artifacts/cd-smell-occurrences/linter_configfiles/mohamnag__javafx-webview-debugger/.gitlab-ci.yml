@@ -1,0 +1,26 @@
+
+
+build_and_publish_snapshot:
+  except:
+    - master
+  image: relateiq/oracle-java8
+  script:
+    - echo $SIGNING_SECRET_KEY_RING_FILE | base64 -d > secring.gpg
+    - ./gradlew clean build uploadArchives
+                          -Psigning.keyId="${SIGNING_KEY_ID}"
+                          -Psigning.password="${SIGNING_PASSWORD}"
+                          -Psigning.secretKeyRingFile="$(pwd)/secring.gpg"
+
+build_and_publish_release:
+  only:
+    - master
+  image: relateiq/oracle-java8
+  script:
+    - echo $SIGNING_SECRET_KEY_RING_FILE | base64 -d > secring.gpg
+    - ./gradlew clean build uploadArchives
+                          -Psnapshot=false
+                          -Psigning.keyId="${SIGNING_KEY_ID}"
+                          -Psigning.password="${SIGNING_PASSWORD}"
+                          -Psigning.secretKeyRingFile="$(pwd)/secring.gpg"
+    - ./gradlew closeAndReleaseRepository
+

@@ -1,0 +1,33 @@
+image: golang:latest
+
+cache:
+  paths:
+    - /go/src/github.com
+    - /go/src/golang.org
+    - /go/src/google.golang.org
+    - /go/src/gopkg.in
+
+stages:
+  - test
+  - build
+
+before_script:
+  - mkdir -p /go/src/gitlab.com/cosban /go/src/_/builds
+  - cp -r $CI_PROJECT_DIR /go/src/gitlab.com/cosban/persistence
+  - ln -s /go/src/gitlab.com/cosban /go/src/_/builds/cosban
+
+unit_tests:
+  stage: test
+  script:
+    - make test 
+  
+race_detector:
+  stage: test
+  script:
+    - make race
+  
+build:
+  stage: build
+  script:
+    - make
+

@@ -1,0 +1,151 @@
+stages:
+  - build
+  - test
+  - package
+  - release
+# - deploy
+
+variables:
+  DOCKER_USERNAME: petejohanson
+
+test:api:
+  stage: test
+  image: microsoft/dotnet:2.0.0-sdk
+
+  script:
+    - cd api/test && dotnet test
+
+variables:
+  npm_config_cache: "${CI_PROJECT_DIR}/.cache/npm"
+
+test:app:e2e:
+  stage: test
+  image: cypress/base:10
+
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cache/
+
+  variables:
+    CYPRESS_CACHE_FOLDER: "${CI_PROJECT_DIR}/.cache/Cypress"
+
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    when: on_failure
+    expire_in: 1 week
+    paths:
+      - app/tests/e2e/videos
+
+  before_script:
+    - cd app
+    - npm ci
+
+  script:
+    - npm run test:e2e:ci
+
+test:app:
+  stage: test
+  image: node:alpine
+
+  before_script:
+    - cd app
+    - npm ci
+
+  script:
+    - npm run lint
+    - npm run test:unit
+
+package:api:
+  stage: package
+  image: docker:latest
+
+  only:
+    - master
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+
+  script:
+    - cd api
+    - docker build --tag $DOCKER_USERNAME/fore-scorer-api:${CI_COMMIT_SHA} .
+    - docker push $DOCKER_USERNAME/fore-scorer-api:${CI_COMMIT_SHA}
+
+package:app:
+  stage: package
+  image: docker:latest
+
+  only:
+    - master
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+
+  script:
+    - cd app
+    - docker build --tag $DOCKER_USERNAME/fore-scorer-app:${CI_COMMIT_SHA} .
+    - docker push $DOCKER_USERNAME/fore-scorer-app:${CI_COMMIT_SHA}
+
+release:api:
+  stage: release
+  image: docker:latest
+
+  only:
+    - master
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+
+  script:
+    - docker pull $DOCKER_USERNAME/fore-scorer-api:${CI_COMMIT_SHA}
+    - docker tag $DOCKER_USERNAME/fore-scorer-api:${CI_COMMIT_SHA} $DOCKER_USERNAME/fore-scorer-api:latest
+    - docker push $DOCKER_USERNAME/fore-scorer-api:latest
+
+release:app:
+  stage: release
+  image: docker:latest
+
+  only:
+    - master
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+
+  script:
+    - docker pull $DOCKER_USERNAME/fore-scorer-app:${CI_COMMIT_SHA}
+    - docker tag $DOCKER_USERNAME/fore-scorer-app:${CI_COMMIT_SHA} $DOCKER_USERNAME/fore-scorer-app:latest
+    - docker push $DOCKER_USERNAME/fore-scorer-app:latest
+
+# deploy_staging:
+#   stage: deploy
+#   image: google/cloud-sdk:alpine
+#
+#   only:
+#     - master
+#
+#   environment:
+#     name: staging
+#
+#   before_script:
+#     - gcloud components install kubectl
+#     - foo=$(mktemp)
+#     - echo $GCP_KEY >> $foo
+#     - gcloud auth activate-service-account --key-file=$foo
+#
+#   script:
+#     - gcloud container clusters get-credentials $GKE_NAME --zone $GKE_ZONE --project $GKE_PROJECT
+#     - kubectl set image deployments/api api=$DOCKER_USERNAME/fore-scorer-api:${CI_COMMIT_SHA}
+#     - kubectl set image deployments/app app=$DOCKER_USERNAME/fore-scorer-app:${CI_COMMIT_SHA}
+

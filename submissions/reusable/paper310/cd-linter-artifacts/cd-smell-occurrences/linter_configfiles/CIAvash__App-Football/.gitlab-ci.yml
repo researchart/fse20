@@ -1,0 +1,12 @@
+image: rakudo-star:2018.01
+
+before_script:
+  - zef update
+  - zef --depsonly install .
+
+test:
+  script:
+    - prove -ve 'perl6 -Ilib'
+  only:
+    - master
+

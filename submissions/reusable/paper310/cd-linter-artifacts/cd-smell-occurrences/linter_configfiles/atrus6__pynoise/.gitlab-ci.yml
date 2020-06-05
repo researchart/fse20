@@ -1,0 +1,8 @@
+test:
+  script:
+    - apt-get update -qy
+    - apt-get install -y python-pip python-dev build-essential
+    - pip install -r requirements.txt
+    - cd pynoise
+    - py.test
+

@@ -1,0 +1,93 @@
+default:
+  before_script:
+    - orig=$(pwd)
+    - "[[ -d /opt/ros/melodic ]] && source /opt/ros/melodic/setup.bash || echo no Melodic installation"
+    - "[[ -d /opt/ros/kinetic ]] && source /opt/ros/kinetic/setup.bash || echo no Kinetic installation"
+    - "[[ -d ./catkin_ws ]] && cd catkin_ws || echo catkin_ws not there yet"
+    - "[[ -d ./devel ]] && source devel/setup.bash || echo devel not there yet"
+
+stages:
+  - build
+  - test
+  - deploy
+
+################### BUILD ######################
+.common-build:
+  stage: build
+  tags: 
+    - linux
+  script:
+    - mkdir ../caros_tmp
+    - mkdir catkin_ws
+    - mkdir catkin_ws/src
+    - mkdir catkin_ws/src/caros
+    - cp -r * ../caros_tmp/
+    - cp -r ../caros_tmp/* ./catkin_ws/src/caros 
+    - cd catkin_ws
+    - catkin_make -j$(nproc --all)
+  artifacts:
+    paths: 
+      - ./catkin_ws
+    expire_in: 1 hrs 
+    when: on_success
+
+################### TEST ######################
+.common-test:
+  stage: test
+  tags: 
+    - linux
+  script:
+    - catkin_make run_tests
+    - catkin_make roslint
+    - rospack list-names | grep '^caros_' | xargs -L 1 catkin_lint --strict -W 2 --explain --ignore missing_build_include_path --ignore missing_install_include --ignore uninstalled_export_lib --ignore env_var --ignore missing_install_target --ignore plugin_missing_install --ignore critical_var_append --ignore literal_project_name --pkg
+
+################### DEPLOY ######################
+.common-doc:
+  stage: deploy
+  tags: 
+    - linux
+  script:
+  - cd src/caros/doc
+  - ./generate_documentation.sh
+  - mv generated/ ${orig}/../public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+################### EXECUTE STAGES ######################
+
+#### Ubuntu 18
+build:ubuntu-1804:
+  extends: .common-build
+  image: registry.gitlab.com/sdurobotics/docker-images/caros-build:ubuntu-1804
+
+test:ubuntu-1804:
+  extends: .common-test
+  dependencies: 
+    - build:ubuntu-1804
+  needs: ["build:ubuntu-1804"]
+  image: registry.gitlab.com/sdurobotics/docker-images/caros-build:ubuntu-1804
+
+doc:ubuntu-1804:
+  extends: .common-doc
+  dependencies: 
+    - test:ubuntu-1804
+    - build:ubuntu-1804
+  needs: ["test:ubuntu-1804","build:ubuntu-1804"]
+  image: registry.gitlab.com/sdurobotics/docker-images/caros-build:ubuntu-1804
+
+
+#### Ubuntu 16
+build:ubuntu-1604:
+  extends: .common-build
+  image: registry.gitlab.com/sdurobotics/docker-images/caros-build:ubuntu-1604
+
+test:ubuntu-1604:
+  extends: .common-test
+  dependencies: 
+    - build:ubuntu-1604
+  needs: ["build:ubuntu-1604"]
+  image: registry.gitlab.com/sdurobotics/docker-images/caros-build:ubuntu-1604
+

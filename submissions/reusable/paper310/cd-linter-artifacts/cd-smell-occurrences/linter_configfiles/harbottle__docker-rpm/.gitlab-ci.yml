@@ -1,0 +1,14 @@
+stages:
+- build
+
+build:
+  stage: build
+  image: docker
+  services:
+    - docker:dind
+  script:
+    - docker login -u harbottle -p $docker_hub_password
+    - docker pull harbottle/rpm:latest || true
+    - docker build --pull --cache-from harbottle/rpm:latest -t harbottle/rpm:latest .
+    - docker push harbottle/rpm:latest
+

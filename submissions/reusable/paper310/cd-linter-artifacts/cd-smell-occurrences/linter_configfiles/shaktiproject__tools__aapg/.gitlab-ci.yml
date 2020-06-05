@@ -1,0 +1,34 @@
+stages:
+  - test
+  - release
+
+before_script:
+    - source /tools/setup.sh
+    - export PYTHONPATH=$(pwd)
+    - python3 -m pip install six pyyaml
+    - python3 -m aapg.main setup;
+
+test:
+    script:
+        - python3 -m aapg.main gen --config $PWD/samples/shakti_yaml_configs/aapg_eclass_rv64imac_bringup.yaml
+        - timeout 30 make ISA=rv64imac
+        - python3 -m aapg.main gen --arch rv32 --config $PWD/samples/shakti_yaml_configs/aapg_eclass_rv32imac_bringup.yaml
+        - timeout 30 make ISA=rv32imac ABI=ilp32
+    only:
+        - master
+    tags:
+        - shakti-runner
+
+release:
+    stage: release
+    script:
+        - python3 /scratch/version-extract.py
+    only:
+        refs:
+            - master
+    tags:
+        - shakti-runner
+    except:
+      - schedules
+
+

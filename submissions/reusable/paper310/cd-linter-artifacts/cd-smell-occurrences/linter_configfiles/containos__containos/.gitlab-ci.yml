@@ -1,0 +1,148 @@
+before_script:
+  - set -x -e
+  - test $(id -u) == 0 && apt-get update -qq
+  # Packages required for regular OpenEmbedded building
+  - >-
+    test $(id -u) == 0 &&
+    apt-get install -y -qq gawk wget git-core diffstat unzip python3
+    texinfo gcc-multilib build-essential chrpath libsdl1.2-dev xterm
+    cpio locales
+  # Additional packages required for qemu-based testing
+  - >-
+    test $(id -u) == 0 &&
+    apt-get install -y -qq sysstat iproute2 vnc4server
+  # https://bugzilla.yoctoproject.org/show_bug.cgi?id=10165
+  - |
+    if test $(id -u) == 0 && ! grep -q '^en_US.UTF-8 \+UTF-8' /etc/locale.gen; then
+      echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen;
+      locale-gen;
+    fi
+  - test $(id -u) == 0 && adduser --disabled-password --home /build ciuser
+  - locale
+  - git --version
+  - python --version
+  - python3 --version
+
+stages:
+  - lint
+  - build
+  - test
+  - deploy
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_DEPTH: "100"
+
+  # Allow some retrying by gitlab-ci
+  GET_SOURCES_ATTEMPTS: "3"
+  ARTIFACT_DOWNLOAD_ATTEMPTS: "3"
+  RESTORE_CACHE_ATTEMPTS: "3"
+
+  # bitbake needs a utf-8 locale
+  LANG: "en_US.UTF-8"
+
+  OE_STRICT_CHECKSUMS: "1"
+  PATCH_RESOLVE: "noop"
+  DL_DIR: /var/cache/gitlab-ci/downloads
+  SSTATE_DIR: /var/cache/gitlab-ci/sstate-cache
+  BB_GENERATE_MIRROR_TARBALLS: "1"
+
+cache:
+  # Share cached downloads/intermediates across *all* jobs and branches
+  key: "global"
+  paths:
+    - /var/cache/gitlab-ci/sstate-cache/
+    - /var/cache/gitlab-ci/downloads/
+
+# This verifies the instructions in README.md work.  They must be kept
+# in sync.
+quickstart:
+  stage: lint
+  tags:
+    - private
+    - linux
+  variables:
+    MACHINE: bananapi
+  script:
+    # Quickstart docs start in containos parent directory, but we're
+    # limited in what the CI environment lets us do.  This at least
+    # verifies that we can run init-build-env outside the current
+    # directory.
+    - mkdir build-tmp
+    - cd build-tmp
+    - setuser= ; if [ $(id -u) == 0 ]; then setuser='su -p ciuser --'; fi
+    - source $CI_PROJECT_DIR/init-build-env
+    - $setuser bitbake --dry-run containos-image-base
+
+# TODO: share TMPDIR across bitbake builds
+.machine_build: &machine_build
+  allow_failure: true  # This job takes longer than the hosted gitlab-ci limit (60 mins)
+  stage: build
+  tags:
+    - private
+    - linux
+  script:
+    - source $CI_PROJECT_DIR/init-build-env
+    - test -r /etc/openembedded/site.conf && cp /etc/openembedded/site.conf $BUILDDIR/conf/site.conf
+    - bitbake containos-image-base
+  artifacts:
+    paths:
+      - build/
+
+qemux86_build:
+  <<: *machine_build
+  variables:
+    MACHINE: qemux86
+
+qemuarm_build:
+  <<: *machine_build
+  variables:
+    MACHINE: qemuarm
+
+.machine_test: &machine_test
+  stage: test
+  tags:
+    - private
+    - linux
+  script:
+    - vncserver :1 &
+    - source $CI_PROJECT_DIR/init-build-env
+    - test -r /etc/openembedded/site.conf && cp /etc/openembedded/site.conf $BUILDDIR/conf/site.conf
+    - echo "INHERIT += \"testimage\"" >> $BUILDDIR/conf/local.conf
+    - bitbake -c testimage containos-image-base
+  artifacts:
+    paths:
+      - build/testimage/qemu_boot_log
+      - build/testimage/ssh_target_log
+      - build/temp/log.do_testimage
+
+qemux86_test:
+  allow_failure: true  # This job is still in testing
+  <<: *machine_test
+  variables:
+    MACHINE: qemux86
+    DISPLAY: ":1"
+    TEST_IMAGE: "1"
+  dependencies:
+    - qemux86_build
+
+qemuarm_test:
+  allow_failure: true  # This job is still in testing
+  <<: *machine_test
+  variables:
+    MACHINE: qemuarm
+    DISPLAY: ":1"
+    TEST_IMAGE: "1"
+  dependencies:
+    - qemuarm_build
+
+# potential other tests
+# - oelint for everything in meta-containos/recipes-*
+# - openembedded ptests
+# - run in qemu, test we can start a rkt image
+# - multiple architectures (via qemu)
+# - test booting / upgrading images (via qemu)
+#
+# See http://www.openembedded.org/wiki/TestingScript for some general
+# advice on running bitbake from tests.
+

@@ -1,0 +1,14 @@
+image: ruby:alpine
+
+pages:
+  stage: deploy
+  variables:
+    GIT_DEPTH: "1"
+  script:
+  - ruby specscript.rb
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
