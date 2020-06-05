@@ -2,7 +2,7 @@
 
 ## Table of contents
 
-**[1. Preconfigured AWS (_Recommended for review, it's easy_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#1-preconfigured-aws-recommended-for-review-its-easy) (Takes ~20 mins to start fuzzing)**
+**[1. Preconfigured AWS (_Recommended for review, it's easy_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#1-preconfigured-aws-recommended-for-review-its-easy) (Takes ~10-15 mins to setup and start fuzzing with MTFuzz.)**
 
 **[2. Run on a local Machine (_Recommeded to experimentation, this will take time_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#2-run-on-a-local-machine-recommeded-to-experimentation-this-will-take-time)**
 
