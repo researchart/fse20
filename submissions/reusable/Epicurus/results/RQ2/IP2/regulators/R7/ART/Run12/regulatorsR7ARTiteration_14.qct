@@ -1,0 +1,7 @@
+set k_max=10;
+assume (all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} >= 0.01435*(k-0) +45.0507 )) or (all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} < 4.3572*(k-0) +45.0507 ) and all_k(k>= 0  and k<= 3  impl ( ncv_cmd_fcs_dps{k} >= 27.6825 )) and all_k(k>= 0  and k<= 3  impl ( zcv_fcs_fps{k} >= 30.4744 ))) or (all_k(k>= 0  and k<= 6  impl  ncv_cmd_fcs_dps{k} >= -2.8947*(k-0) +45.0507 ) and all_k(k>= 0  and k<= 3  impl ( ncv_cmd_fcs_dps{k} < 45.1368 ))) or (all_k(k>= 3  and k<= 6  impl ( lcv_cmd_fcs_dps_{k} < 59.2906 )) and all_k(k>= 0  and k<= 3  impl ( ncv_cmd_fcs_dps{k} >= 24.2626 )) and all_k(k>= 0  and k<= 3  impl ( ncv_cmd_fcs_dps{k} < 31.8075 )) and all_k(k>= 0  and k<= 3  impl ( beta_adc_deg{k} >= 0.47355 )) and all_k(k>= 0  and k<= 3  impl ( hdg_des_deg{k} < 49.7365 )) and all_k(k>= 3  and k<= 6  impl ( zcv_fcs_fps{k} < 48.8184 )));
+assume ncv_cmd_fcs_dps>0;
+assume vtas_adc_kts>0 and vtas_adc_kts<50;
+%assume ncv_cmd_fcs_dps{k}<= ncv_cmd_fcs_dps{k-1} and ncv_cmd_fcs_dps{k}>= ncv_cmd_fcs_dps{k-1};
+%assume vtas_adc_kts{k}<= vtas_adc_kts{k-1} and vtas_adc_kts{k}>= vtas_adc_kts{k-1};
+abs(ncvdt_cmd_fcs_dps2{k} - ncvdt_cmd_fcs_dps2{k-1}) <=50;

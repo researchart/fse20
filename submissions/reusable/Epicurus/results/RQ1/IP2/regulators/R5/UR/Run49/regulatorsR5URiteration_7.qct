@@ -1,0 +1,7 @@
+set k_max=10;
+assume (all_k(k>= 0  and k<= 6  impl  lcv_cmd_fcs_dps_{k} >= 1.5648*(k-0) +62.4581 )) or (all_k(k>= 0  and k<= 6  impl  lcv_cmd_fcs_dps_{k} < 0.32113*(k-0) +62.4581 ) and all_k(k>= 0  and k<= 3  impl ( zcv_fcs_fps{k} >= 13.7403 )) and all_k(k>= 0  and k<= 3  impl ( beta_dot{k} >= 8.4717 ))) or (all_k(k>= 0  and k<= 6  impl  lcv_cmd_fcs_dps_{k} >= -9.368*(k-0) +62.4581 ) and all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} < 98.6295 )) and all_k(k>= 3  and k<= 6  impl ( ncv_cmd_fcs_dps{k} < 95.4735 )) and all_k(k>= 0  and k<= 6  impl  beta_adc_deg{k} >= -0.063633*(k-0) +1.7033 ) and all_k(k>= 0  and k<= 3  impl ( zcv_fcs_fps{k} >= 1.7302 )));
+assume lcv_cmd_fcs_dps_>0;
+% single control point
+% lcv_cmd_fcs_dps_{k}<= lcv_cmd_fcs_dps_{k-1} and lcv_cmd_fcs_dps_{k}>= lcv_cmd_fcs_dps_{k-1};
+%assume vtas_adc_kts{k}<= vtas_adc_kts{k-1} and vtas_adc_kts{k}>= vtas_adc_kts{k-1};
+abs(lcvdt_cmd_fcs_dps2{k} - lcvdt_cmd_fcs_dps2{k-1}) <= 50;

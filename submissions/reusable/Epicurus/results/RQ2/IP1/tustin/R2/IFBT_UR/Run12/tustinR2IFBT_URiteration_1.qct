@@ -1,0 +1,4 @@
+set k_max=101;
+assume (all_k(k>= 0  and k<= 50  impl ( ic{k} >= 8.2519 )));
+assume BL==0 and xin==0.1;
+abs(yout{100}-10) <= 0.1

@@ -1,0 +1,7 @@
+set k_max=10;
+assume (all_k(k>= 0  and k<= 10  impl  ncv_cmd_fcs_dps{k} < 4.5194*(k-0) +24.0721 )) or (all_k(k>= 0  and k<= 10  impl  ncv_cmd_fcs_dps{k} >= 4.9819*(k-0) +27.7078 ) and all_k(k>= 0  and k<= 5  impl ( ncv_cmd_fcs_dps{k} < 78.1835 ))) or (all_k(k>= 0  and k<= 10  impl  ncv_cmd_fcs_dps{k} >= 4.6991*(k-0) +34.1848 )) or (all_k(k>= 0  and k<= 10  impl  ncv_cmd_fcs_dps{k} < 4.9086*(k-0) +30.4582 ) and all_k(k>= 0  and k<= 10  impl  ncv_cmd_fcs_dps{k} >= 4.9762*(k-0) +29.407 )) or (all_k(k>= 0  and k<= 10  impl  ncv_cmd_fcs_dps{k} < 4.9029*(k-0) +25.6246 ) and all_k(k>= 0  and k<= 5  impl ( ncv_cmd_fcs_dps{k} >= 24.0721 )) and all_k(k>= 5  and k<= 10  impl ( airspeed_des_fps{k} < 46.1232 ))) or (all_k(k>= 0  and k<= 5  impl  ncv_cmd_fcs_dps{k} >= 5.0952*(k-0) +25.6246 -0.001) and all_k(k>= 5  and k<= 10  impl  ncv_cmd_fcs_dps{k} < 5.0952*(k-0) +25.6246 +0.001) and all_k(k>= 5  and k<= 10  impl ( airspeed_des_fps{k} < 46.1232 ))) or (all_k(k>= 0  and k<= 10  impl  ncv_cmd_fcs_dps{k} >= 4.933*(k-0) +27.2469 ) and all_k(k>= 0  and k<= 5  impl ( ncv_cmd_fcs_dps{k} < 77.5263 )) and all_k(k>= 5  and k<= 10  impl ( airspeed_des_fps{k} < 46.1232 )));
+assume ncv_cmd_fcs_dps>0;
+assume vtas_adc_kts>0 and vtas_adc_kts<50;
+%assume ncv_cmd_fcs_dps{k}<= ncv_cmd_fcs_dps{k-1} and ncv_cmd_fcs_dps{k}>= ncv_cmd_fcs_dps{k-1};
+%assume vtas_adc_kts{k}<= vtas_adc_kts{k-1} and vtas_adc_kts{k}>= vtas_adc_kts{k-1};
+abs(ncvdt_cmd_fcs_dps2{k} - ncvdt_cmd_fcs_dps2{k-1}) <=50;

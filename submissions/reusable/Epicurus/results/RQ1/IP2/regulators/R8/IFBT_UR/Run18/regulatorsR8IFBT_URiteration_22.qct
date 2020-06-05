@@ -1,0 +1,5 @@
+set k_max=10;
+assume (all_k(k>= 0  and k<= 6  impl  xcv_cmd_fcs_fps{k} >= 8.6712*(k-0) +31.4024 )) or (all_k(k>= 3  and k<= 9  impl  xcv_cmd_fcs_fps{k} < 9.4602*(k-3) +8.0183 )) or (all_k(k>= 3  and k<= 9  impl  xcv_cmd_fcs_fps{k} < -1.194*(k-3) +83.4298 ) and all_k(k>= 3  and k<= 6  impl ( xcv_cmd_fcs_fps{k} >= 8.0183 ))) or (all_k(k>= 3  and k<= 9  impl  xcv_cmd_fcs_fps{k} >= 9.8771*(k-3) +18.1203 )) or (all_k(k>= 0  and k<= 6  impl  xcv_cmd_fcs_fps{k} >= -2.034*(k-0) +30.3244 )) or (all_k(k>= 3  and k<= 9  impl  xcv_cmd_fcs_fps{k} < -1.0078*(k-3) +83.4298 ) and all_k(k>= 3  and k<= 9  impl  xcv_cmd_fcs_fps{k} >= 10.558*(k-3) +12.9176 )) or (all_k(k>= 0  and k<= 6  impl  xcv_cmd_fcs_fps{k} < 4.1011*(k-0) +30.3244 ) and all_k(k>= 0  and k<= 3  impl ( xcv_cmd_fcs_fps{k} >= 18.1203 )));
+assume ( xcv_cmd_fcs_fps >=0);
+%and (mcv_cmd_fcs_dps<=50) and ( mcv_cmd_fcs_dps >=0) and (ncv_cmd_fcs_dps<=50) and (ncv_cmd_fcs_dps>=0)and ( xcv_cmd_fcs_fps <=50) and (xcv_cmd_fcs_fps>=0);
+abs(xcvdt_cmd_fcs_fps2{k} - xcvdt_cmd_fcs_fps2{k-1}) <= 32;

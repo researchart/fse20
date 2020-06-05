@@ -1,0 +1,4 @@
+Model,Property,Policy,ControlPoints,Run,Assumption,IsSafe,ExecutionTime,Iteration
+regulators,R4,IFBT_UR,2,17,assume (all_k(k>= 50  and k<= 100  impl ( xcv_cmd_fcs_fps{k} < 54.0132 ))) or (all_k(k>= 0  and k<= 50  impl  xcv_cmd_fcs_fps{k} < -0.000535*(k-0) +54.0667 +0.001) and all_k(k>= 50  and k<= 100  impl  xcv_cmd_fcs_fps{k} >= -0.000535*(k-0) +54.0667 -0.001));,0,374.7890,30
+regulators,R4,IFBT_UR,2,18,assume (all_k(k>= 50  and k<= 100  impl ( xcv_cmd_fcs_fps{k} < 53.9947 ))) or (all_k(k>= 0  and k<= 50  impl  xcv_cmd_fcs_fps{k} < -0.0013*(k-0) +54.1247 +0.001) and all_k(k>= 50  and k<= 100  impl  xcv_cmd_fcs_fps{k} >= -0.0013*(k-0) +54.1247 -0.001));,0,376.5436,30
+regulators,R4,IFBT_UR,2,19,assume (all_k(k>= 0  and k<= 50  impl ( xcv_cmd_fcs_fps{k} < 54.0188 ))) or (all_k(k>= 0  and k<= 50  impl  xcv_cmd_fcs_fps{k} >= 0.000761*(k-0) +54.0188 -0.001) and all_k(k>= 50  and k<= 100  impl  xcv_cmd_fcs_fps{k} < 0.000761*(k-0) +54.0188 +0.001));,0,364.0948,30

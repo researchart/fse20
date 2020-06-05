@@ -1,0 +1,7 @@
+set k_max=10;
+assume (all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} < 70.8012 )) and all_k(k>= 0  and k<= 3  impl ( alt_des_ft{k} >= 42.9639 ))) or (all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} < 70.8012 ))) or (all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} >= 90.6353 )) and all_k(k>= 0  and k<= 3  impl ( airspeed_des_fps{k} < 14.4148 ))) or (all_k(k>= 0  and k<= 3  impl  lcv_cmd_fcs_dps_{k} >= 4.3933*(k-0) +70.8012 -0.001) and all_k(k>= 3  and k<= 6  impl  lcv_cmd_fcs_dps_{k} < 4.3933*(k-0) +70.8012 +0.001) and all_k(k>= 0  and k<= 3  impl ( airspeed_des_fps{k} >= 14.4148 ))) or (all_k(k>= 0  and k<= 6  impl  lcv_cmd_fcs_dps_{k} >= 2.9511*(k-0) +79.454 ) and all_k(k>= 0  and k<= 3  impl ( airspeed_des_fps{k} >= 14.4148 ))) or (all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} >= 65.4177 )) and all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} < 70.8012 )) and all_k(k>= 0  and k<= 3  impl ( alt_des_ft{k} < 42.9639 ))) or (all_k(k>= 0  and k<= 3  impl ( lcv_cmd_fcs_dps_{k} < 31.3396 )) and all_k(k>= 0  and k<= 3  impl ( alt_des_ft{k} < 42.9639 )));
+assume lcv_cmd_fcs_dps_>0;
+% single control point
+% lcv_cmd_fcs_dps_{k}<= lcv_cmd_fcs_dps_{k-1} and lcv_cmd_fcs_dps_{k}>= lcv_cmd_fcs_dps_{k-1};
+%assume vtas_adc_kts{k}<= vtas_adc_kts{k-1} and vtas_adc_kts{k}>= vtas_adc_kts{k-1};
+abs(lcvdt_cmd_fcs_dps2{k} - lcvdt_cmd_fcs_dps2{k-1}) <= 50;

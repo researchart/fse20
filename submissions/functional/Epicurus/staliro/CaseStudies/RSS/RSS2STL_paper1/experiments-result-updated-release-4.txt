@@ -1,0 +1,2081 @@
+% Longitudinal safety requirement for the ego vehicle with respect to the
+% other vehicle (front,left,right)
+%%lon_ant = '( ( !safe_lat /\ safe_long /\ X !safe_long ) )';
+lon_ant = '(  !safe_lat_ant /\ safe_long_ant /\ X (!safe_long_ant /\ !safe_lat_ant) )';
+P_lon_conseq = ['( ((safe_long R_[0,',num2str(RHO),') (a_ego_lt_max_acc /\ a_front_max_brake)) \/ (<>_[0,0.1) safe_long)) /\ ((safe_long R_[', num2str(RHO),', inf)( a_ego_gt_min_brake /\ a_front_max_brake)) \/ (<>_[0.5,0.6) safe_long)) )'];
+Phi_long_safety=['[](',lon_ant,' -> X ( ',P_lon_conseq,' ))'];  
+% Lateral safety requirement for the ego vehicle with respect to the
+% other vehicle (front,left,right)
+lat_ant = '( !safe_long_ant /\ safe_lat_ant /\ X (!safe_lat_ant /\ !safe_long_ant) )';
+P_lat = ['( (safe_lat R_[0,',num2str(RHO),')(a_ego_lat_lt_max_acc /\ a_right_lat_max_acc))  \/ (<>_[0,0.1) safe_lat) )'];
+P_lat11 = ['( ((safe_lat \/ stopped_ego_lat) R_[',num2str(RHO),', inf)(a_ego_lat_lt_min_brake)) \/ (<>_[0.5,0.6) (safe_lat \/ stopped_ego_lat)) )'];
+P_lat12 = ['( ((safe_lat \/ stopped_right_lat) R_[',num2str(RHO),', inf)(a_right_lat_min_brake)) \/ (<>_[0.5,0.6) (safe_lat \/ stopped_right_lat)) )'];
+P_lat21 = ['( (safe_lat R_[',num2str(RHO),', inf) (stopped_ego_lat_ant -> X [](ego_lat_velocity_neg))) \/ (<>_[0.5,0.6) safe_lat) )'];
+P_lat22 = ['( (safe_lat R_[',num2str(RHO),', inf) (stopped_right_lat_ant -> X [] (right_lat_velocity_pos))) \/ (<>_[0.5,0.6) safe_lat) )'];
+P_lat_conseq = [P_lat,' /\ ',P_lat11,' /\ ',P_lat12,' /\ ',P_lat21,' /\ ',P_lat22];
+Phi_lat_safety = ['[](',lat_ant,' -> X ( ',P_lat_conseq,') )'];
+
+Phi_lon_lat_ant_org = '( safe_lat_ant /\ safe_long_ant /\ X (!safe_lat_ant /\ !safe_long_ant ) )';
+%Phi_lat_long_safety_org = ['[](' , Phi_lon_lat_ant_org , ' -> X ( ' , '(', P_lat_conseq ,')' , ' /\ ' , '(' , P_lon_conseq, ')' , ') )'];
+Phi_lat_long_safety_org = ['[](' , Phi_lon_lat_ant_org , ' -> X ( ( safe_lat \/ safe_long ) R (' , '(', P_lat_conseq ,')' , ' /\ ' , '(' , P_lon_conseq, ')' , ') ) )'];
+
+Phi_not_lat_not_long_safety = ['( ( !safe_lat_ant /\ !safe_long_ant ) -> X ( ' , '(', P_lat_conseq ,')' , ' /\ ' , '(' , P_lon_conseq, ')' ,') )'];
+%Phi_not_lat_not_long_safety = ['( ( !safe_lat_ant /\ !safe_long_ant ) -> X ( ( safe_lat \/ safe_long ) R (' , '(', P_lat_conseq ,')' , ' /\ ' , '(' , P_lon_conseq, ')' ,') ) )'];
+Phi_lat_long_safety_updated = [Phi_lat_long_safety_org,' /\ ',Phi_not_lat_not_long_safety];
+
+%Phi_lat_long_safety = Phi_lat_long_safety_org;
+Phi_lat_long_safety = Phi_lat_long_safety_updated;
+
+>> Demo_S_Taliro_without_intersection_mohammad
+
+
+
+
+iteration_case_study =
+
+     0
+
+Number of lanes is 6
+Pre-processing time: 
+Elapsed time is 1.179706 seconds.
+Monitoring time: 
+Elapsed time is 0.808432 seconds.
+min_lon_rob = 1954.0033 front_unsafe/total_front = 0/1 right_unsafe/total_right = 0/0 left_unsafe/total_left = 0/0
+min_lat_rob = -0.65272 front_unsafe/total_front = 1/1 right_unsafe/total_right = 0/0 left_unsafe/total_left = 0/0
+min_lat_long_rob = 155.7975 front_unsafe/total_front = 0/1 right_unsafe/total_right = 0/0 left_unsafe/total_left = 0/0
+total samples: 1
+lon_violated_pred = 
+     0     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0     1     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 0 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 1 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 0 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+     1
+
+Number of lanes is 5
+Vehicle 9 changes lane
+Vehicle 24 changes lane
+Vehicle 29 changes lane
+Vehicle 31 changes lane
+Vehicle 33 changes lane
+Pre-processing time: 
+Elapsed time is 10.431967 seconds.
+Monitoring time: 
+Elapsed time is 111.909458 seconds.
+min_lon_rob = -3.2116 front_unsafe/total_front = 6/70 right_unsafe/total_right = 0/242 left_unsafe/total_left = 0/250
+min_lat_rob = -2.1002 front_unsafe/total_front = 33/70 right_unsafe/total_right = 17/242 left_unsafe/total_left = 17/250
+min_lat_long_rob = -16.0131 front_unsafe/total_front = 27/70 right_unsafe/total_right = 0/242 left_unsafe/total_left = 2/250
+total samples: 562
+lon_violated_pred = 
+     5     0     1     0     0     0     0
+
+lat_violated_pred = 
+     0    67     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     4     3     0     0     0     0     0     0     0     0     0    22     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 5 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 1 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 67 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 4 times
+safe_lat violated 3 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 22 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+     2
+
+Number of lanes is 6
+Vehicle 16 changes lane
+Vehicle 18 changes lane
+Pre-processing time: 
+Elapsed time is 5.454471 seconds.
+Monitoring time: 
+Elapsed time is 35.810724 seconds.
+min_lon_rob = -0.69965 front_unsafe/total_front = 2/40 right_unsafe/total_right = 0/106 left_unsafe/total_left = 0/110
+min_lat_rob = -0.90197 front_unsafe/total_front = 8/40 right_unsafe/total_right = 4/106 left_unsafe/total_left = 2/110
+min_lat_long_rob = -10.0251 front_unsafe/total_front = 21/40 right_unsafe/total_right = 0/106 left_unsafe/total_left = 0/110
+total samples: 256
+lon_violated_pred = 
+     2     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    14     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     4     2     1     0     0     0     0     0     0     0     0    14     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 2 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 14 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 4 times
+safe_lat violated 2 times
+a_ego_lat_lt_max_acc violated 1 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 14 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+     3
+
+Number of lanes is 6
+Vehicle 13 changes lane
+Pre-processing time: 
+Elapsed time is 3.432349 seconds.
+Monitoring time: 
+Elapsed time is 12.712323 seconds.
+min_lon_rob = -1.0934 front_unsafe/total_front = 1/21 right_unsafe/total_right = 0/48 left_unsafe/total_left = 0/38
+min_lat_rob = -3.8137 front_unsafe/total_front = 2/21 right_unsafe/total_right = 1/48 left_unsafe/total_left = 1/38
+min_lat_long_rob = -7.5587 front_unsafe/total_front = 6/21 right_unsafe/total_right = 1/48 left_unsafe/total_left = 1/38
+total samples: 107
+lon_violated_pred = 
+     1     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0     4     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     4     1     0     0     0     0     0     0     0     0     0     2     0     0     0     0     1
+
+-----------------LONGITUDINAL---------------
+safe_long violated 1 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 4 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 4 times
+safe_lat violated 1 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 2 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 1 times
+
+
+
+
+iteration_case_study =
+
+     4
+
+Number of lanes is 5
+Pre-processing time: 
+Elapsed time is 3.620006 seconds.
+Monitoring time: 
+Elapsed time is 18.818564 seconds.
+min_lon_rob = -1.1062 front_unsafe/total_front = 1/23 right_unsafe/total_right = 0/50 left_unsafe/total_left = 0/53
+min_lat_rob = -0.77621 front_unsafe/total_front = 5/23 right_unsafe/total_right = 2/50 left_unsafe/total_left = 0/53
+min_lat_long_rob = -6.4927 front_unsafe/total_front = 11/23 right_unsafe/total_right = 0/50 left_unsafe/total_left = 0/53
+total samples: 126
+lon_violated_pred = 
+     1     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0     4     1     0     2     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     5     2     0     0     0     0     0     0     0     0     0     4     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 1 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 4 times
+a_ego_lat_lt_max_acc violated 1 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 2 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 5 times
+safe_lat violated 2 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 4 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+     5
+
+Number of lanes is 5
+Vehicle 5 changes lane
+Vehicle 9 changes lane
+Vehicle 20 changes lane
+Vehicle 21 changes lane
+Pre-processing time: 
+Elapsed time is 6.505724 seconds.
+Monitoring time: 
+Elapsed time is 66.491783 seconds.
+min_lon_rob = -0.70705 front_unsafe/total_front = 3/49 right_unsafe/total_right = 0/151 left_unsafe/total_left = 0/167
+min_lat_rob = -1.7246 front_unsafe/total_front = 18/49 right_unsafe/total_right = 5/151 left_unsafe/total_left = 7/167
+min_lat_long_rob = -11.9139 front_unsafe/total_front = 27/49 right_unsafe/total_right = 0/151 left_unsafe/total_left = 2/167
+total samples: 367
+lon_violated_pred = 
+     2     0     1     0     0     0     0
+
+lat_violated_pred = 
+     0    30     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     6     1     0     0     0     0     0     0     0     0     0    22     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 2 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 1 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 30 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 6 times
+safe_lat violated 1 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 22 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+     6
+
+Number of lanes is 6
+Vehicle 16 changes lane
+Vehicle 24 changes lane
+Pre-processing time: 
+Elapsed time is 5.530252 seconds.
+Monitoring time: 
+Elapsed time is 41.136629 seconds.
+min_lon_rob = -11.9002 front_unsafe/total_front = 4/42 right_unsafe/total_right = 0/117 left_unsafe/total_left = 0/126
+min_lat_rob = -0.54164 front_unsafe/total_front = 6/42 right_unsafe/total_right = 2/117 left_unsafe/total_left = 6/126
+min_lat_long_rob = -10.1558 front_unsafe/total_front = 20/42 right_unsafe/total_right = 0/117 left_unsafe/total_left = 1/126
+total samples: 285
+lon_violated_pred = 
+     3     0     1     0     0     0     0
+
+lat_violated_pred = 
+     0    14     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     4     3     1     0     0     0     0     0     0     0     0    13     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 3 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 1 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 14 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 4 times
+safe_lat violated 3 times
+a_ego_lat_lt_max_acc violated 1 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 13 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+     7
+
+Number of lanes is 5
+Pre-processing time: 
+Elapsed time is 6.022522 seconds.
+Monitoring time: 
+Elapsed time is 57.949535 seconds.
+min_lon_rob = -1.6506 front_unsafe/total_front = 4/43 right_unsafe/total_right = 0/140 left_unsafe/total_left = 0/139
+min_lat_rob = -1.3388 front_unsafe/total_front = 13/43 right_unsafe/total_right = 5/140 left_unsafe/total_left = 1/139
+min_lat_long_rob = -11.0088 front_unsafe/total_front = 33/43 right_unsafe/total_right = 0/140 left_unsafe/total_left = 0/139
+total samples: 322
+lon_violated_pred = 
+     4     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    17     2     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+    15     4     1     0     0     0     0     0     0     0     1    12     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 4 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 17 times
+a_ego_lat_lt_max_acc violated 2 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 15 times
+safe_lat violated 4 times
+a_ego_lat_lt_max_acc violated 1 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 1 times
+a_ego_gt_min_brake violated 12 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+     8
+
+Number of lanes is 6
+Vehicle 9 changes lane
+Vehicle 28 changes lane
+Vehicle 34 changes lane
+Pre-processing time: 
+Elapsed time is 5.664482 seconds.
+Monitoring time: 
+Elapsed time is 36.731358 seconds.
+min_lon_rob = -0.7787 front_unsafe/total_front = 1/37 right_unsafe/total_right = 0/104 left_unsafe/total_left = 0/121
+min_lat_rob = -0.61702 front_unsafe/total_front = 6/37 right_unsafe/total_right = 2/104 left_unsafe/total_left = 0/121
+min_lat_long_rob = -12.5393 front_unsafe/total_front = 21/37 right_unsafe/total_right = 0/104 left_unsafe/total_left = 1/121
+total samples: 262
+lon_violated_pred = 
+     1     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0     8     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     4     0     0     0     0     0     0     0     0     0     0    18     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 1 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 8 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 4 times
+safe_lat violated 0 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 18 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+     9
+
+Number of lanes is 6
+Vehicle 8 changes lane
+Vehicle 24 changes lane
+Pre-processing time: 
+Elapsed time is 6.312992 seconds.
+Monitoring time: 
+Elapsed time is 62.464667 seconds.
+min_lon_rob = -1.9479 front_unsafe/total_front = 9/44 right_unsafe/total_right = 0/135 left_unsafe/total_left = 1/154
+min_lat_rob = -1.2661 front_unsafe/total_front = 8/44 right_unsafe/total_right = 5/135 left_unsafe/total_left = 7/154
+min_lat_long_rob = -7.5766 front_unsafe/total_front = 15/44 right_unsafe/total_right = 1/135 left_unsafe/total_left = 2/154
+total samples: 333
+lon_violated_pred = 
+    10     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    20     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+    12     3     0     0     0     0     0     0     0     0     0     3     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 10 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 20 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 12 times
+safe_lat violated 3 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 3 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    10
+
+Number of lanes is 5
+Vehicle 14 changes lane
+Vehicle 15 changes lane
+Vehicle 16 changes lane
+Vehicle 18 changes lane
+Vehicle 25 changes lane
+Vehicle 27 changes lane
+Pre-processing time: 
+Elapsed time is 4.728449 seconds.
+Monitoring time: 
+Elapsed time is 45.890770 seconds.
+min_lon_rob = -1.783 front_unsafe/total_front = 4/55 right_unsafe/total_right = 0/117 left_unsafe/total_left = 0/129
+min_lat_rob = -2.3392 front_unsafe/total_front = 18/55 right_unsafe/total_right = 9/117 left_unsafe/total_left = 8/129
+min_lat_long_rob = -13.8738 front_unsafe/total_front = 28/55 right_unsafe/total_right = 2/117 left_unsafe/total_left = 3/129
+total samples: 301
+lon_violated_pred = 
+     3     0     0     0     0     0     1
+
+lat_violated_pred = 
+     0    35     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     9     5     2     0     0     0     0     0     0     0     0    17     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 3 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 1 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 35 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 9 times
+safe_lat violated 5 times
+a_ego_lat_lt_max_acc violated 2 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 17 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    11
+
+Number of lanes is 6
+Vehicle 9 changes lane
+Vehicle 15 changes lane
+Vehicle 24 changes lane
+Vehicle 25 changes lane
+Vehicle 46 changes lane
+Pre-processing time: 
+Elapsed time is 6.447371 seconds.
+Monitoring time: 
+Elapsed time is 60.633206 seconds.
+min_lon_rob = -2.3549 front_unsafe/total_front = 10/53 right_unsafe/total_right = 0/168 left_unsafe/total_left = 0/159
+min_lat_rob = -1.6215 front_unsafe/total_front = 17/53 right_unsafe/total_right = 7/168 left_unsafe/total_left = 8/159
+min_lat_long_rob = -10.6767 front_unsafe/total_front = 25/53 right_unsafe/total_right = 1/168 left_unsafe/total_left = 3/159
+total samples: 380
+lon_violated_pred = 
+    10     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    31     0     0     1     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     6     2     1     0     4     0     0     0     0     0     0    16     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 10 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 31 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 1 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 6 times
+safe_lat violated 2 times
+a_ego_lat_lt_max_acc violated 1 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 4 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 16 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    12
+
+Number of lanes is 6
+Vehicle 8 changes lane
+Vehicle 13 changes lane
+Vehicle 23 changes lane
+Vehicle 28 changes lane
+Vehicle 31 changes lane
+Vehicle 33 changes lane
+Vehicle 39 changes lane
+Vehicle 48 changes lane
+Pre-processing time: 
+Elapsed time is 13.638976 seconds.
+Monitoring time: 
+Elapsed time is 172.230236 seconds.
+min_lon_rob = -1.4401 front_unsafe/total_front = 10/81 right_unsafe/total_right = 1/319 left_unsafe/total_left = 0/305
+min_lat_rob = -1.8183 front_unsafe/total_front = 35/81 right_unsafe/total_right = 12/319 left_unsafe/total_left = 12/305
+min_lat_long_rob = -12.0261 front_unsafe/total_front = 43/81 right_unsafe/total_right = 7/319 left_unsafe/total_left = 5/305
+total samples: 705
+lon_violated_pred = 
+     9     0     1     1     0     0     0
+
+lat_violated_pred = 
+     0    58     0     0     1     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+    22     6     0     0     1     0     0     0     0     0     0    24     1     0     0     0     1
+
+-----------------LONGITUDINAL---------------
+safe_long violated 9 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 1 times
+a_ego_gt_min_brake violated 1 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 58 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 1 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 22 times
+safe_lat violated 6 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 1 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 24 times
+a_front_max_brake violated 1 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 1 times
+
+
+
+
+iteration_case_study =
+
+    13
+
+Number of lanes is 6
+Vehicle 12 changes lane
+Vehicle 35 changes lane
+Pre-processing time: 
+Elapsed time is 5.450808 seconds.
+Monitoring time: 
+Elapsed time is 40.062905 seconds.
+min_lon_rob = -1.1584 front_unsafe/total_front = 4/44 right_unsafe/total_right = 0/128 left_unsafe/total_left = 0/132
+min_lat_rob = -0.74878 front_unsafe/total_front = 12/44 right_unsafe/total_right = 2/128 left_unsafe/total_left = 3/132
+min_lat_long_rob = -10.1354 front_unsafe/total_front = 20/44 right_unsafe/total_right = 1/128 left_unsafe/total_left = 2/132
+total samples: 304
+lon_violated_pred = 
+     4     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    17     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     5     3     1     0     0     0     0     0     0     0     0    13     0     0     0     0     1
+
+-----------------LONGITUDINAL---------------
+safe_long violated 4 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 17 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 5 times
+safe_lat violated 3 times
+a_ego_lat_lt_max_acc violated 1 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 13 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 1 times
+
+
+
+
+iteration_case_study =
+
+    14
+
+Number of lanes is 6
+Pre-processing time: 
+Elapsed time is 7.098082 seconds.
+Monitoring time: 
+Elapsed time is 55.449111 seconds.
+min_lon_rob = -0.54016 front_unsafe/total_front = 5/38 right_unsafe/total_right = 0/140 left_unsafe/total_left = 0/154
+min_lat_rob = -30.868 front_unsafe/total_front = 6/38 right_unsafe/total_right = 1/140 left_unsafe/total_left = 0/154
+min_lat_long_rob = -33.1225 front_unsafe/total_front = 9/38 right_unsafe/total_right = 0/140 left_unsafe/total_left = 2/154
+total samples: 332
+lon_violated_pred = 
+     4     0     1     0     0     0     0
+
+lat_violated_pred = 
+     0     7     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     7     2     0     0     0     0     0     0     0     0     0     2     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 4 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 1 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 7 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 7 times
+safe_lat violated 2 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 2 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    15
+
+Number of lanes is 5
+Vehicle 17 changes lane
+Vehicle 21 changes lane
+Vehicle 25 changes lane
+Pre-processing time: 
+Elapsed time is 5.236576 seconds.
+Monitoring time: 
+Elapsed time is 38.788825 seconds.
+min_lon_rob = -2.3828 front_unsafe/total_front = 2/42 right_unsafe/total_right = 0/108 left_unsafe/total_left = 0/101
+min_lat_rob = -1.5562 front_unsafe/total_front = 17/42 right_unsafe/total_right = 7/108 left_unsafe/total_left = 6/101
+min_lat_long_rob = -14.624 front_unsafe/total_front = 16/42 right_unsafe/total_right = 1/108 left_unsafe/total_left = 0/101
+total samples: 251
+lon_violated_pred = 
+     2     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    30     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     9     2     1     0     0     0     0     0     0     0     0     5     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 2 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 30 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 9 times
+safe_lat violated 2 times
+a_ego_lat_lt_max_acc violated 1 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 5 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    16
+
+Number of lanes is 6
+Vehicle 33 changes lane
+Pre-processing time: 
+Elapsed time is 8.246602 seconds.
+Monitoring time: 
+Elapsed time is 98.540364 seconds.
+min_lon_rob = -1.5564 front_unsafe/total_front = 6/52 right_unsafe/total_right = 0/202 left_unsafe/total_left = 0/226
+min_lat_rob = -1.0879 front_unsafe/total_front = 17/52 right_unsafe/total_right = 2/202 left_unsafe/total_left = 2/226
+min_lat_long_rob = -10.2939 front_unsafe/total_front = 26/52 right_unsafe/total_right = 0/202 left_unsafe/total_left = 0/226
+total samples: 480
+lon_violated_pred = 
+     5     0     1     0     0     0     0
+
+lat_violated_pred = 
+     0    20     0     0     0     0     0     0     0     0     1     0     0     0
+
+lat_long_violated_pred = 
+     9     3     0     0     0     0     0     0     0     0     0    14     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 5 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 1 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 20 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 1 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 9 times
+safe_lat violated 3 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 14 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    17
+
+Number of lanes is 6
+Vehicle 17 changes lane
+Vehicle 24 changes lane
+Vehicle 25 changes lane
+Vehicle 29 changes lane
+Vehicle 38 changes lane
+Vehicle 40 changes lane
+Pre-processing time: 
+Elapsed time is 9.650025 seconds.
+Monitoring time: 
+Elapsed time is 113.945045 seconds.
+min_lon_rob = -145.339 front_unsafe/total_front = 9/70 right_unsafe/total_right = 0/290 left_unsafe/total_left = 0/276
+min_lat_rob = -37.9662 front_unsafe/total_front = 13/70 right_unsafe/total_right = 10/290 left_unsafe/total_left = 9/276
+min_lat_long_rob = -49.8787 front_unsafe/total_front = 28/70 right_unsafe/total_right = 5/290 left_unsafe/total_left = 9/276
+total samples: 636
+lon_violated_pred = 
+     9     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    32     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+    13     7     0     0     0     0     0     0     0     0     1    20     1     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 9 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 32 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 13 times
+safe_lat violated 7 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 1 times
+a_ego_gt_min_brake violated 20 times
+a_front_max_brake violated 1 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    18
+
+Number of lanes is 6
+Vehicle 4 changes lane
+Vehicle 13 changes lane
+Vehicle 23 changes lane
+Vehicle 32 changes lane
+Pre-processing time: 
+Elapsed time is 6.455907 seconds.
+Monitoring time: 
+Elapsed time is 68.848580 seconds.
+min_lon_rob = -0.91092 front_unsafe/total_front = 5/47 right_unsafe/total_right = 0/168 left_unsafe/total_left = 0/152
+min_lat_rob = -1.5874 front_unsafe/total_front = 11/47 right_unsafe/total_right = 4/168 left_unsafe/total_left = 5/152
+min_lat_long_rob = -16.5751 front_unsafe/total_front = 19/47 right_unsafe/total_right = 1/168 left_unsafe/total_left = 0/152
+total samples: 367
+lon_violated_pred = 
+     5     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    20     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     6     4     0     0     1     0     0     0     0     0     0     9     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 5 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 20 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 6 times
+safe_lat violated 4 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 1 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 9 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    19
+
+Number of lanes is 6
+Vehicle 4 changes lane
+Vehicle 13 changes lane
+Vehicle 19 changes lane
+Vehicle 32 changes lane
+Pre-processing time: 
+Elapsed time is 7.503957 seconds.
+Monitoring time: 
+Elapsed time is 84.463092 seconds.
+min_lon_rob = -0.90762 front_unsafe/total_front = 3/49 right_unsafe/total_right = 0/168 left_unsafe/total_left = 0/154
+min_lat_rob = -1.249 front_unsafe/total_front = 14/49 right_unsafe/total_right = 2/168 left_unsafe/total_left = 4/154
+min_lat_long_rob = -13.3019 front_unsafe/total_front = 22/49 right_unsafe/total_right = 1/168 left_unsafe/total_left = 0/154
+total samples: 371
+lon_violated_pred = 
+     3     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    20     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     8     4     0     0     1     0     0     0     0     0     0     8     0     0     0     0     2
+
+-----------------LONGITUDINAL---------------
+safe_long violated 3 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 20 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 8 times
+safe_lat violated 4 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 1 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 8 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 2 times
+
+
+
+
+iteration_case_study =
+
+    20
+
+Number of lanes is 6
+Vehicle 28 changes lane
+Vehicle 38 changes lane
+Pre-processing time: 
+Elapsed time is 7.075478 seconds.
+Monitoring time: 
+Elapsed time is 73.665795 seconds.
+min_lon_rob = -2.9609 front_unsafe/total_front = 6/49 right_unsafe/total_right = 0/164 left_unsafe/total_left = 0/164
+min_lat_rob = -1.5518 front_unsafe/total_front = 20/49 right_unsafe/total_right = 5/164 left_unsafe/total_left = 8/164
+min_lat_long_rob = -9.7608 front_unsafe/total_front = 29/49 right_unsafe/total_right = 1/164 left_unsafe/total_left = 0/164
+total samples: 377
+lon_violated_pred = 
+     5     0     0     1     0     0     0
+
+lat_violated_pred = 
+     0    33     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+    11     3     0     0     0     0     0     0     0     0     0    15     0     0     0     0     1
+
+-----------------LONGITUDINAL---------------
+safe_long violated 5 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 1 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 33 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 11 times
+safe_lat violated 3 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 15 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 1 times
+
+
+
+
+iteration_case_study =
+
+    21
+
+Number of lanes is 6
+Vehicle 7 changes lane
+Vehicle 19 changes lane
+Vehicle 26 changes lane
+Vehicle 40 changes lane
+Vehicle 45 changes lane
+Vehicle 47 changes lane
+Vehicle 50 changes lane
+Vehicle 53 changes lane
+Vehicle 58 changes lane
+Vehicle 61 changes lane
+Vehicle 65 changes lane
+Pre-processing time: 
+Elapsed time is 23.226966 seconds.
+Monitoring time: 
+Elapsed time is 315.047304 seconds.
+min_lon_rob = -3.6496 front_unsafe/total_front = 12/103 right_unsafe/total_right = 0/436 left_unsafe/total_left = 1/446
+min_lat_rob = -1.6274 front_unsafe/total_front = 42/103 right_unsafe/total_right = 17/436 left_unsafe/total_left = 19/446
+min_lat_long_rob = -13.1867 front_unsafe/total_front = 53/103 right_unsafe/total_right = 5/436 left_unsafe/total_left = 7/446
+total samples: 985
+lon_violated_pred = 
+    13     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    74     0     0     3     0     0     0     0     0     0     0     0     1
+
+lat_long_violated_pred = 
+    13     8     4     0     0     0     0     0     0     0     2    37     0     0     0     0     1
+
+-----------------LONGITUDINAL---------------
+safe_long violated 13 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 74 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 3 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 1 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 13 times
+safe_lat violated 8 times
+a_ego_lat_lt_max_acc violated 4 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 2 times
+a_ego_gt_min_brake violated 37 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 1 times
+
+
+
+
+iteration_case_study =
+
+    22
+
+Number of lanes is 6
+Vehicle 26 changes lane
+Vehicle 38 changes lane
+Vehicle 42 changes lane
+Vehicle 53 changes lane
+Vehicle 56 changes lane
+Vehicle 61 changes lane
+Vehicle 64 changes lane
+Vehicle 66 changes lane
+Vehicle 73 changes lane
+Vehicle 82 changes lane
+Pre-processing time: 
+Elapsed time is 24.122312 seconds.
+Monitoring time: 
+Elapsed time is 379.555896 seconds.
+min_lon_rob = -2.8888 front_unsafe/total_front = 20/121 right_unsafe/total_right = 0/585 left_unsafe/total_left = 0/596
+min_lat_rob = -2.1067 front_unsafe/total_front = 63/121 right_unsafe/total_right = 30/585 left_unsafe/total_left = 24/596
+min_lat_long_rob = -15.1356 front_unsafe/total_front = 69/121 right_unsafe/total_right = 7/585 left_unsafe/total_left = 7/596
+total samples: 1302
+lon_violated_pred = 
+    19     0     1     0     0     0     0
+
+lat_violated_pred = 
+     0   115     1     0     1     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+    27     6     0     0     2     0     0     0     0     0     0    46     2     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 19 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 1 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 115 times
+a_ego_lat_lt_max_acc violated 1 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 1 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 27 times
+safe_lat violated 6 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 2 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 46 times
+a_front_max_brake violated 2 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    23
+
+Number of lanes is 6
+Vehicle 18 changes lane
+Vehicle 28 changes lane
+Vehicle 32 changes lane
+Vehicle 33 changes lane
+Vehicle 36 changes lane
+Vehicle 41 changes lane
+Vehicle 43 changes lane
+Vehicle 47 changes lane
+Vehicle 56 changes lane
+Vehicle 61 changes lane
+Vehicle 71 changes lane
+Pre-processing time: 
+Elapsed time is 19.028732 seconds.
+Monitoring time: 
+Elapsed time is 258.088880 seconds.
+min_lon_rob = -2.7182 front_unsafe/total_front = 14/113 right_unsafe/total_right = 0/494 left_unsafe/total_left = 1/524
+min_lat_rob = -2.3994 front_unsafe/total_front = 49/113 right_unsafe/total_right = 19/494 left_unsafe/total_left = 21/524
+min_lat_long_rob = -11.1657 front_unsafe/total_front = 55/113 right_unsafe/total_right = 7/494 left_unsafe/total_left = 2/524
+total samples: 1131
+lon_violated_pred = 
+    15     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    88     1     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+    22     5     0     0     0     0     0     0     0     0     0    37     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 15 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 88 times
+a_ego_lat_lt_max_acc violated 1 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 22 times
+safe_lat violated 5 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 37 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    24
+
+Number of lanes is 6
+Vehicle 11 changes lane
+Vehicle 25 changes lane
+Vehicle 30 changes lane
+Pre-processing time: 
+Elapsed time is 5.640485 seconds.
+Monitoring time: 
+Elapsed time is 66.911453 seconds.
+min_lon_rob = -0.90846 front_unsafe/total_front = 4/40 right_unsafe/total_right = 0/139 left_unsafe/total_left = 0/135
+min_lat_rob = -2.2575 front_unsafe/total_front = 9/40 right_unsafe/total_right = 5/139 left_unsafe/total_left = 8/135
+min_lat_long_rob = -10.2679 front_unsafe/total_front = 14/40 right_unsafe/total_right = 0/139 left_unsafe/total_left = 0/135
+total samples: 314
+lon_violated_pred = 
+     4     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    22     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     6     1     0     0     0     0     0     0     0     0     0     7     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 4 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 22 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 6 times
+safe_lat violated 1 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 7 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    25
+
+Number of lanes is 6
+Vehicle 4 changes lane
+Vehicle 22 changes lane
+Vehicle 25 changes lane
+Vehicle 26 changes lane
+Pre-processing time: 
+Elapsed time is 7.454235 seconds.
+Monitoring time: 
+Elapsed time is 73.105577 seconds.
+min_lon_rob = -0.90879 front_unsafe/total_front = 3/45 right_unsafe/total_right = 0/140 left_unsafe/total_left = 0/149
+min_lat_rob = -3.2137 front_unsafe/total_front = 12/45 right_unsafe/total_right = 10/140 left_unsafe/total_left = 10/149
+min_lat_long_rob = -13.998 front_unsafe/total_front = 27/45 right_unsafe/total_right = 1/140 left_unsafe/total_left = 3/149
+total samples: 334
+lon_violated_pred = 
+     3     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    31     0     0     1     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+    19     1     2     0     0     0     0     0     0     0     0     9     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 3 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 31 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 1 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 19 times
+safe_lat violated 1 times
+a_ego_lat_lt_max_acc violated 2 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 9 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    26
+
+Number of lanes is 6
+Vehicle 25 changes lane
+Vehicle 39 changes lane
+Vehicle 40 changes lane
+Vehicle 43 changes lane
+Pre-processing time: 
+Elapsed time is 9.196198 seconds.
+Monitoring time: 
+Elapsed time is 101.794075 seconds.
+min_lon_rob = -145.3424 front_unsafe/total_front = 8/68 right_unsafe/total_right = 0/262 left_unsafe/total_left = 0/260
+min_lat_rob = -1.3648 front_unsafe/total_front = 12/68 right_unsafe/total_right = 4/262 left_unsafe/total_left = 3/260
+min_lat_long_rob = -9.0392 front_unsafe/total_front = 26/68 right_unsafe/total_right = 0/262 left_unsafe/total_left = 4/260
+total samples: 590
+lon_violated_pred = 
+     8     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    17     0     0     2     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+    11     3     1     0     0     0     0     0     0     0     1    14     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 8 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 17 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 2 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 11 times
+safe_lat violated 3 times
+a_ego_lat_lt_max_acc violated 1 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 1 times
+a_ego_gt_min_brake violated 14 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    27
+
+Number of lanes is 6
+Vehicle 7 changes lane
+Vehicle 21 changes lane
+Vehicle 32 changes lane
+Pre-processing time: 
+Elapsed time is 7.302033 seconds.
+Monitoring time: 
+Elapsed time is 44.325468 seconds.
+min_lon_rob = -0.88477 front_unsafe/total_front = 3/42 right_unsafe/total_right = 1/128 left_unsafe/total_left = 0/140
+min_lat_rob = -2.2597 front_unsafe/total_front = 6/42 right_unsafe/total_right = 4/128 left_unsafe/total_left = 4/140
+min_lat_long_rob = -9.9436 front_unsafe/total_front = 18/42 right_unsafe/total_right = 0/128 left_unsafe/total_left = 0/140
+total samples: 310
+lon_violated_pred = 
+     4     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0    14     0     0     0     0     0     0     0     0     0     0     0     0
+
+lat_long_violated_pred = 
+     3     2     0     0     1     0     0     0     0     0     0    12     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 4 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 14 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 3 times
+safe_lat violated 2 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 1 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 12 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+
+
+
+
+iteration_case_study =
+
+    28
+
+Number of lanes is 6
+Vehicle 21 changes lane
+Vehicle 26 changes lane
+Pre-processing time: 
+Elapsed time is 2.596109 seconds.
+Monitoring time: 
+Elapsed time is 20.221277 seconds.
+min_lon_rob = -1.4405 front_unsafe/total_front = 3/31 right_unsafe/total_right = 0/57 left_unsafe/total_left = 0/66
+min_lat_rob = -0.83662 front_unsafe/total_front = 6/31 right_unsafe/total_right = 1/57 left_unsafe/total_left = 2/66
+min_lat_long_rob = -9.6728 front_unsafe/total_front = 15/31 right_unsafe/total_right = 1/57 left_unsafe/total_left = 5/66
+total samples: 154
+lon_violated_pred = 
+     3     0     0     0     0     0     0
+
+lat_violated_pred = 
+     0     8     0     0     0     0     0     0     0     0     0     0     0     1
+
+lat_long_violated_pred = 
+     5     5     1     0     0     0     0     0     0     0     0    10     0     0     0     0     0
+
+-----------------LONGITUDINAL---------------
+safe_long violated 3 times
+safe_lat violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 0 times
+a_front_max_brake violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+-----------------LATERAL---------------
+safe_long violated 0 times
+safe_lat violated 8 times
+a_ego_lat_lt_max_acc violated 0 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 1 times
+-----------------LONGITUDINAL & LATERAL---------------
+safe_long violated 5 times
+safe_lat violated 5 times
+a_ego_lat_lt_max_acc violated 1 times
+a_ego_lat_lt_min_brake violated 0 times
+a_right_lat_max_acc violated 0 times
+a_right_lat_min_brake violated 0 times
+stopped_ego_lat violated 0 times
+stopped_right_lat violated 0 times
+ego_lat_velocity_neg violated 0 times
+right_lat_velocity_pos violated 0 times
+a_ego_lt_max_acc violated 0 times
+a_ego_gt_min_brake violated 10 times
+a_front_max_brake violated 0 times
+stopped_ego_lat_ant violated 0 times
+stopped_right_lat_ant violated 0 times
+safe_long_ant violated 0 times
+safe_lat_ant violated 0 times
+>> 

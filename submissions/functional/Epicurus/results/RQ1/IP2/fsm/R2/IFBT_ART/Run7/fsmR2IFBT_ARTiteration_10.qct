@@ -1,0 +1,4 @@
+set k_max=3;
+
+assume supported;
+(FiniteStateMachine.STATE{k-1}==0 and supported{k} and FiniteStateMachine.good{k-1}) impl (FiniteStateMachine.STATE{k}==1);

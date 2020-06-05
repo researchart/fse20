@@ -1,0 +1,5 @@
+set k_max=100;
+assume (all_k(k>= 0  and k<= 50  impl  ncv_cmd_fcs_dps{k} >= -0.21393*(k-0) +83.2249 -0.001) and all_k(k>= 50  and k<= 100  impl  ncv_cmd_fcs_dps{k} < -0.21393*(k-0) +83.2249 +0.001)) or (all_k(k>= 0  and k<= 100  impl  ncv_cmd_fcs_dps{k} < 0.15126*(k-0) +83.2249 ) and all_k(k>= 0  and k<= 50  impl ( beta_adc_deg{k} < 87.2208 )) and all_k(k>= 50  and k<= 100  impl ( airspeed_des_fps{k} < 49.4294 )) and all_k(k>= 50  and k<= 100  impl ( hcv_cmd_fcs_fps{k} >= 0.80517 ))) or (all_k(k>= 0  and k<= 100  impl  ncv_cmd_fcs_dps{k} < 0.15126*(k-0) +83.2249 ) and all_k(k>= 0  and k<= 50  impl ( beta_adc_deg{k} >= 87.2208 )) and all_k(k>= 50  and k<= 100  impl ( airspeed_des_fps{k} < 49.4294 )) and all_k(k>= 50  and k<= 100  impl ( hcv_cmd_fcs_fps{k} >= 0.80517 )) and all_k(k>= 0  and k<= 50  impl ( zcv_fcs_fps{k} >= 13.7907 )));
+assume vtas_adc_kts<50; 
+assume  (lcv_cmd_fcs_dps_>0) and  ( mcv_cmd_fcs_dps >0)  and (ncv_cmd_fcs_dps>0) and (xcv_cmd_fcs_fps>0);
+not(all_k(k<=99 impl ncvdt_cmd_fcs_dps2{k}>50));

@@ -1,0 +1,31 @@
+
+1,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( not standby{k} )));,13.1936
+2,assume (all_k(k>= 1  and k<= 2  impl ( not apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} )));,22.3765
+3,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,31.3818
+4,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,37.9753
+5,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,46.0274
+6,assume (all_k(k>= 1  and k<= 2  impl ( not apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} )));,54.1872
+7,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,61.9736
+8,assume (all_k(k>= 1  and k<= 2  impl ( not apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( apfail{k} )));,70.4845
+9,assume (all_k(k>= 1  and k<= 2  impl ( not apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( not standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} )));,78.9639
+10,assume (all_k(k>= 1  and k<= 2  impl ( not apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( not standby{k} )) and all_k(k>= 1  and k<= 2  impl ( apfail{k} )));,87.4854
+11,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,96.798
+12,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,105.4997
+13,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,112.9385
+14,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,121.0133
+15,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,130.7879
+16,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,138.3149
+17,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,146.796
+18,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,154.5594
+19,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,162.1727
+20,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,170.4539
+21,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} ))) or (all_k(k>= 1  and k<= 2  impl ( not standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )) and all_k(k>= 1  and k<= 2  impl ( not apfail{k} )));,178.5258
+22,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,187.3493
+23,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,195.1922
+24,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,203.2224
+25,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,211.0044
+26,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,219.4082
+27,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,227.1403
+28,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,235.0486
+29,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,243.0822
+30,assume (all_k(k>= 1  and k<= 2  impl ( standby{k} )) and all_k(k>= 2  and k<= 3  impl ( standby{k} )));,251.939
