@@ -108,7 +108,7 @@ _Note: The initial data processing will take around 5-10 minutes. If you see the
 
 
 # 3. Use MTFuzz on your own program (_Recommended for exending current method, this will take a lot more time_)
-We demonstrate how to set up MTFuzz on your own programs. Let's use expat, an XML parser. 
+We demonstrate how to set up MTFuzz on your own programs. Let's use expat, an XML parser, as an example. _Note: in the following instructions, we use some automation bash scripts like `build_expat.sh` or `./setup_mtfuzz_xmlwf.sh`. These are meant to ease the build process, please change them as you see fit for you program._
 
 1. Go to the programs directory inside [source](https://github.com/Dongdongshe/fse20/tree/master/submissions/reusable/mtfuzz/source) folder. If you are using our AWS, then use:
 ```bash
