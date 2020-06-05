@@ -2,7 +2,7 @@
 
 ## Table of contents
 
-1. **[Preconfigured AWS (_Recommended for review, it's easy_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#1-preconfigured-aws-recommended-for-review-its-easy)**
+1. **[Preconfigured AWS (_Recommended for review, it's easy_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#1-preconfigured-aws-recommended-for-review-its-easy) (Takes ~20 mins to start fuzzing)**
 
 2. **[Run on a local Machine (_Recommeded to experimentation, this will take time_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#2-run-on-a-local-machine-recommeded-to-experimentation-this-will-take-time)**
 
@@ -59,10 +59,11 @@ $ source activate tensorflow_p36
 # 2. Run on a local Machine (_Recommeded to experimentation, this will take time_)
 
 ## 2.1 Install prerequisite
-- Make sure your system has python 3.7
-- Install tensorflow-gpu 1.15. Note that you need to install proper CUDA, CuDNN before installing tensorflow-gpu.
+- Python 3.7 or more
+- Install tensorflow-gpu 1.15 (Note that you need to install proper CUDA, CuDNN drivers before installing tensorflow-gpu. We recommend `conda` package manager for python. In our experience, it has done a good job installing all the dependencies).
 - Install Keras 2.24
-- Install LLVM 7.0.0
+- Install LLVM 7.0.0 (we recommend building from the source)
+- Install Clang 7
 
 ## 2.2 Build MTFuzz
 ```bash
