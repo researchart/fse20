@@ -6,7 +6,7 @@
 
 2. **[Run on a local Machine (_Recommeded to experimentation, this will take time_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#2-run-on-a-local-machine-recommeded-to-experimentation-this-will-take-time)**
 
-3. **[Use MTFuzz on your own program (_Recommended for exending current method, this will take a lot more time_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#3-use-mtfuzz-on-your-own-program-recommended-for-exending-current-method)**
+3. **[Use MTFuzz on your own program (_Recommended for exending current method, this will take a lot more time_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#3-use-mtfuzz-on-your-own-program-recommended-for-exending-current-method-this-will-take-a-lot-more-time)**
 
 # 1. Preconfigured AWS (_Recommended for review, it's easy_)
 
@@ -89,11 +89,7 @@ Run MTFuzz on 10 tested programs reported in our paper. We will use program size
     echo performance | tee cpu*/cpufreq/scaling_governor
     echo core >/proc/sys/kernel/core_pattern
 ```
-4. Open two terminal sessions (terminal-A and terminal-B). 
-    _Please Note: if you are on aws,
-        (1) open a new terminal;        
-        (2) ssh into the aws container; and 
-        (3) cd to the current directory.
+4. Open two terminal sessions (let's call them _terminal-A_ and _terminal-B_). _Please Note: if you are on aws, (1) open a new terminal; (2) ssh into the aws container; and (3) cd to the current directory._
 
 5. In terminal-A, start the MTNN module as follows (**Do not exit/close this terminal**)
 ```bash  
@@ -112,9 +108,16 @@ _Note: The initial data processing will take around 5-10 minutes. If you see the
 
 
 # 3. Use MTFuzz on your own program (_Recommended for exending current method, this will take a lot more time_)
-We demonstrate how to set up MTFuzz on your own tested programs with a xml parser expat.
-1. Unzip expat source code and move into expat root directory
+We demonstrate how to set up MTFuzz on your own programs. Let's use expat, an XML parser. 
+
+1. Go to the programs directory inside [source](https://github.com/Dongdongshe/fse20/tree/master/submissions/reusable/mtfuzz/source) folder. If you are using our AWS, then use:
 ```bash
+cd ~/mtfuzz/source/programs
+```
+
+2. Download and unzip expat source code and cd into expat's root directory:
+```bash
+    wget https://github.com/libexpat/libexpat/releases/download/R_2_2_9/expat-2.2.9.tar.bz2 
     tar -axvf expat-2.2.9.tar.bz2
     cd expat-2.2.9
 ```
