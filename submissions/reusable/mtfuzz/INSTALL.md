@@ -4,7 +4,7 @@
 
 1. **[Preconfigured AWS (_Recommended for review, it's easy_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#1-preconfigured-aws-recommended-for-review-its-easy)**
 
-2. **[Run on a local Machine (_Recommeded to experimentation, this will take time_)]()**
+2. **[Run on a local Machine (_Recommeded to experimentation, this will take time_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#2-run-on-a-local-machine-recommeded-to-experimentation-this-will-take-time)**
 
 3. **[Use MTFuzz on your own program (_Recommended for exending current method_)]()**
 
