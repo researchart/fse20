@@ -10,7 +10,7 @@ In the following, we describe the artifacts of our paper and how to use them to 
 
 Follow the instructions described in [INSTALL.md](INSTALL.md). 
 
-**Note** To successfully run all scripts listed in this document, you need to keep the root of this repository as your working directory. An internet connection is required.
+**Note** To successfully run all scripts listed in this document, you need to keep the current folder as your working directory. An internet connection is required.
 
 ## <a id="cd-linter"></a>Build and Run CD-Linter
 
