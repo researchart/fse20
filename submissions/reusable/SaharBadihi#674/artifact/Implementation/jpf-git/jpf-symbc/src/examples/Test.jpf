@@ -1,0 +1,13 @@
+target=Test
+classpath=${jpf-symbc}/build/examples
+sourcepath=${jpf-symbc}/src/examples
+symbolic.method = Test.test(sym)
+symbolic.min_int=-100
+symbolic.max_int=7
+symbolic.dp=coral
+#vm.storage.class=nil
+listener = .symbc.SymbolicListener
+symbolic.loop_bound = 5
+idle.action = jump
+#symbolic.min_int=-10
+#symbolic.max_int=10

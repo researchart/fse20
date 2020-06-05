@@ -1,0 +1,494 @@
+
+
+----------------------------------------------------Model (the counterexample in z3 smt2 format): ---------------------------------
+(model 
+  (define-fun Own_Tracked_Alt () Int
+    5)
+  (define-fun need_downward_RA () Int
+    8)
+  (define-fun Own_Tracked_Alt_Rate () Int
+    11)
+  (define-fun Ret () Real
+    1.0)
+  (define-fun High_Confidence () Int
+    10)
+  (define-fun Climb_Inhibit () Int
+    2)
+  (define-fun need_upward_RA () Int
+    7)
+  (define-fun Down_Separation () Int
+    0)
+  (define-fun Other_RAC () Int
+    9)
+  (define-fun Other_Tracked_Alt () Int
+    4)
+  (define-fun Other_Capability () Int
+    12)
+  (define-fun Two_of_Three_Reports_Valid () Int
+    6)
+  (define-fun Up_Separation () Int
+    7719)
+  (define-fun UF_upward_preferred_3 () Int
+    15)
+  (define-fun Alt_Layer_Value () Int
+    3)
+  (define-fun UF_upward_preferred_2 () Int
+    0)
+  (define-fun Cur_Vertical_Sep () Int
+    38)
+  (define-fun AF_Inhibit_Biased_Climb ((x!0 Int)
+   (x!1 Int)
+   (x!2 Int)
+   (x!3 Int)
+   (x!4 Int)
+   (x!5 Int)
+   (x!6 Int)
+   (x!7 Int)
+   (x!8 Int)
+   (x!9 Int)
+   (x!10 Int)
+   (x!11 Int)
+   (x!12 Int)
+   (x!13 Int)) Int
+    1)
+  (define-fun AF_Own_Above_Threat ((x!0 Int)
+   (x!1 Int)
+   (x!2 Int)
+   (x!3 Int)
+   (x!4 Int)
+   (x!5 Int)
+   (x!6 Int)
+   (x!7 Int)
+   (x!8 Int)
+   (x!9 Int)
+   (x!10 Int)
+   (x!11 Int)
+   (x!12 Int)
+   (x!13 Int)) Int
+    14)
+)
+
+-----------------------------------------------------------------------------------------------
+-------------------The Z3 formula for the old method (z3 smt format) -------------------------
+(let ((a!1 (AF_ALIM Climb_Inhibit
+                    Alt_Layer_Value
+                    Other_Tracked_Alt
+                    Own_Tracked_Alt
+                    Two_of_Three_Reports_Valid
+                    need_upward_RA
+                    need_downward_RA
+                    Other_RAC
+                    High_Confidence
+                    Own_Tracked_Alt_Rate
+                    Cur_Vertical_Sep
+                    Other_Capability
+                    Down_Separation
+                    Up_Separation))
+      (a!2 (= (AF_Own_Below_Threat
+                Climb_Inhibit
+                Alt_Layer_Value
+                Other_Tracked_Alt
+                Own_Tracked_Alt
+                Two_of_Three_Reports_Valid
+                need_upward_RA
+                need_downward_RA
+                Other_RAC
+                High_Confidence
+                Own_Tracked_Alt_Rate
+                Cur_Vertical_Sep
+                Other_Capability
+                Down_Separation
+                Up_Separation)
+              1))
+      (a!3 (AF_Inhibit_Biased_Climb
+             Climb_Inhibit
+             Alt_Layer_Value
+             Other_Tracked_Alt
+             Own_Tracked_Alt
+             Two_of_Three_Reports_Valid
+             need_upward_RA
+             need_downward_RA
+             Other_RAC
+             High_Confidence
+             Own_Tracked_Alt_Rate
+             Cur_Vertical_Sep
+             Other_Capability
+             Down_Separation
+             Up_Separation))
+      (a!4 (= (AF_Own_Above_Threat
+                Climb_Inhibit
+                Alt_Layer_Value
+                Other_Tracked_Alt
+                Own_Tracked_Alt
+                Two_of_Three_Reports_Valid
+                need_upward_RA
+                need_downward_RA
+                Other_RAC
+                High_Confidence
+                Own_Tracked_Alt_Rate
+                Cur_Vertical_Sep
+                Other_Capability
+                Down_Separation
+                Up_Separation)
+              1)))
+  (or (and (and (>= Down_Separation a!1) (>= Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_2 0))
+           (> a!3 Down_Separation)
+           (= Ret 1.0))
+      (and (and (< Down_Separation a!1) (>= Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_2 0))
+           (> a!3 Down_Separation)
+           (= Ret 0.0))
+      (and (and (< Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_2 0))
+           (> a!3 Down_Separation)
+           (= Ret 0.0))
+      (and (not a!2)
+           (not (= UF_upward_preferred_2 0))
+           (> a!3 Down_Separation)
+           (= Ret 0.0))
+      (and (and (>= Up_Separation a!1) a!4 a!4)
+           (= UF_upward_preferred_2 0)
+           (> a!3 Down_Separation)
+           (= Ret 1.0))
+      (and (and (< Up_Separation a!1) a!4 a!4)
+           (= UF_upward_preferred_2 0)
+           (> a!3 Down_Separation)
+           (= Ret 0.0))
+      (and (and (not a!4) a!4)
+           (= UF_upward_preferred_2 0)
+           (> a!3 Down_Separation)
+           (= Ret 0.0))
+      (and (not a!4)
+           (= UF_upward_preferred_2 0)
+           (> a!3 Down_Separation)
+           (= Ret 1.0))
+      (and (and (>= Down_Separation a!1) (>= Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_3 0))
+           (<= a!3 Down_Separation)
+           (= Ret 1.0))
+      (and (and (< Down_Separation a!1) (>= Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_3 0))
+           (<= a!3 Down_Separation)
+           (= Ret 0.0))
+      (and (and (< Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_3 0))
+           (<= a!3 Down_Separation)
+           (= Ret 0.0))
+      (and (not a!2)
+           (not (= UF_upward_preferred_3 0))
+           (<= a!3 Down_Separation)
+           (= Ret 0.0))
+      (and (and (>= Up_Separation a!1) a!4 a!4)
+           (= UF_upward_preferred_3 0)
+           (<= a!3 Down_Separation)
+           (= Ret 1.0))
+      (and (and (< Up_Separation a!1) a!4 a!4)
+           (= UF_upward_preferred_3 0)
+           (<= a!3 Down_Separation)
+           (= Ret 0.0))
+      (and (and (not a!4) a!4)
+           (= UF_upward_preferred_3 0)
+           (<= a!3 Down_Separation)
+           (= Ret 0.0))
+      (and (not a!4)
+           (= UF_upward_preferred_3 0)
+           (<= a!3 Down_Separation)
+           (= Ret 1.0))))
+-----------------------------------------------------------------------------------------------
+
+-------------------The Z3 formula for the new method ------------------------------------------
+(let ((a!1 (AF_ALIM Climb_Inhibit
+                    Alt_Layer_Value
+                    Other_Tracked_Alt
+                    Own_Tracked_Alt
+                    Two_of_Three_Reports_Valid
+                    need_upward_RA
+                    need_downward_RA
+                    Other_RAC
+                    High_Confidence
+                    Own_Tracked_Alt_Rate
+                    Cur_Vertical_Sep
+                    Other_Capability
+                    Down_Separation
+                    Up_Separation))
+      (a!2 (= (AF_Own_Below_Threat
+                Climb_Inhibit
+                Alt_Layer_Value
+                Other_Tracked_Alt
+                Own_Tracked_Alt
+                Two_of_Three_Reports_Valid
+                need_upward_RA
+                need_downward_RA
+                Other_RAC
+                High_Confidence
+                Own_Tracked_Alt_Rate
+                Cur_Vertical_Sep
+                Other_Capability
+                Down_Separation
+                Up_Separation)
+              1))
+      (a!3 (= (AF_Inhibit_Biased_Climb
+                Climb_Inhibit
+                Alt_Layer_Value
+                Other_Tracked_Alt
+                Own_Tracked_Alt
+                Two_of_Three_Reports_Valid
+                need_upward_RA
+                need_downward_RA
+                Other_RAC
+                High_Confidence
+                Own_Tracked_Alt_Rate
+                Cur_Vertical_Sep
+                Other_Capability
+                Down_Separation
+                Up_Separation)
+              Down_Separation))
+      (a!4 (= (AF_Own_Above_Threat
+                Climb_Inhibit
+                Alt_Layer_Value
+                Other_Tracked_Alt
+                Own_Tracked_Alt
+                Two_of_Three_Reports_Valid
+                need_upward_RA
+                need_downward_RA
+                Other_RAC
+                High_Confidence
+                Own_Tracked_Alt_Rate
+                Cur_Vertical_Sep
+                Other_Capability
+                Down_Separation
+                Up_Separation)
+              1)))
+  (or (and (and (>= Down_Separation a!1) (>= Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_2 0))
+           a!3
+           (= Ret 0.0))
+      (and (and (< Down_Separation a!1) (>= Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_2 0))
+           a!3
+           (= Ret (- 1.0)))
+      (and (and (< Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_2 0))
+           a!3
+           (= Ret (- 1.0)))
+      (and (not a!2) (not (= UF_upward_preferred_2 0)) a!3 (= Ret (- 1.0)))
+      (and (and (>= Up_Separation a!1) a!4 a!4)
+           (= UF_upward_preferred_2 0)
+           a!3
+           (= Ret 0.0))
+      (and (and (< Up_Separation a!1) a!4 a!4)
+           (= UF_upward_preferred_2 0)
+           a!3
+           (= Ret (- 1.0)))
+      (and (and (not a!4) a!4) (= UF_upward_preferred_2 0) a!3 (= Ret (- 1.0)))
+      (and (not a!4) (= UF_upward_preferred_2 0) a!3 (= Ret 0.0))
+      (and (and (>= Down_Separation a!1) (>= Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_3 0))
+           (not a!3)
+           (= Ret 0.0))
+      (and (and (< Down_Separation a!1) (>= Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_3 0))
+           (not a!3)
+           (= Ret (- 1.0)))
+      (and (and (< Cur_Vertical_Sep UF_MINSEP_1) a!2)
+           (not (= UF_upward_preferred_3 0))
+           (not a!3)
+           (= Ret (- 1.0)))
+      (and (not a!2)
+           (not (= UF_upward_preferred_3 0))
+           (not a!3)
+           (= Ret (- 1.0)))
+      (and (and (>= Up_Separation a!1) a!4 a!4)
+           (= UF_upward_preferred_3 0)
+           (not a!3)
+           (= Ret 0.0))
+      (and (and (< Up_Separation a!1) a!4 a!4)
+           (= UF_upward_preferred_3 0)
+           (not a!3)
+           (= Ret (- 1.0)))
+      (and (and (not a!4) a!4)
+           (= UF_upward_preferred_3 0)
+           (not a!3)
+           (= Ret (- 1.0)))
+      (and (not a!4) (= UF_upward_preferred_3 0) (not a!3) (= Ret 0.0))))
+-----------------------------------------------------------------------------------------------
+
+-------------------The final Z3 formula for constraint solving -------------------------
+(declare-fun Down_Separation () Int)
+(declare-fun Climb_Inhibit () Int)
+(declare-fun Alt_Layer_Value () Int)
+(declare-fun Other_Tracked_Alt () Int)
+(declare-fun Own_Tracked_Alt () Int)
+(declare-fun Two_of_Three_Reports_Valid () Int)
+(declare-fun need_upward_RA () Int)
+(declare-fun need_downward_RA () Int)
+(declare-fun Other_RAC () Int)
+(declare-fun High_Confidence () Int)
+(declare-fun Own_Tracked_Alt_Rate () Int)
+(declare-fun Cur_Vertical_Sep () Int)
+(declare-fun Other_Capability () Int)
+(declare-fun Up_Separation () Int)
+(declare-fun AF_ALIM (Int Int Int Int Int Int Int Int Int Int Int Int Int Int ) Int)
+(declare-fun UF_MINSEP_1 () Int)
+(declare-fun AF_Own_Below_Threat (Int Int Int Int Int Int Int Int Int Int Int Int Int Int ) Int)
+(declare-fun UF_upward_preferred_2 () Int)
+(declare-fun AF_Inhibit_Biased_Climb (Int Int Int Int Int Int Int Int Int Int Int Int Int Int ) Int)
+(declare-fun Ret () Real)
+(declare-fun AF_Own_Above_Threat (Int Int Int Int Int Int Int Int Int Int Int Int Int Int ) Int)
+(declare-fun UF_upward_preferred_3 () Int)
+(let ((a!1 (AF_ALIM Climb_Inhibit
+                    Alt_Layer_Value
+                    Other_Tracked_Alt
+                    Own_Tracked_Alt
+                    Two_of_Three_Reports_Valid
+                    need_upward_RA
+                    need_downward_RA
+                    Other_RAC
+                    High_Confidence
+                    Own_Tracked_Alt_Rate
+                    Cur_Vertical_Sep
+                    Other_Capability
+                    Down_Separation
+                    Up_Separation))
+      (a!2 (= (AF_Own_Below_Threat
+                Climb_Inhibit
+                Alt_Layer_Value
+                Other_Tracked_Alt
+                Own_Tracked_Alt
+                Two_of_Three_Reports_Valid
+                need_upward_RA
+                need_downward_RA
+                Other_RAC
+                High_Confidence
+                Own_Tracked_Alt_Rate
+                Cur_Vertical_Sep
+                Other_Capability
+                Down_Separation
+                Up_Separation)
+              1))
+      (a!4 (AF_Inhibit_Biased_Climb
+             Climb_Inhibit
+             Alt_Layer_Value
+             Other_Tracked_Alt
+             Own_Tracked_Alt
+             Two_of_Three_Reports_Valid
+             need_upward_RA
+             need_downward_RA
+             Other_RAC
+             High_Confidence
+             Own_Tracked_Alt_Rate
+             Cur_Vertical_Sep
+             Other_Capability
+             Down_Separation
+             Up_Separation))
+      (a!8 (= (AF_Own_Above_Threat
+                Climb_Inhibit
+                Alt_Layer_Value
+                Other_Tracked_Alt
+                Own_Tracked_Alt
+                Two_of_Three_Reports_Valid
+                need_upward_RA
+                need_downward_RA
+                Other_RAC
+                High_Confidence
+                Own_Tracked_Alt_Rate
+                Cur_Vertical_Sep
+                Other_Capability
+                Down_Separation
+                Up_Separation)
+              1)))
+(let ((a!3 (and (and (>= Down_Separation a!1)
+                     (>= Cur_Vertical_Sep UF_MINSEP_1)
+                     a!2)
+                (not (= UF_upward_preferred_2 0))))
+      (a!5 (and (and (< Down_Separation a!1)
+                     (>= Cur_Vertical_Sep UF_MINSEP_1)
+                     a!2)
+                (not (= UF_upward_preferred_2 0))))
+      (a!6 (and (and (< Cur_Vertical_Sep UF_MINSEP_1) a!2)
+                (not (= UF_upward_preferred_2 0))))
+      (a!7 (and (and (not a!2) (not (= UF_upward_preferred_2 0)))
+                (> a!4 Down_Separation)
+                (= Ret 0.0)))
+      (a!9 (and (and (>= Up_Separation a!1) a!8 a!8)
+                (= UF_upward_preferred_2 0)))
+      (a!10 (and (and (< Up_Separation a!1) a!8 a!8)
+                 (= UF_upward_preferred_2 0)))
+      (a!11 (and (and (and (not a!8) a!8) (= UF_upward_preferred_2 0))
+                 (> a!4 Down_Separation)
+                 (= Ret 0.0)))
+      (a!12 (and (and (>= Down_Separation a!1)
+                      (>= Cur_Vertical_Sep UF_MINSEP_1)
+                      a!2)
+                 (not (= UF_upward_preferred_3 0))))
+      (a!13 (and (and (< Down_Separation a!1)
+                      (>= Cur_Vertical_Sep UF_MINSEP_1)
+                      a!2)
+                 (not (= UF_upward_preferred_3 0))))
+      (a!14 (and (and (< Cur_Vertical_Sep UF_MINSEP_1) a!2)
+                 (not (= UF_upward_preferred_3 0))))
+      (a!15 (and (and (not a!2) (not (= UF_upward_preferred_3 0)))
+                 (<= a!4 Down_Separation)
+                 (= Ret 0.0)))
+      (a!16 (and (and (>= Up_Separation a!1) a!8 a!8)
+                 (= UF_upward_preferred_3 0)))
+      (a!17 (and (and (< Up_Separation a!1) a!8 a!8)
+                 (= UF_upward_preferred_3 0)))
+      (a!18 (and (and (and (not a!8) a!8) (= UF_upward_preferred_3 0))
+                 (<= a!4 Down_Separation)
+                 (= Ret 0.0)))
+      (a!20 (and (and (not a!2) (not (= UF_upward_preferred_2 0)))
+                 (= a!4 Down_Separation)
+                 (= Ret (- 1.0))))
+      (a!21 (and (and (and (not a!8) a!8) (= UF_upward_preferred_2 0))
+                 (= a!4 Down_Separation)
+                 (= Ret (- 1.0))))
+      (a!22 (and (and (not a!2) (not (= UF_upward_preferred_3 0)))
+                 (not (= a!4 Down_Separation))
+                 (= Ret (- 1.0))))
+      (a!23 (and (and (and (not a!8) a!8) (= UF_upward_preferred_3 0))
+                 (not (= a!4 Down_Separation))
+                 (= Ret (- 1.0)))))
+(let ((a!19 (or (and a!3 (> a!4 Down_Separation) (= Ret 1.0))
+                (and a!5 (> a!4 Down_Separation) (= Ret 0.0))
+                (and a!6 (> a!4 Down_Separation) (= Ret 0.0))
+                a!7
+                (and a!9 (> a!4 Down_Separation) (= Ret 1.0))
+                (and a!10 (> a!4 Down_Separation) (= Ret 0.0))
+                a!11
+                (and (and (not a!8) (= UF_upward_preferred_2 0))
+                     (> a!4 Down_Separation)
+                     (= Ret 1.0))
+                (and a!12 (<= a!4 Down_Separation) (= Ret 1.0))
+                (and a!13 (<= a!4 Down_Separation) (= Ret 0.0))
+                (and a!14 (<= a!4 Down_Separation) (= Ret 0.0))
+                a!15
+                (and a!16 (<= a!4 Down_Separation) (= Ret 1.0))
+                (and a!17 (<= a!4 Down_Separation) (= Ret 0.0))
+                a!18
+                (and (and (not a!8) (= UF_upward_preferred_3 0))
+                     (<= a!4 Down_Separation)
+                     (= Ret 1.0))))
+      (a!24 (or (and a!3 (= a!4 Down_Separation) (= Ret 0.0))
+                (and a!5 (= a!4 Down_Separation) (= Ret (- 1.0)))
+                (and a!6 (= a!4 Down_Separation) (= Ret (- 1.0)))
+                a!20
+                (and a!9 (= a!4 Down_Separation) (= Ret 0.0))
+                (and a!10 (= a!4 Down_Separation) (= Ret (- 1.0)))
+                a!21
+                (and (and (not a!8) (= UF_upward_preferred_2 0))
+                     (= a!4 Down_Separation)
+                     (= Ret 0.0))
+                (and a!12 (not (= a!4 Down_Separation)) (= Ret 0.0))
+                (and a!13 (not (= a!4 Down_Separation)) (= Ret (- 1.0)))
+                (and a!14 (not (= a!4 Down_Separation)) (= Ret (- 1.0)))
+                a!22
+                (and a!16 (not (= a!4 Down_Separation)) (= Ret 0.0))
+                (and a!17 (not (= a!4 Down_Separation)) (= Ret (- 1.0)))
+                a!23
+                (and (and (not a!8) (= UF_upward_preferred_3 0))
+                     (not (= a!4 Down_Separation))
+                     (= Ret 0.0)))))
+  (not (= a!19 a!24)))))
+-----------------------------------------------------------------------------------------------

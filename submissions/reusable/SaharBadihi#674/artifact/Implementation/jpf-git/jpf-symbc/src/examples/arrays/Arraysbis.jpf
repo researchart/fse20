@@ -1,0 +1,10 @@
+target = arrays.Arrays
+
+symbolic.method=arrays.Arrays.counter(sym#sym)
+symbolic.lazy=on
+symbolic.arrays=true
+classpath=${jpf-symbc}/build/examples
+search.multiple_errors=true
+symbolic.dp = z3
+symbolic.debug = on
+listener = gov.nasa.jpf.symbc.CustomListener
