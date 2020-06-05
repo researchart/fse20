@@ -19,7 +19,7 @@ if [ ! -d "build" ]; then
 fi
 mkdir build
 cd build
-cmake -DENABLE_UNIT_TESTS=OFF -DENABLE_SYSTEM_TESTS=OFF -DLLVM_CONFIG_BINARY=../../../llvm/prefix/bin/llvm-config -DLLVMCC=../../../llvm/prefix/bin/clang -DLLVMCXX=../../../llvm/prefix/bin/clang++  ..
+cmake -DENABLE_UNIT_TESTS=OFF -DENABLE_SYSTEM_TESTS=OFF -DLLVM_CONFIG_BINARY=../../../llvm/build/bin/llvm-config -DLLVMCC=../../../llvm/build/bin/clang -DLLVMCXX=../../../llvm/build/bin/clang++  ..
 make -j4
 
 export PATH="$LLVM_DIR/bin:$Z3PATH/bin:$HOME/bin:$HOME/.local/bin:$PATH"
