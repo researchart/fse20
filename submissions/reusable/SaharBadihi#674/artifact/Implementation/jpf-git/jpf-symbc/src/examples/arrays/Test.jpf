@@ -1,0 +1,9 @@
+target = arrays.Test
+
+symbolic.method=arrays.Test.counter(sym)
+symbolic.lazy=on
+classpath=${jpf-symbc}/build/examples
+search.multiple_errors=true
+symbolic.dp=z3
+symbolic.arrays=true
+listener = gov.nasa.jpf.symbc.CustomListener
