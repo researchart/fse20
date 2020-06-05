@@ -12,7 +12,7 @@ We recommend the following system:
 
 # Artifact Installation
 
-Download the artifact from Xenodo: <TODO INSERT URL>
+Download the artifact from Xenodo: https://doi.org/10.5281/zenodo.3698235
 Unzip the artifact and change into the artifact directory.
 
 Please take a look at the artifact's README.md for performing the evaluation and creating the data.
