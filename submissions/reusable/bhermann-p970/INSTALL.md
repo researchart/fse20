@@ -17,7 +17,7 @@ During the time of the study we did not experience such a case, but they might a
 
 The [R runtime](https://www.r-project.org/) is available in many package managers for operating systems. For Debian-based Linux distributions the package name is `r-base`. The Homebrew package for MacOS is named `r`. With the source code provided on their website, however, you can always build from source if your wish. [Binary setup files for various Linux distributions, MacOS, and Windows are also available on their website.](https://cran.rstudio.com/) Please choose the option you are most comfortable with.
 
-You can now run out scripts directly from the command line. For instance inside of the artifact directory change into the `analysis/survey` folder and execute
+You can now run our scripts directly from the command line. For instance inside of the artifact directory change into the `analysis/survey` folder and execute
 ```
 R < runAll.R --vanilla
 ```
