@@ -1,0 +1,42 @@
+
+#ifndef TREEPRINTER_EXPORT_H
+#define TREEPRINTER_EXPORT_H
+
+#ifdef TREEPRINTER_STATIC_DEFINE
+#  define TREEPRINTER_EXPORT
+#  define TREEPRINTER_NO_EXPORT
+#else
+#  ifndef TREEPRINTER_EXPORT
+#    ifdef TreePrinter_EXPORTS
+        /* We are building this library */
+#      define TREEPRINTER_EXPORT 
+#    else
+        /* We are using this library */
+#      define TREEPRINTER_EXPORT 
+#    endif
+#  endif
+
+#  ifndef TREEPRINTER_NO_EXPORT
+#    define TREEPRINTER_NO_EXPORT 
+#  endif
+#endif
+
+#ifndef TREEPRINTER_DEPRECATED
+#  define TREEPRINTER_DEPRECATED __attribute__ ((__deprecated__))
+#endif
+
+#ifndef TREEPRINTER_DEPRECATED_EXPORT
+#  define TREEPRINTER_DEPRECATED_EXPORT TREEPRINTER_EXPORT TREEPRINTER_DEPRECATED
+#endif
+
+#ifndef TREEPRINTER_DEPRECATED_NO_EXPORT
+#  define TREEPRINTER_DEPRECATED_NO_EXPORT TREEPRINTER_NO_EXPORT TREEPRINTER_DEPRECATED
+#endif
+
+#if 0 /* DEFINE_NO_DEPRECATED */
+#  ifndef TREEPRINTER_NO_DEPRECATED
+#    define TREEPRINTER_NO_DEPRECATED
+#  endif
+#endif
+
+#endif /* TREEPRINTER_EXPORT_H */
