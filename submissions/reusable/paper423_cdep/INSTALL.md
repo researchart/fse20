@@ -1,5 +1,5 @@
 ## Artifact Downloading
-The whole artifact could be downloaded from https://doi.org/10.5281/zenodo.3876993 and the github repository https://github.com/xlab-uiuc/cdep-fse.git.
+The whole artifact could be downloaded from https://doi.org/10.5281/zenodo.3877326 and the github repository https://github.com/xlab-uiuc/cdep-fse.git.
 
 ## Building and Running cDep
 
