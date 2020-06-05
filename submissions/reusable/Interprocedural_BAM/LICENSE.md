@@ -1,4 +1,4 @@
-The data in the Xenodo archive are licensed as CC BY 4.0.
+The data in the Zenodo archive are licensed as CC BY 4.0.
 https://creativecommons.org/licenses/by/4.0/
 
 The tools and programs are under different licenses,

@@ -3,15 +3,15 @@
 Authors: Dirk Beyer and Karlheinz Friedberger
 
 
-# Summary of this Artifact Package
+# Summary of this Replication Package
 
-This artifact package provides the necessary data and tools to evaluate our approach for
-Interprocedural BAM to analyze recursive procedures that is described in the paper
-"Domain-Independent Interprocedural Program Analysis using Block-Abstraction Memoization"
-accepted at FSE 2020.
-The artifact can be downloaded from Zenodo: https://doi.org/10.5281/zenodo.3698235
-It contains a detailed description how to proceed with the evaluation,
-including the benchmarking process and step to generate the tables in the paper.
+This replication package provides the necessary data and tools to evaluate our approach for
+Interprocedural BAM to analyze recursive procedures that is described in the article
+"Domain-Independent Interprocedural Program Analysis using Block-Abstraction Memoization",
+In Proc. ESEC/FSE 2020, to appear.
+The replication package can be downloaded from Zenodo: https://doi.org/10.5281/zenodo.3878426
+It contains a detailed description how to proceed with the replication,
+including the benchmarking process and steps to reproduce the tables in the paper.
 
 
 # Abstract of the Paper
