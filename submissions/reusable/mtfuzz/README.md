@@ -44,5 +44,8 @@ We provide source code of MTFuzz in source directory. A short usage example of r
 ```
 
 ### Reproducing results
-To reproduce our main results reported in paper Table.4, please check source/programs directory.
-We also provide an AWS GPU instance for reviewer who didn't have proper GPU resources to test our tool. The instruction to access AWS instance is shared in email.
+To reproduce our main results reported in paper Table.4, please check INSTALL.md and source/programs directory. There are 2 ways to run our tools.
+
+- Run MTFuzz on your local system with a GPU (Nvidia 1080 Ti/Nvidia K80 or higher is recommended).
+- Run MTFuzz on an pre-configured AWS VM with GPU in case reviewers don't have proper GPU resources. We already set up a vanilla Ubuntu 18.04 with Nvidia K80 on AWS for reviewers. The credential to access the AWS VM is shared with PC chair through email. 
+
