@@ -6,7 +6,7 @@
 
 2. **[Run on a local Machine (_Recommeded to experimentation, this will take time_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#2-run-on-a-local-machine-recommeded-to-experimentation-this-will-take-time)**
 
-3. **[Use MTFuzz on your own program (_Recommended for exending current method_)]()**
+3. **[Use MTFuzz on your own program (_Recommended for exending current method, this will take a lot more time_)](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/INSTALL.md#3-use-mtfuzz-on-your-own-program-recommended-for-exending-current-method)**
 
 # 1. Preconfigured AWS (_Recommended for review, it's easy_)
 
@@ -104,7 +104,7 @@ The initial data processing will take around 5-10 minutes. If you see the follow
 ![image](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/fuzzing_module.png?raw=true)
 
 
-# 3. Use MTFuzz on your own program (_Recommended for exending current method_)
+# 3. Use MTFuzz on your own program (_Recommended for exending current method, this will take a lot more time_)
 We demonstrate how to set up MTFuzz on your own tested programs with a xml parser expat.
 1. Unzip expat source code and move into expat root directory
 ```bash
