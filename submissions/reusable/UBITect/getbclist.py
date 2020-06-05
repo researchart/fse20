@@ -24,6 +24,7 @@ def getBC():
                     continue
 		infile.write(module)
 		infile.write("\n")
+    infile.close()
 if __name__ == "__main__":
     renameBB(sys.argv)
     getBC()
