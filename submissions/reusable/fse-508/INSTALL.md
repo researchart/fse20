@@ -10,8 +10,10 @@ You can alternatively use the requirements.txt file with python 3.7.7
 
 ## getting the source code
 
-The project is registered at [Zenodo](www.zenodo.org) under the doi: xxxx
-you can download it [here: 10.5281/zenodo.3876413](https://doi.org/10.5281/zenodo.3876412).
+The project is registered at [Zenodo](www.zenodo.org) under the doi: 10.5281/zenodo.3878041
+you can download it [here](https://doi.org/10.5281/zenodo.3878041)
+
+The password to the archive is **coeva2FSE**
 
 ## Build and activate environment 
 

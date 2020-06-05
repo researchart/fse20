@@ -1,8 +1,10 @@
-# Replication package for "Search-Based Adversarial Testing and Improvement of Constrained Credit Scoring Systems", accepted at FSE 2020
+# Replication package for "Search-Based Adversarial Testing and Improvement of Constrained Credit Scoring Systems", accepted at ESEC/FSE 2020
 
 This `README` file explains the structure of the package and gives basic guidelines on how to re-execute the experiments. For more detailed instructions on how to install and execute the scripts, please, refer to `INSTALL.md`.
 
 For more information, contact the first author by e-mail: Salah Ghamizi \<salah.ghamizi@uni.lu\>
+
+The pdf of the paper is still under our industrial partner embargo until the conference day. Please do not share. 
 
 ---
 ## About
