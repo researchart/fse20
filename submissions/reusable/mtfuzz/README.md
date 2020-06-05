@@ -34,10 +34,12 @@ We provide source code of MTFuzz in source directory. A short usage example of r
 ```
 3. Run multi-task nn module.
 ```bash
+    cd source/programs/readelf
     python ./nn.py ./readelf -a 
 ```
-4. Run fuzzing module.
+4. Create another terminal and run fuzzing module in the same directory.
 ```bash
+    cd source/programs/readelf
     python ./mtfuzz_wrapper.py -i mtfuzz_in -o seeds -l 7406 ./readelf -a @@
 ```
 

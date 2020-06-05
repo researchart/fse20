@@ -7,17 +7,19 @@
 
 2. Set CPU scaling algorithm and core dump notification with root. 
 ```sh
+    sudo -i
     cd /sys/devices/system/cpu
     echo performance | tee cpu*/cpufreq/scaling_governor
     echo core >/proc/sys/kernel/core_pattern
+    exit
 ```
 
-3. Open a terminal to start NN module.
+3. Open a terminal at this directory to start NN module.
 ```sh  
     python nn.py ./strip -o tmp   
 ```
 
-4. Open another terminal to start fuzzing module.
+4. Open another terminal at this directory to start fuzzing module.
 ```sh
     # -l, file len is obtained by maximum file lens in the mtfuzz_in ( ls -lS mtfuzz_in|head )
     python ./mtfuzz_wrapper.py -i mtfuzz_in -o seeds -l 7464 ./strip -o tmp @@
