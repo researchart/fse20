@@ -8,17 +8,17 @@ It also contains the instruction for using the tools employed by this study.
 This website contains all the data collected from the analysis of the source code history of 129 projects.
 
 * *[Project](http://changetype.s3-website.us-east-2.amazonaws.com/docs/P/projects.html):*  In this tab, for each project we provide 2 links:
-  * *Commits analyzed:* List of all commits analyzed in this project. Each commits link to a page that provides the following details:
-    	* Files (added/removed/modified)
-    	* (added/removed/updated) external dependencies
-    	* All the refactorings reported by RMiner
-	[Example](http://changetype.s3-website.us-east-2.amazonaws.com/docs/P/guacamole-client.html)
-  * *Type Changes:* This tab reports all the type changes detected in the projec ([Example](http://changetype.s3-website.us-east-2.amazonaws.com/docs/P/TypeChangeguacamole-client.html)).
+  * *Commits analyzed:* List of all commits analyzed in this project. Each commits links to a page ([Example](http://changetype.s3-website.us-east-2.amazonaws.com/docs/P/guacamole-client.html)) that provides details like:
+     * Files (added/removed/modified)
+     * (added/removed/updated) external dependencies
+     * All the refactorings reported by RMiner
+	
+  * *Type Changes:* This tab reports all the type changes detected in the project ([Example](http://changetype.s3-website.us-east-2.amazonaws.com/docs/P/TypeChangeguacamole-client.html)).
   Each type change links to a page that provides additional information about it. 
   This page also lists the edit patterns performed by developers(and the link to the exact line of code on GitHub) when applying the type change.
   [Example](http://changetype.s3-website.us-east-2.amazonaws.com/docs/P/guacamole-client/tci_project0.html)
 * *[Popular Type Changes](http://changetype.s3-website.us-east-2.amazonaws.com/docs/P/A/popular.html):* This tabulates the popular type changes that we identified in our study (i.e. performed by atleast 2 projects)
-* *[Migration](http://changetype.s3-website.us-east-2.amazonaws.com/docs/P/A/Migrations.html):* This tablutaes the instances of type migrations performed. It also contains the link to the type change and the Github commit
+* *[Migration](http://changetype.s3-website.us-east-2.amazonaws.com/docs/P/A/Migrations.html):* This tabulates the instances of type migrations performed. It also contains the link to the type change and the Github commit.
 
 ### [Raw Data](https://drive.google.com/drive/folders/1-baLOUKKByhhwj03C7whgVP0FGEc4uTs?usp=sharing)
 We collect all the data in [Protocol Buffer](https://developers.google.com/protocol-buffers) format.
