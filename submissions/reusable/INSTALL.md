@@ -9,12 +9,16 @@ These instructions have been tested on the Ubuntu 16.04 and Ubuntu 18.04 operati
   - sudo apt install openjdk-8-jdk
 2. Install ant
   - sudo apt install ant
-3. Install jpf-core in the same directory that this file is present in. On Ubuntu, this directory would end up being fse20/submissions/reusable/jpf-core
+3. Install Git, if on a new machine
+  - sudo apt install git
+4. Clone FSE2020 artifcate repo
+  - git clone https://github.com/vaibhavbsharma/fse20.git
+5. Install jpf-core as a sibling to java-ranger folder. On Ubuntu, this directory would end up being inside fse20/submissions/reusable/
   - git clone https://github.com/javapathfinder/jpf-core
   - cd fse20/submissions/reusable/jpf-core
   - ./gradlew
   - cd -
-4. Build java-ranger
+6. Build java-ranger
   - cd fse20/submissions/reusable/java-ranger
   - ant
 
