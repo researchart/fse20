@@ -6,7 +6,7 @@ This repository contains the replication package for the submission #441.
 ## Repository Structure ##
 The package is structured as follows:
 
-* [__DeepJanus-MNIST__](https://github.com/testingautomated-usi/fse20/tree/master/submissions/available/DeepJanus-MNIST) contains the DeepJanus tool adapted to the handwritten digit classification case study and the instructions on how to use it;
+* [__DeepJanus-MNIST__](submissions/submission441/available/DeepJanus-MNIST) contains the DeepJanus tool adapted to the handwritten digit classification case study and the instructions on how to use it;
 * [__DeepJanus-BNG__](https://github.com/testingautomated-usi/fse20/tree/master/submissions/available/DeepJanus-BNG) contains the DeepJanus tool adapted to the self-driving car case study and the instructions on how to use it;
 * [__experiments__](https://github.com/testingautomated-usi/fse20/tree/master/submissions/available/experiments) contains the raw experimental data reported in the paper and the scripts to obtain the data.
 
