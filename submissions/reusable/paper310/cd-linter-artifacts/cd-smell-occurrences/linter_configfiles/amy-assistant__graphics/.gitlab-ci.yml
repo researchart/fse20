@@ -1,0 +1,13 @@
+image: alpine:latest
+
+pages:
+  stage: deploy
+  script:
+  - mkdir public
+  - find ./ -type f \( -iname \*.jpg -o -iname \*.png -o -iname \*.svg \) -exec cp {} public/ \;
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

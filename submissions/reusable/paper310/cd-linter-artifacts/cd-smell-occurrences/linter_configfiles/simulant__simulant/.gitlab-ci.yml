@@ -1,0 +1,393 @@
+stages:
+ - check
+ - build
+ - test
+ - deploy
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+check:thread-usage:
+  stage: check
+  image: registry.fedoraproject.org/fedora-minimal:28
+  before_script:
+    - microdnf install -y python3
+  script:
+    - python3 tools/find_std_thread.py simulant
+
+check:deque-usage:
+  stage: check
+  image: registry.fedoraproject.org/fedora-minimal:28
+  before_script:
+    - microdnf install -y python3
+  script:
+    - python3 tools/find_std_deque.py simulant
+
+check:stream-usage:
+  stage: check
+  image: registry.fedoraproject.org/fedora-minimal:28
+  allow_failure: true
+  before_script:
+    - microdnf install -y python3
+  script:
+    - python3 tools/find_std_stream.py simulant
+
+android:
+  stage: build
+  image: kazade/android-sdk
+  allow_failure: true
+  before_script:
+   - apt-get update -y
+   - apt-get install -y file
+   - echo ${PATH}
+  script:
+   - mkdir ${CI_PROJECT_DIR}/build
+
+   # Download SDL and OpenAL-soft
+   - python ./platforms/android/prepare.py
+
+   # Build SDL
+   - mkdir -p .android/sdl/build/jni
+   - cd .android/sdl/build/jni
+   - ln -s ../../Android.mk
+   - ln -s ../../src
+   - ln -s ../../include
+   - cd ..
+   - export APP_PLATFORM=android-18
+   - NDK_PROJECT_PATH=. ndk-build
+
+   - cd ${CI_PROJECT_DIR}
+
+   # Now OpenAL
+   - mkdir -p .android/openal/build/jni
+   - cd .android/openal/build/jni
+   - ln -s ../../Android.mk
+   - ln -s ../../OpenAL
+   - cd ..
+   - export APP_PLATFORM=android-18
+   - NDK_PROJECT_PATH=. ndk-build
+
+   # Finally Simulant
+   - cd ${CI_PROJECT_DIR}/build
+   - cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=armeabi-v7a ..
+   - make
+
+build:windows-x64-mingw:
+  stage: build
+  image: registry.fedoraproject.org/fedora-minimal:28
+  before_script:
+   - microdnf install -y mingw64-gcc-c++ mingw64-SDL2 mingw64-openal-soft mingw64-zlib cmake make gcc-c++ python
+  variables:
+    MINGW_BIN_DIR: /usr/x86_64-w64-mingw32/sys-root/mingw/bin/
+    TARGET: windows-x64-mingw
+  script:
+   - mkdir -p ${TARGET}/debug
+   - cd ${TARGET}/debug
+   - mingw64-cmake -DCMAKE_BUILD_TYPE=Debug -DSIMULANT_BUILD_SAMPLES=OFF ../..
+   - make -j3
+   - cp $MINGW_BIN_DIR/zlib1.dll simulant/
+   - cp $MINGW_BIN_DIR/SDL2.dll simulant/
+   - cp $MINGW_BIN_DIR/libgcc_s_seh-1.dll simulant/
+   - cp $MINGW_BIN_DIR/libstdc++-6.dll simulant/
+   - cp $MINGW_BIN_DIR/libwinpthread-1.dll simulant/
+   - cp simulant/*.dll tests/
+   - cd -
+   - mkdir -p ${TARGET}/release
+   - cd ${TARGET}/release
+   - mingw64-cmake -DCMAKE_BUILD_TYPE=Release -DSIMULANT_BUILD_SAMPLES=OFF ../..
+   - make -j3
+   - cp $MINGW_BIN_DIR/zlib1.dll simulant/
+   - cp $MINGW_BIN_DIR/SDL2.dll simulant/
+   - cp $MINGW_BIN_DIR/libgcc_s_seh-1.dll simulant/
+   - cp $MINGW_BIN_DIR/libstdc++-6.dll simulant/
+   - cp $MINGW_BIN_DIR/libwinpthread-1.dll simulant/
+  artifacts:
+    paths:
+      - ${TARGET}/debug/simulant/
+      - ${TARGET}/debug/sample_data/
+      - ${TARGET}/debug/tests/simulant_tests.exe
+      - ${TARGET}/debug/tests/*.dll
+      - ${TARGET}/release/simulant/*.dll
+
+test:windows-x64-mingw:
+  stage: test
+  image: registry.fedoraproject.org/fedora-minimal:28
+  needs: ["build:windows-x64-mingw"]
+  variables:
+    TARGET: windows-x64-mingw
+  dependencies:
+   - build:windows-x64-mingw
+  before_script:
+   - microdnf install -y wine winetricks wine-pulseaudio pulseaudio pulseaudio-utils xorg-x11-server-Xvfb xorg-x11-drv-dummy dpkg mesa-dri-drivers
+   - start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 640x480x24 -ac +extension RANDR +extension GLX +render
+   - sleep 3
+   - export LIBGL_ALWAYS_SOFTWARE=1
+   - export SIMULANT_SOUND_DRIVER=null
+   - export DISPLAY=:99
+  script:
+   - cd ${TARGET}/debug/tests
+   - ln -s ../simulant
+   - ln -s ../sample_data
+   - wine simulant_tests.exe --junit-xml=report.xml
+  artifacts:
+   reports:
+    junit: ${TARGET}/debug/tests/report.xml
+   paths:
+    - ${TARGET}/debug/simulant/*.dll
+    - ${TARGET}/release/simulant/*.dll
+
+deploy:windows-x64-mingw:
+  stage: deploy
+  only:
+    - master
+    - tags
+  image: registry.fedoraproject.org/fedora-minimal:28
+  dependencies:
+   - test:windows-x64-mingw
+  variables:
+   TARGET: windows-x64-mingw
+  before_script:
+   - microdnf -y install openssl-devel python-devel python-setuptools libffi-devel python-pip rsync
+   - pip install gsutil
+  script:
+   - mkdir -p ./upload/${TARGET}/lib
+   - mkdir -p ./upload/${TARGET}/lib/debug
+   - mkdir -p ./upload/${TARGET}/include/simulant
+   - cp ${TARGET}/release/simulant/*.dll ./upload/${TARGET}/lib/
+   - cp ${TARGET}/debug/simulant/*.dll ./upload/${TARGET}/lib/debug/
+   - rsync -avm -L --include='*.h' --include='*.hpp' -f 'hide,! */' simulant ./upload/${TARGET}/include
+   - cd upload
+   - zip -r ${TARGET}.zip ${TARGET}/
+   - echo -e "${GCS_ACCESS_KEY}\n${GCS_SECRET}\nsimulant-engine\n" | gsutil config -a
+   - gsutil cp ${TARGET}.zip gs://staging.simulant-engine.appspot.com/${CI_COMMIT_REF_NAME}/
+   - gsutil acl ch -u AllUsers:R gs://staging.simulant-engine.appspot.com/${CI_COMMIT_REF_NAME}/${TARGET}.zip
+  artifacts:
+   paths:
+    - upload/${TARGET}.zip
+
+## clang build is currently just for checking compilation
+build:linux-x64-clang:
+  stage: build
+  image: registry.fedoraproject.org/fedora-minimal:28
+  variables:
+   TARGET: linux-x64-clang
+  before_script:
+   - microdnf install -y dnf && microdnf clean all
+   - dnf install -y cmake make clang python SDL2-devel openal-soft-devel zlib-devel mesa-libGL-devel
+  script:
+   - export CC=/usr/bin/clang
+   - export CXX=/usr/bin/clang++
+   - mkdir -p ${TARGET}/debug
+   - cd ${TARGET}/debug
+   - cmake -DCMAKE_BUILD_TYPE=Debug -DSIMULANT_BUILD_SAMPLES=OFF ../..
+   - make -j3
+   - cd ../..
+   - mkdir -p ${TARGET}/release
+   - cd ${TARGET}/release
+   - cmake -DCMAKE_BUILD_TYPE=Release -DSIMULANT_BUILD_SAMPLES=OFF ../..
+   - make -j3
+  artifacts:
+    paths:
+      - ${TARGET}/debug/simulant/
+      - ${TARGET}/debug/sample_data/
+      - ${TARGET}/debug/tests/simulant_tests
+      - ${TARGET}/release/simulant/
+
+build:linux-x64-gcc:
+  stage: build
+  image: registry.fedoraproject.org/fedora-minimal:28
+  variables:
+   TARGET: linux-x64-gcc
+  before_script:
+   - microdnf upgrade -y && microdnf clean all
+   - microdnf install -y cmake make gcc-c++ python SDL2-devel openal-soft-devel zlib-devel mesa-libGL-devel
+  script:
+   - mkdir -p ${TARGET}/debug
+   - cd ${TARGET}/debug
+   - cmake -DCMAKE_BUILD_TYPE=Debug -DSIMULANT_BUILD_SAMPLES=OFF ../..
+   - make -j3
+   - cd ../..
+   - mkdir -p ${TARGET}/release
+   - cd ${TARGET}/release
+   - cmake -DCMAKE_BUILD_TYPE=Release -DSIMULANT_BUILD_SAMPLES=OFF ../..
+   - make -j3
+  artifacts:
+    paths:
+      - ${TARGET}/debug/simulant/
+      - ${TARGET}/debug/sample_data/
+      - ${TARGET}/debug/tests/simulant_tests
+      - ${TARGET}/release/simulant/
+
+test:linux-x64-gcc:
+  stage: test
+  image: registry.fedoraproject.org/fedora-minimal:28
+  needs: ["build:linux-x64-gcc"]
+  dependencies:
+   - build:linux-x64-gcc
+  variables:
+   TARGET: linux-x64-gcc
+  before_script:
+   - microdnf install -y SDL2 openal-soft mesa-libGL libstdc++ pulseaudio pulseaudio-utils xorg-x11-server-Xvfb xorg-x11-drv-dummy dpkg mesa-dri-drivers
+   - start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 640x480x24 -ac +extension RANDR +extension GLX +render
+   - sleep 3
+   - export LIBGL_ALWAYS_SOFTWARE=1
+   - export DISPLAY=:99
+  script:
+   - cd ${TARGET}/debug
+   - export SIMULANT_SOUND_DRIVER=null
+   - env SEGFAULT_SIGNALS="abrt segv" LD_PRELOAD=/usr/lib64/libSegFault.so ./tests/simulant_tests --junit-xml=report.xml
+  artifacts:
+   reports:
+      junit: ${TARGET}/debug/report.xml
+   paths:
+    - ${TARGET}/debug/simulant/
+    - ${TARGET}/release/simulant/
+
+deploy:linux-x64-gcc:
+  stage: deploy
+  only:
+   - master
+   - tags
+  image: registry.fedoraproject.org/fedora-minimal:28
+  dependencies:
+   - test:linux-x64-gcc
+  variables:
+   TARGET: linux-x64-gcc
+  before_script:
+   - microdnf -y install openssl-devel python-devel python-setuptools libffi-devel python-pip rsync
+   - pip install gsutil
+  script:
+   - mkdir -p ./upload/${TARGET}/lib
+   - mkdir -p ./upload/${TARGET}/lib/debug
+   - mkdir -p ./upload/${TARGET}/include/simulant
+   - cp ${TARGET}/release/simulant/libsimulant.so* ./upload/${TARGET}/lib/
+   - cp ${TARGET}/debug/simulant/libsimulant.so* ./upload/${TARGET}/lib/debug/
+   - rsync -avm -L --include='*.h' --include='*.hpp' -f 'hide,! */' simulant ./upload/${TARGET}/include
+   - cd upload
+   - zip -r ${TARGET}.zip ${TARGET}/
+   - echo -e "${GCS_ACCESS_KEY}\n${GCS_SECRET}\nsimulant-engine\n" | gsutil config -a
+   - gsutil cp ${TARGET}.zip gs://staging.simulant-engine.appspot.com/${CI_COMMIT_REF_NAME}/
+   - gsutil acl ch -u AllUsers:R gs://staging.simulant-engine.appspot.com/${CI_COMMIT_REF_NAME}/${TARGET}.zip
+  artifacts:
+   paths:
+    - upload/${TARGET}.zip
+
+build:dreamcast-sh4-gcc:
+  stage: build
+  image: kazade/dreamcast-sdk
+  variables:
+   TARGET: dreamcast-sh4-gcc
+  script:
+   - source /etc/bash.bashrc
+   - mkdir -p ${TARGET}/debug
+   - cd ${TARGET}/debug
+   - cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=../../toolchains/Dreamcast.cmake -DSIMULANT_BUILD_SAMPLES=OFF ../..
+   - make -j3
+   - cd ../..
+   - mkdir -p ${TARGET}/release
+   - cd ${TARGET}/release
+   - cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../../toolchains/Dreamcast.cmake -DSIMULANT_BUILD_SAMPLES=OFF ../..
+   - make -j3
+  artifacts:
+    paths:
+     - ${TARGET}/debug/simulant/
+     - ${TARGET}/debug/sample_data/
+     - ${TARGET}/debug/tests/simulant_tests.elf
+     - ${TARGET}/release/simulant/
+
+test:dreamcast-sh4-gcc:
+  stage: test
+  image: registry.fedoraproject.org/fedora-minimal:28
+  needs: ["build:dreamcast-sh4-gcc"]
+  allow_failure: true
+  variables:
+   TARGET: dreamcast-sh4-gcc
+  dependencies:
+    - build:dreamcast-sh4-gcc
+  before_script:
+    - microdnf install -y wget && microdnf clean all
+    - wget https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
+    - rpm -i rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
+    - microdnf install -y lxdream
+  script:
+    - cd ${TARGET}/debug
+    - lxdream --audio=null -H tests/simulant_tests.elf | tee log.out
+  artifacts:
+   paths:
+    - ${TARGET}/debug/simulant/*.a
+    - ${TARGET}/release/simulant/*.a
+    - ${TARGET}/release/*.out
+
+deploy:dreamcast-sh4-gcc:
+  stage: deploy
+  only:
+   - master
+   - tags
+  image: registry.fedoraproject.org/fedora-minimal:28
+  dependencies:
+   - test:dreamcast-sh4-gcc
+  variables:
+   TARGET: dreamcast-sh4-gcc
+  before_script:
+   - microdnf -y install openssl-devel python-devel python-setuptools libffi-devel python-pip rsync
+   - pip install gsutil
+  script:
+   - mkdir -p ./upload/${TARGET}/lib
+   - mkdir -p ./upload/${TARGET}/lib/debug
+   - mkdir -p ./upload/${TARGET}/include/simulant
+   - cp ${TARGET}/release/simulant/libsimulant.a* ./upload/${TARGET}/lib/
+   - cp ${TARGET}/debug/simulant/libsimulant.a* ./upload/${TARGET}/lib/debug/
+   - rsync -avm -L --include='*.h' --include='*.hpp' -f 'hide,! */' simulant ./upload/${TARGET}/include
+   - cd upload
+   - zip -r ${TARGET}.zip ${TARGET}/
+   - echo -e "${GCS_ACCESS_KEY}\n${GCS_SECRET}\nsimulant-engine\n" | gsutil config -a
+   - gsutil cp ${TARGET}.zip gs://staging.simulant-engine.appspot.com/${CI_COMMIT_REF_NAME}/
+   - gsutil acl ch -u AllUsers:R gs://staging.simulant-engine.appspot.com/${CI_COMMIT_REF_NAME}/${TARGET}.zip
+  artifacts:
+   paths:
+    - upload/${TARGET}.zip
+
+deploy:assets:
+  stage: deploy
+  only:
+   - master
+   - tags
+  image: registry.fedoraproject.org/fedora-minimal:28
+  before_script:
+   - microdnf -y install openssl-devel python-devel python-setuptools libffi-devel python-pip rsync
+   - pip install gsutil
+  script:
+   - mkdir -p upload
+   - mv assets upload/simulant
+   - cd upload
+   - zip -r assets.zip simulant/
+   - echo -e "${GCS_ACCESS_KEY}\n${GCS_SECRET}\nsimulant-engine\n" | gsutil config -a
+   - gsutil cp assets.zip gs://staging.simulant-engine.appspot.com/${CI_COMMIT_REF_NAME}/
+   - gsutil acl ch -u AllUsers:R gs://staging.simulant-engine.appspot.com/${CI_COMMIT_REF_NAME}/assets.zip
+  artifacts:
+   paths:
+    - upload/assets.zip
+
+deploy:tools:
+  stage: deploy
+  only:
+   - master
+   - tags
+  image: registry.fedoraproject.org/fedora-minimal:28
+  before_script:
+   - microdnf -y install openssl-devel python-devel python-setuptools libffi-devel python-pip rsync
+   - pip install gsutil
+  script:
+   - mkdir -p upload/simulant
+   - mkdir -p upload/simulant/cmake_modules
+   - cp tools/test_generator.py upload/simulant
+   - cp cmake_modules/FindSDL2.cmake upload/simulant/cmake_modules
+   - cd upload
+   - zip -r tools.zip simulant/
+   - echo -e "${GCS_ACCESS_KEY}\n${GCS_SECRET}\nsimulant-engine\n" | gsutil config -a
+   - gsutil cp tools.zip gs://staging.simulant-engine.appspot.com/${CI_COMMIT_REF_NAME}/
+   - gsutil acl ch -u AllUsers:R gs://staging.simulant-engine.appspot.com/${CI_COMMIT_REF_NAME}/tools.zip
+  artifacts:
+   paths:
+    - upload/tools.zip
+

@@ -1,0 +1,136 @@
+# Docker image
+image: ubuntu:17.10
+
+variables:
+  AWS_DEFAULT_REGION: "eu-west-1"
+  AWS_DEFAULT_OUTPUT: "json"
+  # Refer to Settings | Pipelines for AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET, LAMBDA_ROLE
+  LAMBDA_NAME: $CI_PROJECT_NAME
+  VM_DIR: "pharo-vm"
+  MIN_DIR: "pharo-min"
+  PHARO_CACHE_DIR: "pharo-cache"
+  
+# add directories to cache for speeding up builds
+cache:
+  key: "2017-08-07d" # or see: https://gitlab.msu.edu/help/ci/variables/README.md
+  paths:
+    - $VM_DIR
+    - $MIN_DIR
+    - $PHARO_CACHE_DIR
+
+before_script:
+  - echo -e "\e[36m\nGitlab job started $(date)\n"
+  - echo -e "\e[1;34m$CI_PROJECT_NAME - $CI_PROJECT_DIR - $SHELL"
+  - ls -al
+
+# define Gitlab pipeline stages
+stages:
+  - setup
+  - build
+  - test
+  - deploy
+
+setup:
+  stage: setup
+  variables:
+      GIT_STRATEGY: none # stop checkout, as just setting up environment
+  script:
+    - if ! ([ -e $VM_DIR ] && [ -e $MIN_DIR ] && [ "$CI_CACHE_PHARO" = true ]); then
+        echo -e "\e[1m\nInstall deployment tools and Pharo dependencies...";
+        export DEBIAN_FRONTEND=noninteractive;
+        apt-get -qq update;
+        apt-get -qq install curl unzip > apt-get.log;
+      fi
+
+    - if [ "$CI_CACHE_PHARO" = false ]; then
+        echo -e "\e[1m\nFORCE NOT caching Pharo Assets ...";
+        rm -rf $MIN_DIR;
+        rm -rf $PHARO_CACHE_DIR;
+      fi
+
+    - echo -e "\e[1m\nChecking Pharo VM cache...\n"
+    - if [ ! -e $VM_DIR ]; then
+        mkdir $VM_DIR;
+        cd $VM_DIR;
+        VM_STRATEGY_TIMER="vmI61";
+        VM_STRATEGY_THREADED="vmT61";
+        VM_STRATEGY=$VM_STRATEGY_TIMER;
+        echo -e "\e[1m\nDownloading compatible Pharo 64 bit VM ($VM_STRATEGY)...";
+        curl http://get.pharo.org/64/$VM_STRATEGY | bash;
+
+        echo -e "\e[1m\nDownloading compatible Pharo 64 bit IMAGE ...";
+        curl get.pharo.org/64/61 | bash;
+        cd ..;
+      fi
+
+    - echo -e "\e[1m\nChecking Pharo Min Image cache...\n"
+    - if [ ! -e $MIN_DIR ]; then
+        mkdir $MIN_DIR;
+        mkdir $PHARO_CACHE_DIR;
+        cd $MIN_DIR;
+        echo -e "\e[1m\nDownloading minimal 64 bit image...";
+        curl  -L -o minimal.zip https://www.dropbox.com/s/t1yyvtpvypazqqv/pharo7.0-minimal-64-b27.zip?dl=1;
+        unzip -q minimal.zip;
+        mv *.changes Pharo.changes;
+        mv *.image Pharo.image;
+        ls -lh;
+        cd ..;
+      fi
+
+    - rm -rf build deploy
+    - mkdir build
+    - cd build
+
+    - echo -e "\e[1m\nCopying Pharo vm+image..."
+    - cp -vR ../$VM_DIR/* .
+
+    - if [ "$USE_MIN_IMAGE" = true ]; then
+        echo -e "\e[1m\nCopying Pharo minimal image...";
+        cp -v ../$MIN_DIR/Pharo.* .;
+      fi
+
+    - ls -alhR
+  artifacts:
+    paths:
+      - build
+    when: always
+    # expire_in: 60 minutes
+
+generate:
+  stage: build
+  script:
+    - echo -e "\e[1m\nInstall deployment tools and Pharo dependencies..."
+    - export DEBIAN_FRONTEND=noninteractive
+    - apt-get -qq update
+    - apt-get -qq install zip unzip bc libfreetype6 > apt-get.log
+
+    - ls -al ./bootstrap
+    - ls -al ./src
+
+    - bash ./scripts/build.sh
+  artifacts:
+    paths:
+      - deploy
+      - build   # included as useful to diagnose issues
+    when: always
+    # expire_in: 60 minutes
+
+  after_script:
+    - echo -e "\e[1m\nVerifying build status ..."
+    - if [[ -f build/PharoDebug.log ]]; then
+        echo -e "\e[91m\nErrors detected in load process!\n";
+        ls -al build;
+        echo; cat build/PharoDebug.log;
+        echo; cat build/LoadLocal.log;
+      fi
+
+deploy:
+  stage: deploy
+  image: governmentpaas/awscli
+  variables:
+    GIT_STRATEGY: none # stop checkout, as using assets in /build
+  script:
+    - ./deploy/deploy.sh
+  only:
+    # - master
+

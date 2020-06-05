@@ -1,0 +1,19 @@
+image: ruby:2.5
+
+pages:
+  variables:
+    LC_ALL: "C.UTF-8"
+    LANG: "en_US.UTF-8"
+    LANGUAGE: "en_US.UTF-8"
+  script:
+    - gem install jekyll
+    - bundle install
+    - bundle exec jekyll build -d public/
+
+  artifacts:
+    paths:
+    - public
+
+  only:
+    - master
+

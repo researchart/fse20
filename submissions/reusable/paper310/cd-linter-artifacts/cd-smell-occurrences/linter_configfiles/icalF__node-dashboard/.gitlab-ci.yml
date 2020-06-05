@@ -1,0 +1,18 @@
+before_script:
+  - apt-get update -qq && apt-get install -y -qq nodejs npm
+  - nodejs -v
+  - which nodejs
+  - npm install
+  - ln -s $(which nodejs) /usr/bin/node
+
+variables:
+  db: "mongodb://mongo/contacts"
+  port: "1337"
+  node_env: "Dev"
+
+test:
+  services:
+    - mongo
+  script:
+    - npm test
+

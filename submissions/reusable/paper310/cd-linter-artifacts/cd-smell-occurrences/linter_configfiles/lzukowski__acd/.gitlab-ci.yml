@@ -1,0 +1,47 @@
+image: python:3.6
+
+variables:
+  PYPI_USER: SECURE
+  PYPI_PASSWORD: SECURE
+
+before_script:
+  - pip install tox twine sphinx
+
+stages:
+  - test
+  - release
+
+test:
+  stage: test
+  artifacts:
+    paths:
+      - .coverage
+      - docs
+  script:
+    - tox
+
+pages:
+  stage: release
+  only:
+    - master
+  artifacts:
+    paths:
+      - public/
+      - docs/
+    expire_in: 1 month
+  script:
+    - python setup.py docs
+    - cp -R docs/html public/
+
+publish:
+  stage: release
+  only:
+    - master
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 month
+  script:
+    - python setup.py sdist
+    - twine upload dist/acd-*.tar.gz -u $PYPI_USER -p $PYPI_PASSWORD
+

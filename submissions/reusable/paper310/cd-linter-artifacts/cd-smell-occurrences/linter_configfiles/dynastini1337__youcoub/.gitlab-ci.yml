@@ -1,0 +1,10 @@
+stages:
+  - todo
+
+todo:
+  script:
+    - ls -lah
+  only:
+    - master
+  stage: todo
+

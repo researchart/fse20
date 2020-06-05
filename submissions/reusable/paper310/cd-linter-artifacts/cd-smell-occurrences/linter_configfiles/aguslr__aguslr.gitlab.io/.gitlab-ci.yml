@@ -1,0 +1,25 @@
+# requiring the environment of Ruby 2.3.x
+image: ruby:2.3
+
+# add bundle cache to 'vendor' for speeding up builds
+cache:
+  paths:
+    - vendor/
+
+variables:
+  JEKYLL_ENV: production
+
+before_script:
+  - bundle install --path vendor
+
+# the 'pages' job will deploy and build your site to the 'public' path
+pages:
+  stage: deploy
+  script:
+    - bundle exec jekyll build -d public/ && gzip -k -6 $(find public/ -type f)
+  artifacts:
+    paths:
+      - public
+  only:
+    - master # this job will affect only the 'master' branch
+

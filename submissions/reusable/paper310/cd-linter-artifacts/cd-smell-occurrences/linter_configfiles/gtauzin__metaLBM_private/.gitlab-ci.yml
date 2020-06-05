@@ -1,0 +1,9 @@
+centos_gcc:
+  script:
+    - source ~/prepare_build_gcc.sh
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ ..
+  tags:
+    - gcc,centos
+

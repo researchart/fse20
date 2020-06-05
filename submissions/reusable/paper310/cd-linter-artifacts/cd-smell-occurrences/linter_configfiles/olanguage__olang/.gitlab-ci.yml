@@ -1,0 +1,16 @@
+image: golang
+
+
+variables:
+  BIN_NAME: olang
+  GO_PROJECT: gitlab.com/olanguage/olang
+  ARTIFACTS_DIR: artifacts
+
+stages:
+  - build
+
+olang-build:
+  stage: build
+  script:
+    - go get -v ${GO_PROJECT}
+

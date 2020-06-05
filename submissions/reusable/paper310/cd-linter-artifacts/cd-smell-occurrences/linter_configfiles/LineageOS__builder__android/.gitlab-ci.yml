@@ -1,0 +1,64 @@
+stages:
+  - build
+  - sign
+build:
+  stage: build
+  tags:
+    - lineage-builder
+  variables:
+    USE_CCACHE: "1"
+    PYTHONDONTWRITEBYTECODE: "true"
+    BUILD_ENFORCE_SELINUX: "1"
+    BUILD_NO: $CI_PIPELINE_ID
+    BUILD_NUMBER: ""
+    CPU_SSE42: "false" # TODO(zif): convert this to a runtime check, grep "sse4_2.*popcnt" /proc/cpuinfo
+    # the following are added when triggered from API
+    # VERSION
+    # DEVICE
+    # TYPE
+    # RELEASE_TYPE
+    # EXP_PICK_CHANGES
+  script:
+    - |
+      export BUILD_NUMBER=$( (date +%s%N ; echo $CI_PIPELINE_ID; hostname) | openssl sha1 | sed -e 's/.*=//g; s/ //g' | cut -c1-10 )
+      cd /lineage/${VERSION}
+      rm -rf .repo/local_manifests/*
+      if [ -f /lineage/setup.sh ]; then
+          source /lineage/setup.sh
+      fi
+      repo init -u https://github.com/lineageos/android.git -b ${VERSION}
+      echo "Resetting build tree"
+      repo forall -vc "git reset --hard" > /dev/null 2> /dev/null
+      echo "Syncing"
+      repo sync -j32 -d --force-sync > /dev/null 2> /dev/null
+      . build/envsetup.sh
+      mka clobber
+      set +e
+      breakfast lineage_${DEVICE}-${TYPE}
+      set -e
+      if [ "$RELEASE_TYPE" '==' "experimental" ]; then
+        repopick $EXP_PICK_CHANGES
+      fi
+      mka otatools-package target-files-package dist
+      ssh jenkins@blob.lineageos.org mkdir -p  /home/jenkins/incoming/${DEVICE}/${CI_PIPELINE_ID}/
+      scp out/dist/*target_files*.zip jenkins@blob.lineageos.org:/home/jenkins/incoming/${DEVICE}/${CI_PIPELINE_ID}/
+      scp out/target/product/${DEVICE}/otatools.zip jenkins@blob.lineageos.org:/home/jenkins/incoming/${DEVICE}/${CI_PIPELINE_ID}/
+  only:
+    - triggers
+    - web
+
+sign:
+  stage: sign
+  image: python:3.6
+  tags:
+    - signing-proxy
+  variables:
+    PYTHONUNBUFFERED: "1"
+  script:
+    - source /home/gitlab-runner/env.sh
+    - pip install -r requirements.txt
+    - python sign.py
+  only:
+    - triggers
+    - web
+

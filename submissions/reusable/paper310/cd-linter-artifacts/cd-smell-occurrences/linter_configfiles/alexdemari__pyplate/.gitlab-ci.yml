@@ -1,0 +1,75 @@
+# Run jobs sequentially
+stages:
+  - test
+  - deploy
+
+unit test:
+  stage: test
+  image: python:latest
+  tags:
+    - python-361
+  services:
+    - postgres:latest
+  variables:
+    DATABASE_URL: "postgres://postgres@postgres/myproject"
+  script:
+    - apt-get update -qy
+    - apt-get install -y python-dev python-pip
+    - make setup-dev
+    - make test
+    - make code-convention
+  except:
+    - tags
+    - pre-production
+    - production
+
+.setup-deploy: &setup-deploy
+  image: python:3.6.4-stretch
+  tags:
+    - python-361
+  script:
+    - apt-get update -qy
+    - apt-get install -y rubygems
+    - wget -qO- https://cli-assets.heroku.com/install-ubuntu.sh | sh
+    - gem install dpl
+    - dpl --provider=heroku --app=$APP_NAME --api-key=$HEROKU_API_KEY
+    - heroku run python manage.py migrate -a $APP_NAME
+    - heroku run python manage.py compilemessages -a $APP_NAME
+
+deploy to dev:
+  stage: deploy
+  variables:
+    APP_NAME: myproject-dev
+    HEROKU_API_KEY: $HEROKU_DEV_API_KEY
+  only:
+    - master
+  <<: *setup-deploy
+
+
+deploy to tst:
+  stage: deploy
+  variables:
+    APP_NAME: myproject-tst
+    HEROKU_API_KEY: $HEROKU_TST_API_KEY
+  only:
+    - pre-production
+  <<: *setup-deploy
+
+deploy to qa:
+  stage: deploy
+  variables:
+    APP_NAME: myproject-qa
+    HEROKU_API_KEY: $HEROKU_QA_API_KEY
+  only:
+    - pre-production
+  <<: *setup-deploy
+
+deploy do prd:
+  stage: deploy
+  variables:
+    APP_NAME: myproject-prd
+    HEROKU_API_KEY: $HEROKU_PRD_API_KEY
+  only:
+    - production
+  <<: *setup-deploy
+

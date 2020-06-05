@@ -1,0 +1,124 @@
+image: node:7.6
+
+cache:
+  paths:
+    - node_modules/
+
+stages:
+  - test
+  - build
+  - deploy
+
+############ Templates ############
+.tpl_test: &test_definition
+  stage: test
+  script:
+    - npm i
+    - npm i @exaprint/logger
+    - yarn test
+  tags:
+    - docker
+  coverage: '/Statements\s*:\s*([^%]+)/'
+###################################
+
+############ CI ############
+uTests:node-latest:
+  <<: *test_definition
+  image: node:latest
+  artifacts:
+    name: coverage
+    paths:
+      - coverage/
+
+uTests:node-7.6:
+  <<: *test_definition
+  image: node:7.6
+
+uTests:node-6.10:
+  <<: *test_definition
+  image: node:6.10
+
+uTests:node-4.8:
+  <<: *test_definition
+  image: node:4.8
+
+Lint & Security checks:
+  stage: test
+  script:
+    - npm i
+    - yarn lint
+  tags:
+    - docker
+  except:
+    - develop
+    - master
+    - tags
+
+Check Package Version:
+  stage: test
+  script:
+    - npm i
+    - yarn check-version
+  tags:
+    - docker
+  only:
+    - /release\/.*$/
+    - /hotfix\/.*$/
+    - tags
+
+Build Doc & Analysis:
+  stage: build
+  script:
+    - npm i
+    - yarn build
+  artifacts:
+    paths:
+      - artifacts/jsdoc/
+      - artifacts/plato/
+  tags:
+    - docker
+  only:
+    - master
+##################################
+
+############ Deploy ############
+pages:
+  stage: deploy
+  dependencies:
+    - uTests:node-latest
+    - Build Doc & Analysis
+  script:
+    - npm i -g indexifier
+    - mkdir public/ public/jsdoc/ public/plato/ public/coverage/
+    - mv coverage/ public/
+    - mv artifacts/jsdoc/ public/
+    - mv artifacts/plato/ public/
+    - indexifier ./public --html > public/index.html
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  tags:
+    - docker
+  only:
+    - master
+
+Codacy Coverage Publish:
+  stage: deploy
+  script:
+    - yarn codacy-coverage
+  tags:
+    - docker
+
+publish:
+  stage: deploy
+  script:
+    - echo "//registry.npmjs.org/:_authToken=$NPM_AUTH_TOKEN" > ~/.npmrc
+    - npm publish
+  tags:
+    - docker
+  only:
+    - tags
+
+######################################
+

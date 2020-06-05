@@ -1,0 +1,32 @@
+variables:
+  S3_BUCKET_NAME: "resume.filiosoft.net"
+
+pages:
+  stage: deploy
+  environment:
+   name: pages
+   url: https://oss.filiosoft.net/resume
+  tags:
+    - docker
+  script:
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+deploy-production:
+  image: filiosoft/aws-cli:latest
+  environment: 
+   name: production
+   url: https://resume.filiosoft.net
+  allow_failure: true
+  tags:
+    - docker
+  stage: deploy
+  script:
+  - aws s3 cp ./ s3://$S3_BUCKET_NAME/ --recursive --exclude ".git" --include "*"
+

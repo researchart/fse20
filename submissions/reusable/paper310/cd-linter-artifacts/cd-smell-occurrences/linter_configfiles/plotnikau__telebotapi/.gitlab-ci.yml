@@ -1,0 +1,24 @@
+image: maven:3-jdk-8
+
+stages:
+- buildntest
+- release
+
+buildntest_job:
+  stage: buildntest
+  script:
+    - mvn -B clean install
+  except:
+    - tags
+
+# only upload target file to repository for git refs that are tagged
+release_job:
+  stage: release
+  script:
+    - mvn -B clean install
+  artifacts:
+    paths:
+    - target/*.jar
+  only:
+    - tags
+

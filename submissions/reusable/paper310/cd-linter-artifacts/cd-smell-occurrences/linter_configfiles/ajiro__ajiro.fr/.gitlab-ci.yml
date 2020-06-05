@@ -1,0 +1,55 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  CONTAINER_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CONTAINER_NAME .
+    - docker push $CONTAINER_NAME
+
+linkchecker:
+  stage: test
+  image: registry.gitlab.com/azae/docker/linkchecker
+  services:
+    - name: $CONTAINER_NAME
+      alias: ajiro
+  script:
+    - linkchecker --anchors --ignore-url="^mailto:" https://ajiro/
+
+.accessibility:
+  stage: test
+  image: registry.gitlab.com/azae/docker/pa11y
+  services:
+    - name: $CONTAINER_NAME
+      alias: ajiro
+  script:
+    - pa11y-ci --sitemap http://ajiro/sitemap.xml --config pa11y.conf
+
+url_count:
+  stage: test
+  image: debian
+  services:
+    - name: $CONTAINER_NAME
+      alias: ajiro
+  script:
+    - apt-get -y update && apt-get -y install wget xmlstarlet
+    - NEW=$(wget https://ajiro/sitemap.xml -q --no-check-certificate -O - | xmlstarlet sel --template --value-of "//*[local-name()='loc']/text()" | wc -l)
+    - ACTUAL=$(wget https://ajiro.fr/sitemap.xml -q -O - | xmlstarlet sel --template --value-of "//*[local-name()='loc']/text()" | wc -l)
+    - test $NEW -ge $ACTUAL
+
+deploy:
+  stage: deploy
+  script:
+    - curl -X POST -data=""  https://deliverous.com/api/v1/trigger/$DELIVEROUS_TRIGGER
+  only:
+    - master
+

@@ -1,0 +1,22 @@
+before_script:
+    - "date"
+
+after_script:
+    - "date"
+
+job_tests:
+    image: python:3.5.2
+    stage: test
+    script:
+        - "bash build_script.sh run_tests"
+
+pages:
+    image: python:3.5.2
+    script:
+        - "bash build_script.sh build_pages"
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+

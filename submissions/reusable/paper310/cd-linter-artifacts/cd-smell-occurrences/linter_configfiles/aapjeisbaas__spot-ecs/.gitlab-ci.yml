@@ -1,0 +1,15 @@
+image: ubuntu:latest
+
+main:
+  before_script:
+  - chmod 750 $(pwd)
+  - apt-get -qq update
+  - apt-get -qq -y install curl python2.7 python-pip git jq 
+  - pip install -r requirements.txt
+  script:
+  - ./deploy.sh
+  artifacts:
+    when: always
+    untracked: true
+    expire_in: 10 days
+

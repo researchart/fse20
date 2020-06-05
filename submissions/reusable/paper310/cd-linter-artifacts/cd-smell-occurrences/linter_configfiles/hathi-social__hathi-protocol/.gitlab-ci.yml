@@ -1,0 +1,16 @@
+image: golang:1.11
+stages:
+  - test
+  - build
+
+# We are a library, so tests are more important; build is for dial-mocker
+test_job:
+  stage: test
+  script:
+    - make test
+
+build_job:
+  stage: build
+  script:
+    - make build
+

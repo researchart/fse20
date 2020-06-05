@@ -1,0 +1,25 @@
+image: java:8
+
+services:
+- mysql:5.7.20
+
+variables:
+  MYSQL_DATABASE: bike_championship
+  MYSQL_ROOT_PASSWORD: root
+
+stages:
+- compile
+- test
+
+before_script:
+- cd backend
+- chmod +x mvnw
+
+maven_compile:
+  stage: compile
+  script: ./mvnw compile
+
+maven_test:
+  stage: test
+  script: ./mvnw test
+

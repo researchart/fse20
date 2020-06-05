@@ -1,0 +1,23 @@
+cdev-alpine: &JOB
+    stage: build
+    image: docker:git
+    services: ["docker:dind"]
+    only: [master]
+    script:
+        - docker info
+        - echo "$CI_BUILD_TOKEN" |
+          docker login -u gitlab-ci-token --password-stdin=true "$CI_REGISTRY"
+        - export REGISTRY="$CI_REGISTRY_IMAGE" IMAGE="$CI_JOB_NAME"
+        - docker build -f "./$IMAGE.dockerfile" -t "$REGISTRY/$IMAGE" .
+        - docker push "$REGISTRY/$IMAGE:latest"
+
+android-ndk: *JOB
+cdev-arch: *JOB
+cdev-centos: *JOB
+cdev-debian: *JOB
+cdev-ubuntu: *JOB
+flatpak: *JOB
+lua-testing: *JOB
+pandoc: *JOB
+vala-debian: *JOB
+

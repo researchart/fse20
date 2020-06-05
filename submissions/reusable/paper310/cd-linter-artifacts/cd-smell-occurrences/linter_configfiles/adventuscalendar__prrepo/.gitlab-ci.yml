@@ -1,0 +1,50 @@
+variables:
+  PROTOTOOL_VERSION: v1.2.0
+  BUILDER_BASE_IMAGE: registry.gitlab.com/adventuscalendar/utils/docker-prototool
+  BASE_IMAGE_TAG: $BUILDER_BASE_IMAGE:$PROTOTOOL_VERSION
+  GO_IMAGE_TAG: $BUILDER_BASE_IMAGE/go:$PROTOTOOL_VERSION
+  GENERATED_COMMIT_MESSAGE: "Generated from ${CI_PROJECT_PATH}@${CI_COMMIT_SHA}"
+
+stages:
+  - dependencies
+  - generate
+
+before_script:
+  - git config --global user.email "ci@thecloud.abc"
+  - git config --global user.name "CI builder"
+
+dependencies:
+  image: $BASE_IMAGE_TAG
+  stage: dependencies
+  only:
+    - schedules
+  script:
+    - git checkout master
+    - .bin/dependencies.sh
+    - git add .
+    - git status
+    - git commit -m "Retrieved latest dependencies" || echo "No changes to commit"
+    - git push
+
+generate_go:
+  image: $GO_IMAGE_TAG
+  stage: generate
+  only:
+    - master
+  except:
+    - schedules
+  script:
+    - mkdir -p ~/.ssh
+    - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+    - echo "$PUB_DEPLOY" > ~/.ssh/id_ed25519.pub
+    - echo "$PRV_DEPLOY" > ~/.ssh/id_ed25519
+    - chmod 400 ~/.ssh/*
+    - git submodule sync --recursive
+    - git submodule update --init --recursive --remote
+    - prototool generate --debug
+    - cd .out/go
+    - git checkout master
+    - git add .
+    - git commit -m "$GENERATED_COMMIT_MESSAGE" || echo "No changes to commit"
+    - git push
+

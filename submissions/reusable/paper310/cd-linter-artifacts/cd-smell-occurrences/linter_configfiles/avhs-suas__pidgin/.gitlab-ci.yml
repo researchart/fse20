@@ -1,0 +1,8 @@
+before_script:
+  - apt update -qq && apt install -y python3-pip
+  - pip3 install pylint
+
+python-sanity-check:
+  script:
+    - pylint --disable=R,C,F0001 $(ls -R1 | grep ".py" | grep -v ".py.")
+

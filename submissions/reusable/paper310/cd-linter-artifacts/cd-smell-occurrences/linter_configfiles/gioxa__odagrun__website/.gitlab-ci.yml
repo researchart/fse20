@@ -1,0 +1,111 @@
+stages:
+  - build
+  - review
+  - staging
+  - production
+variables:
+  CI_PROJECT_PATH_SLUG: "gioxa-odagrun-website"
+  DEPLOY_DOMAIN_APP: "gioxapp.com"
+  DEPLOY_DOMAIN : "www.odagrun.com"
+  DEPLOY_CONFIG_HTTPS: "True"
+  DEPLOY_PUBLISH_PATH: '["/":"_site/"]'
+  GIT_STRATEGY: none
+  ODAGRUN_POD_SIZE: micro
+
+build:
+  stage: build
+  image: gioxa/odagrun-jekyll-build-image
+  variables:
+    GIT_STRATEGY: push-pull
+    ODAGRUN_POD_SIZE: large
+    GIT_CACHE_STRATEGY: push-pull
+#    WORK_SPACES: |
+#          - name: odagrun
+#            scope: project
+#            path:
+#              - .jekyll-cache
+#            strategy: push-pull
+  script:
+  - ./build.sh
+  artifacts:
+    paths:
+    - _site
+  tags:
+  - odagrun
+
+review:
+  stage: review
+  script:
+    - deployctl static
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: http://$CI_ENVIRONMENT_SLUG.$CI_PROJECT_PATH_SLUG.$DEPLOY_DOMAIN_APP
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+  tags:
+   - deployctl-gioxapp.com
+
+stop_review:
+  stage: review
+  dependencies: []
+  script:
+    - deployctl delete
+#  variables:
+#    GIT_STRATEGY: none
+  when: manual
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+  tags:
+   - deployctl-gioxapp.com
+staging:
+  stage: staging
+ # variables:
+ #   GIT_STRATEGY: none
+  script:
+    - deployctl static
+  environment:
+    name: staging
+    url: http://staging.$CI_PROJECT_PATH_SLUG.$DEPLOY_DOMAIN_APP
+    on_stop: stop_staging
+  only:
+    - master
+  tags:
+    - deployctl-gioxapp.com
+
+stop_staging:
+  stage: staging
+  variables:
+    GIT_STRATEGY: none
+  dependencies: []
+  script:
+    - deployctl delete
+  when: manual
+  environment:
+    name: staging
+    action: stop
+  only:
+    - master
+  tags:
+    - deployctl-gioxapp.com
+
+production:
+  stage: production
+  script:
+    - deployctl static
+  environment:
+    name: production
+    url: https://$DEPLOY_DOMAIN
+  when: manual
+  only:
+    - master
+  tags:
+    - deployctl-gioxapp.com
+

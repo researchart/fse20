@@ -1,0 +1,30 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+before_script:
+  - echo $DOCKER_PWD | docker login registry.gitlab.com -u $DOCKER_USER --password-stdin
+
+after_script:
+  - docker rmi $(docker images -a -q)
+
+stages:
+  - build
+  - masterBuild
+
+build:
+  stage: build
+  script:
+    - echo $DISCORD_DEFAULTS > config.json
+    - docker build -t registry.gitlab.com/ucgc/discord .
+
+push:
+  stage: masterBuild
+  script:
+    - echo $DISCORD_DEFAULTS > config.json
+    - docker build -t registry.gitlab.com/ucgc/discord .
+    - docker push registry.gitlab.com/ucgc/discord
+  only:
+    - master
+

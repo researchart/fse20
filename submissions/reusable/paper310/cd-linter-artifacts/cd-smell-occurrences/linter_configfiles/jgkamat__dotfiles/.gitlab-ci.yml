@@ -1,0 +1,18 @@
+stages:
+  - build
+
+stow:
+  image: debian:9
+  stage: build
+  script:
+  - apt-get -qq update; apt-get -y install git openssh-client stow
+  - stow --adopt -t ~ */
+
+test:
+  image: jgkamat/emacs:25.2-cask
+  stage: build
+  script:
+  - apk update && apk add stow
+  - stow --adopt -t ~ */
+  - ./.circleci/emacs.sh
+

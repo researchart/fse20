@@ -1,0 +1,42 @@
+stages:
+  - test
+  - deploy
+
+Test:
+    stage: test
+    script:
+      - composer install
+      - cp ~/env/magic-test .env
+      - php artisan migrate:refresh --force
+      - php artisan db:seed --force
+      - php artisan cache:clear
+      - php vendor/bin/phpunit --colors
+
+Deploy to dev:
+   stage: deploy
+   script:
+     - cd /var/www/$CI_PROJECT_NAME
+     - git pull origin dev
+     - composer install
+     - cp ~/env/magic .env
+     - php artisan migrate --force
+     - php artisan db:seed --force
+     - php artisan cache:clear
+   environment:
+     name: dev
+     url: https://dev.mtgarchive.nl
+   only:
+     refs:
+      - dev
+
+deploy_to_prod:
+  stage: deploy
+  only:
+    - master
+  environment:
+    name: production
+    url: https://mtgarchive.nl
+  script:
+    - ssh admin@mtgarchive.nl "cd web/mtgarchive.nl/public_html && php artisan down && git pull && composer install && php artisan migrate --force && php artisan cache:clear && composer dumpautoload && php artisan up"
+  when: manual
+

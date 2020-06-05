@@ -1,0 +1,67 @@
+stages:
+  - mirror
+  - build:win
+  - build:linux
+  - deploy:both
+
+Mirror to gh:
+  stage: mirror
+  image: registry.gitlab.com/nickdonnelly/horus/git-mirror:latest
+  script:
+  - git-mirror "${CI_PROJECT_DIR}" git@github.com:${GITHUB_REPOSITORY}
+
+
+Build Windows:
+  stage: build:win
+  image: haffmans/mingw-qt5:latest
+  only:
+  - master
+  - staging
+
+  script:
+  - x86_64-w64-mingw32-qmake-qt5 horus.pro
+  - make -j7
+
+  artifacts: # save the file 
+    paths:
+    - build/*
+    expire_in: 1 week
+  
+
+Build Linux:
+  stage: build:linux
+  image: rabits/qt:5.10-desktop
+  only:
+  - master
+  - staging
+
+  script:
+  - export QMAKE_CXXFLAGS="-std=c++14"
+  - sudo apt-get -qq update
+  - qmake horus.pro 
+  - make -j4
+
+  artifacts:
+    paths:
+    - build/*
+    expire_in: 1 week
+
+
+Deploy both platforms:
+  stage: deploy:both
+  image: nickdonnelly/deploy_horus
+  only:
+  - master
+
+  script:
+  - export VERSION=$(cat app/horus.cpp | grep "HORUS_VERSION = QString(" | grep -o '"[^"]\+"' | sed -e 's/\"//g')
+  - echo 'Zipping binary artifacts...'
+  - zip -j linux.zip build/horusqt
+  - zip -j windows.zip build/horusqt.exe
+  - echo 'Uploading linux with version $(echo -n ${VERSION})'
+  - req post --timeout 100000 https://horus.donnelly.cc/dist/deploy/new/linux/${VERSION} --header "content-type" "application/octet-stream" --header "x-deployment-key" "${HORUS_SERVER_DEPLOY_KEY}" --header "x-api-key" "${HORUS_SERVER_API_KEY}" --body linux.zip
+  - echo 'Uploading windows with version $(echo -n ${VERSION})'
+  - req post --timeout 100000 https://horus.donnelly.cc/dist/deploy/new/win64/${VERSION} --header "content-type" "application/octet-stream" --header "x-deployment-key" "${HORUS_SERVER_DEPLOY_KEY}" --header "x-api-key" "${HORUS_SERVER_API_KEY}" --body windows.zip
+  - echo "A server restart may be required after processing."
+    
+

@@ -1,0 +1,32 @@
+image: python:latest
+
+before_script:
+  - python -V                                   # Print out python version for debugging
+
+# test:
+#   script:
+#   - python setup.py test
+#   - pip install tox flake8  # you can also use tox
+#   - tox -e py36,flake8
+#
+# run:
+#   script:
+#   - python setup.py bdist_wheel
+#   # an alternative approach is to install and run:
+#   - pip install dist/*
+#   # run the command here
+#   artifacts:
+#     paths:
+#     - dist/*.whl
+
+pages:
+  script:
+  - pip install -r requirements.txt
+  - make html
+  - mv build/html/ ./public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

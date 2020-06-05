@@ -1,0 +1,27 @@
+image: elixir:1.6
+
+services:
+  - postgres:9.6
+
+variables:
+  MIX_ENV: "test"
+  POSTGRES_DB: "thunder_snow_test"
+  POSTGRES_USER: "wind"
+  POSTGRES_PASSWORD: "r@nd0m"
+  POSTGRES_HOST: "postgres"
+
+stages:
+  - test
+
+before_script:
+  - mix local.hex --force
+  - mix local.rebar --force
+  - mix deps.get --only test
+  - mix ecto.reset
+
+unit-testing:
+  stage: test
+  script:
+    - mix test
+
+

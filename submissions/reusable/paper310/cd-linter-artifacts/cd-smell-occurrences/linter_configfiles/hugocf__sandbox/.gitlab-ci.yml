@@ -1,0 +1,44 @@
+stages:
+  - build
+  - test
+  - deploy
+
+linux:build:
+  stage: build
+  script: 
+    - echo ''
+
+mac:build:
+  stage: build
+  script: 
+    - echo ''
+
+linux:rspec:
+  stage: test
+#   needs: [linux:build]
+  script: 
+    - echo ''
+
+linux:rubocop:
+  stage: test
+#   needs: [linux:build]
+  script: 
+    - echo ''
+
+mac:rspec:
+  stage: test
+#   needs: [mac:build]
+  script: 
+    - echo ''
+
+mac:rubocop:
+  stage: test
+#   needs: [mac:build]
+  script: 
+    - echo ''
+
+production:
+  stage: deploy
+  script: 
+    - echo ''
+

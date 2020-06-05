@@ -1,0 +1,14 @@
+before_script:
+    - apt-get update -qq
+    - apt-get install -y build-essential
+    - apt-get install -y libsdl2-dev
+    - apt-get install -y libsdl2-gfx-dev
+    - apt-get install -y libsdl2-image-dev
+    - apt-get install -y libsdl2-ttf-dev
+    - apt-get install -y cmake
+
+build:
+    stage: build
+    script:
+        - make
+

@@ -1,0 +1,32 @@
+stages:
+  - build
+  - deploy
+build_project:
+  stage: build
+  image: openjdk:8-jdk
+  script:
+    - chmod 0700 mvnw
+    - ./mvnw install
+  artifacts:
+    paths:
+    - target/
+    expire_in: 20 minutes
+build_and_deploy_image:
+  stage: deploy
+  when: manual
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+    - docker build -t jiratomkdocs .
+    - docker tag jiratomkdocs $CI_REGISTRY_IMAGE:0.$CI_PIPELINE_IID
+    - docker push $CI_REGISTRY_IMAGE:0.$CI_PIPELINE_IID
+    - docker tag jiratomkdocs kaszaq/jiratomkdocs:0.$CI_PIPELINE_IID
+    - docker tag jiratomkdocs kaszaq/jiratomkdocs:latest
+    - docker push kaszaq/jiratomkdocs:0.$CI_PIPELINE_IID
+    - docker push kaszaq/jiratomkdocs:latest
+  only:
+    - master
+

@@ -1,0 +1,89 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	
+	<parent>
+		<artifactId>greenpepper-open</artifactId>
+		<groupId>com.github.strator-dev.greenpepper</groupId>
+		<version>4.2.5-SNAPSHOT</version>
+	</parent>
+	<artifactId>greenpepper-remote-agent</artifactId>
+	<name>GreenPepper Remote Agent</name>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<configuration>
+					<shadeSourcesContent>false</shadeSourcesContent>
+					<transformers>
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+							<manifestEntries>
+								<!-- Tweak to make log4j.properties or remoteagentproperties to be read when using java -jar -->
+								<Class-Path>.</Class-Path>
+							</manifestEntries>
+							<mainClass>com.greenpepper.agent.server.Agent</mainClass>
+						</transformer>
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ComponentsXmlResourceTransformer" />
+						<transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer" />
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer" />
+					</transformers>
+					<artifactSet>
+						<excludes>
+							<exclude>org.slf4j:slf4j-api</exclude>
+							<exclude>ch.qos.logback:logback-classic</exclude>
+							<exclude>com.github.strator-dev.greenpepper:greenpepper-logger</exclude>
+							<exclude>xmlrpc:xmlrpc</exclude>
+							<exclude>commons-codec:commons-codec</exclude>
+							<exclude>org.apache.commons:commons-lang3</exclude>
+							<exclude>commons-logging:commons-logging</exclude>
+							<exclude>com.google.guava:guava</exclude>
+							<exclude>org.codehaus.janino:janino</exclude>
+							<exclude>org.codehaus.janino:commons-compiler</exclude>
+						</excludes>
+					</artifactSet>
+					<filters>
+						<filter>
+							<artifact>com.github.strator-dev.greenpepper:greenpepper-core</artifact>
+							<excludes>
+								<exclude>greenpepper-logback-default.xml</exclude>
+							</excludes>
+						</filter>
+					</filters>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+	
+	<dependencies>
+		<dependency>
+			<groupId>com.github.strator-dev.greenpepper</groupId>
+			<artifactId>greenpepper-client</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+		</dependency>
+
+	</dependencies>
+</project>
+

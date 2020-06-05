@@ -1,0 +1,29 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - compile
+  - deploy
+
+compile:
+  stage: compile
+  script: 
+    - 'ant build'
+    - 'ant create_run_jar'
+  artifacts:
+    paths:
+    - server.jar
+    expire_in: 1 day
+
+deploy-dev:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+    GIT_SUBMODULE_STRATEGY: none
+  only: 
+    - master
+  script:
+    - 'export CI_DESTINATION=$PWD/server.jar'
+    - 'cd /home'
+    - './deploy.sh'
+

@@ -1,0 +1,35 @@
+image: golang:1.10-alpine
+
+stages:
+  - test
+  - docker-build
+  
+
+test:
+  before_script:
+    - apk add --update git
+    - mkdir /go/src/gitlab.com/thiagotrennepohl/gourmet-game -p
+    - cp -r /builds/thiagotrennepohl/gourmet-game/* /go/src/gitlab.com/thiagotrennepohl/gourmet-game/
+    - cd /go/src/gitlab.com/thiagotrennepohl/gourmet-game
+    - go get -u github.com/golang/dep/cmd/dep
+    - dep ensure
+  variables:
+    GOPATH: "/go"
+  stage: test
+  script:
+    - CGO_ENABLED=0 go test $(go list ./... | grep -v /vendor/) -v -coverprofile .testCoverage.txt
+
+build-and-docker-build:
+  image: docker:stable
+  variables:
+     DOCKER_HOST: tcp://docker:2375
+  services:
+   - docker:dind
+  stage: docker-build
+  script:
+    - docker login registry.gitlab.com -u gitlab-ci-token -p $CI_JOB_TOKEN
+    - docker build -t registry.gitlab.com/thiagotrennepohl/gourmet-game .
+    - docker push registry.gitlab.com/thiagotrennepohl/gourmet-game 
+  only:
+    - master
+

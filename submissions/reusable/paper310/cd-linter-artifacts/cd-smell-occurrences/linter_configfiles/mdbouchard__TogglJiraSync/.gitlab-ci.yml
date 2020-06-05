@@ -1,0 +1,66 @@
+variables:
+  GIT_PROJECT_ID: 6495048
+  VERSION: 1.6.$CI_PIPELINE_IID
+
+image: openjdk:8
+
+.anchors:
+  - &gradle
+    before_script:
+      - export GRADLE_USER_HOME=.gradle/
+    cache:
+      key: "$CI_COMMIT_REF_SLUG"
+      untracked: true
+      paths:
+        - .gradle/caches
+        - .gradle/wrapper
+
+stages:
+  - build
+  - dist
+  - tag
+
+build:
+  stage: build
+  <<: *gradle
+  script:
+    - ./gradlew clean check shadowJar -Pversion=$VERSION
+  artifacts:
+    paths:
+      - build/
+    when: always
+    expire_in: 1 hour
+  except:
+    - tags
+
+dist:
+  stage: dist
+  <<: *gradle
+  script:
+    - ./gradlew shadowDistZip -Pversion=$VERSION
+  artifacts:
+    paths:
+      - build/distributions
+    when: on_success
+  only:
+    - master
+  except:
+    - tags
+
+tag:
+  stage: tag
+  script:
+    - >-
+      curl
+      --header "PRIVATE-TOKEN: $GIT_PRIVATE_TOKEN"
+      --header "Content-Type: application/json"
+      -X POST
+      -d '{"tag_name":"'$VERSION'", "ref":"'$CI_COMMIT_SHA'"}'
+      https://gitlab.com/api/v4/projects/$GIT_PROJECT_ID/repository/tags 2>&1
+      | tee /dev/stderr
+      | grep "$VERSION"
+  dependencies:
+    - dist
+  only:
+    - master
+

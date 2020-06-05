@@ -1,0 +1,54 @@
+stages:
+  - test
+  - deploy
+
+variables:
+  GECKODRIVER_VERSION: "0.23.0"
+  # LUA_WEB_DRIVER_LOG_LEVEL: "notice"
+
+test-centos7:
+  image: centos:7
+  stage: test
+  before_script:
+    - yum install -q -y epel-release
+    - yum install -q -y
+        firefox
+        gcc
+        gcc-c++
+        git
+        lua-devel
+        luajit
+        luajit-devel
+        luarocks
+        m4
+        make
+        openssl-devel
+        ruby
+    - curl -L -O https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz
+    - tar xf geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz -C /usr/local/bin
+    - chmod +x /usr/local/bin/geckodriver
+    - VERSION=$(grep VERSION web-driver.lua | sed -e 's/.*"\(.*\)"/\1/g')
+    - cp web-driver.rockspec web-driver-${VERSION}-0.rockspec
+    - luarocks make web-driver-${VERSION}-0.rockspec
+    - rm -rf web-driver.lua web-driver
+    - luarocks install luaunit
+  script:
+    - luajit test/run-test.lua -v
+    - luajit examples/get-text-of-element.lua
+    - luajit examples/crawl.lua https://clear-code.gitlab.io/lua-web-driver/
+
+pages:
+  image: ruby:2.5
+  stage: deploy
+  before_script:
+    - cd docs
+    - gem install bundler
+    - bundle install
+  script:
+    - bundle exec jekyll build -d ../public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

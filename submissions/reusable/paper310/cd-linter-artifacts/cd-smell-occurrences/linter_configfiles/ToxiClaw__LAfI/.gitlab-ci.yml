@@ -1,0 +1,12 @@
+# Continous Integration for LaTeX Documents except MASTER which is the template branch.
+
+build:
+  image: tianon/latex
+  except:
+   - master
+  script:
+    - latexmk -f solution.tex
+  artifacts:
+    paths:
+      - "solution.pdf"
+

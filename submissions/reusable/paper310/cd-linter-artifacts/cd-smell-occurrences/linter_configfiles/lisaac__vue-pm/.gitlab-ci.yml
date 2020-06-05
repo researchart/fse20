@@ -1,0 +1,18 @@
+image: node:8.11.2
+
+pages:
+  cache:
+    paths:
+    - node_modules/
+
+  script:
+  - npm install
+  - npm i @vue/babel-preset-app
+  - npm run build
+  - mv -f docs/* public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

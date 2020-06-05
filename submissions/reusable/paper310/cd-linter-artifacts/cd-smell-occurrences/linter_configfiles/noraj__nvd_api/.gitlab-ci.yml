@@ -1,0 +1,56 @@
+# Official language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/ruby/tags/
+
+# Caching: https://docs.gitlab.com/ee/ci/caching/#caching-ruby-dependencies
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - vendor/ruby # cache gems in between builds
+
+before_script:
+  - ruby -v # Print out ruby version for debugging
+  - gem install bundler --no-document # Bundler is not installed with the image
+  # install nproc (coreutils) for bundle -j
+  # install git for building the gemspec
+  # install make, gcc for building gem native extension (commonmarker)
+  # libc-dev for musl-dev dependency (stdlib.h) needed by gcc
+  - apk --no-cache add coreutils git make gcc libc-dev
+  - bundle install -j $(nproc) --path vendor # Install dependencies into ./vendor/ruby
+  - bundle exec rake install # install the gem
+
+# Anchors: https://docs.gitlab.com/ee/ci/yaml/README.html#anchors
+.test_template: &job_definition
+  stage: test
+  script:
+  - bundle exec rubocop
+  - bundle exec rake test
+
+test:2.4:
+  <<: *job_definition
+  image: ruby:2.4-alpine
+
+test:2.5:
+  <<: *job_definition
+  image: ruby:2.5-alpine
+
+test:2.6:
+  <<: *job_definition
+  image: ruby:2.6-alpine
+
+test:2.7:
+  <<: *job_definition
+  image: ruby:2.7-alpine
+
+pages:
+  stage: deploy
+  image: ruby:2.4-alpine
+  script:
+    - bundle exec yard doc
+    - mkdir public
+    - mv doc/* public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

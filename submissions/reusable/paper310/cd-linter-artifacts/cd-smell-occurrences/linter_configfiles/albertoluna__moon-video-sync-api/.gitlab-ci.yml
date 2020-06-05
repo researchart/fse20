@@ -1,0 +1,18 @@
+image: node:6
+
+before_script:
+    - apt-get -qq update
+    - apt-get -qq install -y python2.7 python2.7-dev build-essential make gcc g++ libicu-dev
+    - npm set progress=false
+    - npm install --silent
+
+deploy:
+    script:
+      - npm run build
+      - apt-get install -yqq ruby ruby-dev --silent
+      - rm -rf node_modules
+      - gem install dpl
+      - dpl --provider=heroku --app=moon-video-sync-api --api-key=$HEROKU_API_KEY --skip_cleanup
+    only:
+      - master
+

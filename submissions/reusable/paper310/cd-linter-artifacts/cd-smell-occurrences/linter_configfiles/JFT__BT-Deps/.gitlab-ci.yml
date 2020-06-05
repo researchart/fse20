@@ -1,0 +1,92 @@
+
+stages:
+  - prepare
+  - build
+  - publish
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+.can_build_images: &can_build_images
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  tags:
+    - docker
+
+# docker-in-docker image building based on
+# https://docs.gitlab.com/ce/ci/docker/using_docker_build.html
+base_images:
+  <<: *can_build_images
+  image: tmaier/docker-compose:latest
+  stage: prepare
+  script:
+    # get old images to speed up new image generation (are used as base in compose.yml)
+    - docker pull "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang:latest" || true
+    - docker pull "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc:latest" || true
+    - docker pull "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/analysis:latest" || true
+    # analysis image must be build last because it depends on clang_image
+    - docker-compose --file "docker/docker-compose.yml" build gcc_image clang_image
+    - docker-compose --file "docker/docker-compose.yml" build analysis_image
+    # created images are tagged with current commit. Also add 'latest' tag
+    - docker tag "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang:latest"
+    - docker push "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang:latest"
+    - docker tag "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc:latest"
+    - docker push "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc:latest"
+    - docker tag "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/analysis:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/analysis:latest"
+    - docker push "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/analysis:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/analysis:latest"
+
+.build_template: &build_template
+  stage: build
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    - mkdir build_release && cd build_release
+    - cmake ".." -DCMAKE_BUILD_TYPE=Release && make -j 2
+    - cd ..
+    - mkdir build_debug && cd build_debug
+    - cmake ".." -DCMAKE_BUILD_TYPE=Debug && make -j 2
+  artifacts:
+    expire_in: 1h
+    paths:
+      - "$CI_PROJECT_DIR/all_dependencies"
+
+
+build:clang:
+  <<: *build_template
+  image: "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/clang:$CI_COMMIT_SHA"
+
+build:gcc:
+  <<: *build_template
+  image: "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/gcc:$CI_COMMIT_SHA"
+
+
+.publish_template: &publish_template
+  <<: *can_build_images
+  image: docker:stable
+  stage: publish
+  script:
+    - docker build . --build-arg BASE_IMAGE=$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/$BASE_NAME:$CI_COMMIT_SHA -t "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/${BASE_NAME}_deps:$CI_COMMIT_SHA"
+    - docker tag "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/${BASE_NAME}_deps:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/${BASE_NAME}_deps:latest"
+    - docker push "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/${BASE_NAME}_deps:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG/${BASE_NAME}_deps:latest"
+
+publish:clang:
+  <<: *publish_template
+  dependencies:
+    - build:clang
+  variables:
+    BASE_NAME: "clang"
+
+publish:gcc:
+  <<: *publish_template
+  dependencies:
+    - build:gcc
+  variables:
+    BASE_NAME: "gcc"
+
+

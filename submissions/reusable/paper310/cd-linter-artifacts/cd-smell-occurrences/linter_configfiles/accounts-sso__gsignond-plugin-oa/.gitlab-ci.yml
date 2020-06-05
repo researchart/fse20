@@ -1,0 +1,60 @@
+image: fedora:26
+
+cache:
+    key: dnf-cache
+    paths:
+        - dnf-cache/
+
+variables:
+    BUILDTOOLS_PKGS: "meson gcc redhat-rpm-config vala-tools"
+    GLIB2_PKGS: "pkgconfig(glib-2.0) pkgconfig(gobject-2.0)"
+    GSIGNOND_PKG: "pkgconfig(gsignond)"
+    LIBS_PKGS: "pkgconfig(json-glib-1.0) pkgconfig(libsoup-2.4) pkgconfig(gnutls)"
+    DOCGEN_PKGS: "pkgconfig(gtk-doc)"
+    GIR_PKGS: "pkgconfig(gobject-introspection-1.0)"
+    CI_PKGS: "pkgconfig(check) lcov"
+    LOCALE_PKGS: "langpacks-en"
+
+before_script:
+    - dnf --setopt=cachedir=`pwd`/dnf-cache --quiet --refresh --assumeyes install $BUILDTOOLS_PKGS $GLIB2_PKGS $GSIGNOND_PKG $LIBS_PKGS $DOCGEN_PKGS $GIR_PKGS $CI_PKGS $LOCALE_PKGS
+
+
+build_x86-64:
+    stage: build
+    script:
+        - meson build -Db_coverage=true
+        - cd build
+        - ninja
+    artifacts:
+        paths:
+            - ./
+
+test_x86-64:
+    stage: test
+    script:
+        - cd build
+        - ninja test
+        - ninja coverage-html
+    dependencies:
+        - build_x86-64
+    artifacts:
+        paths:
+            - ./
+
+pages:
+    stage: deploy
+    script:
+        - cd build
+        - ninja install
+        - cd ..
+        - mkdir public
+        - cp -a build/docs/html/* public
+    only:
+        - tags
+        - master@accounts-sso/gsignond-plugin-oa
+    dependencies:
+        - test_x86-64
+    artifacts:
+        paths:
+            - public
+

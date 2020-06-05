@@ -1,0 +1,11 @@
+image: python:3.5-alpine
+
+test:
+  script:
+  - pip install -r requirements.txt
+  - pip install -r requirements-dev.txt
+  - python ./setup.py develop
+  - flake8
+  - pylint golinks
+  - py.test --cov-report term-missing --cov=golinks tests -v
+

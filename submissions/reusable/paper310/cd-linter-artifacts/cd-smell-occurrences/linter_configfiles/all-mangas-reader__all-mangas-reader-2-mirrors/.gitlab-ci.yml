@@ -1,0 +1,27 @@
+image: node:8.9.4
+
+stages:
+    - build
+    - package
+
+build:
+    stage: build
+    script: node ./update-ws.js
+    artifacts:
+        paths:
+            - ./
+        expire_in: 1 day
+        
+mirrors-repo:
+    stage: package
+    script:
+        - tar -czvf mirrors.tar.gz websites.json mirrors/*
+    artifacts:
+        paths:
+            - mirrors.tar.gz
+        expire_in: 1 week
+    dependencies:
+        - build
+        
+
+

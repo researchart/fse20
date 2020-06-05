@@ -1,0 +1,24 @@
+image: docker:latest
+services:
+  - docker:dind
+stages:
+- buildpush
+variables:
+  REGISTRY: registry.gitlab.com
+before_script:
+  - docker login -u $CI_BUILD_USER -p $CI_BUILD_TOKEN ${REGISTRY}
+  - echo "[INFO] Looking at allocated resources:"
+  - echo "RAM allocated(MB):"
+  - free -m
+  - echo "Number of cores:"
+  - cat /proc/cpuinfo
+buildpush:
+  stage: buildpush
+  script:
+    - |
+      CI_VERSION=$(grep "\"version\":" package.json | awk '{print $2}' | tr -d "\",")
+      CI_DATE_TIME=$(date | awk '{print $3 $2 $6 $4}' | tr -d ":")
+      docker build -t ${REGISTRY}/checkmein2/checkmein2-ui:${CI_PIPELINE_ID}-${CI_VERSION}-${CI_DATE_TIME} .
+      docker images --all
+      docker push ${REGISTRY}/checkmein2/checkmein2-ui:${CI_PIPELINE_ID}-${CI_VERSION}-${CI_DATE_TIME}
+

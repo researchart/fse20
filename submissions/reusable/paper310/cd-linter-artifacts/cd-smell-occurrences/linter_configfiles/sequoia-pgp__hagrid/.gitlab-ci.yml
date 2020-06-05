@@ -1,0 +1,16 @@
+stages:
+    - build
+
+build:binary:
+    stage: build
+    tags:
+        - docker
+    image: "rustlang/rust:nightly"
+    script:
+        - 'echo "deb http://deb.debian.org/debian testing main" > /etc/apt/sources.list.d/testing-nettle.list'
+        - 'echo "Package: *\nPin: release a=testing\nPin-Priority: 150" > /etc/apt/preferences.d/limit_testing'
+        - apt update -qy
+        - apt install -qy libclang-dev build-essential pkg-config clang nettle-dev/testing gettext zsh
+        - ./make-translated-templates
+        - RUST_BACKTRACE=full cargo test --all
+

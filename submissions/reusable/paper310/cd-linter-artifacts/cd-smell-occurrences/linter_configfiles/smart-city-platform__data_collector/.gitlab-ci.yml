@@ -1,0 +1,25 @@
+image: ruby:2.3
+
+# More about services: http://docs.gitlab.com/ee/ci/services/postgres.html
+services:
+  - postgres:latest
+  - redis:latest
+
+variables:
+  # Configure PostGreSQL environment variables (https://hub.docker.com/_/postgres/)
+  POSTGRES_PASSWORD: admin
+  POSTGRES_DB: data_collector_test
+
+before_script:
+  - ruby -v
+  - which ruby
+  - sh setup.sh
+  - gem install bundler --no-ri --no-rdoc
+  - bundle check || bundle install
+  - bundle exec rake db:create RAILS_ENV=test
+  - bundle exec rake db:migrate RAILS_ENV=test
+
+rspec:
+  script:
+    - bundle exec rspec
+

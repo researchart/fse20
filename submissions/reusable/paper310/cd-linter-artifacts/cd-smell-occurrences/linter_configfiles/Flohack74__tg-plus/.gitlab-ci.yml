@@ -1,0 +1,123 @@
+stages:
+    - deps-prepare
+    - deps
+    - build
+    - publish
+
+variables:
+    GIT_SUBMODULE_STRATEGY: 'recursive'
+    DOCKER_DRIVER: overlay2
+
+cache: &tdlib_cache
+    key: '$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-1.4'
+    untracked: true
+
+.armhf: &armhf
+    variables:
+        ARCH: "armhf"
+        ARCH_TRIPLET: "arm-linux-gnueabihf"
+
+.arm64: &arm64
+    variables:
+        ARCH: "arm64"
+        ARCH_TRIPLET: "aarch64-linux-gnu"
+
+.amd64: &amd64
+    variables:
+        ARCH: "amd64"
+        ARCH_TRIPLET: "x86_64-linux-gnu"
+
+
+.tdlib:
+    image: "clickable/ci-16.04-$ARCH"
+    stage: deps
+    dependencies:
+        - tdlib-prepare
+    script: 'clickable build-libs tdlib --arch $ARCH'
+    cache:
+        <<: *tdlib_cache
+        paths:
+            - "build/$ARCH_TRIPLET/tdlib"
+    artifacts:
+        paths:
+            - "build/$ARCH_TRIPLET/tdlib"
+        expire_in: 1 week
+
+
+.teleports:
+    image: "clickable/ci-16.04-$ARCH"
+    stage: build
+    script: 'clickable clean build --arch $ARCH'
+    artifacts:
+        paths:
+            - "build/$ARCH_TRIPLET/app"
+        expire_in: 1 week
+
+
+tdlib-prepare:
+    stage: deps-prepare
+    image: clickable/ci-16.04-amd64
+    script: 'clickable build-libs tdlib-prepare --arch amd64'
+    cache:
+        <<: *tdlib_cache
+        paths:
+            - "build/x86_64-linux-gnu/tdlib-prepare"
+            - "libs/vendor/tdlib"
+    artifacts:
+        paths:
+            - libs/vendor/tdlib
+        expire_in: 1 week
+
+
+tdlib-armhf:
+    <<: *armhf
+    extends: .tdlib
+
+tdlib-arm64:
+    <<: *arm64
+    extends: .tdlib
+
+tdlib-amd64:
+    <<: *amd64
+    extends: .tdlib
+
+
+teleports-armhf:
+    <<: *armhf
+    dependencies:
+        - tdlib-armhf
+    extends: .teleports
+
+teleports-arm64:
+    <<: *arm64
+    dependencies:
+        - tdlib-arm64
+    extends: .teleports
+
+teleports-amd64:
+    <<: *amd64
+    dependencies:
+        - tdlib-amd64
+    extends: .teleports
+
+
+publish:
+    stage: publish
+    image: clickable/ci-16.04-armhf
+    only:
+        - tags
+    script:
+        - 'clickable publish --arch armhf "$CI_COMMIT_MESSAGE"'
+        - 'clickable publish --arch arm64'
+        - 'clickable publish --arch amd64'
+    dependencies:
+        - teleports-armhf
+        - teleports-arm64
+        - teleports-amd64
+    artifacts:
+        paths:
+            - build/arm-linux-gnueabihf/app/*.click
+            - build/aarch64-linux-gnu/app/*.click
+            - build/x86_64-linux-gnu/app/*.click
+        expire_in: 30 days
+

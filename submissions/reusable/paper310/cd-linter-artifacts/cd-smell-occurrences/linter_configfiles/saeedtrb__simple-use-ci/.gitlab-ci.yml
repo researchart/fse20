@@ -1,0 +1,44 @@
+stages:
+  - build
+  - test 
+# Cache modules in between jobs
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+before_script:
+  - sudo apt-get update -qq && sudo apt-get install -y -qq nodejs
+  - sudo npm -v 
+  - sudo npm install gulp-cli -g
+  - sudo npm install gulp -D
+  - sudo gulp -v
+build:
+    stage: build
+    script:
+        - sudo npm install
+        - sudo gulp
+        - sudo rsync -av --delete dist /var/www/html/simple-use-ci
+    only:
+        - master
+    tags:
+        - debian
+        - build
+test-s1:
+    stage: test
+    script:
+        - echo start test
+        
+test-deb:
+    stage: test
+    script:
+        - echo test debian
+    tags:
+        - debian
+test-win:
+    stage: test
+    script:
+        - echo test win
+    tags:
+        - windows
+

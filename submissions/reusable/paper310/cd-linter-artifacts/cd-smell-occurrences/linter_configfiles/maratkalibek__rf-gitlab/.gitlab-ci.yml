@@ -1,0 +1,12 @@
+image: maratkalibek/robotframework
+
+stages:
+- test
+
+test:
+  stage: test
+  script: "./robotframework gitlab.robot"
+  artifacts:
+    paths:
+    - report/
+

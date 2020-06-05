@@ -1,0 +1,43 @@
+python_2_7_tests:
+  script:
+    - apt-get update -qy
+    - apt-get install -qy python-pip python-numpy python-scipy pyflakes gettext libhdf5-dev libnetcdf-dev cython libopenmpi-dev libblacs-openmpi1 libscalapack-openmpi1 gfortran libblas-dev
+    # necessary to creat libraries link
+    - ln -s /usr/lib/libscalapack-openmpi.so.1 /usr/lib/libscalapack-openmpi.so
+    - ln -s /usr/lib/libblacsCinit-openmpi.so.1 /usr/lib/libblacsCinit-openmpi.so
+    - ln -s /usr/lib/libblacs-openmpi.so.1 /usr/lib/libblacs-openmpi.so
+    - pip install --upgrade setuptools
+    - pip install --user mpi4py
+    - export PATH=$HOME/.local/bin:$PATH
+    - cd $CI_PROJECT_DIR
+    - echo $PWD
+    - cp pyscalapack/customize.py.arch.gnu pyscalapack/customize.py
+    - python setup.py install
+    # Running from a temporary directory to avoid import errors
+    - mkdir -p /tmp/test/ && cd /tmp/test && echo $PWD
+    # Run tests
+    - python --version
+    - python -m unittest discover $CI_PROJECT_DIR/tests
+
+python_3_tests:
+  script:
+    - apt-get update -qy
+    - apt-get install -qy python3-pip python3-numpy python3-scipy pyflakes gettext libhdf5-dev libnetcdf-dev cython3 libopenmpi-dev libblacs-openmpi1 libscalapack-openmpi1 gfortran libblas-dev
+    # necessary to creat libraries link
+    - ln -s /usr/lib/libscalapack-openmpi.so.1 /usr/lib/libscalapack-openmpi.so
+    - ln -s /usr/lib/libblacsCinit-openmpi.so.1 /usr/lib/libblacsCinit-openmpi.so
+    - ln -s /usr/lib/libblacs-openmpi.so.1 /usr/lib/libblacs-openmpi.so
+    - pip3 install --upgrade setuptools
+    - pip3 install --user mpi4py
+    - export PATH=$HOME/.local/bin:$PATH
+    - cd $CI_PROJECT_DIR
+    - echo $PWD
+    - cp pyscalapack/customize.py.arch.gnu pyscalapack/customize.py
+    - python3 setup.py install
+    # Running from a temporary directory to avoid import errors
+    - mkdir -p /tmp/test/ && cd /tmp/test && echo $PWD
+    # Run tests
+    - python3 --version
+    - python3 -m unittest discover $CI_PROJECT_DIR/tests
+    - mpirun -np 4 python3 -m unittest discover $CI_PROJECT_DIR/tests
+

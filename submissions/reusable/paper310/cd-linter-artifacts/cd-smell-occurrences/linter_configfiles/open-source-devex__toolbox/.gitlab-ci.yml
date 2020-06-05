@@ -1,0 +1,29 @@
+image: registry.gitlab.com/open-source-devex/containers/build:latest
+
+
+stages:
+- release
+
+
+variables:
+  VERSION_FILE: version.txt
+
+
+release:
+  stage: release
+  variables:
+    GIT_REMOTE: git@gitlab.com:${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}
+  before_script:
+  - /opt/toolbox/users/setup-bot.sh
+  - /opt/toolbox/users/install-ssh-key.sh "${DEVEX_BOT_SSH_KEY}"
+  script:
+  - |
+    VERSION=$( cat ${VERSION_FILE} )
+    git/tag-release.sh "v${VERSION}"
+
+    git/bump-version.sh "${VERSION}" "${VERSION_FILE}"
+  after_script:
+  - /opt/toolbox/users/cleanup-bot.sh
+  only:
+  - master
+

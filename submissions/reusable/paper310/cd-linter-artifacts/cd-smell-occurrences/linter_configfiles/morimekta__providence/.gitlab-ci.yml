@@ -1,0 +1,87 @@
+variables:
+  MAVEN_OPTS: "-Dhttps.protocols=TLSv1.2 -Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "-B -fae -T 1C"
+  MAVEN_NO_PACKAGING: "-Ddisable.distribution.packaging=true"
+  MAVEN_NO_TESTS: "-DskipTests=true"
+
+stages:
+- testing
+- release
+- post-release
+
+cache:
+  key: "$CI_PROJECT_NAME"
+  paths:
+  - .m2/repository
+
+.test: &test
+  stage: testing
+  except:
+    variables:
+    - $CI_COMMIT_MESSAGE =~ /\[silent-ignore\]/
+    - $CI_COMMIT_MESSAGE =~ /\[maven-release-plugin\]/
+  variables:
+    IGNORE_HAZELCAST_TESTS: "true"
+  script:
+  - mkdir -p .m2/repository
+  - mvn ${MAVEN_CLI_OPTS} ${MAVEN_NO_PACKAGING} verify -Plib,cli,reporting
+  - |
+    awk -F"," '{ instructions += $4 + $5; covered += $5 } END { OFMT = "%.2f"; print covered, "/", instructions, " instructions covered"; print 100*covered/instructions, "% covered" }' \
+            */target/site/jacoco-ut/jacoco.csv || /bin/true
+  after_script:
+    # Never cache itself.
+    - rm -rf .m2/repository/net/morimekta/providence/ || /bin/true
+  coverage: /([0-9]{1,3}[.][0-9][0-9]) % covered/
+
+test:jdk8:
+  <<: *test
+  before_script: # based on alpine
+    - apk add --no-cache zip unzip
+  image: maven:3.5-jdk-8-alpine
+
+test:jdk11:
+  <<: *test
+  before_script: # based on debian
+    - apt update && apt install -y zip unzip
+  image: maven:3.5-jdk-11-slim
+  artifacts:
+    reports:
+      junit:
+      - '*/target/surefire-reports/TEST-*.xml'
+    expire_in: 15 minutes
+    paths:
+    - reporting/target/site/**/*
+
+test:jdk14:
+  <<: *test
+  before_script: # based on redhat
+    - yum install -y zip unzip
+  image: maven:3.6-jdk-14
+
+pages:
+  image: ruby:2.5
+  cache:
+    key: "vendor-$CI_PROJECT_NAME"
+    paths:
+    - docs/vendor/
+  stage: post-release
+  before_script:
+  - cd docs
+  - bundle install --path vendor
+  script:
+  - bundle exec jekyll build -d public
+  - mv public ..
+  - cd ..
+  - mv reporting/target/site/jacoco-aggregate public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+  dependencies:
+  - test:jdk11
+  except:
+    variables:
+    - $CI_COMMIT_MESSAGE =~ /\[silent-ignore\]/
+    - $CI_COMMIT_MESSAGE =~ /\[maven-release-plugin\]/      
+

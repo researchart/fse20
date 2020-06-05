@@ -1,0 +1,30 @@
+stages:
+  - build
+  - test
+
+build:image:
+  image: docker:git
+  stage: build
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/danielsiepmann/neotags .
+    - docker push registry.gitlab.com/danielsiepmann/neotags:latest
+  # only:
+  #   - master
+
+lint:coding-guideline:
+  image: 'registry.gitlab.com/danielsiepmann/neotags:latest'
+  stage: test
+  script:
+    - pep8 .
+
+test:
+  image: 'registry.gitlab.com/danielsiepmann/neotags:latest'
+  stage: test
+  before_script:
+    - cd rplugin
+  script:
+    - python -m unittest test.test_neotags
+

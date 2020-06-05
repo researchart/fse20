@@ -1,0 +1,27 @@
+image: varikin/golang-glide-alpine
+
+before_script:
+    - ln -s /builds /go/src/gitlab.com
+    - cd /go/src/gitlab.com/varikin/romen
+    - glide install
+
+stages:
+    - test
+    - package
+
+test:
+    stage: test
+    script:
+        - make check
+
+package:
+    stage: package
+    script:
+        - go get github.com/GeertJohan/go.rice/rice
+        - make VERSION=$CI_COMMIT_TAG bundle package
+    artifacts:
+        paths:
+            - bin/
+    only:
+        - tags
+

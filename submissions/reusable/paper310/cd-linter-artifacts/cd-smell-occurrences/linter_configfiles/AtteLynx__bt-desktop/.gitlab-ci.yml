@@ -1,0 +1,47 @@
+image: node:latest
+
+stages:
+  - build
+  - analysis
+  - deployment
+
+build:
+  stage: build
+  script:
+    - npm install
+    - npm run build
+    - echo "$CI_JOB_ID" >job_id.txt
+  cache:
+    paths:
+      - node_modules/
+  artifacts:
+    paths:
+      - public/
+      - job_id.txt
+
+sonarqube:
+  stage: analysis
+  image: ciricihq/gitlab-sonar-scanner
+  variables:
+    SONAR_URL: "https://sonar.atte.fi"
+    SONAR_PROJECT_VERSION: "$CI_BUILD_ID"
+    SONAR_ANALYSIS_MODE: "publish"
+  script:
+    - unset CI_BUILD_REF && /usr/bin/sonar-scanner-run.sh
+
+deploy_production:
+  stage: deployment
+  image: buildpack-deps:curl
+  environment:
+    name: production
+    url: http://bt.insecure.fi/
+  only:
+    - master
+  script:
+    - curl --fail --silent --show-error
+      --data-urlencode "commit=$CI_COMMIT_SHA"
+      --data-urlencode "build_job=$(cat job_id.txt)"
+      --data-urlencode "deploy_job=$CI_JOB_ID"
+      --data-urlencode "secret=$DEPLOY_SECRET"
+      'https://atte.fi/update_bt_desktop.py'
+

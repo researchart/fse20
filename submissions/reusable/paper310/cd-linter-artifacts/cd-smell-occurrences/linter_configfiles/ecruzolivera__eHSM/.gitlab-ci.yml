@@ -1,0 +1,55 @@
+image: ecruzolivera/archlinux_cpp_buildsystem
+
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+  - pacman -Syu --noconfirm
+
+build:
+  stage: build
+  script:
+    - ./build.sh -DCMAKE_BUILD_TYPE=Debug
+  artifacts:
+    paths:
+      - build
+    expire_in: 1 hour
+
+cpp_check:
+  stage: test
+  script:
+    - ./cppcheck.sh
+  allow_failure: true
+  artifacts:
+    paths:
+      - build
+    expire_in: 1 hour
+
+cpp_check_html_report:
+  stage: deploy
+  script:
+    - ./cppcheck_report.sh
+  artifacts:
+    paths:
+      - reports/cppcheck
+    expire_in: 1 week
+
+test:
+  stage: test
+  script:
+    - ./test.sh
+
+pages:
+  stage: deploy
+  script:
+    - cd docs
+    - doxygen Doxyfile
+    - mv html/ ../public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

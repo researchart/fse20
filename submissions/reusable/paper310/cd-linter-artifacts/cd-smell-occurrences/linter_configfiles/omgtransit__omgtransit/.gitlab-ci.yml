@@ -1,0 +1,21 @@
+image: node # built using v9.3.0 but not necessary to pin
+
+cache:
+  paths: 
+    - node_modules/
+
+before_script:
+  - npm install
+
+pages:
+  stage: deploy
+  script:
+    - npm run build
+    - rm -rf public
+    - mv build public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

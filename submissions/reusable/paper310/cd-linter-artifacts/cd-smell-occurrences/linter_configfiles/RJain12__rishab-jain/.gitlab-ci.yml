@@ -1,0 +1,19 @@
+image: node:latest
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+job:
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby ruby-dev rubygems-integration
+  - npm install
+  - gem install --no-rdoc --no-ri dpl
+  - dpl --provider=heroku --app=rishab-jain --api-key=9ebbcf81-4594-46e5-9736-2cfe165465ee
+  only:
+  - master@RJain12/rishab-jain
+#  - tags # uncomment for official versions where only tags should have builds. for dev/alpha, all commits should build
+

@@ -1,0 +1,44 @@
+image: docker:git
+services:
+- docker:dind
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  - docker login -u gbraad -p $DOCKER_PASSWORD
+
+build_alpine:
+  script:
+    - docker build -t registry.gitlab.com/gbraad/openstack-client:alpine ./alpine 
+    - docker push registry.gitlab.com/gbraad/openstack-client:alpine
+    - docker tag registry.gitlab.com/gbraad/openstack-client:alpine gbraad/openstack-client:alpine
+    - docker push gbraad/openstack-client:alpine
+  only:
+    - master
+
+build_centos:
+  script:
+    - docker build -t registry.gitlab.com/gbraad/openstack-client:centos ./centos 
+    - docker push registry.gitlab.com/gbraad/openstack-client:centos
+    - docker tag registry.gitlab.com/gbraad/openstack-client:centos gbraad/openstack-client:centos
+    - docker push gbraad/openstack-client:centos
+  only:
+    - master
+
+build_fedora:
+  script:
+    - docker build -t registry.gitlab.com/gbraad/openstack-client:fedora ./fedora 
+    - docker push registry.gitlab.com/gbraad/openstack-client:fedora
+    - docker tag registry.gitlab.com/gbraad/openstack-client:fedora gbraad/openstack-client:fedora
+    - docker push gbraad/openstack-client:fedora
+  only:
+    - master
+
+build_ubuntu:
+  script:
+    - docker build -t registry.gitlab.com/gbraad/openstack-client:ubuntu ./ubuntu 
+    - docker push registry.gitlab.com/gbraad/openstack-client:ubuntu
+    - docker tag registry.gitlab.com/gbraad/openstack-client:ubuntu gbraad/openstack-client:ubuntu
+    - docker push gbraad/openstack-client:ubuntu
+  only:
+    - master
+

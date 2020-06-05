@@ -1,0 +1,55 @@
+stages:
+  - test
+
+test_php56:
+  stage: test
+  image: php:5.6
+  before_script:
+    - apt-get update
+    - apt-get install zip unzip
+    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    - php composer-setup.php
+    - php -r "unlink('composer-setup.php');"
+    - php composer.phar install
+  script:
+    - ./vendor/bin/phpunit -c phpunit.xml
+
+test_php70:
+  stage: test
+  image: php:7.0
+  before_script:
+    - apt-get update
+    - apt-get install zip unzip
+    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    - php composer-setup.php
+    - php -r "unlink('composer-setup.php');"
+    - php composer.phar install
+  script:
+    - ./vendor/bin/phpunit -c phpunit.xml
+
+test_php71:
+  stage: test
+  image: php:7.1
+  before_script:
+    - apt-get update
+    - apt-get install zip unzip
+    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    - php composer-setup.php
+    - php -r "unlink('composer-setup.php');"
+    - php composer.phar install
+  script:
+    - ./vendor/bin/phpunit -c phpunit.xml
+
+test_php72:
+  stage: test
+  image: php:7.2
+  before_script:
+    - apt-get update
+    - apt-get install zip unzip
+    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    - php composer-setup.php
+    - php -r "unlink('composer-setup.php');"
+    - php composer.phar install
+  script:
+    - ./vendor/bin/phpunit -c phpunit.xml
+

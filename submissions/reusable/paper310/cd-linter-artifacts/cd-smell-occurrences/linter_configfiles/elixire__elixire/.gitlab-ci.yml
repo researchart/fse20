@@ -1,0 +1,56 @@
+image: python:3.7-alpine
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache"
+#   GIT_SUBMODULE_STRATEGY: recursive
+
+# build_frontend:
+#   image: node:alpine
+#   before_script:
+#     - node -v
+#     - yarn -v
+#   script:
+#     - cd frontend
+#     - yarn install
+#     - node_modules/.bin/webpack
+
+services:
+  - postgres:alpine
+  - redis:alpine
+
+cache:
+  # We spend way too long installing deps
+  paths:
+    - env/
+    - .cache/
+    - /var/cache/apk
+
+run_backend:
+  image: python:3.6-alpine
+  before_script:
+    - python -V
+    - apk --update add build-base git python3-dev libffi-dev jpeg-dev zlib-dev freetype-dev lcms2-dev openjpeg-dev tiff-dev tk-dev tcl-dev libxml2-dev libxslt-dev libffi-dev gcc musl-dev libgcc openssl-dev curl libmagic postgresql-client
+    - pip install virtualenv wheel tox
+    - sh -c "! [ -d env ] && virtualenv env || exit 0"
+    - source env/bin/activate
+    - python -m pip install -Ur requirements.txt
+    - mkdir -p images
+    - mkdir -p dumps
+    - mkdir -p thumbnails
+    - cat config.py.example config.py.ci > config.py
+    - python ./utils/upgrade/folder_sharding.py
+  script:
+    - mkdir frontend/output admin-panel/dist -p
+    - touch frontend/output/index.html admin-panel/dist/index.html
+    - ls -la
+    - pwd
+    - psql -h postgres -U postgres -f schema.sql
+    - python ./manage.py migrate
+    - python ./manage.py adduser h@h.co hi hihihihi
+    - python ./manage.py adduser a@a.co admin adminadmin
+    - python ./manage.py adduser n@n.co nousage nousagenousage
+    - python ./manage.py adduser q@q.co quotareached quotareached
+    - psql -h postgres -U postgres -c "UPDATE users SET admin = true WHERE username = 'admin'"
+    - psql -h postgres -U postgres -c "INSERT INTO domain_owners (domain_id, user_id) VALUES (0, (SELECT user_id FROM users WHERE username = 'admin'))"
+    - tox
+

@@ -1,0 +1,26 @@
+stages:
+  - build
+  - deploy
+build:
+  stage: build
+  image: python:2.7
+  before_script:
+    - pip install sphinx_rtd_theme
+  script:
+    - make html
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - _build/html
+pages:
+  stage: deploy
+  image: alpine
+  script:
+    - mv _build/html/ public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

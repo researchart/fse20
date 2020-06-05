@@ -1,0 +1,12 @@
+image: maven:latest
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - git clone https://gitlab.com/SiLA2/sila_base.git; pushd sila_base; mvn install;popd
+    - cd sila-executor; mvn package
+
+

@@ -1,0 +1,98 @@
+stages:
+  - test
+  - test-deploy
+  - deploy
+
+test:2.7:
+    image: python:2.7
+    stage: test
+    script:
+        - apt-get update && apt-get install -y libgdal-dev
+        - pip install gdal==2.1.0 --global-option=build_ext --global-option="-I/usr/include/gdal"
+        - pip install -r requirements.txt
+        # the pushd executes the command to the source directory without actually changing directories. Must
+        # do popd to undo the pushd. This is done so the imports work properly
+        - pushd scripts/
+        - python -m pytest ../testing/ --cov-report term --doctest-modules -v --cov rgi --cov-fail-under 65
+        - popd
+
+test:3:
+    image: python:3
+    stage: test
+    script:
+        - apt-get update && apt-get install -y libgdal-dev
+        - pip install gdal==2.1.0 --global-option=build_ext --global-option="-I/usr/include/gdal"
+        - pip install -r requirements.txt
+        # the pushd executes the command to the source directory without actually changing directories. Must
+        # do popd to undo the pushd. This is done so the imports work properly
+        - pushd scripts/
+        - python -m pytest ../testing/ --cov-report term --doctest-modules -v --cov rgi --cov-fail-under 65
+        - popd
+
+pip-install:2.7:
+    image: python:2.7
+    stage: test-deploy
+    script:
+        - pushd scripts/
+        - python setup.py test -a "../testing/  --doctest-modules -v --exclude-gdal"
+        - popd
+
+
+pip-install:3:
+    image: python:3
+    stage: test-deploy
+    script:
+        - pushd scripts/
+        - python setup.py test -a "../testing/  --doctest-modules -v --exclude-gdal"
+        - popd
+
+deploy:2.7:
+    image: python:2.7
+    stage: deploy
+    variables:
+        TWINE_REPOSITORY_URL: $PRODUCTION_REPOSITORY_URL
+    before_script:
+        - pip install twine
+    script:
+        - cd scripts/
+        - rm -rf dist/
+        - python setup.py sdist bdist_wheel
+        - twine upload dist/* -u "$TWINE_USERNAME" -p "$TWINE_PASSWORD"
+        - cd ..
+    only:
+        - tags
+    except:
+        - branches
+        - api
+        - triggers
+        - merge_requests
+        - external
+        - pipelines
+        - web
+        - schedules
+
+deploy:3:
+    image: python:3
+    stage: deploy
+    variables:
+        TWINE_REPOSITORY_URL: $PRODUCTION_REPOSITORY_URL
+    before_script:
+        - pip install twine
+    script:
+        - cd scripts/
+        - rm -rf dist/
+        - python setup.py bdist_wheel
+        - twine upload dist/* -u "$TWINE_USERNAME" -p "$TWINE_PASSWORD"
+        - cd ..
+    only:
+        - tags
+    except:
+        - branches
+        - api
+        - triggers
+        - merge_requests
+        - external
+        - pipelines
+        - web
+        - schedules
+

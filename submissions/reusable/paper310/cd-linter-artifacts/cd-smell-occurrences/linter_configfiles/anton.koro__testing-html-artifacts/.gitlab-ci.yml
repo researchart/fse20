@@ -1,0 +1,14 @@
+stages:
+  - bla
+
+testing-html-artifact:
+  stage: bla
+  tags: [docker]
+  script:
+    - echo 'Hello World!'
+  artifacts:
+    when: always
+    paths:
+      - TestResults\
+      - ./TestResults/
+

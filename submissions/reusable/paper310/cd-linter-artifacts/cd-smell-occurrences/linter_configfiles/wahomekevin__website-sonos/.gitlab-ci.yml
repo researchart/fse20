@@ -1,0 +1,27 @@
+build:
+  image: registry.gitlab.com/wahomekevin/web-starter:latest
+  stage: build
+  only: 
+    - master
+  artifacts:
+    paths: 
+      - ./public/
+  script:
+    - sh $APP_PATH/run.sh
+   
+# test1:
+#   stage: test
+#   script: 
+#     - echo "Do a test here"
+#     - echo "For example run a test suite"
+   
+deploy:
+  image: registry.gitlab.com/wahomekevin/website-deploy:latest
+  stage: deploy
+  only: 
+    - master
+  dependencies:
+    - build
+  script:
+    - sh $APP_PATH/sync.sh
+

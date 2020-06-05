@@ -1,0 +1,31 @@
+image: mhart/alpine-node:latest
+
+stages:
+  - lint
+  - pages
+
+lint:
+  stage: lint
+  script:
+    - npm install --only-dev --ignore-scripts
+    - npm run lint
+  cache:
+    paths:
+      - node_modules
+
+pages:
+  stage: pages
+  script:
+    - echo -n "$GQL_BACKEND" | base64 -d > secret.json
+    - npm run build
+    - gzip -k public/*.css public/*.html public/*.js
+  cache:
+    paths:
+      - node_modules
+    policy: pull
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

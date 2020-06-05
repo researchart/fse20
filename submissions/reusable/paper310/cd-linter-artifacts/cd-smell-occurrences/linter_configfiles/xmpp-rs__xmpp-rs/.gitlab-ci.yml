@@ -1,0 +1,51 @@
+stages:
+  - lint
+  - build
+  - test
+
+variables:
+  FEATURES: ""
+  RUST_BACKTRACE: "full"
+
+.stable:
+  image: rust:latest
+
+.nightly:
+  image: rustlang/rust:nightly
+
+.build:
+  stage: build
+  script:
+    - cargo build --verbose
+
+.test:
+  stage: test
+  script:
+    - cargo test --verbose
+
+rustfmt:
+  stage: lint
+  image: rustlang/rust:nightly
+  script:
+    - find -type f -iname '*.rs' -not -path './target/*' | xargs rustfmt --check --edition 2018
+
+rust-latest-build:
+  extends:
+    - .build
+    - .stable
+
+rust-nightly-build:
+  extends:
+    - .build
+    - .nightly
+
+rust-latest-test:
+  extends:
+    - .test
+    - .stable
+
+rust-nightly-test:
+  extends:
+    - .test
+    - .nightly
+

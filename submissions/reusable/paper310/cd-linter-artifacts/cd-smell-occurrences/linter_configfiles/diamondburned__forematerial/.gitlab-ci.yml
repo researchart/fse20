@@ -1,0 +1,20 @@
+image: alpine
+
+before_script:
+    - apk add --no-cache git zip coreutils
+
+stages:
+    - build
+
+compile:
+    stage: build
+    script:
+        - cd ${CI_PROJECT_DIR}
+        - mkdir -p ../artifacts/forematerial
+        - mv -f -t ../artifacts/forematerial/ *
+        - zip -r forematerial.zip ../artifacts/forematerial/
+        - mv forematerial.zip forematerial.osk
+    artifacts:
+        paths:
+            - forematerial.osk
+

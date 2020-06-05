@@ -1,0 +1,25 @@
+image: nixos/nix
+
+stages:
+  - build
+
+before_script:
+  - if [ -e .gitlab-cache.tar.gz ]; then rm -rf /nix || true; fi
+  - if [ -e .gitlab-cache.tar.gz ]; then tar -xzf .gitlab-cache.tar.gz -C / || true; fi
+after_script:
+  - tar -czf .gitlab-cache.tar.gz /nix || true
+
+cache:
+  key: nix
+  paths:
+    - .gitlab-cache.tar.gz
+
+
+compile:
+  stage: build
+  script:
+  - nix-build
+  artifacts:
+    paths:
+      - result
+

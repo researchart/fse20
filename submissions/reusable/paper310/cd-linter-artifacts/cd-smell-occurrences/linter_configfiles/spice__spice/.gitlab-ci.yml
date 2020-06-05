@@ -1,0 +1,47 @@
+image: fedora:latest
+
+before_script:
+  - >
+    dnf install 'dnf-command(copr)' git libtool make libasan orc-devel
+    python3 python3-six python3-pyparsing glib-networking
+    -y
+  - dnf copr enable @spice/nightly -y
+  - dnf builddep spice -y
+
+makecheck:
+  script:
+  - >
+    CFLAGS='-O2 -pipe -g -fsanitize=address -fno-omit-frame-pointer -Wframe-larger-than=40920'
+    LDFLAGS='-fsanitize=address -lasan'
+    ./autogen.sh
+  - make
+  - make -C server check || (cat server/tests/test-suite.log && exit 1)
+
+# check non-standard options, currently
+# --enable-statistics  compile statistic code
+# --without-sasl       disable SASL
+options:
+  script:
+  - ./autogen.sh --enable-statistics --without-sasl
+  - make
+  - make -C server check || (cat server/tests/test-suite.log && exit 1)
+
+check-valgrind:
+  script:
+  - dnf install https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm -y
+  - dnf debuginfo-install spice-server glib2 -y
+  - >
+    dnf install valgrind
+    gstreamer1-libav gstreamer1-plugins-ugly gstreamer1-plugins-good gstreamer1-plugins-bad-free
+    -y
+  - >
+    CFLAGS='-O2 -pipe -g -D_FORTIFY_SOURCE=0'
+    ./autogen.sh --enable-valgrind --enable-extra-checks
+  - make
+  - make check-valgrind || (cat server/tests/test-suite-memcheck.log && exit 1)
+
+syntax-check:
+  script:
+  - ./autogen.sh
+  - make syntax-check
+

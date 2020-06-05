@@ -1,0 +1,107 @@
+#include:
+#  template: Dependency-Scanning.gitlab-ci.yml
+
+stages:
+  - Prod Deploy
+  - Stage Deploy
+  - Utilities
+
+#dependency_scanning:
+#  stage: Utilities
+#  only:
+#    - master
+
+Prod Deploy API:
+  image: php:7.2
+  stage: Prod Deploy
+  only:
+    - master
+  script:
+    - apt-get update
+    - apt-get install -y lftp zip curl wget
+    - cd api/
+    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    - php composer-setup.php
+    - php -r "unlink('composer-setup.php');"
+    - php composer.phar install --no-dev
+    - cd ../
+    - cd ci/prod/
+    - bash deploy_backend.sh
+  environment:
+    name: Production API
+    url: https://www.hitmaps.com/api
+  artifacts:
+    paths:
+      - backend/
+
+Prod Deploy Frontend:
+  image: node:10
+  stage: Prod Deploy
+  only:
+    - master
+  script:
+    - apt-get update
+    - apt-get install -y lftp zip curl nodejs wget
+    - npm ci
+    - npm run build
+    - cd ci/prod/
+    - bash deploy_frontend.sh
+  environment:
+    name: Production Frontend
+    url: https://www.hitmaps.com
+  artifacts:
+    paths:
+      - frontend/
+
+Stage Deploy API:
+  image: php:7.2
+  stage: Stage Deploy
+  only:
+    - stage
+  script:
+    - apt-get update
+    - apt-get install -y lftp zip curl wget
+    - cd api/
+    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    - php composer-setup.php
+    - php -r "unlink('composer-setup.php');"
+    - php composer.phar install --no-dev
+    - cd ../
+    - cd ci/stage/
+    - bash deploy_backend.sh
+  environment:
+    name: Staging API
+    url: https://test.hitmaps.com/api
+  artifacts:
+    paths:
+      - backend/
+
+Stage Deploy Frontend:
+  image: node:10
+  stage: Stage Deploy
+  only:
+    - stage
+  script:
+    - apt-get update
+    - apt-get install -y lftp zip curl nodejs wget
+    - npm ci
+    - npm run staging
+    - cd ci/stage/
+    - bash deploy_frontend.sh
+  environment:
+    name: Staging Frontend
+    url: https://test.hitmaps.com
+  artifacts:
+    paths:
+      - frontend/
+
+
+Refresh Stage DB:
+  image: php:7.2
+  stage: Utilities
+  only:
+    - stage
+  when: manual
+  script:
+    - wget https://test.hitmaps.com/refresh-stage-db.php?access-key=$ACCESS_KEY
+

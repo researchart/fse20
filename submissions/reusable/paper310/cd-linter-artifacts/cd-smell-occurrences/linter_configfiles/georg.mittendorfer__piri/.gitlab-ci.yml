@@ -1,0 +1,24 @@
+image: java:8
+
+piri-snapshot:
+  only:
+    - master
+  script: ./mvnw clean verify
+  artifacts:
+    name: "piri-snapshot"
+    paths:
+      - target/*.jar
+    expire_in: 1 yrs
+
+piri-release:
+  only:
+    - tags
+  script: ./mvnw clean verify
+  artifacts:
+    name: "piri-$CI_COMMIT_TAG"
+    paths:
+      - target/*.jar
+    expire_in: 1 yrs
+
+
+

@@ -1,0 +1,31 @@
+image: golang:1.8
+
+stages:
+  - build
+  - test
+
+variables:
+  REPO_HOST: "gitlab.com"
+  REPO_USER: "spicydog"
+  REPO_NAME: "example-ci-cd-golang"
+  REPO_PATH: "$REPO_USER/$REPO_NAME"
+  GO_SRC: "/go/src"
+  BUILD_DIR: "/builds/$REPO_USER/$REPO_NAME"
+
+before_script:
+  - mkdir -p "$GO_SRC/$REPO_HOST/$REPO_PATH"
+  - cp -r "$BUILD_DIR" "$GO_SRC/$REPO_HOST/$REPO_USER/"
+  - cd "$GO_SRC/$REPO_HOST/$REPO_PATH/"
+  - go get github.com/tools/godep/
+  - godep restore
+
+build-example:
+  stage: build
+  script:
+    - godep go build
+
+test-example:
+  stage: test
+  script:
+    - godep go test -v -cover ./...
+

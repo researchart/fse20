@@ -1,0 +1,42 @@
+image: docker:latest
+
+services:
+    - docker:dind
+
+stages:
+    - build
+    - test
+    #- release
+
+variables:
+    TEST_IMAGE: mziescha/perl6-namedqueries:0.0.3
+    RELEASE_IMAGE: mziescha/perl6-namedqueries:latest
+    TEST_CONTAINER: p6-namedqueries-test
+
+#before_script:
+#    - docker login registry.gitlab.com -p
+
+#build:
+#    stage: build
+#    script:
+#        - docker info | grep Registry
+#        - docker build -t $TEST_IMAGE .
+#        - docker push $TEST_IMAGE
+
+test:
+    stage: test
+    script:
+        - docker build -t $TEST_IMAGE .
+        - docker run -d -e 'AUTHOR_TESTING=1' -v "$(pwd)":/srv --name $TEST_CONTAINER $TEST_IMAGE /bin/sleep infinity
+        - docker exec $TEST_CONTAINER zef --deps-only install .
+        - docker exec $TEST_CONTAINER prove6 -v -l t
+
+#release:
+#  stage: release
+#  script:
+#    - docker pull $TEST_IMAGE
+#    - docker tag $TEST_IMAGE $RELEASE_IMAGE
+#    - docker push $RELEASE_IMAGE
+#  only:
+#    - master
+

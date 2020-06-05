@@ -1,0 +1,24 @@
+image: dehuk/gitlab-ci-drupal:latest
+
+
+
+before_script:
+- apt-get update
+- apt-get upgrade -y
+- debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
+- debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password root'
+- apt-get -y install mysql-server 
+- service mysql start
+- apt-get install php5-sqlite
+- apt-get install php5-mysql
+
+
+build:
+  stage: build
+  script:
+    - composer install
+    - cd docroot
+    - mkdir themes
+    - ../bin/phpunit -c core core/tests/Drupal/Tests/Core/Password/PasswordHashingTest.php 
+  #  - php core/scripts/run-tests.sh --sqlite /sqlite --dburl mysql://root:root@localhost/drupal --all
+

@@ -1,0 +1,53 @@
+default:
+    image: debian:stable
+    before_script:
+        - apt-get update -q
+
+test_docstrings_and_unit_tests:
+    coverage: '/TOTAL.*\s+(\d+%)$/'
+    script:
+    - apt-get install -qy python3-pip python3-pytest python3-pytest-cov
+    - pip3 install .
+    - python3 -m pytest --doctest-modules --cov=merlin_interface merlin_interface/
+
+test_documentation:
+    script:
+    - apt-get install -qy python3-pip python3-pytest
+    - pip3 install .
+    - python3 -m pytest --doctest-glob="*.rst" doc/
+
+style_checks:
+    script:
+    - apt-get install -qy python3-pip python3-flake8
+    - python3 -m flake8 merlin_interface/
+
+pages_development_branch:
+    stage: deploy
+    script:
+    - apt-get install -qy python3-pip python3-sphinx python3-sphinx-rtd-theme build-essential
+    - pip3 install .
+    - cd doc
+    - make html
+    - cd ..
+    - mv doc/_build/html pages_development
+    artifacts:
+        paths:
+        - pages_development
+    only:
+    - master
+
+pages:
+    stage: deploy
+    script:
+    - apt-get install -qy python3-pip python3-sphinx python3-sphinx-rtd-theme build-essential
+    - pip3 install .
+    - cd doc
+    - make html
+    - cd ..
+    - mv doc/_build/html public
+    artifacts:
+        paths:
+        - public
+    only:
+    - release
+

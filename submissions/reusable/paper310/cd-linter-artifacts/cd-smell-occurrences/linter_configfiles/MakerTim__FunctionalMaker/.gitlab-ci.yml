@@ -1,0 +1,25 @@
+image: openjdk:8-jdk
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+before_script:
+  - chmod +x gradlew
+  - printf "mvnMakerTimUsername=$MVN_USER\n" > gradle.properties
+  - printf "mvnMakerTimPassword=$MVN_PASS\n" >> gradle.properties
+  - printf "globVersion=1.$(git rev-list --all --count)\n" >> gradle.properties
+
+test:
+  stage: test
+  script:
+  - ./gradlew test
+
+deploy:
+  stage: deploy
+  script:
+  - ./gradlew publish
+
+stages:
+- test
+- deploy
+

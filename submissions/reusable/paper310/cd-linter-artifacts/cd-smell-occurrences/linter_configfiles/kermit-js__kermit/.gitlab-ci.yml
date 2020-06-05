@@ -1,0 +1,36 @@
+stages:
+  - build
+  - test
+  - deploy
+
+build the package:
+  stage: build
+  script:
+    - npm install
+  tags:
+    - npm
+  except:
+    - tags
+
+execute npm tests:
+  stage: test
+  script:
+    - npm install
+    - npm test
+  tags:
+    - npm
+  except:
+    - tags
+
+publish coveralls:
+  stage: deploy
+  script:
+    - npm install
+    - npm run-script test-and-cover
+    - COVERALLS_SERVICE_NAME="GitLab CI" COVERALLS_GIT_COMMIT=${CI_BUILD_REF} COVERALLS_GIT_BRANCH=${CI_BUILD_REF_NAME} COVERALLS_REPO_TOKEN=${COVERALLS_REPO_TOKEN} npm run-script publish-coveralls
+  tags:
+      - npm
+  except:
+    - tags
+  allow_failure: true
+

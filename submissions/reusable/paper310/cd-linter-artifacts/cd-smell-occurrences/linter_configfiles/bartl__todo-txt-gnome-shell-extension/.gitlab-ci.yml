@@ -1,0 +1,33 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: normal
+
+stages:
+  - verify
+  - package
+
+test:
+  image: bartl/todo-txt-gnome-shell-extension-unit:latest
+  stage: verify
+  script:
+    - export GJS_COVERAGE_PREFIXES=$(pwd)
+    - export GJS_COVERAGE_OUTPUT=.coverage
+    - xvfb-run jasmine
+    - lcov -r .coverage/coverage.lcov "**/third_party/**/*" "**/unit/**/*" "**/spec/*" -o .coverage/coverage.lcov
+    - lcov --list .coverage/coverage.lcov
+
+lint:
+  stage: verify
+  image: node
+  script:
+    - npm install
+    - make check
+
+create_zip:
+  image: bartl/todo-txt-gnome-shell-extension-package:latest
+  stage: package
+  script:
+    - ./make_dev.sh
+  artifacts:
+    paths:
+      - todo*.zip
+

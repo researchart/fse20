@@ -1,0 +1,19 @@
+---
+
+ansible-lint:
+  image: sdwolfz/ansible-lint:latest
+  before_script:
+    - chmod 700 .
+  script:
+    - ansible-lint roles/**/*
+
+eclint:
+  image: sdwolfz/eclint:latest
+  script:
+    - eclint check
+
+shellcheck:
+  image: sdwolfz/shellcheck:latest
+  script:
+    - shellcheck .bash_profile
+

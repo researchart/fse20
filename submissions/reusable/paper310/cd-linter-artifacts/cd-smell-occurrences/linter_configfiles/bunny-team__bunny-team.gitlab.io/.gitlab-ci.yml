@@ -1,0 +1,13 @@
+pages:
+  stage: deploy
+  script:
+    - cp -r src public
+    - cp -r src gzip
+    - gzip -r gzip/
+    - cp -r gzip/* public/
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

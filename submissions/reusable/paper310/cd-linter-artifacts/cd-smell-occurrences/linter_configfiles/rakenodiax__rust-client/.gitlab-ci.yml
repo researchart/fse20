@@ -1,0 +1,16 @@
+image: rust
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - cargo test
+  cache:
+    paths:
+      - target/
+  artifacts:
+    paths:
+      - target/debug/rust-client
+

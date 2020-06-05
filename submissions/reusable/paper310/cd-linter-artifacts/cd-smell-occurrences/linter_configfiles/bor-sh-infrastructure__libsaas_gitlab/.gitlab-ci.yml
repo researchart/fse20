@@ -1,0 +1,39 @@
+image: python:3.6-alpine
+
+stages:
+  - test
+  - deploy
+
+before_script:
+   - pip install twine
+
+test:
+  stage: test
+  script:
+   - python3 setup.py sdist
+   - pip install dist/*
+   - apk add git
+   - python3 setup.py test
+
+deploy_staging:
+  stage: deploy
+  variables:
+    TWINE_USERNAME: $STAGING_USERNAME
+    TWINE_PASSWORD: $STAGING_PASSWORD
+  script:
+    - VERSION_APPEND=${CI_JOB_ID} python setup.py sdist
+    - twine upload --repository-url $REPOSITORY_URL dist/*
+  except:
+    - tags
+
+deploy_production:
+  stage: deploy
+  variables:
+    TWINE_USERNAME: $PRODUCTION_USERNAME
+    TWINE_PASSWORD: $PRODUCTION_PASSWORD
+  script:
+    - python setup.py sdist
+    - twine upload dist/*
+  only:
+    - tags
+

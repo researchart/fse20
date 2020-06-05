@@ -1,0 +1,35 @@
+image: docker:git
+services:
+  - docker:dind
+  
+stages:
+- test
+- build
+- test
+
+before_script:
+- docker info
+
+build_image:
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/welcheb/docker_slides2txt .
+    - docker push registry.gitlab.com/welcheb/docker_slides2txt:latest
+  only:
+    - master
+
+test_image:
+  stage: test
+  script:
+    - cd /builds/welcheb/docker_slides2txt/test_slides/
+    - ls -la /builds/welcheb/docker_slides2txt/
+    - /bin/sh /builds/welcheb/docker_slides2txt/slides2txt_run.sh shakespeare_pptx.pptx
+    - echo '10ac401d8c4cc77bee9e437b6e80e7cd1f99374d shakespeare_pptx.txt' | sha1sum -c -
+    - /bin/sh /builds/welcheb/docker_slides2txt/slides2txt_run.sh shakespeare_ppt.ppt
+    - echo '10d5d2d5daf98606fcc5e26882a4f18a996e8618 shakespeare_ppt.txt' | sha1sum -c -
+    - /bin/sh /builds/welcheb/docker_slides2txt/slides2txt_run.sh shakespeare_key.key
+    - echo 'a50abc48cb754b8bf0e0f145bb53866510136b8e shakespeare_key.txt' | sha1sum -c -
+  only:
+    - master
+

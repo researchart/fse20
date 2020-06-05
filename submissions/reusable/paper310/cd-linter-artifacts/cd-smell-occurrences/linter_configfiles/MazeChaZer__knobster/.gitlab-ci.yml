@@ -1,0 +1,49 @@
+image: registry.gitlab.com/mazechazer/knobster
+
+stages:
+    - prepare
+    - test
+    - build
+    - deploy
+
+ci-image:
+    image: docker:latest
+    stage: prepare
+    services:
+        - docker:dind
+    variables:
+        DOCKER_DRIVER: overlay
+    script:
+        - cd ci/
+        - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" -t "$CI_REGISTRY_IMAGE:latest" .
+        - docker login --username gitlab-ci-token --password "$CI_BUILD_TOKEN" "$CI_REGISTRY"
+        - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+        - docker push "$CI_REGISTRY_IMAGE:latest"
+        - docker logout "$CI_REGISTRY"
+    only:
+        changes:
+            - ci/Dockerfile
+
+test:
+    stage: test
+    script:
+        - elm-test
+
+build:
+    stage: build
+    script:
+        - bin/build
+    artifacts:
+        paths:
+            - public
+
+pages:
+    stage: deploy
+    script:
+        - echo 'Nothing to do.'
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+

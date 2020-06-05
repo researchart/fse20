@@ -1,0 +1,15 @@
+image: "ruby:2.3"
+
+services:
+  - selenium/standalone-chrome:latest
+
+variables:
+  selenium_remote_url: "http://selenium__standalone-chrome:4444/wd/hub/"
+
+before_script:
+- bundle install
+
+cucumber:
+  script:
+    - cucumber
+

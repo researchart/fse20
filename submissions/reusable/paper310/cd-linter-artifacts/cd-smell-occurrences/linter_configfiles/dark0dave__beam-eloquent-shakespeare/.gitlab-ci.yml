@@ -1,0 +1,9 @@
+image: openjdk:8-slim
+
+test:
+  stage: test
+  script: ./gradlew check --info
+  variables:
+    SHAKESPEARE_PATH: "src/test/resources/testFile.txt"
+
+

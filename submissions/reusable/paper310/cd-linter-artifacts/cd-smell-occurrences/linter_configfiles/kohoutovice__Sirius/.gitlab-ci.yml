@@ -1,0 +1,278 @@
+stages:
+    - build
+    - release
+    - deploy
+
+#=================================== BUILD SERVER ===================================
+build-server-x86_64:
+    stage: build
+    image: kohoutovice/qt5dev:x86_64_5.7
+    script:
+        - cd SiriusServer
+        - mkdir -p release/x86_64
+        - qmake PREFIX=$(pwd)/release/x86_64/usr
+        - make install
+    artifacts:
+      paths:
+        - SiriusServer/release/x86_64
+
+build-server-armv7:
+    stage: build
+    image: kohoutovice/qt5dev:armv7_5.7
+    script:
+        - cd SiriusServer
+        - mkdir -p release/armv7
+        - qmake PREFIX=$(pwd)/release/armv7/usr
+        - make install
+    artifacts:
+      paths:
+        - SiriusServer/release/armv7
+    tags:
+        - armv7
+
+#=================================== BUILD CLIENT ===================================
+
+build-client-x86_64:
+    stage: build
+    image: kohoutovice/qt5dev:x86_64_5.9.5
+    script:
+        - cd Sirius
+        - mkdir -p release/x86_64
+        - qmake PREFIX=$(pwd)/release/x86_64/usr
+        - make install
+    artifacts:
+      paths:
+        - Sirius/release/x86_64
+
+build-client-armv7:
+    stage: build
+    image: kohoutovice/qt5dev:armv7_5.9.5
+    script:
+        - cd Sirius
+        - mkdir -p release/armv7
+        - qmake PREFIX=$(pwd)/release/armv7/usr
+        - make install
+    artifacts:
+      paths:
+        - Sirius/release/armv7
+    tags:
+        - armv7
+
+#======================================== RELEASE x86 ========================================================
+
+#release-docker-x86_64:
+#    stage: release
+#    image: docker:latest
+#    only:
+#        - "master"
+#    services:
+#        - docker:dind
+#    variables:
+#        DOCKER_DRIVER: "overlay"
+#    before_script:
+#        - docker version
+#        - "docker info"
+#        - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
+#    script:
+#        - ls
+#        - "docker build -t registry.gitlab.com/kohoutovice/sirius:x86 --pull ."
+#        - "docker push registry.gitlab.com/kohoutovice/sirius:x86"
+#    after_script:
+#        - "docker logout ${CI_REGISTRY}"
+
+
+release-rpm-x86_64:
+    stage: release
+    image: kohoutovice/devops:x86_64_rpm
+    only:
+        - "master"
+    script:
+        - fpm -s dir -t rpm --name siriusserver --description "server side program of Sirius assistant"  --version $(cat VERSION) --iteration $(cat ITERATION)
+            --depends  'qt5-qtbase >= 5.7'
+            --depends  'qt5-qtmultimedia >= 5.7'
+            --depends  'qt5-qtserialport >= 5.7'
+            --depends  'qt5-qtdeclarative >= 5.7'
+            --chdir SiriusServer/release/x86_64
+            .
+        - fpm -s dir -t rpm --name sirius --description "Client side program of Sirius assistant"  --version $(cat VERSION) --iteration $(cat ITERATION)
+            --depends  'qt5-qtbase >= 5.9'
+            --depends  'qt5-qtmultimedia >= 5.9'
+            --depends  'qt5-qtserialport >= 5.9'
+            --depends  'qt5-qtdeclarative >= 5.9'
+            --depends  'qt5-qtsvg >= 5.9'
+            --depends  'qt5-qtcharts >= 5.9'
+            --depends  'qt5-qtwebview >= 5.9'
+            --depends  'qt5-qtwebkit >= 5.9'
+            --depends  'qt5-qtquickcontrols >= 5.9'
+            --depends  'qt5-qtquickcontrols2 >= 5.9'
+            --chdir Sirius/release/x86_64
+            .
+        - mkdir -p release/x86_64
+        - cp *.rpm release/x86_64
+    artifacts:
+      paths:
+        - release/x86_64
+
+
+release-deb-x86_64:
+    stage: release
+    image: kohoutovice/devops:x86_64_deb
+    only:
+        - "master"
+    script:
+        - fpm -s dir -t deb --name siriusserver --description "server side program of Sirius assistant"  --version $(cat VERSION) --iteration $(cat ITERATION)
+            --depends  'qt5-default >= 5.7'
+            --depends  'libqt5multimedia5 >= 5.7'
+            --depends  'libqt5serialport5 >= 5.7'
+            --depends  'libqt5quick5 >= 5.7'
+            --chdir SiriusServer/release/x86_64
+            .
+        - fpm -s dir -t deb --name sirius --description "Client side program of Sirius assistant"  --version $(cat VERSION) --iteration $(cat ITERATION)
+            --depends  'qt5-default >= 5.9'
+            --depends  'libqt5multimedia5 >= 5.9'
+            --depends  'libqt5serialport5 >= 5.9'
+            --depends  'libqt5quick5 >= 5.9'
+            --depends  'libqt5charts5 >= 5.9'
+            --depends  'libqt5svg5 >= 5.9'
+            --depends  'qml-module-qtquick-controls2 >= 5.9'
+            --depends  'qml-module-qtquick-controls >= 5.9'
+            --depends  'qml-module-qt-labs-platform >= 5.9'
+            --depends  'libqt5webview5 >= 5.9'
+            --chdir Sirius/release/x86_64
+            .
+        - mkdir -p release/x86_64
+        - cp *.deb release/x86_64
+    artifacts:
+        paths:
+            - release/x86_64
+
+
+#======================================== RELEASE armv7 ========================================================
+
+#release-docker-armv7:
+#    stage: release
+#    image: docker:latest
+#    only:
+#        - "master"
+#    services:
+#        - docker:dind
+#    variables:
+#        DOCKER_DRIVER: "overlay"
+#    before_script:
+#        - docker version
+#        - "docker info"
+#        - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY"
+#    script:
+#        - "docker build -t registry.gitlab.com/kohoutovice/sirius:armv7 --pull ."
+#        - "docker push registry.gitlab.com/kohoutovice/sirius:armv7"
+#    after_script:
+#        - "docker logout ${CI_REGISTRY}"
+#    tags:
+#        - armv7
+
+release-rpm-armv7:
+    stage: release
+    image: kohoutovice/devops:armv7_rpm
+    only:
+        - "master"
+    script:
+        - fpm -s dir -t rpm --name siriusserver --description "server side program of Sirius assistant"  --version $(cat VERSION) --iteration $(cat ITERATION)
+            --depends  'qt5-qtbase >= 5.7'
+            --depends  'qt5-qtmultimedia >= 5.7'
+            --depends  'qt5-qtserialport >= 5.7'
+            --depends  'qt5-qtdeclarative >= 5.7'
+            --chdir SiriusServer/release/armv7
+            .
+        - fpm -s dir -t rpm --name sirius --description "Client side program of Sirius assistant"  --version $(cat VERSION) --iteration $(cat ITERATION)
+            --depends  'qt5-qtbase >= 5.9'
+            --depends  'qt5-qtmultimedia >= 5.9'
+            --depends  'qt5-qtserialport >= 5.9'
+            --depends  'qt5-qtdeclarative >= 5.9'
+            --depends  'qt5-qtsvg >= 5.9'
+            --depends  'qt5-qtcharts >= 5.9'
+            --depends  'qt5-qtwebview >= 5.9'
+            --depends  'qt5-qtwebkit >= 5.9'
+            --depends  'qt5-qtquickcontrols >= 5.9'
+            --depends  'qt5-qtquickcontrols2 >= 5.9'
+            --chdir Sirius/release/armv7
+            .
+        - mkdir -p release/armv7
+        - cp *.rpm release/armv7
+    artifacts:
+      paths:
+        - release/armv7
+    tags:
+        - armv7
+
+release-deb-armv7:
+    stage: release
+    image: kohoutovice/devops:armv7_deb
+    only:
+        - "master"
+    script:
+        - fpm -s dir -t deb --name siriusserver --description "server side program of Sirius assistant"  --version $(cat VERSION) --iteration $(cat ITERATION)
+            --depends  'qt5-default >= 5.7'
+            --depends  'libqt5multimedia5 >= 5.7'
+            --depends  'libqt5serialport5 >= 5.7'
+            --depends  'libqt5quick5 >= 5.7'
+            --chdir SiriusServer/release/armv7
+            .
+        - fpm -s dir -t deb --name sirius --description "Client side program of Sirius assistant"  --version $(cat VERSION) --iteration $(cat ITERATION)
+            --depends  'qt5-default >= 5.9'
+            --depends  'libqt5multimedia5 >= 5.9'
+            --depends  'libqt5serialport5 >= 5.9'
+            --depends  'libqt5quick5 >= 5.9'
+            --depends  'libqt5charts5 >= 5.9'
+            --depends  'libqt5svg5 >= 5.9'
+            --depends  'qml-module-qtquick-controls2 >= 5.9'
+            --depends  'qml-module-qtquick-controls >= 5.9'
+            --depends  'qml-module-qt-labs-platform >= 5.9'
+            --depends  'libqt5webview5 >= 5.9'
+            --chdir Sirius/release/armv7
+            .
+        - find .
+        - mkdir -p release/armv7
+        - cp *.deb release/armv7
+    artifacts:
+        paths:
+            - release/armv7
+    tags:
+        - armv7
+
+
+#======================================== RELEASE TODO ========================================================
+release-flatpak:
+    stage: release
+    image: centos
+    only:
+        - "master"
+    before_script:
+        - "true"
+    script:
+        - "true"
+
+#======================================== DEPLOY ==============================================================
+deploy-cloudsmith:
+    stage: deploy
+    image: kohoutovice/cloudsmith:armv7
+    only:
+        - "master"
+    environment:
+        name: deploy
+    tags:
+        - armv7
+    script:
+        - find . | grep ".rpm" | while read file; do
+            cloudsmith push rpm jan-jurca/sirius/fedora/29 ${file};
+            cloudsmith push rpm jan-jurca/sirius/fedora/28 ${file};
+            cloudsmith push rpm jan-jurca/sirius/fedora/27 ${file};
+            cloudsmith push rpm jan-jurca/sirius/el/7 ${file};
+            done
+        - find . | grep ".deb" | while read file; do
+            cloudsmith push deb jan-jurca/sirius/debian/jessie ${file};
+            cloudsmith push deb jan-jurca/sirius/debian/stretch ${file};
+            cloudsmith push deb jan-jurca/sirius/ubuntu/yakkety ${file};
+            cloudsmith push deb jan-jurca/sirius/ubuntu/zesty ${file};
+            cloudsmith push deb jan-jurca/sirius/ubuntu/bionic ${file};
+            done
+

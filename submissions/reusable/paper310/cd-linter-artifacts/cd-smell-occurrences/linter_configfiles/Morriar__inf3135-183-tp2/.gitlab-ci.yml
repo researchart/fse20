@@ -1,0 +1,20 @@
+before_script:
+    - apt-get update -qq
+    - apt-get -y install libcunit1 libcunit1-doc libcunit1-dev
+    - apt-get -y install libcairo2-dev
+    - git clone https://github.com/sstephenson/bats.git /tmp/bats
+    - mkdir -p /tmp/local
+    - bash /tmp/bats/install.sh /tmp/local
+    - export PATH=$PATH:/tmp/local/bin
+
+build:
+    stage: build
+    script:
+        - make
+
+test:
+    stage: test
+    script:
+        - make test
+
+

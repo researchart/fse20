@@ -1,0 +1,30 @@
+before_script:
+  - apt-get update -qq && apt-get install -y -qq lazarus
+after_script:
+  - make clean;
+  - make distclean;
+  - cd deb; make clean;
+ulm:
+  stage: build
+  script:
+    - ./configure; make ulm;
+ulm_doc:
+  stage: build
+  script:
+    - ./configure; make doc
+ulm_dist:
+  stage: deploy
+  script:
+    - ./configure; make dist;
+  artifacts:
+    paths:
+    - dist/*.tar.gz
+ulm_deb:
+  stage: build
+  script:
+    - ./configure;
+    - cd deb; make;
+  artifacts:
+    paths:
+    - deb/*.deb
+

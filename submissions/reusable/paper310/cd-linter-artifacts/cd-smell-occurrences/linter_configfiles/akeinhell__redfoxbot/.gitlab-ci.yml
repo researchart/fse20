@@ -1,0 +1,121 @@
+.base_deploy: &base_deploy
+  dependencies:
+    - build_front
+    - build_backend
+  tags:
+    - deploy
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - 'echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  script:
+    - |
+          if [[ -z "$CI_COMMIT_TAG" ]]; then
+            echo "use CI_BUILD_REF_NAME : ${CI_BUILD_REF_NAME}"
+            TAG=${CI_BUILD_REF_NAME:-unknown};
+          else
+            echo "use CI_COMMIT_TAG : ${CI_COMMIT_TAG}"
+            TAG=$CI_COMMIT_TAG;
+          fi
+    - echo "deploy to ${SERVER}"
+    - ssh akeinhell@${SERVER} TAG=${TAG} URL=$CI_ENVIRONMENT_URL "mkdir -p ~/$DIR"
+    - scp ./docker/docker-compose.yml akeinhell@${SERVER}:~/$DIR
+    - ssh akeinhell@${SERVER} TAG=${TAG} URL=$CI_ENVIRONMENT_URL DIR=${DIR} 'bash -s' < ./docker/deploy.sh
+
+stages:
+  - build
+  - test
+  - deploy
+
+test:
+  stage: test
+  tags:
+    - test
+    - redfoxbot
+  artifacts:
+    paths:
+      - report/
+  image: jonaskello/docker-and-compose:17.03.0-1.18.0
+  services:
+    - docker:17.12.0-ce-dind
+  except:
+    - tags
+  script:
+    - export APP_ENV=testing
+    - mkdir report
+    - docker-compose -f docker-compose-test.yml run --rm test_app bash -c "export APP_ENV=testing && composer install && ./artisan migrate --env=testing && ./vendor/bin/phpunit --colors=never && chmod 0777 -R report" || true
+
+build_front:
+  stage: build
+  image: docker:latest
+  tags:
+    - build
+    - redfoxbot
+  before_script: []
+  variables:
+    IMAGE: registry.gitlab.com/akeinhell/redfoxbot
+  services:
+    - docker:dind
+  script:
+    - |
+      if [[ -z "$CI_COMMIT_TAG" ]]; then
+        echo "use CI_BUILD_REF_NAME : ${CI_BUILD_REF_NAME}"
+        TAG=${CI_BUILD_REF_NAME:-unknown};
+      else
+        echo "use CI_COMMIT_TAG : ${CI_COMMIT_TAG}"
+        TAG=$CI_COMMIT_TAG;
+      fi
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build --build-arg TAG=${TAG} -t $IMAGE/frontend:${TAG} -f docker/nginx/Dockerfile .
+    - docker push $IMAGE/frontend:${TAG}
+
+build_backend:
+  stage: build
+  image: docker:latest
+  before_script: []
+  variables:
+    IMAGE: registry.gitlab.com/akeinhell/redfoxbot
+  tags:
+    - build
+    - redfoxbot
+  services:
+    - docker:dind
+  script:
+    - |
+      if [[ -z "$CI_COMMIT_TAG" ]]; then
+        echo "use CI_BUILD_REF_NAME : ${CI_BUILD_REF_NAME}"
+        TAG=${CI_BUILD_REF_NAME:-unknown};
+      else
+        echo "use CI_COMMIT_TAG : ${CI_COMMIT_TAG}"
+        TAG=$CI_COMMIT_TAG;
+      fi
+    - echo build TAG:${TAG}
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build --build-arg TAG=${TAG} -t $IMAGE/backend:${TAG} -f docker/php/Dockerfile .
+    - docker push $IMAGE/backend:${TAG}
+
+deploy-prod:
+  <<: *base_deploy
+  stage: deploy
+  image: docker:latest
+  environment:
+    name: production
+    url: www.redfoxbot.ru,redfoxbot.ru
+  when: on_success
+  only:
+    - tags
+    - master
+  variables:
+    SERVER: 51.38.236.105
+    DIR: deploy/redfoxbot/prod
+    SERVICE: redfoxbot
+    CONTAINER_TEST_IMAGE: registry.gitlab.com/akeinhell/redfoxbot:$CI_BUILD_REF_NAME
+    CONTAINER_RELEASE_IMAGE: registry.gitlab.com/akeinhell/redfoxbot:latest
+
+    
+variables:
+  DOCKER_DRIVER: overlay2
+

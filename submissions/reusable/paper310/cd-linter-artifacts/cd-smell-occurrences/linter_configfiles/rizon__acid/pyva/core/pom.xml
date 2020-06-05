@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<modelVersion>4.0.0</modelVersion>
+  
+	<parent>
+		<groupId>net.rizon</groupId>
+		<artifactId>acid-pyva</artifactId>
+		<version>4.1-SNAPSHOT</version>
+	</parent>
+
+	<name>Pyva Native</name>
+	<artifactId>acid-pyva-core</artifactId>
+  
+	<dependencies>
+		<dependency>
+			<groupId>net.rizon</groupId>
+			<artifactId>acid-acid</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.rizon.pyva</groupId>
+			<artifactId>pyva</artifactId>
+			<version>1.0-SNAPSHOT</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifest>
+							<mainClass>net.rizon.acid.plugins.pyva.core.core</mainClass>
+						</manifest>
+						<manifestEntries>
+							<Export-Base>net.rizon.acid.plugins.pyva.core.</Export-Base>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>
+

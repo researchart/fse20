@@ -1,0 +1,108 @@
+stages:
+  - build
+build_deploy_all:
+  script:
+    - export SCIEBO     
+    - make deploy
+  tags:
+    - latex
+  stage: build
+  only: 
+      - master@JaMeZ-B/LaTeX-WWU
+  artifacts:
+      paths:
+      - AlgKT_SS16/algebraische_KTheorie.pdf
+      - Ana1_WS12/analysis1.pdf
+      - Ana2_SS13/analysis2.pdf
+      - Ana2_SS15/Ana2.pdf
+      - Ana3_WS13/analysis3.pdf
+      - AnaTopGeo_SS14/ana_top_geo.pdf
+      - AnaTopGeo_SS17/ana_top_geo.pdf
+      - CAT0_WS15/CAT0_WS1516.pdf
+      - DiffGeo_WS14/diff_geo.pdf
+      - DiffMa_SS14/diff_ma.pdf
+      - EinfAlg_WS13/algebra.pdf
+      - EinfAlg_WS14/Einf_Algebra.pdf
+      - EKK_SS15/EKK_SS15.pdf
+      - EZT_WS14/EZT_WS1415.pdf
+      - Fima_WS14/Fima_WS14.pdf
+      - FunkAna_WS14/funktionalanalysis.pdf
+      - HoehAlg1_SS14/hoehere_algebra.pdf
+      - KTheorie_SS15/K-Theorie.pdf
+      - LA1_WS12/lineare_algebra1.pdf
+      - LA2_SS13/lineare_algebra2.pdf
+      - LA2_SS16/LA2_SS16.pdf
+      - LieGrp_SS16/liegruppen.pdf
+      - ModRed_WS15/Modellreduktion.pdf
+      - MadsenW_WS16/madsen_weiss.pdf
+      - MC_SS17/MC_SS17.pdf
+      - OpAlg_WS15/operatoralgebren.pdf
+      - OpAlg2_SS16/operatoralgebren2.pdf
+      - PDGL1_SS14/PDGL1.pdf
+      - PDGL1_SS16/pdeskript.pdf
+      - Topo1_WS14/topologie_1.pdf
+      - Topo2_WS15/topologie_2.pdf
+      - Topo3_SS17/topologie_3.pdf
+      - WTGraph_SS16/WTG.pdf
+      - ZZT_SS17/ZZT_SS17.pdf
+      - DiffTopo_SS17/differentialtopologie.pdf
+      - CoarseIndex_WS17/coarse_index_theory.pdf
+      - KoT_SS18/komplexitaetstheorie.pdf
+      - Logik3_WS18/logik3.pdf
+      - GeoGT_SS19/GeoGT_SS19.pdf
+      
+build_all:
+  script:
+    - make
+  tags:
+    - latex
+  stage: build
+  except: 
+      - master@JaMeZ-B/LaTeX-WWU
+  artifacts:
+      paths:
+      - AlgKT_SS16/algebraische_KTheorie.pdf
+      - Ana1_WS12/analysis1.pdf
+      - Ana2_SS13/analysis2.pdf
+      - Ana2_SS15/Ana2.pdf
+      - Ana3_WS13/analysis3.pdf
+      - AnaTopGeo_SS14/ana_top_geo.pdf
+      - AnaTopGeo_SS17/ana_top_geo.pdf
+      - CAT0_WS15/CAT0_WS1516.pdf
+      - DiffGeo_WS14/diff_geo.pdf
+      - DiffMa_SS14/diff_ma.pdf
+      - EinfAlg_WS13/algebra.pdf
+      - EinfAlg_WS14/Einf_Algebra.pdf
+      - EKK_SS15/EKK_SS15.pdf
+      - EZT_WS14/EZT_WS1415.pdf
+      - Fima_WS14/Fima_WS14.pdf
+      - FunkAna_WS14/funktionalanalysis.pdf
+      - HoehAlg1_SS14/hoehere_algebra.pdf
+      - KTheorie_SS15/K-Theorie.pdf
+      - LA1_WS12/lineare_algebra1.pdf
+      - LA2_SS13/lineare_algebra2.pdf
+      - LA2_SS16/LA2_SS16.pdf
+      - LieGrp_SS16/liegruppen.pdf
+      - ModRed_WS15/Modellreduktion.pdf
+      - MadsenW_WS16/madsen_weiss.pdf
+      - MC_SS17/MC_SS17.pdf
+      - OpAlg_WS15/operatoralgebren.pdf
+      - OpAlg2_SS16/operatoralgebren2.pdf
+      - PDGL1_SS14/PDGL1.pdf
+      - PDGL1_SS16/pdeskript.pdf
+      - Topo1_WS14/topologie_1.pdf
+      - Topo2_WS15/topologie_2.pdf
+      - Topo3_SS17/topologie_3.pdf
+      - WTGraph_SS16/WTG.pdf
+      - ZZT_SS17/ZZT_SS17.pdf
+      - DiffTopo_SS17/differentialtopologie.pdf
+      - CoarseIndex_WS17/coarse_index_theory.pdf
+      - KoT_SS18/komplexitaetstheorie.pdf
+      - Logik3_WS18/logik3.pdf
+      - GeoGT_SS19/GeoGT_SS19.pdf
+
+# cache all auxilliary files to speed up compilation
+cache:
+  untracked: true
+  key: "$CI_BUILD_NAME"
+

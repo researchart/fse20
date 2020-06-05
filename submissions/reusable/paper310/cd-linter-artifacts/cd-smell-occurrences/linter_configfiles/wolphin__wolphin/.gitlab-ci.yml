@@ -1,0 +1,123 @@
+---
+
+services:
+  - docker:dind
+
+.docker_login: &docker_login |
+  echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+.rmpyc: &rm_pyc |
+  find . -name "*.pyc" -o -name "*.pyo" -o -name "__pycache__" -print0 | xargs -r -0 rm -rv
+
+.alpine_build_deps: &alpine_build_deps |
+  apk --update --no-cache add build-base gettext \
+    libffi-dev openssl-dev
+
+stages:
+  - syntax
+  - test
+  - build
+
+check-playbooks:
+  stage: syntax
+  image: alpine:3.8
+  script:
+    - apk add ansible
+    - "ansible-playbook --syntax-check playbooks/*.yml --extra-vars='{\"config\": {\"stacks\":{\"wolphin\":{\"node\":\"monitor\"}}}}'"
+
+check-flake8:
+  stage: syntax
+  image: python:3.7.2-alpine3.8
+  script:
+    - *rm_pyc
+    - *alpine_build_deps
+    - pip install tox==3.6.1 wheel
+    - tox -e flake8
+
+test-35:
+  stage: test
+  image: python:3.5.6-alpine
+  script:
+    - *rm_pyc
+    - *alpine_build_deps
+    - pip install tox==3.6.1 wheel
+    - tox -e py35,safety
+
+test-36:
+  stage: test
+  image: python:3.6.8-alpine
+  script:
+    - *rm_pyc
+    - *alpine_build_deps
+    - pip install tox==3.6.1 wheel
+    - tox -e py36,safety
+
+build-stretch-master:
+  stage: build
+  image: docker:stable
+  script:
+    - *docker_login
+    - docker build -f docker/Dockerfile-stretch --pull -t "$CI_REGISTRY_IMAGE:latest"-stretch .
+    - docker push "$CI_REGISTRY_IMAGE:latest"-stretch
+    - docker tag "$CI_REGISTRY_IMAGE:latest"-stretch "$CI_REGISTRY_IMAGE:latest"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+  only:
+    refs:
+      - master
+
+build-alpine-master:
+  stage: build
+  image: docker:stable
+  script:
+    - *docker_login
+    - docker build -f docker/Dockerfile-alpine --pull -t "$CI_REGISTRY_IMAGE:latest"-alpine .
+    - docker push "$CI_REGISTRY_IMAGE:latest"-alpine
+  only:
+    refs:
+      - master
+
+# build-slim-master:
+#   stage: build
+#   image: docker:stable
+#   script:
+#     - *docker_login
+#     - docker build -f docker/Dockerfile-slim --pull -t "$CI_REGISTRY_IMAGE:latest"-slim .
+#     - docker push "$CI_REGISTRY_IMAGE:latest"-slim
+#   only:
+#     - master
+
+
+build-stretch:
+  stage: build
+  image: docker:stable
+  script:
+    - *docker_login
+    - docker build -f docker/Dockerfile-stretch --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"-stretch .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"-stretch
+    - docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"-stretch "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+  except:
+    refs:
+      - master
+
+build-alpine:
+  stage: build
+  image: docker:stable
+  script:
+    - *docker_login
+    - docker build -f docker/Dockerfile-alpine --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"-alpine .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"-alpine
+  except:
+    refs:
+      - master
+
+# build-slim:
+#   stage: build
+#   image: docker:stable
+#   script:
+#     - *docker_login
+#     - docker build -f docker/Dockerfile-slim --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"-slim .
+#     - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"-slim
+#   except:
+#     - master
+

@@ -1,0 +1,9 @@
+image: "rustlang/rust:nightly"
+
+test:cargo:
+  script:
+  - rustc --version && cargo --version # version numbers for debugging
+  - cargo fetch # fetch crates
+  - cargo update -p backtrace --precise 0.3.9 # hacky thing to fix failure crate
+  - cargo test --all --verbose # test!
+

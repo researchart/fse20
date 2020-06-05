@@ -1,0 +1,28 @@
+image: golang:latest
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+  - mkdir $HOME/go
+  - export GOPATH="$HOME/go"
+  - mkdir -p "$GOPATH/src/gitlab.com/cosban"
+  - ln -s /builds/cosban/nebula "$GOPATH/src/gitlab.com/cosban/nebula"
+  - cd $GOPATH/src/gitlab.com/cosban/nebula
+  - go get -u github.com/alecthomas/gometalinter
+  - mkdir -p $HOME/app
+  - export RELEASE_DIR="$HOME/app"
+
+stages:
+  - test
+  - package
+  - deploy
+    
+run-tests:
+  stage: test
+  script: "make test"
+
+package-assets:
+  stage: package
+  script: "make build"
+

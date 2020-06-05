@@ -1,0 +1,124 @@
+variables:
+  ANDROID_TARGET_SDK: "26"
+  ANDROID_BUILD_TOOLS: "26.0.2"
+  ANDROID_SDK_TOOLS: "24.4.1"
+
+services: 
+  - postgres:latest
+
+before_script:
+  - apt-get update -qy
+  - apt-get install -y python-dev python-pip
+
+stages:
+    - test
+    - staging
+    - deploy
+
+# Mobile Application Test
+mobile:
+   image: openjdk:8-jdk
+   stage: test
+   before_script:
+    - chmod +x mobile/CI/android_sdk.sh
+    - ./mobile/CI/android_sdk.sh
+    - export ANDROID_HOME=$PWD/android-sdk-linux
+    - chmod +x ./mobile/gradlew
+   script:
+    - cd mobile
+    - ./gradlew lint
+    - ./gradlew --stacktrace test
+    - ./gradlew testDebugUnitTestCoverage 
+    - cat app/build/reports/jacoco/testDebugUnitTestCoverage/html/index.html
+   artifacts:
+     paths:
+      - mobile/app/build/reports/
+
+# Website Application Test
+website:
+  image: python:latest
+  stage: test
+  before_script:
+    - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+    - echo "deb http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list
+    - pip3 install -r website/requirements.txt
+    # - pip3 install -e setup.py
+    - export DATABASE_URL=postgres://postgres:@postgres:$PORT/python-test-app
+    - apt-get update -qq && apt-get install -y -qq unzip
+    - apt-get install -y google-chrome-stable
+    - apt-get install -y xvfb
+    - wget https://chromedriver.storage.googleapis.com/2.32/chromedriver_linux64.zip
+    - unzip chromedriver_linux64.zip
+    - autopep8 website/ --recursive --in-place
+    - python3 website/manage.py collectstatic
+    - python3 website/manage.py runserver $PORT &
+  when: on_success
+  script:
+    - python3 website/manage.py check 
+    - cd website/ 
+    - coverage run --source='myapp/.' manage.py test && coverage report -m 
+    - cd ../ 
+  coverage: '/\d+\%\s*$/'
+  after_script:
+    - exit 0
+  allow_failure: false
+
+# Website Application Staging
+heroku:
+  image: ruby:latest
+  stage: staging
+  allow_failure: false
+  script:
+    - apt-get install -y ruby-dev
+    - apt-get install -y gem
+    - apt-get install -y rubygems
+    - gem install dpl
+    - cd website/
+    - dpl --provider=heroku --app=halonesia --api-key=$HEROKU_API_KEY
+    - cd ../
+  only:
+    - sit_uat
+
+# Mobile Application Staging
+pages:
+  stage: staging
+  script:
+    - mv mobile/app/build/reports/jacoco/testDebugUnitTestCoverage/html/ public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - sit_uat
+    - master
+
+# Mobile Application Production
+build:
+  image: openjdk:8-jdk
+  stage: staging
+  tags:
+    - linux
+    - docker
+  before_script:
+    - chmod +x mobile/CI/android_sdk.sh
+    - ./mobile/CI/android_sdk.sh
+    - export ANDROID_HOME=$PWD/android-sdk-linux
+    - chmod +x ./mobile/gradlew
+  script:
+    - cd mobile
+    - ./gradlew assembleDebug
+  artifacts:
+    paths:
+      - mobile/app/build/outputs/
+  only:
+    - sit_uat
+    - master
+
+# Website Application Production
+production:
+  stage: deploy
+  script:
+    - apt-get install -y sshpass
+    - sshpass -p $SERVER_PASSWORD rsync -avuz $CI_PROJECT_DIR $SERVER_USER@139.59.102.167:/var/www/flyit.arsyady.com
+  only:
+    - master
+

@@ -1,0 +1,38 @@
+---
+flake8:
+  image: "alpine:latest"
+  before_script:
+  - "apk -q add py3-pip"
+  - "pip3 -q --disable-pip-version-check install flake8"
+  script:
+  - ".ci/flake8.sh"
+
+# Run pytest testsuite with debian stretch (python 3.5), which matches the
+# production environment. Redirect apt-get stdout to /dev/null, because -qq
+# isn't quiet enough (https://askubuntu.com/a/258226).
+pytest:
+  image: "debian:stretch"
+  before_script:
+  - "apt-get update > /dev/null"
+  - "apt-get -y install git python3-pip sudo wget procps > /dev/null"
+  - "pip3 -q --disable-pip-version-check install -r requirements.txt pytest pytest-cov pytest-timeout"
+  - "mount -t binfmt_misc none /proc/sys/fs/binfmt_misc"
+  - "useradd pmos -m -s /bin/bash"
+  - "chown -R pmos:pmos ."
+  - "echo 'pmos ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers"
+  - "wget -q https://gitlab.com/postmarketOS/pmbootstrap/-/archive/master/pmbootstrap-master.tar.bz2"
+  - "tar -xf pmbootstrap-master.tar.bz2"
+  - "mv pmbootstrap-master ../pmbootstrap"
+  - "chown -R pmos:pmos ../pmbootstrap"
+  - "su pmos -c 'yes \"\" | ../pmbootstrap/pmbootstrap.py -q init'"
+  script:
+  - "su pmos -c '.ci/pytest.sh'"
+  artifacts:
+    when: "on_failure"
+    paths:
+    - "_html_out/index.html"
+    - "_temp/local_job/current_task.sh"
+    - "_temp/local_job_logs/*.txt"
+    - "pytest.log"
+    expire_in: "1 week"
+

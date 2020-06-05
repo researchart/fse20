@@ -1,0 +1,51 @@
+image: golang:latest
+
+services:
+  - postgres:latest
+
+variables:
+  POSTGRES_ADDR: postgres:5432
+  POSTGRES_DB: test
+  POSTGRES_USER: test
+  POSTGRES_PASSWORD: test
+
+before_script:
+  - ln -s /builds /go/src/gitlab.com
+  - cd /go/src/gitlab.com/openvm/openvm
+
+stages:
+  - prepare
+  - test
+  - build
+
+dep:
+  stage: prepare
+  script:
+    - go get -u github.com/golang/dep/...
+    - dep ensure
+  artifacts:
+    paths:
+      - vendor
+  cache:
+    paths:
+      - vendor
+
+lint:
+  stage: test
+  script:
+    - go get -u github.com/golang/lint/golint
+    - golint $(go list ./... | grep -v /vendor/)
+
+test:
+  stage: test
+  script:
+    - go test $(go list ./... | grep -v "vendor\|driver\|scheduler")
+
+build:
+  stage: build
+  script:
+    - go build
+  artifacts:
+    paths:
+      - server
+

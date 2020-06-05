@@ -1,0 +1,110 @@
+image: ruby:2.5.1
+
+stages:
+  - build
+  - deploy
+  - dast
+
+cache:
+  paths:
+  - vendor
+
+variables:
+  APPS_DOMAIN: review-www.gitlab.jp
+  RUBYOPT: -EUTF-8
+
+build:
+  stage: build
+  script:
+  - apt-get update -yqqq
+  - apt-get install -y nodejs
+  - bundle install --path vendor
+  - bundle exec middleman build
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 hour
+  only:
+    - branches@gitlab-jp/www-gitlab-jp
+    - merge_requests
+  except:
+    - master@gitlab-jp/www-gitlab-jp
+
+review:
+  stage: deploy
+  script:
+    - rsync -av --delete public /srv/nginx/pages/$CI_BUILD_REF_SLUG
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: http://$CI_BUILD_REF_SLUG.$APPS_DOMAIN
+    on_stop: stop_review
+  only:
+    - branches@gitlab-jp/www-gitlab-jp
+    - merge_requests
+  except:
+    - master@gitlab-jp/www-gitlab-jp
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+stop_review:
+  stage: deploy
+  script:
+    - rm -rf public /srv/nginx/pages/$CI_BUILD_REF_SLUG
+  variables:
+    GIT_STRATEGY: none
+  when: manual
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    action: stop
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+pages:
+  stage: deploy
+  variables:
+    ENABLE_GTM: "true"
+  script:
+  - apt-get update -yqqq
+  - apt-get install -y nodejs
+  - bundle install --path vendor
+  - bundle exec middleman build
+  - find public -type f \( -name \*.html -or -name \*.css -or -name \*.js \) | xargs -I {} sh -c "gzip -k {}"
+  artifacts:
+    paths:
+    - public
+  environment:
+    name: production
+    url: https://www.gitlab.jp
+  only:
+    - master@gitlab-jp/www-gitlab-jp
+
+dast:
+  stage: dast
+  only:
+    - branches@gitlab-jp/www-gitlab-jp
+    - merge_requests
+  except:
+    - master@gitlab-jp/www-gitlab-jp
+  image: registry.gitlab.com/gitlab-org/security-products/zaproxy
+  allow_failure: true
+  before_script: []
+  cache: {}
+  dependencies: []
+  tags: []
+  services: []
+  variables:
+    DOCKER_DRIVER: overlay2
+    DAST_WEB_SITE: http://$CI_COMMIT_REF_SLUG.review-www.gitlab.jp
+  script:
+    - if [ -z $DAST_WEB_SITE ]; then echo "Please configure DAST_WEB_SITE env variable" && exit 1; fi
+    - mkdir /zap/wrk/
+    - /zap/zap-baseline.py -J gl-dast-report.json -t $DAST_WEB_SITE || true
+    - cp /zap/wrk/gl-dast-report.json .
+  artifacts:
+    paths:
+      - gl-dast-report.json
+

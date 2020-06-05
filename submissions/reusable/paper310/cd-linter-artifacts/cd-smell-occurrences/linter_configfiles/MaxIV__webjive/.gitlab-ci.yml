@@ -1,0 +1,26 @@
+before_script:
+  - docker info
+
+build_image_develop:
+  stage: build
+  script:
+    - docker build . -t docker.maxiv.lu.se/webjive-frontend-test
+    - docker push docker.maxiv.lu.se/webjive-frontend-test
+  only:
+    - develop
+
+deploy_image_develop:
+  stage: deploy
+  script:
+    - 'curl -H "Authorization: Bearer $AWX_TOKEN" -XPOST https://ansible.maxiv.lu.se/api/v2/job_templates/49/launch/'
+  only:
+    - develop
+
+build_image:
+  stage: build
+  script:
+    - docker build . -t docker.maxiv.lu.se/webjive-frontend
+    - docker push docker.maxiv.lu.se/webjive-frontend
+  only:
+    - master
+

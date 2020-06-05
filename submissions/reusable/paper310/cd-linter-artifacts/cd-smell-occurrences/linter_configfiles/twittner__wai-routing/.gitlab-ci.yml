@@ -1,0 +1,28 @@
+before_script:
+  - apt-get update
+  - apt-get install -y libstdc++-4.9-dev g++
+  - cabal update
+
+test:8.0:
+  image: haskell:8.0
+  script:
+    - cabal install --enable-test --only-dep -j
+    - cabal build
+    - cabal test
+
+test:7.10:
+  image: haskell:7.10
+  script:
+    - cabal install --enable-test --only-dep -j
+    - cabal build
+    - cabal test
+
+test:7.8:
+  image: haskell:7.8
+  script:
+    - cabal install --enable-test --only-dep -j
+    - cabal build
+    - cabal test
+
+
+

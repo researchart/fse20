@@ -1,0 +1,15 @@
+image: lechten/emacs-tex-org:v2
+
+pages:
+  stage: deploy
+  before_script:
+  - git submodule sync --recursive
+  - git submodule update --init --recursive
+  script:
+  - emacs --batch --load elisp/publish.el --funcall org-publish-all
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

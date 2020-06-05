@@ -1,0 +1,67 @@
+stages:
+  - publish
+  - test
+
+
+pages:
+  stage: publish
+  tags:
+    - stabfem
+  script:
+    - ./.gitlab-ci-publish-script.sh
+    - ./.gitlab-ci-autoindex-script.sh
+    - ./.gitlab-ci-page-script.sh
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_REF_NAME == "develop" && $CI_COMMIT_MESSAGE =~ /\[publish\]/'
+      when: on_success
+    - if: '$GENERATE_PAGE'
+      when: always
+
+autorun-matlab:
+  stage: test
+  tags:
+    - prodcom
+    - stabfem
+  script:
+    - ./.gitlab-ci-autorun-matlab.sh
+  artifacts:
+    name: "$CI_COMMIT_REF_NAME"
+    expire_in: "4 weeks"
+    paths:
+      - autorun.log
+    when: always
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME == "develop" || $CI_COMMIT_REF_NAME =~ /^feature/'
+      when: on_success
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
+      when: on_success
+    - if: '$CI_COMMIT_TAG'
+      when: on_success
+
+autorun-octave:
+  stage: test
+  tags:
+    - prodcom
+    - stabfem
+  script:
+    - ./.gitlab-ci-autorun-octave.sh
+  artifacts:
+    name: "$CI_COMMIT_REF_NAME"
+    expire_in: "4 weeks"
+    paths:
+      - autorun.log
+    when: always
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME == "develop" || $CI_COMMIT_REF_NAME =~ /^feature/'
+      when: on_success
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" || $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
+      when: on_success
+    - if: '$CI_COMMIT_TAG'
+      when: on_success
+
+

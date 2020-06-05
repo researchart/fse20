@@ -1,0 +1,13 @@
+article:
+  stage: deploy
+  image: rocker/verse:3.4.4
+  script:
+    - Rscript -e "remove.packages('rticles')"
+    - Rscript -e "devtools::install_github('nuest/rticles', ref = 'copernicus')"
+    - Rscript -e "rmarkdown::render('MyArticle/MyArticle.Rmd')"
+    - Rscript -e "rmarkdown::render('MyArticle/MyArticle.Rmd')"
+  artifacts:
+    paths:
+      - MyArticle
+    when: always
+

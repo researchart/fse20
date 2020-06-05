@@ -1,0 +1,21 @@
+image: "scorpil/rust:stable"
+
+test:
+    script:
+        - rustc --version && cargo --version
+        - time cargo test --verbose --release
+
+pages:
+    type: deploy
+    script:
+        - time cargo doc --verbose
+        - cat .docs-vc-link.js >> target/doc/main.js
+        - mv target/doc public
+        - echo '<!doctype html><html><head><meta charset="UTF-8"><meta http-equiv="refresh" content="0;url=pub_sub"></head></html>' > public/index.html
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+          
+

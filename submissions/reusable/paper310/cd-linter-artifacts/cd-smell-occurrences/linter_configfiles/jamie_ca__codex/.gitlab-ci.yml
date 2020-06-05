@@ -1,0 +1,18 @@
+image: ruby:2.3
+
+before_script:
+- bundle install
+
+spec:
+  script:
+  - bundle exec rake spec
+
+pages:
+  script:
+  - cp -r reference-site public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

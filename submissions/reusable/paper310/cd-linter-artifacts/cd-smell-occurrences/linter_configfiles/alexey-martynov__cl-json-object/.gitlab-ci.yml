@@ -1,0 +1,25 @@
+stages:
+  - test
+
+variables:
+  DEPENDENCIES: '(ql:quickload (list "cl-json" "alexandria" "closer-mop" "local-time" "fiveam"))'
+  TEST_COMMAND: '(asdf:operate (quote asdf:test-op) :cl-json-object)'
+  INVOCATION: '(progn (ql:update-all-dists :prompt nil) $DEPENDENCIES (declaim (optimize (debug 3) (safety 3))) (handler-bind ((warning (lambda (e) (format t "~A~%" e) (invoke-restart (quote muffle-warning)))) (t (lambda (e) (format t "Error: ~A~%Exiting~%" e) (finish-output) $EXIT))) $TEST_COMMAND))'
+
+before_script:
+  - for asd in *.asd ; do ln -s "$(readlink -f "$asd")" /opt/quicklisp/local-projects/ ; done
+
+sbcl:
+  image: alexeymartynov/sbcl:latest
+  variables:
+    EXIT: '(sb-ext:exit :code 1)'
+  script:
+    - echo "$INVOCATION" | sbcl --disable-debugger
+
+ccl:
+  image: alexeymartynov/ccl:latest
+  variables:
+    EXIT: '(ccl:quit 1)'
+  script:
+    - echo "$INVOCATION" | lx86cl64
+

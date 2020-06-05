@@ -1,0 +1,71 @@
+variables:
+  GIT_STRATEGY: fetch
+
+stages:
+  - build
+  - test
+
+# disabled because cannot find -luv -lcap when building
+#build:linux:
+#  image: alpine:latest
+#  tags:
+#    - linux
+#  stage: build
+#  before_script:
+#    - apk add --update g++ make cmake linux-headers libcap-dev libuv-dev
+#  script:
+#    - make STATIC_LINK=ON
+#  artifacts:
+#    paths:
+#      - "lokinet"
+
+# we'll just try our travis set up for now
+#build:linux_release:
+#  image: ubuntu:xenial
+#  tags:
+#    - linux
+#  stage: build
+#  before_script:
+#    - apt-get update && apt-get install -y binutils-gold build-essential bsdmainutils ca-certificates cmake curl git libcap-dev libcurl4-openssl-dev libsodium-dev libuv1-dev ninja-build
+#  script:
+#    - DOWNLOAD_SODIUM=ON STATIC_LINK=OFF make release
+#  artifacts:
+#    paths:
+#      - "build/daemon/lokinet"
+#      - "build/daemon/lokinetctl"
+
+build:linux_debug:
+  image: ubuntu:xenial
+  tags:
+    - linux
+  stage: build
+  before_script:
+    - apt-get update && apt-get install -y binutils-gold build-essential bsdmainutils ca-certificates cmake curl git libcap-dev libcurl4-openssl-dev libsodium-dev libuv1-dev ninja-build
+  script:
+    - DOWNLOAD_SODIUM=ON IS_NOTIFICATION=1 STATIC_LINK=OFF make
+  artifacts:
+    paths:
+      - "lokinet"
+      - "lokinetctl"
+
+# needs libsodium (probably libuv and libcurl too)
+#build:freebsd:
+#  tags:
+#     - freebsd
+#  stage: build
+#  script:
+#    - gmake
+#  artifacts:
+#    paths:
+#      - "lokinet"
+
+#build:windows:
+#  tags:
+#    - windows
+#  stage: build
+#  script:
+#    - make STATIC_LINK=ON AVX2=OFF JSONRPC=OFF CC=gcc CXX=g++
+#  artifacts:
+#    paths:
+#      - "lokinet.exe"
+

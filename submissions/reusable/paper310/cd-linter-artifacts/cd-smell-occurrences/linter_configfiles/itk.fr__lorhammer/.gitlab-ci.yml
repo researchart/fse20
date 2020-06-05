@@ -1,0 +1,220 @@
+image: registry.gitlab.com/itk.fr/lorhammer/build
+
+before_script:
+  - ln -s /builds/$CI_PROJECT_PATH /go/src/lorhammer
+  - cd /go/src/lorhammer
+
+stages:
+  - lint
+  - vendor
+  - test
+  - integration
+  - compile
+  - doc
+
+lint:
+  stage: lint
+  script:
+    - make lint
+
+vendor:
+  stage: vendor
+  script:
+    - make vendor
+  artifacts:
+    paths:
+      - vendor
+    expire_in: 1 week
+
+test:unit:
+  stage: test
+  script:
+    - make test
+  dependencies:
+    - vendor
+
+test:coverage:
+  stage: test
+  coverage: /total[^\d]+(\d+.\d+\%)/
+  script:
+    - make cover
+  dependencies:
+    - vendor
+
+test:docker:
+  stage: test
+  services:
+    - docker:dind
+  script:
+    - ./resources/scripts/buildAllEnv.sh -light --snapshot
+    - docker build -t "${CI_REGISTRY_IMAGE}/lorhammer:${CI_PIPELINE_ID}" -f docker/lorhammer/Dockerfile-lorhammer .
+    - docker build -t "${CI_REGISTRY_IMAGE}/orchestrator:${CI_PIPELINE_ID}" -f docker/lorhammer/Dockerfile-orchestrator .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push "${CI_REGISTRY_IMAGE}/lorhammer:${CI_PIPELINE_ID}"
+    - docker push "${CI_REGISTRY_IMAGE}/orchestrator:${CI_PIPELINE_ID}"
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+  dependencies:
+    - vendor
+
+.integration: &integration
+  stage: integration
+  services:
+    - docker:dind
+  script:
+    - LORHAMMER_MQTT_IP="mqtt" ./resources/scripts/launchTools.sh
+    - sleep 5
+    - echo "Start 1 lorhammer"
+    - docker-compose -f docker-compose.yml -f docker-compose.integration.yml -p ${CI_JOB_ID} up -d lorhammer prometheus
+    - echo "Start orchestrator to launch scenario and check all is ok"
+    - docker-compose -f docker-compose.yml -f docker-compose.integration.yml -p ${CI_JOB_ID} run orchestrator
+  after_script:
+    - docker ps -a
+    - docker-compose ps
+    - docker logs ${CI_JOB_ID}_lorhammer_1
+    - docker-compose -p ${CI_JOB_ID} down --remove-orphans
+  tags:
+    - docker
+
+integration:oneShot:
+  <<: *integration
+  variables:
+    FROM_FILE: "/resources/scenarios/ci/ci-integration-oneShot.json"
+    DOCKER_HOST: "tcp://docker:2375"
+    COMPOSE_HTTP_TIMEOUT: "200"
+
+integration:repeat:
+  <<: *integration
+  variables:
+    FROM_FILE: "/resources/scenarios/ci/ci-integration-repeat.json"
+    DOCKER_HOST: "tcp://docker:2375"
+    COMPOSE_HTTP_TIMEOUT: "200"
+
+integration:oneShotReplayLaps:
+  <<: *integration
+  variables:
+    FROM_FILE: "/resources/scenarios/ci/ci-integration-oneShot-replay-laps.json"
+    DOCKER_HOST: "tcp://docker:2375"
+    COMPOSE_HTTP_TIMEOUT: "200"
+
+integration:oneShotReplayLapsNoJoin:
+  <<: *integration
+  variables:
+    FROM_FILE: "/resources/scenarios/ci/ci-integration-oneShot-replay-laps-no-join.json"
+    DOCKER_HOST: "tcp://docker:2375"
+    COMPOSE_HTTP_TIMEOUT: "200"
+
+integration:oneShotOneNodeOneLap:
+  <<: *integration
+  variables:
+    FROM_FILE: "/resources/scenarios/ci/ci-integration-oneShot-oneNode-oneLap.json"
+    DOCKER_HOST: "tcp://docker:2375"
+    COMPOSE_HTTP_TIMEOUT: "200"
+
+compile:all:
+  stage: compile
+  services:
+    - docker:dind
+  script:
+    - ./resources/scripts/buildAllEnv.sh -full --snapshot
+  only:
+    - master@itk.fr/lorhammer
+  artifacts:
+    paths:
+      - dist
+    expire_in: 1 week
+  dependencies:
+    - vendor
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+
+compile:docker:lorhammer:
+  stage: compile
+  services:
+    - docker:dind
+  script:
+    - ./resources/scripts/buildAllEnv.sh -light --snapshot
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/lorhammer -f docker/lorhammer/Dockerfile-lorhammer .
+    - docker push $CI_REGISTRY_IMAGE/lorhammer
+  only:
+    - master@itk.fr/lorhammer
+  dependencies:
+    - vendor
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+
+compile:docker:orchestrator:
+  stage: compile
+  services:
+    - docker:dind
+  script:
+    - ./resources/scripts/buildAllEnv.sh -light --snapshot
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/orchestrator -f docker/lorhammer/Dockerfile-orchestrator .
+    - docker push $CI_REGISTRY_IMAGE/orchestrator
+  only:
+    - master@itk.fr/lorhammer
+  dependencies:
+    - vendor
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+
+compile:tag:
+  stage: compile
+  services:
+    - docker:dind
+  script:
+    - ./resources/scripts/buildAllEnv.sh -full
+  only:
+    - tags
+  dependencies:
+    - vendor
+  artifacts:
+    paths:
+      - dist
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+
+compile:docker-tag:lorhammer:
+  stage: compile
+  services:
+    - docker:dind
+  script:
+    - ./resources/scripts/buildAllEnv.sh -light
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t "$CI_REGISTRY_IMAGE/lorhammer:${CI_COMMIT_REF_NAME}" -f docker/lorhammer/Dockerfile-lorhammer .
+    - docker push "$CI_REGISTRY_IMAGE/lorhammer:${CI_COMMIT_REF_NAME}"
+  only:
+    - tags
+  dependencies:
+    - vendor
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+
+compile:docker-tag:orchestrator:
+  stage: compile
+  services:
+    - docker:dind
+  script:
+    - ./resources/scripts/buildAllEnv.sh -light
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t "$CI_REGISTRY_IMAGE/orchestrator:${CI_COMMIT_REF_NAME}" -f docker/lorhammer/Dockerfile-orchestrator .
+    - docker push "$CI_REGISTRY_IMAGE/orchestrator:${CI_COMMIT_REF_NAME}"
+  only:
+    - tags
+  dependencies:
+    - vendor
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+
+pages:
+  stage: doc
+  script:
+    - make doc
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

@@ -1,0 +1,14 @@
+image: alpine:latest
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r diapositivas/perseidas/* .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

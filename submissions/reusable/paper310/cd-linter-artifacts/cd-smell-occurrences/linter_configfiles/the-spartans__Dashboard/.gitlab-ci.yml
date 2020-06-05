@@ -1,0 +1,44 @@
+image: node:9
+
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+    - npm install --progress=false
+
+cache:
+  paths:
+    - node_modules/
+
+build site:
+  stage: build
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+
+lint:
+  stage: test
+  script:
+    - npm run lint
+
+unit test:
+  stage: test
+  script:
+    - npm run unit
+
+deploy staging:
+  stage: deploy
+  before_script:
+  - apt-get update
+  - apt-get install -y sshpass
+  script:
+    - sshpass -p $HRO_STAGING_PASSWORD scp -o stricthostkeychecking=no -r /builds/the-spartans/Dashboard/dist/* $HRO_STAGING_USER@$HRO_STAGING_IP:$HRO_STAGING_PATH
+  environment:
+    name: HRO staging
+  only:
+  - master
+

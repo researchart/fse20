@@ -1,0 +1,17 @@
+image: node:boron
+
+stages:
+  - build
+
+
+make_build:
+  stage: build
+  only:
+  - dev
+  - master
+  - tags
+  script:
+  - npm install --silent
+  - typings install
+  - npm run build
+

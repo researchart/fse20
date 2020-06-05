@@ -1,0 +1,62 @@
+stages:
+  - install
+  - build
+  - test
+  - deploy
+
+image: node:10.8.0
+
+cache:
+  key: cache_yarn
+  paths:
+    - .cache_yarn
+
+install:
+  stage: install
+  script:
+    - yarn install --cache-folder .cache_yarn
+  only:
+    - master
+    - next
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+     - node_modules
+
+build:
+  stage: build
+  script:
+    - yarn build
+  only:
+    - master
+    - next
+  dependencies:
+    - install
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+      - build
+
+test:
+  stage: test
+  script:
+    - yarn testCI
+  only:
+    - master
+    - next
+  dependencies:
+    - install
+
+deploy:
+  stage: deploy
+  variables:
+    FIREBASE_TOKEN: $FIREBASE_TOKEN
+  script:
+    - yarn firebase deploy --token $FIREBASE_TOKEN
+  only:
+    - master
+  dependencies:
+    - install
+    - build
+    
+

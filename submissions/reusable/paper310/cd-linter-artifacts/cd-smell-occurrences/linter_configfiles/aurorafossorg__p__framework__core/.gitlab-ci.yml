@@ -1,0 +1,211 @@
+#                                     __
+#                                    / _|
+#   __ _ _   _ _ __ ___  _ __ __ _  | |_ ___  ___ ___
+#  / _` | | | | '__/ _ \| '__/ _` | |  _/ _ \/ __/ __|
+# | (_| | |_| | | | (_) | | | (_| | | || (_) \__ \__ \
+#  \__,_|\__,_|_|  \___/|_|  \__,_| |_| \___/|___/___/
+#
+# Copyright (C) 2018-2019 Aurora Free Open Source Software.
+#
+# This file is part of the Aurora Free Open Source Software. This
+# organization promote free and open source software that you can
+# redistribute and/or modify under the terms of the GNU Lesser General
+# Public License Version 3 as published by the Free Software Foundation or
+# (at your option) any later version approved by the Aurora Free Open Source
+# Software Organization. The license is available in the package root path
+# as 'LICENSE' file. Please review the following information to ensure the
+# GNU Lesser General Public License version 3 requirements will be met:
+# https://www.gnu.org/licenses/lgpl.html .
+#
+# Alternatively, this file may be used under the terms of the GNU General
+# Public License version 3 or later as published by the Free Software
+# Foundation. Please review the following information to ensure the GNU
+# General Public License requirements will be met:
+# http://www.gnu.org/licenses/gpl-3.0.html.
+#
+# NOTE: All products, services or anything associated to trademarks and
+# service marks used or referenced on this file are the property of their
+# respective companies/owners or its subsidiaries. Other names and brands
+# may be claimed as the property of others.
+#
+# For more info about intellectual property visit: aurorafoss.org or
+# directly send an email to: contact (at) aurorafoss.org .
+
+image: aurorafossorg/archlinux:latest
+
+include:
+  - template: License-Management.gitlab-ci.yml
+
+stages:
+  - check
+  - build
+  - test
+  - production
+  - deploy
+
+# Style checker
+codestyle:
+  stage: check
+  image: aurorafossorg/dlang:latest
+  script: dscanner -S .
+  allow_failure: true
+
+# Syntax check before compilation
+syntax_check:
+  stage: check
+  image: aurorafossorg/dlang:latest
+  script: dscanner -s .
+
+# Indentation check according to editorconfig file
+editorconfig:
+  stage: check
+  image: node:latest
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - npm install eclint
+    - npx eclint check {,src/**/}{meson.build,*.{d,json,yml}}
+  allow_failure: true
+
+# Artifacts template
+.artifacts_template: &artifacts_definition
+  artifacts:
+    name: "$CI_JOB_NAME"
+    paths:
+      - .out/bin/
+
+# dub template
+.linux-dub_template: &linux-dub_definition
+  cache:
+    paths:
+      - .dub/
+  image: aurorafossorg/dlang:latest
+  script:
+    - dub add-local .
+    - ./tools/dub.sh $BUILD_DUB_FLAGS
+
+.x86_64-linux-deps_template: &x86_64-linux-deps_definition
+  before_script:
+    - pacman -Sy libsndfile libx11 libxcursor libxxf86vm --noconfirm
+    - sudo -u user yay -S libsoundio --noconfirm
+
+.x86-linux-deps_template: &x86-linux-deps_definition
+  before_script:
+    - pacman -Sy lib32-libsndfile lib32-libx11 lib32-libxcursor lib32-libxxf86vm --noconfirm
+    - sudo -u user yay -S libsoundio --noconfirm
+
+x86_64-linux-dub-dmd-debug:
+  stage: build
+  <<: *artifacts_definition
+  <<: *linux-dub_definition
+  <<: *x86_64-linux-deps_definition
+  variables:
+    BUILD_DUB_FLAGS: $CI_JOB_STAGE --arch=x86_64 --compiler=dmd --build=debug
+
+x86-linux-dub-dmd-debug:
+  stage: build
+  <<: *artifacts_definition
+  <<: *linux-dub_definition
+  <<: *x86-linux-deps_definition
+  variables:
+    BUILD_DUB_FLAGS: $CI_JOB_STAGE --arch=x86 --compiler=dmd --build=debug
+
+x86_64-linux-dub-ldc-debug:
+  <<: *artifacts_definition
+  <<: *linux-dub_definition
+  <<: *x86_64-linux-deps_definition
+  stage: build
+  variables:
+    BUILD_DUB_FLAGS: $CI_JOB_STAGE --arch=x86_64 --compiler=ldc --build=debug
+
+x86-linux-dub-ldc-debug:
+  <<: *artifacts_definition
+  <<: *linux-dub_definition
+  <<: *x86-linux-deps_definition
+  stage: build
+  variables:
+    BUILD_DUB_FLAGS: $CI_JOB_STAGE --arch=x86 --compiler=ldc --build=debug
+
+x86_64-linux-dub-gdc-debug:
+  <<: *artifacts_definition
+  <<: *linux-dub_definition
+  <<: *x86_64-linux-deps_definition
+  stage: build
+  variables:
+    BUILD_DUB_FLAGS: $CI_JOB_STAGE --arch=x86_64 --compiler=gdc --build=debug
+  allow_failure: true
+
+x86-linux-dub-gdc-debug:
+  <<: *artifacts_definition
+  <<: *linux-dub_definition
+  <<: *x86-linux-deps_definition
+  stage: build
+  variables:
+    BUILD_DUB_FLAGS: $CI_JOB_STAGE --arch=x86 --compiler=gdc --build=debug
+  allow_failure: true
+
+# Build and test all examples
+examples:
+  <<: *x86_64-linux-deps_definition
+  stage: test
+  artifacts:
+    name: "$CI_JOB_NAME"
+    paths:
+      - examples/.out/bin/
+  cache:
+    paths:
+      - .dub/
+  image: aurorafossorg/dlang:latest
+  script:
+    - ./tools/do-examples.sh
+
+unittests:
+  stage: test
+  <<: *artifacts_definition
+  <<: *linux-dub_definition
+  <<: *x86_64-linux-deps_definition
+  variables:
+    BUILD_DUB_FLAGS: $CI_JOB_STAGE --build=unittest
+
+code_coverage:
+  <<: *linux-dub_definition
+  <<: *x86_64-linux-deps_definition
+  stage: test
+  variables:
+    BUILD_DUB_FLAGS: $CI_JOB_STAGE --build=unittest-cov --coverage
+  after_script:
+    - bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN
+
+x86_64-linux-dub-ldc-release:
+  <<: *artifacts_definition
+  <<: *linux-dub_definition
+  <<: *x86_64-linux-deps_definition
+  stage: production
+  variables:
+    BUILD_DUB_FLAGS: build --arch=x86_64 --compiler=ldc --build=release
+
+x86-linux-dub-ldc-release:
+  <<: *artifacts_definition
+  <<: *linux-dub_definition
+  <<: *x86-linux-deps_definition
+  stage: production
+  variables:
+    BUILD_DUB_FLAGS: build --arch=x86 --compiler=ldc --build=release
+
+x86_64-linux-dub-dmd-release:
+  <<: *artifacts_definition
+  <<: *linux-dub_definition
+  <<: *x86_64-linux-deps_definition
+  stage: production
+  variables:
+    BUILD_DUB_FLAGS: build --arch=x86_64 --compiler=dmd --build=release
+
+x86-linux-dub-dmd-release:
+  <<: *artifacts_definition
+  <<: *linux-dub_definition
+  <<: *x86-linux-deps_definition
+  stage: production
+  variables:
+    BUILD_DUB_FLAGS: build --arch=x86 --compiler=dmd --build=release
+

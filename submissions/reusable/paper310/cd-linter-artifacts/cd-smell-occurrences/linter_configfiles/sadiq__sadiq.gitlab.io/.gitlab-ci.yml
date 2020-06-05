@@ -1,0 +1,13 @@
+image: iquiw/alpine-emacs
+
+pages:
+  only:
+  - master
+  script:
+  - emacs --batch -q -l src/htmlize.el -l src/my-web.el -f org-publish-all
+  - ./src/blog-atom.sh
+  - find public -type f -regex '.*\.\(html\|txt\|xml\|css\)$' -exec gzip -f -k {} \;
+  artifacts:
+    paths:
+    - public
+

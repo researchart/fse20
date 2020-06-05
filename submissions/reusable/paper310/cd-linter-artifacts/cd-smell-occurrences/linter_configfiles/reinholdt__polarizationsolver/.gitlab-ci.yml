@@ -1,0 +1,9 @@
+image: continuumio/miniconda3:latest
+
+test:
+    script:
+        - conda install numpy
+        - conda install scipy
+        - conda install nose
+        - nosetests 
+

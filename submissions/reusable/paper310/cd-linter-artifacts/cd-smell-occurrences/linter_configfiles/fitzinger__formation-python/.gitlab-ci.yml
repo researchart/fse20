@@ -1,0 +1,15 @@
+pages:
+  tags:
+    - docker
+    - pages
+  only:
+    - master
+  image: boileaum/debian-jupyter
+  script:
+    - scripts/make_slides.sh --url
+    - scripts/make_archive.sh --zip
+    - cp ponte-J*.zip public/
+  artifacts:
+    paths:
+      - public
+

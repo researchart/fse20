@@ -1,0 +1,14 @@
+shellcheck:
+  image: koalaman/shellcheck-alpine:latest
+  stage: test
+  script:
+    - shellcheck --shell sh completion.sh
+    - shellcheck git-mr-to
+    - shellcheck --shell bash t/helper.bash
+
+manpage:
+  image: asciidoctor/docker-asciidoctor:latest
+  stage: test
+  script:
+    - make doc DIST_VERSION=HEAD
+

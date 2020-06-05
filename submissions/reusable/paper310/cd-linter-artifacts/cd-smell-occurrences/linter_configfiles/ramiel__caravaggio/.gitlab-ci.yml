@@ -1,0 +1,101 @@
+image: node:10
+
+## Quality checkers by Gitlab
+
+# include:
+#   - template: Code-Quality.gitlab-ci.yml
+
+include:
+  template: Dependency-Scanning.gitlab-ci.yml
+
+include:
+  template: SAST.gitlab-ci.yml
+
+
+test:
+  script:
+   - npm ci
+   - npm run test
+  coverage: /^Statements\s*:\s*([^%]+)/
+
+
+#####################
+# Publish on NPM
+#####################
+npm:
+  stage: deploy
+  only:
+    - tags
+  script:
+    - npm config set "//registry.npmjs.org/:_authToken" $NPM_TOKEN
+    - npm publish
+
+
+#####################
+# Publish on ZEIT NOW
+# Mainly used to provide 
+# example on the website
+#####################
+.now-master:
+  stage: deploy
+  only:
+    - master
+  script:
+    - npm install -g --unsafe-perm now
+    - now deploy -t $NOW_TOKEN -m VERSION=$CI_COMMIT_SHORT_SHA -f
+    - now alias caravaggio-master.now.sh -t $NOW_TOKEN
+
+.now-tag:
+  stage: deploy
+  only:
+    - tags
+  script:
+    - export VERSION=`echo $CI_COMMIT_TAG | sed -r 's/[.]+/-/g'`
+    - npm install -g --unsafe-perm now
+    - now deploy -t $NOW_TOKEN -m VERSION=$VERSION -f
+    - now alias caravaggio-$VERSION.now.sh -t $NOW_TOKEN
+    - now alias caravaggio.now.sh -t $NOW_TOKEN
+
+#####################
+# Publish on Docker
+#####################
+docker-next:
+  stage: deploy
+  image: docker:latest
+  services:
+    - docker:dind
+  only:
+    - master
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:next .
+    - docker push $CI_REGISTRY_IMAGE:next
+
+docker-tag:
+  stage: deploy
+  image: docker:latest
+  services:
+      - docker:dind
+  only:
+    - tags
+  script:
+    - VERSION=$CI_COMMIT_TAG
+    - echo $VERSION
+    - docker info
+    - docker login -u $DOCKER_HUB_USER -p $DOCKER_HUB_PASSWORD
+    - docker build -t ramielcreations/caravaggio:$VERSION .
+    - docker tag ramielcreations/caravaggio:$VERSION ramielcreations/caravaggio:latest
+    - docker images
+    - docker push ramielcreations/caravaggio:$VERSION
+    - docker push ramielcreations/caravaggio:latest
+
+
+# Gitlab Pages
+# This is disabled @see new project caravaggio-docs instead
+.pages:
+  script:
+    - cp -r website public
+  artifacts:
+    paths:
+      - public
+

@@ -1,0 +1,118 @@
+stages:
+  - test
+  - docs
+  - deploy
+
+
+#####################
+# Makes a template which can be reused (copy and pasted)
+.template_pylint: &job_pylint  # https://docs.gitlab.com/ee/ci/yaml/#special-yaml-features
+  stage: test
+  image: alpine  # Alpine Linux is much faster/lightweight linux compared to Ubuntu & others
+  script:  # https://pkgs.alpinelinux.org/packages
+    - apk --no-cache add python3 grep # python3 includes pip3 package
+    #- pip3 install --upgrade pip # upgrade from pip 18 to 19 (try to fix CICD fail)
+    - pip3 install pylint~=1.9.0 # latest version is 2.4+ but this was designed on version 1.9 https://pylint.readthedocs.io/en/latest/user_guide/run.html
+    - find . -iname "*.py" | xargs pylint | tee docs/syntax_test.md || if [ $? -ne 0 ]; then echo "Fault(s) found"; else echo "Pass"; fi # http://www.dreamsyssoft.com/unix-shell-scripting/ifelse-tutorial.php
+    - if grep -q 'E:\|F:' docs/syntax_test.md; then exit 66; else echo "No fatal or error messages found"; fi # http://www.thegeekstuff.com/2011/10/grep-or-and-not-operators/
+  allow_failure: true # Allow to fail as its expected at this stage
+  artifacts:
+    when: always
+    name: "Pylint_Results_${CI_COMMIT_SHA}"
+    expire_in: 1 mos  # These are generated test files so dont need to keep them long
+    paths:
+    - ./docs/syntax_test.md 
+    
+.template_doxygen_HTML: &job_doxygen
+  stage: docs
+  image: alpine
+  script:
+    - apk --no-cache add python3 doxygen git # http://containertutorials.com/alpine/get_started.html make sure to use this with bin/sh not bin/bash
+    - pip3 install doxypypy
+    - git log --graph > docs/git_graph_changelog.txt # For download only (not in doxygen as not suitable for MD format)
+    - git log --date=short --pretty='format:**[%cd][%h]** (%cn) %n> %s%n' > docs/git_changelog.md # generate a log
+    - cd docs
+    - chmod 755 py_filter  # https://codex.wordpress.org/Changing_File_Permissions
+    - mkdir _build
+    - doxygen doxy_config  # Doxygen the config file
+
+.template_mod_doxy_file: &job_mod_file
+  stage: test # Must be before docs
+  image: alpine
+  before_script:
+    - apk --no-cache add sed
+    - cd docs/
+  artifacts:
+    expire_in: 3 hrs  # These are generated test files so dont need to keep them long
+    paths:
+    - ./README.md  # For the download pipeline links in readme
+    - ./docs/doxy_config 
+#####################
+
+
+####   
+pylint: # Run pylint on everything (allowed to fail)
+  <<: *job_pylint
+
+####  
+tagging_doxygen_manual: # Modify the Doxygen config file if tagged
+  <<: *job_mod_file
+  script:
+    - echo "THIS IS A TAGGED RELEASE"
+    - sed -i -e "s/PROJECT_NUMBER         = 4773687/PROJECT_NUMBER         = $CI_COMMIT_TAG/" doxy_config # https://askubuntu.com/questions/76808/how-do-i-use-variables-in-a-sed-command
+    - cd ../
+    - sed -i -e "s:/master/download?:/$CI_COMMIT_TAG/download?:" README.md  # For the download pipeline links in readme
+    - echo "THIS IS A TAGGED RELEASE"
+  only:
+    - tags  
+## 
+hashing_doxygen_manual:
+  <<: *job_mod_file
+  script:
+    - sed -i -e "s/PROJECT_NUMBER         = 4773687/PROJECT_NUMBER         = $CI_COMMIT_SHA/" doxy_config
+  except:
+    - tags
+####  
+doxygen_manual:
+  <<: *job_doxygen
+  artifacts:
+    name: "Headless_Manual_${CI_COMMIT_TAG}_${CI_COMMIT_SHA}"  # https://docs.gitlab.com/ee/ci/variables/README.html
+    expire_in: 1 mos  # These are generated test files so dont need to keep them long
+    paths:
+    - ./docs/_build/ 
+####
+pages:
+  stage: deploy
+  image: alpine  # Faster with alpine
+  variables:
+    GIT_STRATEGY: none # this job has nothing to do with the git project files
+  script:
+    - mv ./docs/_build/html/ ./public/
+  artifacts:
+    paths:
+    - public
+  only:
+    - tags
+    - cicd_testing  
+####
+doxygen_pdf:
+  stage: deploy
+  image: ubuntu  # no stable 'texlive' package for Alpine so use Ubuntu
+  script:
+    - apt-get -y update
+    - DEBIAN_FRONTEND=noninteractive apt-get -y install texlive make
+    - DEBIAN_FRONTEND=noninteractive apt-get -y install texlive-latex-recommended texlive-pictures texlive-latex-extra # https://tex.stackexchange.com/questions/158700/latex-cant-find-sty-files-altough-packages-are-installed-texlive-ubuntu-12
+    - cd docs/_build/latex
+    - make pdf
+    - cp refman.pdf "../../../Headless_PDF_Manual_${CI_COMMIT_TAG}.pdf"
+  artifacts:
+    name: "Headless_PDF_Manual_${CI_COMMIT_TAG}_${CI_COMMIT_SHA}"
+    expire_in: 3 mos  # dont keep them long until we have it working
+    paths:
+    - Headless_PDF_Manual_${CI_COMMIT_TAG}.pdf
+  allow_failure: true # Allow to fail
+  only:
+    - tags
+    - cicd_testing 
+####
+

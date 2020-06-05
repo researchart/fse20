@@ -1,0 +1,46 @@
+image: docker:latest
+services:
+- docker:dind
+
+stages:
+- build
+- test
+- deploy
+
+variables:
+  EXTERNAL_REGISTRY: "docker.io"
+  
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - image/
+
+before_script:
+  - apk add bash curl git
+  - mkdir -p /builds/$CI_PROJECT_PATH/mnt
+  - mkdir -p ${CI_PROJECT_DIR}/image
+  - mkdir ~/.docker
+  - chmod 700 ~/.docker
+  - cp ${CONFIG_JSON} ~/.docker/config.json
+
+build:
+  stage: build
+  only:
+    - branches
+  script:
+    - bash -x pipeline/pipeline-entry.sh
+
+test:
+  stage: test
+  only:
+    - branches
+  script:
+    - bash -x pipeline/pipeline-entry.sh
+
+deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    - bash -x pipeline/pipeline-entry.sh
+

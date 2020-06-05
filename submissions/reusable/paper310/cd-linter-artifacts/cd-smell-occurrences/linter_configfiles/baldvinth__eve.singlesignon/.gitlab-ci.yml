@@ -1,0 +1,34 @@
+variables:
+  PROJECT_NAME: "EVE.SingleSignOn"
+  CONFIG_TYPE: "Release"
+before_script:
+  - echo "starting build for %PROJECT_NAME%"
+  - echo "Restoring NuGet Packages..."
+  - nuget restore "src/%PROJECT_NAME%.sln"
+stages:
+  - build
+  - validateBuild
+
+build:
+  stage: build
+  only:
+    - master
+  script:
+    - echo "Building artifacts..."
+    - '"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe" /consoleloggerparameters:ErrorsOnly /maxcpucount:1 /p:Configuration=%CONFIG_TYPE% /p:DeployOnBuild=true /p:PublishProfile="C:\temp\PublishProfiles\%PROJECT_NAME%\publish.pubxml" "src/%PROJECT_NAME%.sln"'
+  artifacts:
+    name: "%CI_PROJECT_NAME%_%CI_BUILD_ID%-%CI_BUILD_REF_NAME%"
+    untracked: false
+    paths:
+      - "src/%PROJECT_NAME%/obj/%CONFIG_TYPE%/Package/PackageTmp/"
+
+validateBuild:
+  stage: validateBuild
+  only:
+    - branches@baldvinth/eve.singlesignon
+  except:
+    - master@baldvinth/eve.singlesignon
+  script:
+    - echo "Validating build..."
+    - '"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe" /consoleloggerparameters:ErrorsOnly /maxcpucount:1 /p:Configuration=Debug "src/%PROJECT_NAME%.sln"'
+

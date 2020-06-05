@@ -1,0 +1,36 @@
+image: ruby:2.3
+
+variables:
+  JEKYLL_ENV: production
+  LC_ALL: C.UTF-8
+
+before_script:
+  - bundle install
+
+test:
+  stage: test
+  script:
+  - bundle exec jekyll build -s web -d test
+  artifacts:
+    paths:
+    - test
+  except:
+  - master
+
+pages:
+  stage: deploy
+  script:
+  - cp ENTITATS_PARTICIPANTS.md web/_includes/entitats.md
+  - cp la_guia/README.md web/_includes/que_es.md
+  - sed -z 's/\n\n\*/\n*/g' la_guia/ESTRATEGIES.md | sed -z 's/\n\n\([[:digit:]]\)/\n\1/g' > web/_includes/estrategies.md
+  - cp COM_CONTRIBUIR.md web/_includes/com_contribuir.md
+  - sed -z 's/\n\n\*/\n*/g' locale/es/ESTRATEGIES.md | sed -z 's/\n\n\([[:digit:]]\)/\n\1/g' > web/_includes/estrategies-es.md
+  - sed -z 's/\n\n\*/\n*/g' locale/en/ESTRATEGIES.md | sed -z 's/\n\n\([[:digit:]]\)/\n\1/g' > web/_includes/estrategies-en.md
+  - bundle exec jekyll build -s web -d public
+  - mv public/.well-known/acme-challenge/X__w03qTHoQuZvPAtYkDrfcm4XR5kIZmcbKeccAr44E.html public/.well-known/acme-challenge/X__w03qTHoQuZvPAtYkDrfcm4XR5kIZmcbKeccAr44E
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

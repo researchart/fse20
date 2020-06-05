@@ -1,0 +1,42 @@
+variables:
+  DEBIAN_FRONTEND: "noninteractive"
+  KITCHEN_YAML: ".kitchen.ci.yml"
+  BUNDLE_PATH: "$CI_PROJECT_DIR/.bundle"
+  DIGITALOCEAN_TESTBOX_FQDN: "${CI_PROJECT_NAME}.${CI_PROJECT_NAMESPACE}.ci.gitlab.test"
+
+stages:
+  - build
+  - integration
+  - publish
+
+# define cache globally for now
+cache:
+  paths:
+    - $BUNDLE_PATH
+    - $CI_PROJECT_DIR/data/
+
+build-deb:
+  image: alpine:latest
+  stage: build
+  script:
+    - apk update && apk add openssl make dpkg ca-certificates gnupg tar
+    - update-ca-certificates
+    - make deb
+
+kitchen-test-job:
+  image: ruby:2.4-alpine3.6
+  stage: integration
+  script:
+    - apk update && apk add coreutils curl build-base openssh-client jq rsync
+    - make gems
+    - make kitchen
+
+publish:
+  image: alpine:latest
+  stage: publish
+  script:
+    - apk update && apk add make curl
+    - make publish
+  only:
+    - master
+

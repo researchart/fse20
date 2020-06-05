@@ -1,0 +1,103 @@
+stages:
+  - build
+  - doc
+
+flash-cx3:cmake:
+  stage: build
+  image: clemolgatsbr/qibuild:latest
+  script:
+    - cd flash-cx3
+    - mkdir build && cd build
+    - cmake ..
+    - make
+
+flash-cx3:qibuild:
+  stage: build
+  image: clemolgatsbr/qibuild:latest
+  script:
+    - cd flash-cx3
+    - qibuild init
+    - qibuild configure --release
+    - qibuild make
+
+flash-cx3:robot:
+  stage: build
+  image: clemolgatsbr/qibuild:latest
+  script:
+    - (cd toolchain && ./install_toolchain.sh)
+    - cd flash-cx3
+    - qibuild init
+    - qibuild configure -c robot --release
+    - qibuild make -c robot
+
+flash-ov580:cmake:
+  stage: build
+  image: clemolgatsbr/qibuild:latest
+  script:
+    - cd flash-ov580
+    - mkdir build && cd build
+    - cmake ..
+    - make
+
+flash-ov580:qibuild:
+  stage: build
+  image: clemolgatsbr/qibuild:latest
+  script:
+    - cd flash-ov580
+    - qibuild init
+    - qibuild configure --release
+    - qibuild make
+
+flash-ov580:robot:
+  stage: build
+  image: clemolgatsbr/qibuild:latest
+  script:
+    - (cd toolchain && ./install_toolchain.sh)
+    - cd flash-ov580
+    - qibuild init
+    - qibuild configure -c robot --release
+    - qibuild make -c robot
+
+test-firmware:cmake:
+  stage: build
+  image: clemolgatsbr/qibuild:latest
+  script:
+    - cd test-firmware
+    - mkdir build && cd build
+    - cmake ..
+    - make
+
+test-firmware:qibuild:
+  stage: build
+  image: clemolgatsbr/qibuild:latest
+  script:
+    - cd test-firmware
+    - qibuild init
+    - qibuild configure --release
+    - qibuild make
+
+test-firmware:robot:
+  stage: build
+  image: clemolgatsbr/qibuild:latest
+  script:
+    - (cd toolchain && ./install_toolchain.sh)
+    - cd test-firmware
+    - qibuild init
+    - qibuild configure -c robot --release
+    - qibuild make -c robot
+
+pages:
+  stage: doc
+  image: clemolgatsbr/qibuild:latest
+  script:
+    - cd test-firmware
+    - mkdir build && cd build
+    - cmake -DENABLE_DOC=ON ..
+    - make doxygen
+    - mv doc/html/ ../../public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

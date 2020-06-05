@@ -1,0 +1,33 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+before_script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+
+.build: &build
+  script:
+    #Build GCS Binary
+    - docker build -t gcsfuse -f Dockerfile.gcsfuse .
+    - docker run -v $PWD/linux_amd64:/linux_amd64 gcsfuse mv /go/bin/gcsfuse /linux_amd64
+    #Build image with gcsfuse binary
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$IMAGE_TAG" .
+    - docker push "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
+
+build-master:
+  <<: *build
+  stage: build
+  variables:
+    IMAGE_TAG: 'latest'
+  only:
+    - master
+
+build:
+  <<: *build
+  stage: build
+  variables:
+    IMAGE_TAG: $CI_COMMIT_REF_SLUG
+  except:
+    - master
+

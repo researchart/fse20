@@ -1,0 +1,51 @@
+image: node:8
+
+stages:
+  - fetch
+  - build
+  - test
+
+
+npm_install:
+  stage: fetch
+  script:
+    - npm install
+  artifacts:
+    expire_in: 4 weeks
+    paths:
+    - node_modules/
+
+build:
+  stage: build
+  script:
+    - npm run build
+  artifacts:
+    expire_in: 14 weeks
+    paths:
+    - dist/
+  dependencies:
+    - npm_install
+
+lint:
+  stage: build
+  script:
+    - npm run tslint
+  artifacts:
+    expire_in: 14 weeks
+    paths:
+    - dist/
+  dependencies:
+    - npm_install
+
+mocha_tests:
+  stage: test
+  script:
+    - npm run test
+  artifacts:
+    expire_in: 14 weeks
+    paths:
+    - dist/
+  dependencies:
+    - npm_install
+    - build
+

@@ -1,0 +1,129 @@
+image: javiersantos/android-ci:28.0.2
+
+before_script:
+- export GRADLE_USER_HOME=`pwd`/.gradle
+- chmod +x ./gradlew
+
+cache:
+  key: $CI_COMMIT_REF_SLUG
+  paths:
+  - .gradle/
+
+stages:
+- build
+- test
+- deploy
+
+build_sample:
+  stage: build
+  script:
+  - ./gradlew :sample:assembleRelease
+  artifacts:
+    paths:
+    - sample/build/outputs/apk/
+  only:
+  - master
+  - dev
+
+build_adept_core:
+  stage: build
+  script:
+  - ./gradlew :adept-core:assembleRelease
+  artifacts:
+    paths:
+    - adept-core/build/outputs/aar/
+  only:
+  - master
+  - dev
+
+test_adept_core:
+  stage: test
+  script:
+  - ./gradlew :adept-core:test
+  - ./gradlew :adept-core:jacocoTestReport
+  artifacts:
+    paths:
+    - adept-core/build/
+  only:
+  - master
+  - dev
+
+deploy_adept_core:
+  stage: deploy
+  script:
+  - ./gradlew :adept-core:bintrayUpload
+  only:
+  - master
+
+build_adept_extension_picasso:
+  stage: build
+  script:
+  - ./gradlew :adept-extension-picasso:assembleRelease
+  artifacts:
+    paths:
+    - adept-extension-picasso/build/outputs/aar/
+  only:
+  - master
+  - dev
+
+deploy_adept_extension_picasso:
+  stage: deploy
+  script:
+  - ./gradlew :adept-extension-picasso:bintrayUpload
+  only:
+  - master
+
+build_adept_extension_glide:
+  stage: build
+  script:
+  - ./gradlew :adept-extension-glide:assembleRelease
+  artifacts:
+    paths:
+    - adept-extension-glide/build/outputs/aar/
+  only:
+  - master
+  - dev
+
+deploy_adept_extension_glide:
+  stage: deploy
+  script:
+  - ./gradlew :adept-extension-glide:bintrayUpload
+  only:
+  - master
+
+build_adept_extension_fresco:
+  stage: build
+  script:
+  - ./gradlew :adept-extension-fresco:assembleRelease
+  artifacts:
+    paths:
+    - adept-extension-fresco/build/outputs/aar/
+  only:
+  - master
+  - dev
+
+deploy_adept_extension_fresco:
+  stage: deploy
+  script:
+  - ./gradlew :adept-extension-fresco:bintrayUpload
+  only:
+  - master
+
+build_adept_extension_experimental:
+  stage: build
+  script:
+  - ./gradlew :adept-extension-experimental:assembleRelease
+  artifacts:
+    paths:
+    - adept-extension-experimental/build/outputs/aar/
+  only:
+  - master
+  - dev
+
+deploy_adept_extension_experimental:
+  stage: deploy
+  script:
+  - ./gradlew :adept-extension-experimental:bintrayUpload
+  only:
+  - master
+

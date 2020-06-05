@@ -1,0 +1,46 @@
+stages:
+  - test
+  - build
+
+test:ubuntu16.04:
+  image: ubuntu:16.04
+  stage: test
+  before_script:
+    - apt-get update
+    - apt-get install -y gcc git m4 openssl libssl-dev autogen autoconf automake libtool libltdl7 libltdl-dev byacc flex check libjansson4 libjansson-dev pkg-config
+  script:
+    - ./autogen.sh
+    - ./configure --enable-debugging --enable-assert --enable-libjansson
+    - make distcheck # this runs installcheck, too
+  artifacts:
+    paths:
+      - plexus-*.tar.gz
+    expire_in: 1 week
+
+build:debian9:
+  image: debian:9
+  stage: build
+  before_script:
+    - apt-get update
+    - apt-get install -y build-essential libssl-dev libjansson-dev libmicrohttpd-dev
+  script:
+    - tar zxf plexus*.tar.gz -C /tmp/
+    - cd /tmp/plexus*
+    - ./configure --enable-libjansson --enable-libmicrohttpd
+    - make
+    - make -C extra
+    - make install
+
+build:centos7:
+  image: centos:7
+  stage: build
+  before_script:
+    - yum install -y make gcc openssl-devel libmicrohttpd-devel jansson-devel
+  script:
+    - tar zxf plexus*.tar.gz -C /tmp/
+    - cd /tmp/plexus*
+    - ./configure --enable-libjansson --enable-libmicrohttpd
+    - make
+    - make -C extra
+    - make install
+

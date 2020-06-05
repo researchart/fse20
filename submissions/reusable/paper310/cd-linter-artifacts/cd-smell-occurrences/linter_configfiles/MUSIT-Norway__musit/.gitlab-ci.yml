@@ -1,0 +1,73 @@
+######################################################################
+# GitLab CI build script for the MUSIT backend project               #
+######################################################################
+variables:
+  DOCKER_DRIVER: overlay
+  # Setting specific folder for sbt-coursier to cache artifacts
+  COURSIER_CACHE: "/root/cache/coursier"
+
+stages:
+  - test
+  - build
+
+cache:
+  untracked: true
+  paths:
+    - cache
+
+test:
+  stage: test
+  tags:
+    - docker
+    - shared
+  image: registry.gitlab.com/musit-norway/docker-scala-sbt
+  variables:
+    MUSIT_FUTURE_TIMEOUT: "15000"
+    MUSIT_FUTURE_INTERVAL: "50"
+    ELASTICSEARCH_HOST: "elasticsearch"
+    ELASTICSEARCH_PORT: 9200
+    POSTGRES_DB: postgres
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    SYMBIOTIC_POSTGRES_HOST: "postgres"
+
+  coverage: '/\[info]\sAll\sdone\.\sCoverage\swas\s\[(.*)%\]/'
+
+  services:
+    - name: postgres:latest
+    - name: registry.gitlab.com/musit-norway/docker-elasticsearch:latest
+      alias: elasticsearch
+
+  script:
+    - echo "Building and running tests..."
+    # Check if the scalafmt modified any files during the build. If yes, fail the build.
+    - sbt clean scalastyle scalafmt
+    - git status
+    - git diff --exit-code || (echo "ERROR Scala formatting check failed, see differences above."; false)
+    - if [[ -n "$CODACY_PROJECT_TOKEN" ]]; then echo "Running with code coverage..."; sbt coverage allTests:test coverageReport; sbt coverageAggregate; sbt codacyCoverage; else echo "Coverage reporting disabled for forks"; sbt allTests:test; fi
+
+build:
+  stage: build
+  tags:
+    - docker
+    - musit
+    - utv
+  image: $MUSIT_DOCKER_REGISTRY/musit/docker-scala-sbt
+  variables:
+    DOCKER_DRIVER: overlay
+
+  services:
+    - $MUSIT_DOCKER_REGISTRY/library/docker:dind
+
+  before_script:
+    - echo "Running build $CI_JOB_ID for commit $CI_COMMIT_SHA with commit ref name $CI_COMMIT_REF_NAME"
+    - mkdir $HOME/.docker
+    - echo $DOCKER_AUTH_CONFIG > $HOME/.docker/config.json
+    - docker info
+  script:
+    - sbt docker:publish
+
+  only:
+    - master@MUSIT-Norway/musit
+
+

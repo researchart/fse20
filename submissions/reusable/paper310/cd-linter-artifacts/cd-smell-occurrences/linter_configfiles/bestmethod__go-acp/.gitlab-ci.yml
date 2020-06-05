@@ -1,0 +1,24 @@
+image: golang:1.10
+stages:
+    - build
+  
+before_script:
+    - go get -u github.com/jessevdk/go-flags
+    - cd /builds/bestmethod/go-acp/src
+    - mkdir -p ../bin/linux
+    - mkdir ../bin/windows
+    - mkdir ../bin/osx
+
+build:
+    stage: build
+    script:
+        - env GOOS=linux GOARCH=amd64 go build -o ../bin/linux/acp
+        - env GOODS=osx GOARCH=amd64 go build -o ../bin/osx/acp
+        - env GOOS=windows GOARCH=amd64 go build -o ../bin/windows/acp.exe
+        - cd ..
+    artifacts:
+        paths:
+            - bin/linux
+            - bin/windows
+            - bin/osx
+

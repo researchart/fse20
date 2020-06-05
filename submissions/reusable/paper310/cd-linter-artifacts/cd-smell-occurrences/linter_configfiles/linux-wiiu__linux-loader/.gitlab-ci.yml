@@ -1,0 +1,14 @@
+image: quarktheawesome/wiiu-cfw-builder
+
+master-build:
+    stage: build
+    script:
+    - sed s/B5XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/${DEFINITELY_LEGAL}/g -i castify.py
+    - sed s/91XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/${DO_THEY_EVEN_CARE}/g -i castify.py
+    - make
+    artifacts:
+        paths:
+        - fw.img
+        name: "${CI_JOB_NAME}-${CI_COMMIT_REF_NAME}"
+        
+

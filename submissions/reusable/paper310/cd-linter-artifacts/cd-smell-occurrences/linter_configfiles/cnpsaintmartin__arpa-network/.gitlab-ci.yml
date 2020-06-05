@@ -1,0 +1,76 @@
+# https://hub.docker.com/r/library/node/tags/
+image: node:10-jessie
+
+
+variables:
+  REGISTRY_STAGING_URL: ageingarpanetwork/arpa-network
+
+.release_template: &release_definition
+  image: docker:stable
+  services:
+  - docker:dind
+
+  before_script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  - docker info | grep Registry
+  - apk add --no-cache python py-pip git
+  - pip install python-magic
+  - apk --purge del py-pip
+
+stages:
+- build
+- test
+- check
+- release
+
+before_script:
+- npm install --quiet
+cache:
+  paths:
+  - node_modules/
+
+#build-nuxt:
+#  stage: build
+#  script:
+#  - npm run build
+
+#unit-test:
+#  stage: test
+#  allow_failure: true
+#  artifacts:
+#    untracked: true
+#  script:
+#  - npm run test:unit
+
+#e2e-test:
+#  stage: test
+#  allow_failure: true
+#  script:
+#  - npm run test:e2e
+
+#check-coverage:
+#  stage: check
+#  allow_failure: true
+#  script:
+#    npm run coverage
+#  dependencies:
+#  - unit-test
+
+lint:
+  stage: check
+  allow_failure: true
+  script:
+    npm run lint
+
+release-image:
+  <<: *release_definition
+  stage: release
+  script:
+  - docker build --pull -t "$CI_REGISTRY_IMAGE" .
+  - docker push "$CI_REGISTRY_IMAGE"
+  only:
+  - master
+  when: manual
+  tags:
+  - docker
+

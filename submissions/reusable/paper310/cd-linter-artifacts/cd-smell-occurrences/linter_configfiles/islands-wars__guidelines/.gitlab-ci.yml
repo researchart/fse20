@@ -1,0 +1,10 @@
+pages:
+    stage: deploy
+    script:
+        - echo 'Generating...'
+    only:
+        - master
+    artifacts:
+        paths:
+            - public
+

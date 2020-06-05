@@ -1,0 +1,41 @@
+image: registry.gitlab.com/davidhsianturi/laravel-test-deploy:latest
+
+services:
+  - mysql:5.7
+
+variables:
+  MYSQL_DATABASE: homestead
+  MYSQL_ROOT_PASSWORD: secret
+  DB_HOST: mysql
+  DB_USERNAME: root
+
+stages:
+  - test
+  - deploy
+
+unit_test:
+  stage: test
+  script:
+    - composer install
+    - cp .env.example .env
+    - php artisan key:generate
+    - php artisan migrate
+    - vendor/bin/phpunit
+
+deploy_production:
+  stage: deploy
+  script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SPK_GCL")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+    - ~/.composer/vendor/bin/envoy run deploy
+  environment:
+    name: production
+    url: http://35.198.233.156
+  when: manual
+  only:
+    - master
+

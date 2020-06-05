@@ -1,0 +1,16 @@
+stages:
+  - master
+
+test:
+  stage: master
+  cache:
+    paths:
+      - vendor/
+  before_script:
+    # Install composer dependencies
+    - composer install
+  script:
+    - ./vendor/bin/codecept run unit
+  tags:
+    - php
+

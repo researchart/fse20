@@ -1,0 +1,51 @@
+stages:
+  - test
+  - deploy
+
+before_script:
+  - npm install
+  - cp ./src/config/config.staging.json ./src/config/config.json
+
+lint:
+  stage: test
+  script:
+    - npm run lint
+
+deploy:
+  stage: deploy
+  environment:
+    name: production
+    url: http://map.siasar.org
+  script:
+    - cp ./src/config/config.production.json ./src/config/config.json
+    - npm run build
+    - sudo rsync --stats -ahvI --delete ./dist/ /var/www/dashboard
+    - sudo chown -R apache:apache /var/www/dashboard
+  only:
+    - master
+
+deploy_staging:
+  stage: deploy
+  environment:
+    name: staging
+    url: http://map.staging.siasar.org
+  script:
+    - npm run build
+    - sudo rsync --stats -ahvI --delete ./dist/ /var/www/dashboard_staging
+    - sudo chown -R apache:apache /var/www/dashboard_staging
+  only:
+    - staging
+
+deploy_development:
+  stage: deploy
+  environment:
+    name: development
+    url: http://map.dev.siasar.org
+  script:
+    - npm run build
+    - sudo rsync --stats -ahvI --delete ./dist/ /var/www/dashboard_development
+    - sudo chown -R apache:apache /var/www/dashboard_development
+  except:
+    - master
+    - staging
+

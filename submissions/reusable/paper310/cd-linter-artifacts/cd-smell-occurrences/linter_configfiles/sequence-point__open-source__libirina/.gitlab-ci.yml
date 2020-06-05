@@ -1,0 +1,15 @@
+image: $CI_REGISTRY/sequence-point/images/build2-stretch:latest
+
+stages:
+  - build-and-test
+
+build-and-test:
+  stage: build-and-test
+  tags:
+    - linux
+    - docker
+  script:
+    - bdep init -C @clang cc config.cxx=clang++
+    - b
+    - b test
+

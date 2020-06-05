@@ -1,0 +1,62 @@
+image: buildstream/buildstream-fedora:latest
+
+variables:
+  BST_FOLDER: "${CI_PROJECT_DIR}/bst-definitions/"
+  JSONCOMMENT_VERSION: '0.3.0'
+  PYCODESTYLE_VERSION: '2.3.1'
+
+stages:
+  - pep8
+  - convert
+  - build
+
+.bst_before_script: &bst_before_script
+  before_script:
+    - |
+      export BST_SHA='74f1c9340ea47a1cbe52d0fce4ccfd598165571f'
+      git clone https://gitlab.com/BuildStream/buildstream.git
+      # Use specific version of BuildStream
+      git -C buildstream checkout $BST_SHA
+      pip3 install buildstream/
+
+check_pep8:
+  stage: pep8
+  script:
+    - export PATH=~/.local/bin:$PATH
+    - pip3 install --user pycodestyle=="$PYCODESTYLE_VERSION"
+    - pycodestyle --show-source --show-pep8 .
+
+convert:
+  stage: convert
+  script:
+    - pip3 install --user jsoncomment
+    - git clone https://github.com/flatpak/freedesktop-sdk-images.git
+    - git -C freedesktop-sdk-images checkout 1.6
+    - python3 json2Bst/main.py --file-name freedesktop-sdk-images/org.freedesktop.Sdk.json.in --json-module-tag modules --definitions-dir "$BST_FOLDER"
+    - ls -l "$BST_FOLDER"
+  artifacts:
+    when: always
+    paths:
+      - "$BST_FOLDER"
+
+build:
+  stage: build
+  <<: *bst_before_script
+  script:
+    - |
+      mkdir -p tests/elements
+      mv "$BST_FOLDER"/*.bst tests/elements/
+    - cd tests
+    - |
+      echo "name: json2bst" > project.conf
+      echo "element-path: elements" >> project.conf
+      #Hacks to make syntax correct
+      # See issue #23
+    - sed -i 's/track:/ref:/' elements/libglvnd.bst
+    - sed -i 's/track:/ref:/' elements/flatpak-xdg-utils.bst
+      # See issue #16
+    - |
+      sed -i "s/url:.*/path: emojione-android.ttf/" elements/emoji-one-font.bst
+      sed -i '/ref:/d' elements/emoji-one-font.bst
+    - bst show fcitx.bst
+

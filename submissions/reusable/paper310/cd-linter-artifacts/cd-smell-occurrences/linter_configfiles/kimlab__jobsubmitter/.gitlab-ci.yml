@@ -1,0 +1,175 @@
+image: registry.gitlab.com/kimlab/linux-anvil:latest
+
+stages:
+  - lint
+  - build
+  - test
+  - deploy
+
+cache:
+  key: ${CI_COMMIT_REF_NAME}
+  paths:
+    - .conda_packages
+
+# === Variables ===
+
+variables:
+  PACKAGE_VERSION: 0.1.1
+
+.py35: &py35
+  PYTHON_VERSION: "3.5"
+
+.py36: &py36
+  PYTHON_VERSION: "3.6"
+
+# === Configurations ===
+
+.conda_configure: &conda_configure
+  before_script:
+    # Conda environment variables
+    - export CONDA_PKGS_DIRS="${CI_PROJECT_DIR}/.conda_packages"
+    # Make conda cache and bld folders
+    - mkdir -p "${CI_PROJECT_DIR}/conda-bld" "${CONDA_PKGS_DIRS}"
+    # Conda configure
+    - conda config --set channel_priority true
+    - conda config --append pkgs_dirs "${CONDA_PKGS_DIRS}"
+    - conda config --append channels conda-forge
+    - conda config --append channels pytorch
+    - conda config --append channels ostrokach-forge
+    - conda config --append channels bioconda
+    - case "${PACKAGE_VERSION}" in
+      *dev*)
+        conda config --append channels kimlab;
+        conda config --append channels kimlab/label/dev;
+      ;;
+      *)
+        conda config --append channels kimlab;
+      ;;
+      esac
+
+# === Lint ===
+
+lint:
+  stage: lint
+  <<: [*conda_configure]
+  variables:
+    <<: [*py36]
+  script:
+    - conda install -yq "python=${PYTHON_VERSION}" isort flake8 mypy
+    - python -m isort -p ${CI_PROJECT_NAME} -c
+    - python -m flake8
+    - python -m mypy -p ${CI_PROJECT_NAME}
+
+# === Build ===
+
+.build: &build
+  stage: build
+  script:
+    - cd "${CI_PROJECT_DIR}/.conda"
+    - conda build .
+      --no-test
+      --python $PYTHON_VERSION
+      --output-folder "${CI_PROJECT_DIR}/conda-bld"
+  artifacts:
+    paths:
+    - conda-bld
+
+build-py36:
+  <<: [*conda_configure, *build]
+  variables:
+    <<: [*py36]
+
+# === Test ===
+
+.test: &test
+  stage: test
+  script:
+    # Restore built packages
+    - cp -r $CI_PROJECT_DIR/conda-bld/* /opt/conda/conda-bld/
+    - conda index /opt/conda/conda-bld/
+    # Run tests
+    - cd $CI_PROJECT_DIR/.conda
+    - conda build .
+      --test
+      --python $PYTHON_VERSION
+  coverage: /^TOTAL.* (\d+\%)/
+  artifacts:
+    paths:
+      - environment-py${PYTHON_VERSION/./}.yml
+
+test-py36:
+  <<: [*conda_configure, *test]
+  dependencies:
+    - build-py36
+  variables:
+    <<: [*py36]
+
+# === Pages ===
+
+.docs: &docs
+  stage: test
+  script:
+    # Restore built packages
+    - cp -r $CI_PROJECT_DIR/conda-bld/* /opt/conda/conda-bld/
+    - conda index /opt/conda/conda-bld/
+    # Install required packages
+    - conda install -yq --use-local "python=$PYTHON_VERSION" $CI_PROJECT_NAME
+    - conda install -yq nbconvert ipython ipykernel pandoc
+    - pip install -q sphinx sphinx_rtd_theme recommonmark nbsphinx
+    # Build docs
+    - sphinx-build docs public
+  dependencies:
+    - build-py36
+  variables:
+    <<: [*py36]
+
+test-pages:
+  <<: [*conda_configure, *docs]
+  except:
+    - master
+    - tags
+
+pages:
+  <<: [*conda_configure, *docs]
+  only:
+    - master
+    - tags
+  except:
+    - triggers
+  artifacts:
+    paths:
+    - public
+
+# === Deploy ===
+
+.deploy: &deploy
+  stage: deploy
+  before_script:
+    - conda install twine -yq --no-channel-priority
+  script:
+    # Rename wheels from `-linux_x86_64.whl` to `-manylinux1_x86_64.whl`
+    # so that they can be uploaded to PyPI.
+    - for i in $CI_PROJECT_DIR/conda-bld/linux-64/*.whl ; do
+      echo $i;
+      mv "${i}" "${i%%-linux_x86_64.whl}-manylinux1_x86_64.whl";
+      done
+    # Upload package to Anaconda and PyPi repos.
+    - case "${PACKAGE_VERSION}" in
+      *dev*)
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u ${CI_PROJECT_NAMESPACE} --label dev --force;
+      ;;
+      *)
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u ${CI_PROJECT_NAMESPACE};
+        twine upload $CI_PROJECT_DIR/conda-bld/linux-64/*.whl;
+      ;;
+      esac
+  only:
+    - master
+  except:
+    - triggers
+
+deploy-py36:
+  <<: *deploy
+  dependencies:
+    - build-py36
+

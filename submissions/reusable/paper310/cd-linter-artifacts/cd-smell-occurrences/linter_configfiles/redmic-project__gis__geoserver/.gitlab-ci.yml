@@ -1,0 +1,127 @@
+include:
+  - project: 'redmic-project/gitlab-ci-templates'
+    ref: master
+    file: '/packaging.yml'
+  - project: 'redmic-project/gitlab-ci-templates'
+    ref: master
+    file: '/_deployment.yml'
+
+stages:
+  - package
+  - test-package
+  - deploy
+
+variables:
+  STACK: gis
+
+.deploy:
+  variables:
+    SERVICES_TO_CHECK: ${STACK}_${SERVICE_NAME}
+  script:
+    - >
+      deploy.sh IMAGE_NAME=${IMAGE_NAME} IMAGE_TAG=${IMAGE_TAG} COMPOSE_FILE=${COMPOSE_FILE}
+      GEOSERVER_ADMIN_SUBDOMAIN=${GEOSERVER_ADMIN_SUBDOMAIN} GEOSERVER_SUBDOMAIN=${GEOSERVER_SUBDOMAIN}
+      PUBLIC_HOSTNAME=${PUBLIC_HOSTNAME} GEOSERVER_PASS=${GEOSERVER_PASS}
+  environment:
+    url: https://${GEOSERVER_ADMIN_SUBDOMAIN}.${PUBLIC_HOSTNAME}
+
+.deploy-development:
+  variables:
+    COMPOSE_FILE: docker-compose.${SERVICE_NAME}.tmpl.yml:docker-compose.${SERVICE_NAME}.dev.yml
+  environment:
+    name: dev/${SERVICE_NAME}
+
+.deploy-production:
+  variables:
+    COMPOSE_FILE: docker-compose.${SERVICE_NAME}.tmpl.yml:docker-compose.${SERVICE_NAME}.prod.yml
+  environment:
+    name: pro/${SERVICE_NAME}
+
+.deploy-geoserver-master:
+  variables: &deploy-geoserver-master
+    SERVICE_NAME: geoserver-master
+
+.deploy-geoserver-slave:
+  variables: &deploy-geoserver-slave
+    SERVICE_NAME: geoserver-slave
+
+.deploy-geoserver-master-development:
+  extends: .deploy-development
+  variables: *deploy-geoserver-master
+
+.deploy-geoserver-slave-development:
+  extends: .deploy-development
+  variables: *deploy-geoserver-slave
+
+.deploy-geoserver-master-production:
+  extends: .deploy-production
+  variables: *deploy-geoserver-master
+
+.deploy-geoserver-slave-production:
+  extends: .deploy-production
+  variables: *deploy-geoserver-slave
+
+deploy-geoserver-master-support-branch-development:
+  extends: .deploy-geoserver-master-development
+  only:
+    - branches
+  except:
+    - master
+    - schedules
+
+deploy-geoserver-slave-support-branch-development:
+  extends: .deploy-geoserver-slave-development
+  only:
+    - branches
+  except:
+    - master
+    - schedules
+
+deploy-geoserver-master-stable-branch-development:
+  extends: .deploy-geoserver-master-development
+  only:
+    - master
+  except:
+    - schedules
+
+deploy-geoserver-slave-stable-branch-development:
+  extends: .deploy-geoserver-slave-development
+  only:
+    - master
+  except:
+    - schedules
+
+deploy-geoserver-master-stable-branch-production:
+  extends: .deploy-geoserver-master-production
+  only:
+    - master
+  except:
+    - schedules
+
+deploy-geoserver-slave-stable-branch-production:
+  extends: .deploy-geoserver-slave-production
+  only:
+    - master
+  except:
+    - schedules
+
+deploy-geoserver-master-version-development:
+  extends: .deploy-geoserver-master-development
+  only:
+    - tags
+
+deploy-geoserver-slave-version-development:
+  extends: .deploy-geoserver-slave-development
+  only:
+    - tags
+
+deploy-geoserver-master-version-production:
+  extends: .deploy-geoserver-master-production
+  only:
+    - tags
+
+deploy-geoserver-slave-version-production:
+  extends: .deploy-geoserver-slave-production
+  only:
+    - tags
+

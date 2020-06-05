@@ -1,0 +1,111 @@
+image: starefossen/ruby-node:latest
+
+variables:
+  APP_NAME: "notset"
+  NODE_ENV: "test"
+  JEKYLL_ENV: production
+
+stages:
+  - setup
+  - test
+  - build
+  - deploy
+
+build-ui-image:
+  image: docker:latest
+  services:
+   - docker:dind
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p "$CI_BUILD_TOKEN" "$CI_REGISTRY"
+    - cd UI-node
+    - docker build -t "$CI_REGISTRY_IMAGE/ui:$CI_COMMIT_REF_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE/ui:$CI_COMMIT_REF_NAME"
+  #only:
+  #  - master
+
+build-api-image:
+  image: docker:latest
+  services:
+   - docker:dind
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p "$CI_BUILD_TOKEN" "$CI_REGISTRY"
+    - cd ask-jocko-api
+    - docker build -t "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_REF_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_REF_NAME"
+  #only:
+  #  - master
+
+build-service-image:
+  image: docker:latest
+  services:
+   - docker:dind
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p "$CI_BUILD_TOKEN" "$CI_REGISTRY"
+    - cd twit-service
+    - docker build -t "$CI_REGISTRY_IMAGE/twit-service:$CI_COMMIT_REF_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE/twit-service:$CI_COMMIT_REF_NAME"
+  #only:
+  #  - master
+
+
+prepare:
+  stage: setup
+#  cache:
+#    key: nodemodules
+#    paths: 
+#      - node_modules/
+  script:
+    - echo 'Prepare jobs'
+#    - npm install
+
+test:jekyll:
+  stage: test
+  script:
+    - cd UI-coming-soon
+    - bundle install
+    - bundle exec jekyll build -d test
+  artifacts:
+    paths:
+    - UI-coming-soon/test
+  except:
+  - master
+
+test:node:
+  stage: test
+#  cache:
+#    key: nodemodules
+#    paths: 
+#      - node_modules/
+#    policy: pull
+  script:
+    - echo 'Run tests job'
+#    - npm test
+#  artifacts:
+#    paths:
+#    - mochawesome-report
+#    when: always
+
+start-deploy:
+  stage: deploy
+  variables:
+    GIT_CHECKOUT: "false"
+  script:
+    - echo 'Deploy started'
+
+pages:
+  stage: deploy
+  script:
+    - mkdir public
+    - cd UI-coming-soon
+    - bundle install
+    - bundle exec jekyll build -d public
+    - mv public/* ../public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

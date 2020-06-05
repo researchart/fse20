@@ -1,0 +1,365 @@
+# MRI Ruby version list:
+# https://hub.docker.com/r/library/ruby/tags/
+
+testruby_1_9_3:
+  image: "ruby:1.9.3"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - printf "deb http://archive.debian.org/debian/ jessie main\ndeb-src http://archive.debian.org/debian/ jessie main\ndeb http://security.debian.org jessie/updates main\ndeb-src http://security.debian.org jessie/updates main" > /etc/apt/sources.list
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler -v '< 2'              # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testruby_2_0:
+  image: "ruby:2.0"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - printf "deb http://archive.debian.org/debian/ jessie main\ndeb-src http://archive.debian.org/debian/ jessie main\ndeb http://security.debian.org jessie/updates main\ndeb-src http://security.debian.org jessie/updates main" > /etc/apt/sources.list
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testruby_2_1:
+  image: "ruby:2.1"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - printf "deb http://archive.debian.org/debian/ jessie main\ndeb-src http://archive.debian.org/debian/ jessie main\ndeb http://security.debian.org jessie/updates main\ndeb-src http://security.debian.org jessie/updates main" > /etc/apt/sources.list
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testruby_2_2:
+  image: "ruby:2.2"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - printf "deb http://archive.debian.org/debian/ jessie main\ndeb-src http://archive.debian.org/debian/ jessie main\ndeb http://security.debian.org jessie/updates main\ndeb-src http://security.debian.org jessie/updates main" > /etc/apt/sources.list
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testruby_2_3:
+  image: "ruby:2.3"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testruby_2_4:
+  image: "ruby:2.4"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testruby_2_5:
+  image: "ruby:2.5"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testruby_2_6:
+  image: "ruby:2.6"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testruby_2_7:
+  image: "ruby:2.7-rc"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - ruby -v                                   # Print out ruby version for debugging
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testjruby_1_7:
+  image: "jruby:1.7"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - apt-get install -y git >/dev/null         # Add git binary
+    - export JRUBY_OPTS=--dev                   # Faster test runs
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testjruby_9_0_1_0:
+  image: "jruby:9.0.1.0"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - printf "deb http://archive.debian.org/debian/ jessie main\ndeb-src http://archive.debian.org/debian/ jessie main\ndeb http://security.debian.org jessie/updates main\ndeb-src http://security.debian.org jessie/updates main" > /etc/apt/sources.list
+    - rm /etc/apt/sources.list.d/jessie-backports.list
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - apt-get install -y git >/dev/null         # Add git binary
+    - export JRUBY_OPTS=--dev                   # Faster test runs
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testjruby_9_1:
+  image: "jruby:9.1"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - apt-get install -y git >/dev/null         # Add git binary
+    - export JRUBY_OPTS=--dev                   # Faster test runs
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem uninstall -x -i /opt/jruby/lib/ruby/gems/shared bundler # Remove any pre-existing bundler
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+# This is not repeated from the 9.2 below! 9.2.0.0 is a very specific version with a bug in the Set interoperability so
+# we'll want to check that our workaround is working with this one even after the 9.2 branch moves on.
+testjruby9_2_0_0:
+  image: "jruby:9.2.0.0"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - apt-get install -y git >/dev/null         # Add git binary
+    - export JRUBY_OPTS=--dev                   # Faster test runs
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testjruby_9_2:
+  image: "jruby:9.2"
+
+  # Cache gems in between builds
+  cache:
+    paths:
+      - vendor/ruby
+
+  before_script:
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - apt-get install -y git >/dev/null         # Add git binary
+    - export JRUBY_OPTS=--dev                   # Faster test runs
+    - ruby -v                                   # Print out ruby version for debugging
+    - gem uninstall -a -x -i /opt/jruby/lib/ruby/gems/shared bundler # Remove any pre-existing bundler
+    - gem install bundler:'< 2'                 # Bundler is not installed with the image
+    - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+
+  script:
+    - bin/rspec
+
+testtruffleruby:
+  image: "danny02/graalvm"
+
+  before_script:
+    - gu install -c org.graalvm.ruby            # Install TruffleRuby
+    - apt-get update >/dev/null                 # Add UTF-8 support
+    - apt-get install -y locales >/dev/null     # |
+    - echo "en_US UTF-8" > /etc/locale.gen      # |
+    - locale-gen en_US.UTF-8                    # |
+    - export LANG=en_US.UTF-8                   # |
+    - export LANGUAGE=en_US:en                  # |
+    - export LC_ALL=en_US.UTF-8                 # v
+    - apt-get install -y git libssl-dev libssl1.1 clang llvm make >/dev/null # Add git binary + truffleruby dependencies
+    - /graalvm*/jre/languages/ruby/lib/truffle/post_install_hook.sh # Rebuild openssl extension, as suggested by install
+                                                                    # notes
+    - ruby -v                                   # Print out ruby version for debugging
+    - bundle install -j $(nproc)                # Install dependencies
+
+  script:
+    - bin/rspec
+

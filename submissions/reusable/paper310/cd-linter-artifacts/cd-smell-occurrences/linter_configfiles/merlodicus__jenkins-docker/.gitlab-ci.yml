@@ -1,0 +1,119 @@
+# validate artifact definitions
+# build+test+publish arifacts (docker images, VM images)
+#   tests:
+#     docker master:
+#       is exposing port 8080?
+#       jenkins service is running?
+#       health changes from 'starting' to 'healthy' within 30s/1m
+#     docker nginx:
+#       is exposing port 80?
+#       epTODO add a health check for this
+#       some other stuff
+# manual deploy step?
+
+# Jobs which require AWS credentials:
+#   create a private runner which has access to AWS creds?
+
+stages:
+  - validate
+  - build
+
+validate:packer-templates:
+  stage: validate
+  image:
+    name: hashicorp/packer:1.2.4
+    entrypoint: ["/bin/sh", "-c"]
+  script:
+    - cd infrastructure/images
+    - for t in $(ls | grep .json$); do echo "Validating ${t}" && packer validate ${t}; done
+
+validate:inspec-tests:
+  stage: validate
+  image:
+    name: chef/inspec:2.2.27
+    entrypoint: ["/bin/sh", "-c"]
+  script:
+    - cd infrastructure/inspec-profiles
+    - for p in $(ls -d */); do echo "Checking ${p}" && inspec check ${p}; done
+
+# this should fail until i can resolve the galaxy deps
+# validate:ansible-playbooks:
+#   stage: validate
+#   image: williamyeh/ansible:alpine3
+#   script:
+#     - find . -name playbook.yml -exec ansible-playbook '{}' --syntax-check \;
+#     - echo $?
+#     - exit 1
+
+# Requires AWS credentials
+# validate:terraform-iac:
+#   stage: validate
+#   image:
+#     name: hashicorp/terraform:0.11.7
+#     entrypoint: ["/bin/sh", "-c"]
+#   script:
+#     - cd infrastructure
+#     - terraform init
+#     - terraform validate .
+#     - terraform fmt -diff=true -check=true
+
+build:jenkins-master:
+  stage: build
+  only:
+    - master
+  image: docker:18.03
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  variables:
+    CONTAINER_IMAGE: registry.gitlab.com/merlodicus/jenkins-docker/master
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVE: overlay2
+  script:
+    - docker pull $CONTAINER_IMAGE:latest || true
+    - docker build --cache-from $CONTAINER_IMAGE:latest --tag $CONTAINER_IMAGE:$CI_BUILD_REF --tag $CONTAINER_IMAGE:latest docker/jenkins-master/ # epTODO set env var for JENKINS_ROOT
+    # - docker run <my-image> </script/to/run/tests>
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE:latest
+
+build:jenkins-nginx:
+  stage: build
+  only:
+    - master
+  image: docker:18.03
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  variables:
+    CONTAINER_IMAGE: registry.gitlab.com/merlodicus/jenkins-docker/nginx
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVE: overlay2
+  script:
+    - docker pull $CONTAINER_IMAGE:latest || true
+    - docker build --cache-from $CONTAINER_IMAGE:latest --tag $CONTAINER_IMAGE:$CI_BUILD_REF --tag $CONTAINER_IMAGE:latest docker/jenkins-nginx/
+    # - docker run <my-image> </script/to/run/tests>
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE:latest
+
+# Requires AWS credentials
+# build:packer-jenkins-master-ami:
+#   stage: build
+#   image:
+#     name: hashicorp/packer:1.2.4
+#     entrypoint: ["/bin/sh", "-c"]
+#   script:
+#     - cd infrastructure/images
+#     - packer build jenkins_master_ami.json # epTODO first check if there are too may AMIs/snapshots in storage
+
+# Requires AWS credentials
+# build:packer-linux-docker-slave-ami:
+#   stage: build
+#   image:
+#     name: hashicorp/packer:1.2.4
+#     entrypoint: ["/bin/sh", "-c"]
+#   script:
+#     - cd infrastructure/images
+#     - packer build linux_docker_slave_host_ami.json # epTODO first check if there are too may AMIs/snapshots in storage
+

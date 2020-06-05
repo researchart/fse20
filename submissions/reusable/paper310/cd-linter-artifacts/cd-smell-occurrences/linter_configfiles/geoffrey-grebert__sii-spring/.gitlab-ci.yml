@@ -1,0 +1,271 @@
+######################
+# GENERAL
+######################
+
+variables:
+  # This will supress any download for dependencies and plugins or upload messages which would clutter the console log.
+  # `showDateTime` will show the passed time in milliseconds. You need to specify `--batch-mode` to make this work.
+  MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  # As of Maven 3.3.0 instead of this you may define these options in `.mvn/maven.config` so the same config is used
+  # when running from the command line.
+  # `installAtEnd` and `deployAtEnd`are only effective with recent version of the corresponding plugins.
+  MAVEN_CLI: "./mvnw $MAVEN_OPTS --batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
+  # SONAR Report file
+  SONAR_REPORT_FILE: "report.json"
+  SONAR_CLI_OPTS: "./mvnw verify sonar:sonar -Dsonar.login=$SONAR_LOGIN -Dsonar.host.url=$SONAR_URL -Dsonar.projectKey=$CI_PROJECT_PATH_SLUG -Dsonar.projectName=$CI_PROJECT_NAME -Dsonar.links.homepage=$CI_PROJECT_URL -Dsonar.links.issues=$CI_PROJECT_URL/issues -Dsonar.links.scm=$CI_REPOSITORY_URL"
+
+stages:
+  - verify
+  - build
+  - security
+  - deploy
+  - trigger
+
+
+######################
+# Environments
+######################
+
+.dev-branches: &dev-branches
+  only:
+    - branches
+  except:
+    - master
+    - preprod
+    - ^[\d\.]+$
+
+.release-branches: &release-branches
+  only:
+    - schedules
+    - tags
+    - master
+    - preprod
+    - ^[\d\.]+$
+
+.review: &review
+  <<: *dev-branches
+  when: manual
+
+.testing: &testing
+  environment:
+    name: testing/$CI_BUILD_REF_NAME
+  only:
+    - master
+
+.staging: &staging
+  environment:
+    name: staging/$CI_BUILD_REF_NAME
+  only:
+    - preprod
+    - ^[\d\.]+$
+
+.production: &production
+  environment:
+    name: production/$CI_BUILD_REF_NAME
+  only:
+    - tags
+
+
+######################
+# Functions
+######################
+
+.java: &java
+  image: maven:alpine
+  cache:
+    key: "build-java"
+    paths:
+      - /root/.m2/repository/
+      - /root/.sonar/cache/
+
+.build-java: &build-java
+  <<: *java
+  stage: build
+  script:
+    - $MAVEN_CLI clean install -Drevision=$CI_COMMIT_REF_SLUG -pl services/$SERVICE_NAME -am
+    - $MAVEN_CLI jacoco:report -pl services/$SERVICE_NAME
+    - cat services/$SERVICE_NAME/target/test-results/coverage/jacoco/index.html
+  coverage: '/Total.*?([0-9]{1,3})\s?%/'
+  artifacts:
+    paths:
+      - services/$SERVICE_NAME/target/*.jar
+    expire_in: 3 weeks
+
+.docker-compose: &docker-compose
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    # install dependencies
+    - apk add --update python py-pip python-dev
+    - pip install docker-compose
+    # init env
+    - export APP_ENV=$( echo $CI_ENVIRONMENT_NAME | sed -e "s|/.*||g" )
+    - if [ -z "$CI_ENVIRONMENT_NAME" ]; then export APP_ENV=review; fi
+    # build
+    - docker-compose build
+  dependencies:
+    - build config
+    - build eureka
+    - build hystrix-dashboard
+    - build zuul
+    - build flash-message
+
+.docker-compose-deploy: &docker-compose-deploy
+  <<: *docker-compose
+  stage: deploy
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker-compose push
+
+.script-python: &script-python
+  image: python:3-alpine
+  script:
+    - export PY_REQUIRE_FILE="resources/script/$PY_SCRIPT/requirements.txt"
+    - if [ -e "$PY_REQUIRE_FILE" ]; then pip install -r $PY_REQUIRE_FILE; fi
+    - python resources/script/$PY_SCRIPT
+
+
+######################
+# Services
+######################
+
+.config: &config
+  variables:
+    SERVICE_NAME: config
+
+.eureka: &eureka
+  variables:
+    SERVICE_NAME: eureka
+
+.hystrix-dashboard: &hystrix-dashboard
+  variables:
+    SERVICE_NAME: hystrix-dashboard
+
+.zuul: &zuul
+  variables:
+    SERVICE_NAME: zuul
+
+.flash-message: &flash-message
+  variables:
+    SERVICE_NAME: flash-message
+
+
+######################
+# Verify
+######################
+
+verify filename:
+  stage: verify
+  <<: *script-python
+  before_script:
+    - apk add --update git file
+  variables:
+    PY_SCRIPT: check-filename
+
+
+######################
+# Build
+######################
+
+build config:
+  <<: *build-java
+  <<: *config
+
+build eureka:
+  <<: *build-java
+  <<: *eureka
+
+build hystrix-dashboard:
+  <<: *build-java
+  <<: *hystrix-dashboard
+
+build zuul:
+  <<: *build-java
+  <<: *zuul
+
+build flash-message:
+  <<: *build-java
+  <<: *flash-message
+
+
+######################
+# Security
+######################
+
+security report dependency-check:
+  <<: *release-branches
+  <<: *java
+  stage: security
+  script:
+    - $MAVEN_CLI -fn clean install -DskipTests dependency-check:aggregate
+  artifacts:
+    paths:
+     - target/dependency-check-report.html
+    expire_in: 3 weeks
+
+security sonar report:
+  <<: *release-branches
+  <<: *java
+  stage: security
+  script:
+    - $SONAR_CLI_OPTS -Dsonar.branch=$CI_COMMIT_REF_NAME
+
+security sonar preview:
+  <<: *dev-branches
+  <<: *java
+  stage: security
+  script:
+    - >
+      $SONAR_CLI_OPTS \
+        -Dsonar.analysis.mode=preview \
+        -Dsonar.issuesReport.console.enable=true \
+        -Dsonar.report.export.path=$SONAR_REPORT_FILE
+  artifacts:
+    paths:
+     - target/sonar
+    expire_in: 3 weeks
+
+######################
+# Deploy
+######################
+
+deploy review:
+  <<: *docker-compose-deploy
+  <<: *review
+
+deploy testing:
+  <<: *docker-compose-deploy
+  <<: *testing
+
+deploy staging:
+  <<: *docker-compose-deploy
+  <<: *staging
+
+deploy production:
+  <<: *docker-compose-deploy
+  <<: *production
+
+
+######################
+# Trigger
+######################
+
+trigger keep-artifacts:
+  <<: *script-python
+  stage: trigger
+  only:
+    - tags
+  variables:
+    PY_SCRIPT: keep-artifacts
+
+trigger sonar note:
+  <<: *dev-branches
+  <<: *script-python
+  stage: trigger
+  dependencies:
+    - security sonar preview
+  variables:
+    PY_SCRIPT: sonar
+
+

@@ -1,0 +1,23 @@
+test:
+  script:
+  - apt-get update -qy
+  - apt-get install -y python-nose python3-nose python-mock python3-mock python3-pep8
+  - python3 tests/resources/download_bibles.py
+  - python2 -m nose -v tests/
+  - python3 -m nose -v tests/
+  - python3 -m pep8 --max-line-length=120 tests/ pysword/
+
+pages:
+  script:
+  - apt-get update -qy
+  - apt-get install -y python-sphinx python-sphinx-rtd-theme
+  - cp README.rst docs/
+  - cd docs
+  - make html
+  - mv _build/html/ ../public
+  artifacts:
+    paths:
+    - public
+  only:
+  - tags
+

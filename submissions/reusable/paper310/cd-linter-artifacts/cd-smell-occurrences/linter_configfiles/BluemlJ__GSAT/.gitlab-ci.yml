@@ -1,0 +1,54 @@
+# This file is a template, and might need editing before it works on your project.
+# This template uses the java:8 docker image because there isn't any
+# official Gradle image at this moment
+#
+# This is the Gradle build system for JVM applications
+# https://gradle.org/
+# https://github.com/gradle/gradle
+image: rburgst/java8-openjfx-docker
+
+stages:
+  - build
+  - buildJAR
+  - test
+
+# Make the gradle wrapper executable. This essentially downloads a copy of
+# Gradle to build the project with.
+# https://docs.gradle.org/current/userguide/gradle_wrapper.html
+# It is expected that any modern gradle project has a wrapper
+before_script:
+    - cd p_GSAT/
+    - chmod +x gradlew
+
+variables:
+  GRADLE_COMMAND: "./gradlew"
+  
+# We redirect the gradle user home using -g so that it caches the
+# wrapper and dependencies.
+# https://docs.gradle.org/current/userguide/gradle_command_line.html
+#
+# Unfortunately it also caches the build output so
+# cleaning removes reminants of any cached builds.
+# The assemble task actually builds the project.
+# If it fails here, the tests can't run.
+build:
+  stage: build
+  script:
+  - $GRADLE_COMMAND clean assemble 
+ 
+buildJAR:
+ stage: buildJAR
+ script:  
+ - $GRADLE_COMMAND jfxJar
+ artifacts:
+  name: "$CI_BUILD_NAME"
+  paths:
+  - p_GSAT/build/jfx/
+  
+  
+# Use the generated build output to run the tests.
+test:
+  stage: test
+  script:
+  - $GRADLE_COMMAND check
+

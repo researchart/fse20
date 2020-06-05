@@ -1,0 +1,28 @@
+# order is the order pip will install, so if package A depends on B make sure B comes first
+# postgres python driver, no binary due to https://github.com/psycopg/psycopg2/issues/543
+# can be removed when 2.8 is out
+psycopg2>=2.7 --no-binary psycopg2
+# ORM tool
+SQLAlchemy==1.3.12
+# database migrations
+alembic>=0.8.6
+# support to yaml file format
+PyYAML>=3.11
+# json schema validator
+jsonschema>=2.5.1
+# support for ldap authentication
+ldap3>=1.3.3
+# rest-api
+flask>=0.10.1
+# manage db session from flask (requirement from potion)
+Flask-SQLAlchemy>=2.2
+# help create the endpoints for the rest-api
+flask-potion>=0.16
+# template engine for the automatic installation files
+jinja2>=2.8
+ansible>=2.5.0
+requests>=2.13.0
+docker>=3.5.0
+# tessia-baselib and its dependencies
+git+https://gitlab.com/tessia-project/tessia-baselib.git@0.3.5#egg=tessia-baselib
+

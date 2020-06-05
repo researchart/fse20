@@ -1,0 +1,16 @@
+image: "node:latest"
+
+services:
+  - selenium/standalone-chrome:latest
+  - appuio/example-spring-boot
+
+variables:
+  selenium_remote_url: "http://selenium__standalone-chrome:4444/wd/hub/"
+
+before_script:
+- curl "http://appuio__example-spring-boot:8080"
+
+cucumber:
+  script:
+    - cat /etc/hosts
+

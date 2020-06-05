@@ -1,0 +1,22 @@
+image: node:latest
+
+cache:
+  paths:
+    - node_modules
+
+before_script:
+  - npm install -gd gulp-cli
+  - npm install -d
+
+stages:
+  - build
+
+compiling:
+  stage: build
+  script:
+    - gulp
+  artifacts:
+    untracked: true
+    paths:
+      - out
+

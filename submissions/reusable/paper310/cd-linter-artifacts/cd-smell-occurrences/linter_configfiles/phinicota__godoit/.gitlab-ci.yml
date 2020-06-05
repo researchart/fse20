@@ -1,0 +1,35 @@
+image: golang:latest
+
+variables:
+  REPO_NAME: gitlab.com/phinicota/godoit
+
+before_script:
+  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+  - go get -v -d ./...
+
+cache:
+  paths:
+    - /go/src/github.com
+    - /go/src/gopkg.in
+
+stages:
+    - test
+    - build
+
+format:
+    stage: test
+    script:
+      - test -z $(go fmt $(go list ./... | grep -v /vendor/))
+      - go vet $(go list ./... | grep -v /vendor/)
+      - go test -v -race -coverprofile=cover.out $(go list ./... | grep -v /vendor/) && go tool cover -func=cover.out
+
+compile:
+    stage: build
+    script:
+      - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/godoit $REPO_NAME/cmd/godoit
+    artifacts:
+      paths:
+        - godoit
+

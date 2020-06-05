@@ -1,0 +1,76 @@
+
+variables:
+    CONAN_USERNAME: "bryceschober"
+    CONAN_REFERENCE: "CppUTest/master"
+    CONAN_CHANNEL: "testing"
+    CONAN_LOGIN_USERNAME: "bryceschober"
+    CONAN_UPLOAD: "https://api.bintray.com/conan/bryceschober/bks-conan"
+
+.build-template: &build-template
+    before_script:
+        - sudo pip install --upgrade conan_package_tools
+        - conan user
+    script:
+        - python build.py
+
+gcc-4.9:
+    image: conanio/gcc49
+    variables:
+        CONAN_GCC_VERSIONS: "4.9"
+    <<: *build-template
+
+gcc-5:
+    image: conanio/gcc5
+    variables:
+        CONAN_GCC_VERSIONS: "5"
+    <<: *build-template
+
+gcc-6:
+    image: conanio/gcc6
+    variables:
+        CONAN_GCC_VERSIONS: "6"
+    <<: *build-template
+
+gcc-7:
+    image: conanio/gcc7
+    variables:
+        CONAN_GCC_VERSIONS: "7"
+    <<: *build-template
+
+gcc-8:
+    image: conanio/gcc8
+    variables:
+        CONAN_GCC_VERSIONS: "8"
+    <<: *build-template
+
+clang-3.9:
+    image: conanio/clang39
+    variables:
+        CONAN_CLANG_VERSIONS: "3.9"
+    <<: *build-template
+
+clang-4.0:
+    image: conanio/clang40
+    variables:
+        CONAN_CLANG_VERSIONS: "4.0"
+    <<: *build-template
+
+clang-5.0:
+    image: conanio/clang50
+    variables:
+        CONAN_CLANG_VERSIONS: "5.0"
+    <<: *build-template
+
+clang-6.0:
+    image: conanio/clang60
+    variables:
+        CONAN_CLANG_VERSIONS: "6.0"
+    <<: *build-template
+
+clang-7:
+    image: conanio/clang7
+    variables:
+        CONAN_CLANG_VERSIONS: "7.0"
+    <<: *build-template
+
+

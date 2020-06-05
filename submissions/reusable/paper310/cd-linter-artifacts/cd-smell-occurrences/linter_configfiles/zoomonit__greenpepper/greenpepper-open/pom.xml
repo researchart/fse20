@@ -1,0 +1,64 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <!-- - Basic Project Information -->
+    <parent>
+        <groupId>com.github.strator-dev.greenpepper</groupId>
+        <artifactId>greenpepper-base</artifactId>
+        <version>4.2.5-SNAPSHOT</version>
+    </parent>
+    <artifactId>greenpepper-open</artifactId>
+    <packaging>pom</packaging>
+    <name>GreenPepper Open</name>
+    <description>
+        It was called GreenPepper Open by the creator of GreenPepper when the product was commercial.
+        This project hosted every thing that was OpenSourced and that was a contribution of the community.
+        We kept that name but we now hosts underneath it anything that makes GreenPepper open to the world :
+
+        * Languages Extensions
+        * Wikis Plugins
+        * IDE/Build/Countinuous Integration tools
+    </description>
+
+    <!-- - GreenPepperOpen modules -->
+    <modules>
+        <module>extensions-external</module>
+        <module>samples</module>
+        <module>confluence</module>
+        <module>greenpepper-maven-runner</module>
+        <module>greenpepper-remote-agent</module>
+        <module>greenpepper-report</module>
+    </modules>
+
+    <!-- - Dependencies that we want for all modules -->
+    <dependencies>
+        <!-- **** Basic dependencies **** -->
+        <!-- **** Test level (not distributed) dependencies **** -->
+
+        <dependency>
+            <groupId>org.jmock</groupId>
+            <artifactId>jmock</artifactId>
+            <version>2.5.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jmock</groupId>
+            <artifactId>jmock-junit4</artifactId>
+            <version>2.5.1</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>junit</groupId>
+                    <artifactId>junit-dep</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>1.8.5</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>
+

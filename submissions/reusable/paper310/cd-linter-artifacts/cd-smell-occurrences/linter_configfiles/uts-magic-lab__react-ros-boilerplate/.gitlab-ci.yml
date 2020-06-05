@@ -1,0 +1,19 @@
+image: node:8-slim
+
+pages:
+  cache:
+    paths:
+    - node_modules/
+    
+  before_script:
+    - npm install
+
+  script:
+  - npm run build
+  - mv build public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

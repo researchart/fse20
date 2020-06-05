@@ -1,0 +1,19 @@
+image: debian:jessie-slim
+
+before_script:
+     - apt-get update -qq && apt-get install -y -qq texlive texlive-xetex texlive-fonts-recommended texlive-fonts-extra
+     - xelatex -v
+
+latex:
+     stage: deploy
+     script:
+       - xelatex -synctex=1 -interaction=nonstopmode learn_linux_amr.tex
+       - xelatex -synctex=1 -interaction=nonstopmode learn_linux_amr.tex
+     artifacts:
+       paths:
+       - learn_linux_amr.pdf
+       expire_in: 3 month
+     only:
+     - master
+     - tags
+

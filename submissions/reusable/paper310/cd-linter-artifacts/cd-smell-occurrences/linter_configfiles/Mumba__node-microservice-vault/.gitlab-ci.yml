@@ -1,0 +1,11 @@
+#services:
+#- mumba/crossbar
+
+test:
+  script:
+  - npm install
+  - npm run cover
+  tags:
+  except:
+  - tags
+

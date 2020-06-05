@@ -1,0 +1,154 @@
+image: mediamoose/toolbox:1.15
+
+stages:
+    - lint
+    - test
+    - report
+    - release
+
+python_lint:
+    stage: lint
+    tags:
+        - docker
+    script:
+        - sed -i '/volumes:/d' docker-compose.yml
+        - sed -i '/- .:\/package/d' docker-compose.yml
+        - docker-compose -p ci${CI_JOB_ID} build --pull flake8
+        - docker-compose -p ci${CI_JOB_ID} up --no-start flake8
+        - docker cp . ci${CI_JOB_ID}_flake8_1:/package
+        - docker start -a ci${CI_JOB_ID}_flake8_1
+        - docker-compose -p ci${CI_JOB_ID} build --pull isort
+        - docker-compose -p ci${CI_JOB_ID} up --no-start isort
+        - docker cp . ci${CI_JOB_ID}_isort_1:/package
+        - docker start -a ci${CI_JOB_ID}_isort_1
+        - docker-compose -p ci${CI_JOB_ID} build --pull black
+        - docker-compose -p ci${CI_JOB_ID} up --no-start black
+        - docker cp . ci${CI_JOB_ID}_black_1:/package
+        - docker start -a ci${CI_JOB_ID}_black_1
+
+.test-run: &test-run
+    stage: test
+    tags:
+        - docker
+    script:
+        - sed -i '/volumes:/d' docker-compose.yml
+        - sed -i '/- .:\/package/d' docker-compose.yml
+        - docker-compose -p ci${CI_JOB_ID} build --pull --build-arg PYTHON_VERSION --build-arg PIP_DJANGO python
+        - docker-compose -p ci${CI_JOB_ID} up --no-start python
+        - docker cp . ci${CI_JOB_ID}_python_1:/package
+        - docker start -a ci${CI_JOB_ID}_python_1
+        - docker cp ci${CI_JOB_ID}_python_1:/package/coverage .
+    after_script:
+        - docker-compose -p ci${CI_JOB_ID} rm -f -v python
+    artifacts:
+        expire_in: 1 day
+        paths:
+            - coverage/
+
+3.6 dj-1.11:
+    <<: *test-run
+    variables:
+        PIP_DJANGO: django==1.11
+        PYTHON_VERSION: "3.6"
+
+3.6 dj-2.0:
+    <<: *test-run
+    variables:
+        PIP_DJANGO: django==2.0
+        PYTHON_VERSION: "3.6"
+
+3.6 dj-2.1:
+    <<: *test-run
+    variables:
+        PIP_DJANGO: django==2.1
+        PYTHON_VERSION: "3.6"
+
+3.6 dj-2.2:
+    <<: *test-run
+    variables:
+        PIP_DJANGO: django==2.2
+        PYTHON_VERSION: "3.6"
+
+#3.6 dj-latest:
+#    <<: *test-run
+#    variables:
+#        PIP_DJANGO: django
+#        PYTHON_VERSION: "3.6"
+
+3.7 dj-1.11:
+    <<: *test-run
+    variables:
+        PIP_DJANGO: django==1.11
+        PYTHON_VERSION: "3.7"
+
+3.7 dj-2.0:
+    <<: *test-run
+    variables:
+        PIP_DJANGO: django==2.0
+        PYTHON_VERSION: "3.7"
+
+3.7 dj-2.1:
+    <<: *test-run
+    variables:
+        PIP_DJANGO: django==2.1
+        PYTHON_VERSION: "3.7"
+
+3.7 dj-2.2:
+    <<: *test-run
+    variables:
+        PIP_DJANGO: django==2.2
+        PYTHON_VERSION: "3.7"
+
+#3.7 dj-latest:
+#    <<: *test-run
+#    variables:
+#        PIP_DJANGO: django
+#        PYTHON_VERSION: "3.7"
+
+coverage report:
+    stage: report
+    tags:
+        - docker
+    coverage: '/^TOTAL.*\s+(\d+(?:\.\d+)?\%)$/'
+    script:
+        - sed -i '/volumes:/d' docker-compose.yml
+        - sed -i '/- .:\/package/d' docker-compose.yml
+        - docker-compose -p ci${CI_JOB_ID} pull report
+        - docker-compose -p ci${CI_JOB_ID} up --no-start report
+        - docker cp . ci${CI_JOB_ID}_report_1:/package
+        - docker start -a ci${CI_JOB_ID}_report_1
+    after_script:
+        - docker-compose -p ci${CI_JOB_ID} rm -f -v report
+
+.release: &release
+    stage: release
+    except:
+        - branches
+    script:
+        - sed -i "s|{VERSION}|$(echo ${CI_COMMIT_TAG:-0a${CI_JOB_ID}} | tr -d 'v')|g" setup.py async_thumbnail/__init__.py
+        - python setup.py sdist
+        - twine upload dist/*
+
+test.pypi.org:
+    <<: *release
+    except:
+        - tags
+    environment:
+        name: test
+        url: https://test.pypi.org/project/async-thumbnail
+    variables:
+        TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
+        TWINE_USERNAME: ${TWINE_TEST_USERNAME}
+        TWINE_PASSWORD: ${TWINE_TEST_PASSWORD}
+
+pypi.org:
+    <<: *release
+    only:
+        - /^v.*$/
+    environment:
+        name: production
+        url: https://pypi.org/project/async-thumbnail
+    variables:
+        TWINE_USERNAME: ${TWINE_PROD_USERNAME}
+        TWINE_PASSWORD: ${TWINE_PROD_PASSWORD}
+

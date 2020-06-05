@@ -1,0 +1,45 @@
+stages:
+  - deploy
+
+deploy to development:
+  stage: deploy
+  environment:
+    name: development
+    url: http://dev.siasar.org
+  tags:
+    - develop
+  variables:
+    DRUPAL_PATH: "/var/www/drupal_development"
+    DB_NAME: "drupal_development"
+  script:
+    - sudo /root/backup_db.sh $DB_NAME
+    - sudo rsync -ah --delete --exclude-from=".rsync-exclude" . $DRUPAL_PATH
+    - sudo chown -R apache:apache $DRUPAL_PATH
+    - sudo su apache -c "drush updb -y --root=$DRUPAL_PATH"
+    - sudo su apache -c "drush cc all --root=$DRUPAL_PATH"
+#    - sudo npm install --prefix $DRUPAL_PATH/tests/api
+#    - npm run --prefix $DRUPAL_PATH/tests/api test-dev
+  only:
+    - develop
+
+deploy to staging:
+  stage: deploy
+  environment:
+    name: staging
+    url: http://staging.siasar.org
+  tags:
+    - staging
+  variables:
+    DRUPAL_PATH: "/var/www/drupal"
+    DB_NAME: "drupal"
+  script:
+    - sudo /root/backup_db.sh $DB_NAME
+    - sudo rsync -ah --delete --exclude-from=".rsync-exclude" . $DRUPAL_PATH
+    - sudo chown -R apache:apache $DRUPAL_PATH
+    - sudo su apache -c "drush updb -y --root=$DRUPAL_PATH"
+    - sudo su apache -c "drush cc all --root=$DRUPAL_PATH"
+#    - sudo npm install --prefix $DRUPAL_PATH/tests/api
+#    - npm run --prefix $DRUPAL_PATH/tests/api test-dev
+  only:
+    - master
+

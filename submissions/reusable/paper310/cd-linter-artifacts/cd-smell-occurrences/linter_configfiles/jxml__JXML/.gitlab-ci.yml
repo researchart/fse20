@@ -1,0 +1,7 @@
+before_script:
+  - apt-get update && apt-get install -y default-jdk
+
+dev:
+  script:
+    - ./gradlew assemble
+

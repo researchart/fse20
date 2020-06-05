@@ -1,0 +1,138 @@
+# https://about.gitlab.com/2016/05/23/gitlab-container-registry/
+.kaniko:
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  before_script:
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+
+variables:
+  CONTAINER_CACHE_REPO: ${CI_REGISTRY_IMAGE}/cache
+  CONTAINER_RELEASE_IMAGE: ${CI_REGISTRY_IMAGE}:latest
+  CONTAINER_TEST_IMAGE: ${CI_REGISTRY_IMAGE}/tests:${CI_BUILD_REF_SLUG}
+  RAILS_ENV: test
+  RACK_ENV: test
+  DB_HOST: postgres
+  DB_USER: postgres
+  DB_PASSWORD: ""
+
+include:
+  template: Dependency-Scanning.gitlab-ci.yml
+
+build_image:
+  stage: build
+  retry:
+    max: 2
+  extends:
+    - .kaniko
+  script:
+    - |
+      /kaniko/executor \
+        --cache=true \
+        --cache-repo=${CONTAINER_CACHE_REPO} \
+        --context=${CI_PROJECT_DIR} \
+        --destination=${CONTAINER_TEST_IMAGE} \
+        --dockerfile=${CI_PROJECT_DIR}/Dockerfile \
+        --reproducible
+  tags:
+    - docker
+
+rubocop:
+  stage: test
+  image: ${CONTAINER_TEST_IMAGE}
+  tags:
+    - docker
+  script:
+    - bundle exec rubocop --fail-level=warning --display-cop-names --format=progress --format=offenses --format=html --out="rubocop.html"
+  artifacts:
+    paths:
+      - rubocop.html
+
+brakeman:
+  stage: test
+  image: ${CONTAINER_TEST_IMAGE}
+  tags:
+    - docker
+  script:
+    - bundle exec brakeman --run-all-checks --rails5 --confidence-level=2
+
+test_generated_files:
+  stage: test
+  image: ${CONTAINER_TEST_IMAGE}
+  services:
+    - postgres:9.6.16-alpine
+  tags:
+    - docker
+  script:
+    - apk add git
+    - bundle install
+    - git status --short && test "$(git status --short | grep Gemfile.lock)" = ""
+    - bundle exec rails db:create
+    - bundle exec rails db:migrate
+    - git status --short && test "$(git status --short | grep db/schema.rb)" = ""
+
+rails_tests:
+  stage: test
+  image: ${CONTAINER_TEST_IMAGE}
+  services:
+    - postgres:9.6.16-alpine
+  tags:
+    - docker
+  artifacts:
+    paths:
+      - coverage/
+  script:
+    - bundle exec rails db:create
+    - bundle exec rails db:migrate
+    - bundle exec rails test
+
+release-image:
+  stage: deploy
+  retry:
+    max: 2
+  extends:
+    - .kaniko
+  script:
+    - |
+      /kaniko/executor \
+      --build-arg RAILS_ENV=production \
+      --build-arg SECRET_KEY_BASE=set_at_runtime \
+      --cache=true \
+      --cache-repo=${CONTAINER_CACHE_REPO} \
+      --context=${CI_PROJECT_DIR} \
+      --destination=${CONTAINER_RELEASE_IMAGE} \
+      --dockerfile=${CI_PROJECT_DIR}/Dockerfile \
+      --reproducible \
+      --single-snapshot
+  tags:
+    - docker
+  only:
+    - master
+
+staging:
+  stage: deploy
+  image: ruby:2.5.7
+  tags:
+    - docker
+  script:
+    - gem install bundler
+    - ENVIRONMENT=staging ./bin/deploy
+  environment:
+    name: staging
+  only:
+    - master
+
+production:
+  stage: deploy
+  image: ruby:2.5.7
+  tags:
+    - docker
+  script:
+    - gem install bundler
+    - ENVIRONMENT=production ./bin/deploy
+  environment:
+    name: production
+  only:
+    - master
+  when: manual
+

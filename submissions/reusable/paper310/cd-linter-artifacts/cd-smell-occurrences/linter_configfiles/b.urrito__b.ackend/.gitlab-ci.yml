@@ -1,0 +1,30 @@
+image: gitlab/dind
+
+variables:
+    CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+
+build:
+    stage: build
+    artifacts:
+        paths:
+            - bin/
+    script: 
+        - echo "## Setting up stack"
+        - apt-get update
+        - curl -sSL https://get.haskellstack.org/ | sh
+        - echo "## Running tests"
+        - stack test
+        - echo "## Copying executable"
+        - stack install
+
+build_image:
+    stage: deploy
+    dependencies: 
+        - build
+    script:
+        - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+        - docker pull $CONTAINER_IMAGE:latest || true
+        - docker build --tag $CONTAINER_IMAGE:$CI_COMMIT_SHA --tag $CONTAINER_IMAGE:latest . 
+        - docker push $CONTAINER_IMAGE:$CI_COMMIT_SHA
+        - docker push $CONTAINER_IMAGE:latest
+

@@ -1,0 +1,61 @@
+image: arturlwww/ubuntu_python_mono:latest
+    
+stages:
+  - build
+  - deploy
+    
+maven-build:  
+  stage: build
+  
+  only:
+    refs:
+      - master
+  
+  before_script:
+  - export CI_PMM_BUILD_TIME="$(date '+%Y-%m-%d_%H:%M:%S')"
+  
+  after_script:
+  - export CI_PMM_BUILD_TIME="$(date '+%Y-%m-%d_%H:%M:%S')"
+  
+  tags:
+   - gitlab-org
+#    - 2gb
+    # - docker
+    # - artfunpw
+  
+  
+  script:    
+   - cd Builder/
+   - xbuild Builder.csproj
+   - cd bin/Debug/
+   - mono Builder.exe
+   # - rm -rf .git
+   # - export IS_LINUX_BUILD=1
+   # - export PYTHONHOME=/opt/python3.7
+   # - cd MTS_ArtUrlWWW_MegaMod_Script
+   # - python3.7 -O build.py
+   # - python3.7 -O package.py
+   # - cd ..
+   # - mv build/MTS_ArtUrlWWW_MegaMod_v*.zip .
+   # - mv MTS_ArtUrlWWW_MegaMod_Script/MTS_ArtUrlWWW_MegaMod_Script.ts4script .
+   # - ls
+   # - ls MTS_ArtUrlWWW_MegaMod_Script
+   # - ls /usr/lib/mono/4.5/csc.exe
+   
+
+  artifacts:
+    name: "ArtUrlWWW_MegaMod.v.$(date '+%Y-%m-%d_%H-%M-%S')"
+    # name: "ArtUrlWWW_MegaMod.v.$(date '+%Y-%m-%d_%H:%M:%S').$CI_COMMIT_REF_NAME-$CI_COMMIT_SHA"
+    paths:    
+    - ArtUrlWWW_Teleporter/build/ArtUrlWWW_Teleporter.package
+    - ArtUrlWWW_Teleporter/build/ArtUrlWWW_Teleporter_Scripts.ts4script
+    - ArtUrlWWW_Teleporter/build/ReadMe.txt
+    
+      
+#deployment-stage:
+#  stage: deploy
+#  script:
+#  - echo qqqqq 
+#  - ls
+#  - pwd
+

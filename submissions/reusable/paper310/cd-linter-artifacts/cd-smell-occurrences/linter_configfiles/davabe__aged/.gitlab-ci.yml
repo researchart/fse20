@@ -1,0 +1,86 @@
+image: docker:stable
+
+services:
+- docker:19.03.5-dind
+
+stages:
+  - build
+  - test
+  - build_docs
+  - release
+  - deploy
+
+variables:
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t $CONTAINER_TEST_IMAGE -f docker/aged.dockerfile .
+    - docker push $CONTAINER_TEST_IMAGE
+
+rspec:
+  stage: test
+  script:
+    - docker build --pull -t davabe/aged-test -f docker/test.dockerfile .
+    - docker run --rm -v `pwd`:/test davabe/aged-test rspec
+
+start_up:
+  stage: test
+  script:
+    - apk update && apk add git
+    - docker pull $CONTAINER_TEST_IMAGE
+    - git clone --single-branch --depth 1 -b get_started https://gitlab.com/davabe/aged.git new-repo
+    - docker run --rm --user $(id -u):$(id -g) -v `pwd`/new-repo:/input -v `pwd`/new-repo/build:/output $CONTAINER_TEST_IMAGE
+
+build_docs:
+  stage: build_docs
+  script:
+    - docker run --rm --user $(id -u):$(id -g) -v `pwd`:/input -v `pwd`/build:/output $CONTAINER_TEST_IMAGE
+  artifacts:
+    paths:
+    - build
+
+release-image:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - master
+
+release-image-dockerhub:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $DOCKER_USERNAME/aged
+    - docker login -u "$DOCKER_USERNAME" -p $DOCKER_PASSWORD
+    - docker push $DOCKER_USERNAME/aged
+  only:
+    - master
+
+release-image-dockerhub-version:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $DOCKER_USERNAME/aged:$CI_COMMIT_REF_NAME
+    - docker login -u "$DOCKER_USERNAME" -p $DOCKER_PASSWORD
+    - docker push $DOCKER_USERNAME/aged:$CI_COMMIT_REF_NAME
+  only:
+    - /^v\d+\.\d+(\.\d+)?$/
+
+pages:
+  stage: deploy
+  script:
+    - cp -rp build public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

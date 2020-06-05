@@ -1,0 +1,13 @@
+blink_arduino:
+  image: slepp/arduino
+  stage: build
+  script:
+    - arduino --verbose --verify blink.ino
+
+blink_stm32:
+  image: victorlamoine/arduino:stm32
+  stage: build
+  script:
+    - arduino --verbose --verify blink.ino
+
+

@@ -1,0 +1,37 @@
+stages:
+  - build
+  - release
+
+build-image:
+  stage: build
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay
+  image: docker:latest
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build --pull -t ${CI_REGISTRY_IMAGE}:${CI_BUILD_REF_NAME} .
+    - docker push ${CI_REGISTRY_IMAGE}:${CI_BUILD_REF_NAME}
+  tags:
+    - docker
+  except:
+    - /^wip[\/_-].+$/
+
+release:
+  stage: release
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay
+  image: docker:latest
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker pull ${CI_REGISTRY_IMAGE}:${CI_BUILD_REF_NAME}
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_BUILD_REF_NAME} ${CI_REGISTRY_IMAGE}:latest
+    - docker push ${CI_REGISTRY_IMAGE}:latest
+  tags:
+    - docker
+  only:
+    - master
+

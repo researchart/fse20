@@ -1,0 +1,19 @@
+image: registry.gitlab.com/gluttton/pslrk:base
+
+
+stages:
+    - test
+
+
+test_job:
+    stage: test
+    before_script:
+        - BUILD_DIR=`pwd`/build
+        - mkdir -p ${BUILD_DIR}
+        - cd ${BUILD_DIR}
+        - cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_DIR}/..
+        - make
+    script:
+        - ./bktest
+        - gcovr -e test.cpp -r ..
+

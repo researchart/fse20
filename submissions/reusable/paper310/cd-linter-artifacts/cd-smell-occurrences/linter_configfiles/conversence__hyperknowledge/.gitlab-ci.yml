@@ -1,0 +1,30 @@
+image: node:latest
+
+before_script:
+  - cd package_archive/hyperknowledge
+  - npm install
+  - ./node_modules/.bin/flow-typed install jest
+
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  script:
+    - ./node_modules/.bin/flow check
+    - ./node_modules/.bin/jest
+  cache:
+    key: "$CI_BUILD_REF_NAME"
+    paths:
+      - 'package_archive/hyperknowledge/node_modules/'
+
+build:
+  stage: build
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - package_archive/hyperknowledge/dist
+  script:
+    - NODE_ENV=production ./node_modules/.bin/webpack -p
+

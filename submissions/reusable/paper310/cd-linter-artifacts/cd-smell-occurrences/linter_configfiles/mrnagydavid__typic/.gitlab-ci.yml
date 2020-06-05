@@ -1,0 +1,28 @@
+image: node:8
+
+before_script:
+- yarn
+
+cache:  
+  paths:
+    - node_modules/
+
+test:
+  script:
+    - yarn run-p check:* test:coverage
+
+test:node:10:
+  script:
+    - yarn test
+
+publish:  
+  stage: deploy
+  only:
+    - tags
+    - triggers
+  script:
+    - date
+    - yarn tsc
+    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}">.npmrc
+    - npm publish
+

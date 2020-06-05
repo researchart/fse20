@@ -1,0 +1,118 @@
+image: ruby:2.6
+
+stages:
+  - prepare
+  - test
+  - triage
+
+.default-only:
+  only:
+    refs:
+      - master
+      - merge_requests
+      - tags
+
+.default-before_script:
+  before_script:
+    - gem install bundler --no-document --version 2.0.2
+    - bundle install --jobs $(nproc) --retry 3 --quiet
+
+###################
+## Prepare stage ##
+###################
+setup-test-env:
+  extends: .default-only
+  stage: prepare
+  script:
+    - ruby --version
+    - gem install bundler --no-document
+    - bundle --version
+    - bundle install --clean --jobs $(nproc) --path=vendor --retry=3 --quiet
+    - bundle check
+  cache:
+    key: "$CI_JOB_NAME-ruby-2.6"
+    paths:
+      - vendor/ruby
+      - Gemfile.lock
+  artifacts:
+    paths:
+      - vendor/ruby
+      - Gemfile.lock
+
+################
+## Test stage ##
+################
+rubocop:
+  extends: [".default-only", ".default-before_script"]
+  stage: test
+  needs: ["setup-test-env"]
+  dependencies: ["setup-test-env"]
+  script:
+    - bundle exec rubocop --parallel
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - .cache/rubocop_cache/
+
+# We need to copy this job's definition from the Code-Quality.gitlab-ci.yml
+# template because `only` is set without `refs`, so it takes precedence over `.default-only`.
+# See https://gitlab.com/gitlab-org/gitlab-ce/issues/66767.
+code_quality:
+  extends: .default-only
+  needs: ["setup-test-env"]
+  dependencies: ["setup-test-env"]
+  stage: test
+  image: docker:stable
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - |
+      if ! docker info &>/dev/null; then
+        if [ -z "$DOCKER_HOST" -a "$KUBERNETES_PORT" ]; then
+          export DOCKER_HOST='tcp://localhost:2375'
+        fi
+      fi
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:12-0-stable" /code
+  artifacts:
+    reports:
+      codequality: gl-code-quality-report.json
+    expire_in: 1 week
+  except:
+    variables:
+      - $CODE_QUALITY_DISABLED
+
+specs:
+  extends: [".default-only", ".default-before_script"]
+  needs: ["setup-test-env"]
+  dependencies: ["setup-test-env"]
+  stage: test
+  script:
+    - bundle exec rake spec
+
+##################
+## Triage stage ##
+##################
+dry-run:gitlab-triage:
+  extends: [".default-only", ".default-before_script"]
+  needs: ["setup-test-env"]
+  dependencies: ["setup-test-env"]
+  stage: triage
+  script:
+    - bundle exec rake install:local
+    - gitlab-triage --help
+    - gitlab-triage --init
+    - gitlab-triage --dry-run --debug --token $API_TOKEN --source-id $CI_PROJECT_PATH
+
+# This job requires allows to override the `CI_PROJECT_PATH` variable when triggered.
+dry-run:custom:
+  extends: dry-run:gitlab-triage
+  when: manual
+

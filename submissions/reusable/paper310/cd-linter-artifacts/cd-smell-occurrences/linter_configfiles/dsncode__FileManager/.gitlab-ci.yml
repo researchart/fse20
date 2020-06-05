@@ -1,0 +1,52 @@
+# Use Maven 3.5 and JDK8
+image: maven:3.5-jdk-8
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
+
+cache:
+  paths:
+    - .m2/repository
+
+compile:
+  stage: build
+  only: 
+    - master
+    - develop
+  script:
+    - 'mvn $MAVEN_CLI_OPTS test-compile'
+
+verify:
+  stage: test
+  only: 
+    - master
+    - develop
+  script:
+    - 'mvn $MAVEN_CLI_OPTS verify'
+  artifacts:
+    paths:
+    - target/*.jar
+
+deploy:
+  stage: deploy
+  image: docker
+  tags:
+    - docker
+  only:
+    - master
+    - develop
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/dsncode/filemanager .
+    - docker push registry.gitlab.com/dsncode/filemanager
+
+

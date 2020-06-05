@@ -1,0 +1,9 @@
+image: golang:alpine
+
+stages:
+  - test
+
+test:
+  stage: test
+  script: go test
+

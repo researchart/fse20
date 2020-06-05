@@ -1,0 +1,38 @@
+image: elixir:1.7
+
+variables:
+  MIX_ENV: "test"
+  MIX_TARGET: "host"
+
+stages:
+  - test
+  - deploy
+
+before_script:
+  - apt-get -qq update && apt-get install -y ssh-askpass squashfs-tools git libssl-dev libncurses5-dev bc m4 make unzip cmake python # erlang-dev build-essential
+  - cd /srv && mix local.hex --force
+  - mix local.rebar --force
+  - mix archive.install --force hex nerves_bootstrap
+  - mix local.nerves --force
+  - 'cd $CI_PROJECT_DIR && mix deps.get --only test'
+
+unit-testing:
+  stage: test
+  script:
+    - mix test
+
+pages:
+  stage: deploy
+  script:
+  - 'cd $CI_PROJECT_DIR'
+  - mkdir public
+  - MIX_ENV=dev mix deps.get
+  - NERVES_ENV_DISABLED=1 MIX_ENV=dev mix docs
+  - cp -r doc/* public
+  - rm -rf doc
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,37 @@
+sam_deploy_to_aws:
+    image: python
+    script:
+    - python --version
+    - pip install awscli
+    - pip install pytest
+    - pip install boto3
+    - pip install pytest-mock
+    - cd sam-app/
+    - pip install -r requirements.txt
+    - pytest tests/
+    - pip install -r requirements.txt -t letmehelp/
+    - cd letmehelp/
+    - aws cloudformation validate-template --template-body file://template.yaml
+    - aws cloudformation package --template-file template.yaml --output-template-file serverless-output.yaml --s3-bucket letmehelp-lambda-api
+    - aws cloudformation deploy --template-file ./serverless-output.yaml --stack-name letmehelp-api --capabilities CAPABILITY_IAM 
+    only:
+        - master
+
+run_tests_on_branch:
+    image: python
+    script:
+    - python --version
+    - pip install awscli
+    - pip install pytest
+    - pip install boto3
+    - pip install pytest-mock
+    - cd sam-app/
+    - pip install -r requirements.txt
+    - pytest tests/
+    - cd letmehelp/
+    - aws cloudformation validate-template --template-body file://template.yaml
+    only:
+        - branches
+    except:
+        - master
+

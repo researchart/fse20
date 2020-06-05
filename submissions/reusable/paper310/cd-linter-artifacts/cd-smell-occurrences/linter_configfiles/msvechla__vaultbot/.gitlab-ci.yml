@@ -1,0 +1,71 @@
+image: docker:latest
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_HOST: tcp://docker:2375
+  GO_VERSION: "1.13-stretch"
+
+services:
+- docker:dind
+
+stages:
+- test
+- vulnerability-scan
+- release
+
+test:
+  stage: test
+  script:
+  - sh testdata/run.sh
+  - docker run --link vault --rm -v "$PWD":/usr/src/vaultbot -w /usr/src/vaultbot -e GO111MODULE=on golang:$GO_VERSION go test -v -coverprofile cp.out
+  artifacts:
+    paths:
+      - testoutput
+    when: on_failure
+
+image-scan:
+  image: 
+    name: snyk/snyk-cli:1.274.0-docker
+    entrypoint: [""]
+  stage: vulnerability-scan
+  services:
+    - docker:dind
+  script:
+  - snyk auth $SNYK_TOKEN
+  - docker build -t msvechla/vaultbot:${CI_COMMIT_SHORT_SHA} .
+  - snyk test --docker msvechla/vaultbot:${CI_COMMIT_SHORT_SHA} --file=Dockerfile
+
+dependency-scan:
+  image: 
+    name: snyk/snyk:golang-1.13
+    entrypoint: [""]
+  stage: vulnerability-scan
+  services:
+    - docker:dind
+  script:
+  - snyk auth $SNYK_TOKEN
+  - snyk test --file=go.mod
+
+
+build:
+  stage: release
+  script:
+  - docker login -u msvechla -p $DOCKER_PASS
+  - docker build -t msvechla/vaultbot:${CI_COMMIT_TAG} .
+  - docker push msvechla/vaultbot:${CI_COMMIT_TAG}
+  - export MAJOR=$(echo ${CI_COMMIT_TAG} |cut -d "." -f 1);export MINOR=$(echo ${CI_COMMIT_TAG} |cut -d "." -f 2)
+  - docker tag msvechla/vaultbot:${CI_COMMIT_TAG} msvechla/vaultbot:${MAJOR};docker push msvechla/vaultbot:${MAJOR}
+  - docker tag msvechla/vaultbot:${MAJOR} msvechla/vaultbot:${MAJOR}.${MINOR}; docker push msvechla/vaultbot:${MAJOR}.${MINOR}
+  - docker tag msvechla/vaultbot:${MAJOR}.${MINOR} msvechla/vaultbot:latest; docker push msvechla/vaultbot:latest
+  - mkdir gopath
+  - docker run --rm -v "$PWD/gopath":/go -v "$PWD":/usr/src/vaultbot -w /usr/src/vaultbot -e GOOS=darwin -e GOARCH=amd64 -e GO111MODULE=on golang:$GO_VERSION go build -v -o vaultbot-darwin-amd64
+  - docker run --rm -v "$PWD/gopath":/go -v "$PWD":/usr/src/vaultbot -w /usr/src/vaultbot -e GOOS=linux -e GOARCH=amd64 -e GO111MODULE=on golang:$GO_VERSION go build -v -o vaultbot-linux-amd64
+  - docker run --rm -v "$PWD/gopath":/go -v "$PWD":/usr/src/vaultbot -w /usr/src/vaultbot -e GOOS=windows -e GOARCH=amd64 -e GO111MODULE=on golang:$GO_VERSION go get -d -v . 
+  - docker run --rm -v "$PWD/gopath":/go -v "$PWD":/usr/src/vaultbot -w /usr/src/vaultbot -e GOOS=windows -e GOARCH=amd64 -e GO111MODULE=on golang:$GO_VERSION go build -v -o vaultbot-windows-amd64
+  artifacts:
+    name: "vaultbot-${CI_COMMIT_TAG}"
+    paths:
+    - vaultbot*
+  only:
+    - tags
+

@@ -1,0 +1,12 @@
+image: kaskada/cmake-gcc5
+
+stages:
+  - build
+  
+job1:
+  stage: build
+  script:
+    - cmake -DCMAKE_BUILD_TYPE=Debug .
+    - cmake --build .
+    - ctest -R UnitTests
+

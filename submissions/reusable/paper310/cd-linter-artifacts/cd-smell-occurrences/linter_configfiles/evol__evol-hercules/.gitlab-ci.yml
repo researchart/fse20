@@ -1,0 +1,293 @@
+stages:
+  - build
+  - test
+  - legacy
+
+before_script:
+  - uname -a
+
+# simple builds
+
+gcc-snapshot:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gccsnapshot.sh --enable-werror
+  image: debian:unstable
+
+gcc-snapshot-i386:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gccsnapshot.sh --enable-werror
+  image: i386/debian:unstable
+
+gcc-4.8:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gcc48.sh --enable-werror
+  image: debian:jessie
+
+gcc-4.9:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gcc49.sh --enable-werror
+  image: debian:jessie
+
+gcc-6:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gcc6.sh --enable-werror
+  image: debian:stretch
+
+gcc-6-i386:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gcc6.sh --enable-werror
+  image: i386/debian:stretch
+
+gcc-7:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gcc7.sh --enable-werror
+  image: debian:unstable
+
+gcc-7-i386:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gcc7.sh --enable-werror
+  image: i386/debian:unstable
+
+gcc-8:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gcc8.sh --enable-werror
+  image: debian:unstable
+
+gcc-8-i386:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gcc8.sh --enable-werror
+  image: i386/debian:unstable
+
+gcc-9:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gcc9.sh --enable-werror
+  image: debian:unstable
+
+gcc-9-i386:
+  stage: build
+  script:
+  - ./tools/ci/jobs/gcc9.sh --enable-werror
+  image: i386/debian:unstable
+
+clang-3.9:
+  stage: build
+  script:
+  - ./tools/ci/jobs/clang39.sh --enable-werror
+  image: debian:stretch
+
+.clang-3.9-i386:
+  stage: build
+  script:
+  - ./tools/ci/jobs/clang39.sh --enable-werror
+  image: i386/debian:unstable
+
+clang-6:
+  stage: build
+  script:
+  - ./tools/ci/jobs/clang6.sh --enable-werror
+  image: debian:unstable
+
+.clang-6-i386:
+  stage: build
+  script:
+  - ./tools/ci/jobs/clang6.sh --enable-werror
+  image: i386/debian:unstable
+
+clang-7:
+  stage: build
+  script:
+  - ./tools/ci/jobs/clang7.sh --enable-werror
+  image: debian:unstable
+
+.clang-7-i386:
+  stage: build
+  script:
+  - ./tools/ci/jobs/clang7.sh --enable-werror
+  image: i386/debian:unstable
+
+clang-8:
+  stage: build
+  script:
+  - ./tools/ci/jobs/clang8.sh --enable-werror
+  image: debian:unstable
+
+clang-8-i386:
+  stage: build
+  script:
+  - ./tools/ci/jobs/clang8.sh --enable-werror
+  image: i386/debian:unstable
+
+# tests
+
+gcc-snapshot_lto-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gccsnapshot.sh --enable-werror --enable-lto --enable-sanitize
+  image: debian:unstable
+
+gcc-snapshot-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gccsnapshot.sh --enable-werror --enable-sanitize
+  image: debian:unstable
+
+gcc-4.8-sanitize:
+  stage: test
+  script:
+  - echo "should disable sanitize"
+  - ./tools/ci/jobs/gcc48.sh --enable-werror --enable-sanitize
+  image: debian:jessie
+
+gcc-4.9-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc49.sh --enable-werror --enable-sanitize
+  image: debian:jessie
+
+.gcc-5-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc5.sh --enable-werror --enable-sanitize
+  image: debian:unstable
+
+gcc-6-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc6.sh --enable-werror --enable-sanitize
+  image: debian:stretch
+
+gcc-7-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc7.sh --enable-werror --enable-sanitize
+  image: debian:unstable
+
+gcc-8-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc8.sh --enable-werror --enable-sanitize
+  image: debian:unstable
+
+gcc-9-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc9.sh --enable-werror --enable-sanitize
+  image: debian:unstable
+
+gcc-4.9_lto-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc49.sh --enable-werror --enable-lto --enable-sanitize
+  image: debian:jessie
+
+.gcc-5_lto-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc5.sh --enable-werror --enable-lto --enable-sanitize
+  image: debian:unstable
+
+gcc-6_lto-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc6.sh --enable-werror --enable-lto --enable-sanitize
+  image: debian:stretch
+
+gcc-7_lto-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc7.sh --enable-werror --enable-lto --enable-sanitize
+  image: debian:unstable
+
+gcc-8_lto-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc8.sh --enable-werror --enable-lto --enable-sanitize
+  image: debian:unstable
+
+gcc-9_lto-sanitize:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc9.sh --enable-werror --enable-lto --enable-sanitize
+  image: debian:unstable
+
+gcc-4.8-lto:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc48.sh --enable-werror --enable-lto
+  image: debian:jessie
+
+gcc-4.9-lto:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc49.sh --enable-werror --enable-lto
+  image: debian:jessie
+
+.gcc-5-lto:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc5.sh --enable-werror --enable-lto
+  image: debian:unstable
+
+gcc-6_lto:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc6.sh --enable-werror --enable-lto
+  image: debian:stretch
+
+gcc-7_lto:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc7.sh --enable-werror --enable-lto
+  image: debian:unstable
+
+gcc-8_lto:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc8.sh --enable-werror --enable-lto
+  image: debian:unstable
+
+gcc-9_lto:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc9.sh --enable-werror --enable-lto
+  image: debian:unstable
+
+# disabled due not support -std=c11
+.gcc-4.6:
+  stage: test
+  script:
+  - ./tools/ci/jobs/gcc46.sh --enable-werror
+  image: debian:wheezy
+
+# legacy
+
+gcc-4.8_stable_lto-sanitize:
+  stage: legacy
+  script:
+  - echo "should disable lto and sanitize"
+  - ./tools/ci/jobs/gcc48.sh --enable-werror --enable-lto --enable-sanitize
+  image: debian:jessie
+
+.gcc-5_unstable_lto-sanitize:
+  stage: legacy
+  script:
+  - ./tools/ci/jobs/gcc5.sh --enable-werror --enable-lto --enable-sanitize
+  image: debian:unstable
+
+gcc-6_unstable_lto-sanitize:
+  stage: legacy
+  script:
+  - ./tools/ci/jobs/gcc6.sh --enable-werror --enable-lto --enable-sanitize
+  image: debian:stretch
+

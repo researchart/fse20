@@ -1,0 +1,19 @@
+image: node:latest
+
+before_script:
+  - yarn global add web-ext
+  - web-ext --version
+
+stages:
+  - build
+
+make_all:
+  stage: build
+  script:
+    - make --trace all VERBOSE=1
+  artifacts:
+    when: always
+    paths:
+      - link_alert*.xpi
+
+

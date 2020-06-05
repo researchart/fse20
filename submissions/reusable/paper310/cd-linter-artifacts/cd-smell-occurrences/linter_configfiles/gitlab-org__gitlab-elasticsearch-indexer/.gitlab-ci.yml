@@ -1,0 +1,104 @@
+.go-cache:
+  variables:
+    GOPATH: $CI_PROJECT_DIR/.go
+  before_script:
+    - mkdir -p .go
+  cache:
+    paths:
+      - .go/pkg/mod/
+
+.test-default: &test-default
+  extends: .go-cache
+  variables:
+    GITALY_CONNECTION_INFO: '{"address":"tcp://gitaly:8075", "storage":"default"}'
+    V: "1"
+    ELASTIC_CONNECTION_INFO: '{"url":["http://elasticsearch:9200"], "index_name":"gitlab-test"}'
+    # Make Elasticsearch less memory-hungry
+    ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+  stage: test
+  script:
+    - apt-get update && apt-get -yy install libicu-dev
+    - make format
+    - make cover
+    - make
+    - make test
+
+.test-es64: &test-es64
+  <<: *test-default
+  services:
+    - elasticsearch:6.4.2
+    - name: registry.gitlab.com/gitlab-org/build/cng/gitaly:latest
+      # Disable the hooks so we don't have to stub the GitLab API
+      command: ["bash", "-c", "mkdir -p /home/git/repositories && rm -rf /srv/gitlab-shell/hooks/* && exec /usr/bin/env GITALY_TESTING_NO_GIT_HOOKS=1 /scripts/process-wrapper"]
+      alias: gitaly
+
+.test-es6: &test-es6
+  <<: *test-default
+  services:
+    - elasticsearch:6.8.6
+    - name: registry.gitlab.com/gitlab-org/build/cng/gitaly:latest
+      # Disable the hooks so we don't have to stub the GitLab API
+      command: ["bash", "-c", "mkdir -p /home/git/repositories && rm -rf /srv/gitlab-shell/hooks/* && exec /usr/bin/env GITALY_TESTING_NO_GIT_HOOKS=1 /scripts/process-wrapper"]
+      alias: gitaly
+
+.test-es7: &test-es7
+  <<: *test-default
+  services:
+    - name: elasticsearch:7.5.1
+      command: ["elasticsearch", "-E", "discovery.type=single-node"]
+      alias: elasticsearch
+    - name: registry.gitlab.com/gitlab-org/build/cng/gitaly:latest
+      # Disable the hooks so we don't have to stub the GitLab API
+      command: ["bash", "-c", "mkdir -p /home/git/repositories && rm -rf /srv/gitlab-shell/hooks/* && exec /usr/bin/env GITALY_TESTING_NO_GIT_HOOKS=1 /scripts/process-wrapper"]
+      alias: gitaly
+
+test 1.12:
+  <<: *test-es6
+  image: golang:1.12
+
+test 1.12-es64:
+  <<: *test-es64
+  image: golang:1.12
+
+test 1.12-es7:
+  <<: *test-es7
+  image: golang:1.12
+
+test 1.13:
+  <<: *test-es6
+  image: golang:1.13
+
+test 1.13-es64:
+  <<: *test-es64
+  image: golang:1.13
+
+test 1.13-es7:
+  <<: *test-es7
+  image: golang:1.13
+
+test 1.14:
+  <<: *test-es6
+  image: golang:1.14
+
+test 1.14-es64:
+  <<: *test-es64
+  image: golang:1.14
+
+test 1.14-es7:
+  <<: *test-es7
+  image: golang:1.14
+
+lint:go-mod:
+  image: golang:1.12
+  stage: test
+  script:
+    - go mod tidy
+    - |
+      STATUS=$( git status --porcelain go.mod go.sum )
+      if [ ! -z "$STATUS" ]; then
+        git diff go.mod go.sum
+        echo ""
+        echo "Running go mod tidy modified go.mod and/or go.sum"
+        exit 1
+      fi
+

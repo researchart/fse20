@@ -1,0 +1,66 @@
+.template:
+  image: nixos/nix
+  retry: 2
+  before_script:
+    # report CPU info so we can monitor if real KVM becomes available. create /dev/kvm to fool nix
+    - cat /proc/cpuinfo
+    - ls -l /dev/kvm || true
+    - touch /dev/kvm
+  script:
+    - export NIX_PATH="nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-${VERSION}.tar.gz"
+    - nix-build --arg pkgs 'import tests/lib/pkgs.nokvm.nix' tests/${SUITE}.nix
+
+19-03-intern:
+  extends: .template
+  variables:
+    VERSION: "19.03"
+    SUITE:   "intern"
+
+19-03-extern:
+  extends: .template
+  variables:
+    VERSION: "19.03"
+    SUITE:   "extern"
+
+19-03-clamav:
+  extends: .template
+  variables:
+    VERSION: "19.03"
+    SUITE:   "clamav"
+
+19-09-intern:
+  extends: .template
+  variables:
+    VERSION: "19.09"
+    SUITE:   "intern"
+
+19-09-extern:
+  extends: .template
+  variables:
+    VERSION: "19.09"
+    SUITE:   "extern"
+
+19-09-clamav:
+  extends: .template
+  variables:
+    VERSION: "19.09"
+    SUITE:   "clamav"
+
+unstable-intern:
+  extends: .template
+  variables:
+    VERSION: "unstable"
+    SUITE:   "intern"
+
+unstable-extern:
+  extends: .template
+  variables:
+    VERSION: "unstable"
+    SUITE:   "extern"
+
+unstable-clamav:
+  extends: .template
+  variables:
+    VERSION: "unstable"
+    SUITE:   "clamav"
+

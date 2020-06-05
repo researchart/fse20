@@ -1,0 +1,31 @@
+image: python:3.6-alpine3.7
+
+stages:
+  - test
+  - build
+
+test:
+  tags:
+   - docker
+
+  stage: test
+
+  script:
+    - pip install -r requirements.txt
+    - pip install flake8
+
+    - flake8
+
+build:
+  image: docker:git
+
+  tags:
+   - docker
+
+  services:
+    - docker:dind
+
+  stage: build
+  script:
+    - sh docker/build.sh
+

@@ -1,0 +1,43 @@
+.test_template: &test_definition
+  image: ruby:2.6.5-stretch
+
+  tags:
+    - yale
+
+  services:
+    - postgres:latest
+
+  variables:
+    POSTGRES_DB: gitlab_ci_test
+    POSTGRES_USER: runner
+    POSTGRES_HOST_AUTH_METHOD: trust
+
+  stage: test
+
+  before_script:
+    - apt-get update -q
+    - curl -sL https://deb.nodesource.com/setup_10.x | bash - && apt-get install -y nodejs
+    - ruby -v
+    - which ruby
+    - bundle check --path vendor/bundle || bundle install --path vendor/bundle
+    - cp config/database.yml.gitlab config/database.yml
+
+  cache:
+    paths:
+      - vendor/bundle
+
+spec:
+  <<: *test_definition
+  script:
+    - bundle exec rspec
+
+style:
+  <<: *test_definition
+  script:
+    - bundle exec rake check_style 'git diff origin/master --name-status'
+
+audit:
+  <<: *test_definition
+  script:
+    - bundle exec rake bundler:audit
+

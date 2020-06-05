@@ -1,0 +1,15 @@
+stages:
+  - release
+
+build:
+  image: mrroman/graalvm-ce
+  stage: release
+  script:
+    - wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
+    - bash ./lein
+    - bash ./lein uberjar
+    - native-image -jar target/cljfmt-graalvm-0.1.0-SNAPSHOT-standalone.jar -H:Name="cljfmt"
+  artifacts:
+    paths:
+      - ./cljfmt
+

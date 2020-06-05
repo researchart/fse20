@@ -1,0 +1,87 @@
+image: docker:stable
+
+variables:
+  IMAGE_NAME: districted/notification-service
+  DOCKER_DRIVER: overlay2
+
+services:
+ - docker:dind
+
+stages:
+ - build
+ - test
+ - package-staging
+ - deploy-staging
+ - package-prod
+ - deploy-prod
+
+before_script:
+ - export GRADLE_USER_HOME=`pwd`/.gradle
+
+cache:
+  paths:
+   - .gradle/wrapper
+   - .gradle/caches
+
+build:
+  image: java:8-jdk
+  stage: build
+  script:
+   - ./gradlew clean build -x test
+  artifacts:
+    paths:
+     - build/libs/*.jar
+    expire_in: 1 day
+
+test:
+  image: java:8-jdk
+  stage: test
+  script:
+   - ./gradlew test
+
+package-staging:
+  stage: package-staging
+  script:
+   - docker build -t $IMAGE_NAME:latest .
+   - echo $DOCKER_REGISTRY_PASSWORD | docker login -u $DOCKER_REGISTRY_LOGIN --password-stdin
+   - docker push $IMAGE_NAME:latest
+
+deploy-staging:
+  image: ubuntu
+  stage: deploy-staging
+  script:
+   - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+   - eval $(ssh-agent -s)
+   - echo "$STAGING_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+   - mkdir -p ~/.ssh
+   - chmod 700 ~/.ssh
+   - ssh-keyscan staging.districted.org >> ~/.ssh/known_hosts
+   - chmod 644 ~/.ssh/known_hosts
+   - ssh admin@staging.districted.org "curl https://gitlab.districted.org/districted/docker-stacks/raw/master/districted/staging.yml > /tmp/$CI_JOB_ID-staging.yml"
+   - ssh admin@staging.districted.org "docker stack deploy -c /tmp/$CI_JOB_ID-staging.yml districted-staging-stack"
+
+package-prod:
+  stage: package-prod
+  only:
+   - master
+  script:
+   - docker build -t $IMAGE_NAME:production .
+   - echo $DOCKER_REGISTRY_PASSWORD | docker login -u $DOCKER_REGISTRY_LOGIN --password-stdin
+   - docker push $IMAGE_NAME:production
+
+deploy-prod:
+  image: ubuntu
+  stage: deploy-prod
+  only:
+   - master
+  script:
+   - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+   - eval $(ssh-agent -s)
+   - echo "$STAGING_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+   - mkdir -p ~/.ssh
+   - chmod 700 ~/.ssh
+   - ssh-keyscan staging.districted.org >> ~/.ssh/known_hosts
+   - chmod 644 ~/.ssh/known_hosts
+   - ssh admin@staging.districted.org "curl https://gitlab.districted.org/districted/docker-stacks/raw/master/districted/production.yml > /tmp/$CI_JOB_ID-prod.yml"
+   - ssh admin@staging.districted.org "docker stack deploy -c /tmp/$CI_JOB_ID-prod.yml districted-stack"
+

@@ -1,0 +1,14 @@
+image: node:latest
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - npm install
+    - npm run lint
+    - npm test
+    - npm install -g codecov
+    - codecov --token=0635d3a9-a5c8-4b48-b0cd-4b718b21c25e
+

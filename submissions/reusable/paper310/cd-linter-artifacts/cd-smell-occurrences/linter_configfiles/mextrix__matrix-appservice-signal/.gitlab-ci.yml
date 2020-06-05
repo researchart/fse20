@@ -1,0 +1,42 @@
+image: msrd0/gradle
+
+build:
+  stage: build
+  before_script:
+    - sudo apk add --no-cache protobuf
+    - mkdir -p .gradle
+  script:
+    - GRADLE_USER_HOME=.gradle gradle assemble
+  artifacts:
+    paths:
+      - build/
+      - .gradle/
+      - src/generated/
+
+test_psql:
+  stage: test
+  variables:
+    POSTGRES_USER: "postgres"
+    POSTGRES_PASSWORD: "postgres"
+    POSTGRES_DB: "matrix_appservice_signal"
+    POSTGRES_INITDB_ARGS: "-E UTF-8"
+  services:
+    - postgres:alpine
+  before_script:
+    - "echo -e 'db:\\n  type: postgres\\n  host: postgres\\n  name: matrix_appservice_signal\\n  user: postgres\\n  password: postgres' | sudo tee /etc/matrix-appservice-signal.yml"
+  script:
+    - GRADLE_USER_HOME=.gradle gradle test
+
+test_sqlite:
+  stage: test
+  before_script:
+    - "echo -e 'db:\\n  type: sqlite3\\n  file: /tmp/test.db' | sudo tee /etc/matrix-appservice-signal.yml"
+  script:
+    - GRADLE_USER_HOME=.gradle gradle test
+
+#trigger:
+#  image: appropriate/curl
+#  stage: deploy
+#  script:
+#    - curl --request POST --form "token=$CI_JOB_TOKEN" --form ref=master "https://gitlab.com/api/v4/projects/3810061/trigger/pipeline"
+

@@ -1,0 +1,35 @@
+stages:
+  - build
+  - test_prepare
+  - test
+
+guestbook_image_build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    - docker build -t registry.gitlab.com/fufuhu/hands_on_sample/guestbook:latest .
+    - docker push registry.gitlab.com/fufuhu/hands_on_sample/guestbook:latest
+  tags:
+    - docker
+
+
+guestbook_test:
+  stage: test
+  image: registry.gitlab.com/fufuhu/hands_on_sample/guestbook:latest
+  services:
+  - name: mysql:5
+    alias: mysql
+  variables:
+    MYSQL_ROOT_PASSWORD: mysqlpassword
+    MYSQL_USER: "guestbook"
+    MYSQL_PASSWORD: "guestbook_pass"
+    MYSQL_DATABASE: "test_guestbook"
+  script:
+    - |
+      cd /sampleapp
+      ./test_script.sh
+

@@ -1,0 +1,15 @@
+build:
+  image: haskell:8.4
+  script:
+    - stack config set system-ghc --global true
+    - stack build --ghc-options -j3
+
+# Make the build go faster by cacheing build artifacts.
+variables:
+  STACK_ROOT: "${CI_PROJECT_DIR}/.stack"
+cache:
+  paths:
+    - .stack
+    - .stack-work
+    - target
+

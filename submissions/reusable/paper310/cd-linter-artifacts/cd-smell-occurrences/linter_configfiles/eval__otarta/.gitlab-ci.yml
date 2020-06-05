@@ -1,0 +1,52 @@
+variables:
+  CLJ_CONFIG: "./config/ci"
+
+cache:
+  paths:
+    - .m2/repository
+
+stages:
+  - build-and-test
+  - release
+
+build:
+  stage: build-and-test
+  image: clojure:tools-deps-1.9.0.391-alpine
+  tags:
+    - docker
+  before_script:
+    - apk --update add make nodejs-npm
+  script:
+    - make compile
+
+test:
+  stage: build-and-test
+  image: clojure:tools-deps-1.9.0.391-alpine
+  tags:
+    - docker
+  before_script:
+    - apk --update add make nodejs-npm yarn
+    - yarn add websocket
+  script:
+    - make test
+
+release:
+  stage: release
+  image: maven:3-jdk-8-alpine
+  tags:
+    - docker
+  variables:
+    MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode"
+    MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  before_script:
+    - apk --update add make gettext
+  script:
+    - export RELEASE_VERSION=$CI_COMMIT_TAG
+    - envsubst '${RELEASE_VERSION}' <pom.xml >pomv.xml && mv pomv.xml pom.xml
+    - make mvn-deploy
+  only:
+    - tags
+  artifacts:
+    paths:
+      - pom.xml
+

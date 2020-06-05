@@ -1,0 +1,115 @@
+image: ioribranford/godot-docker:latest
+
+stages:
+  - build_and_test
+  - deploy
+
+build:linux:
+  stage: build_and_test
+  artifacts:
+    paths:
+      - build
+  script:
+    - mkdir build
+    - godot --export "Linux/X11" "build/supertuxparty"
+  only:
+    - dev@SuperTuxParty/SuperTuxParty
+    - tags
+
+build:windows:
+  stage: build_and_test
+  artifacts:
+    paths:
+      - build
+  script:
+    - mkdir build
+    - godot --export "Windows Desktop" "build/Supertuxparty.exe"
+  only:
+    - dev@SuperTuxParty/SuperTuxParty
+    - tags
+
+build:osx:
+  stage: build_and_test
+  artifacts:
+    paths:
+      - build
+  script:
+    - mkdir build
+    - godot --export "Mac OSX" "build/supertuxparty.app"
+  only:
+    - dev@SuperTuxParty/SuperTuxParty
+    - tags
+
+build:plugins:
+  stage: build_and_test
+  artifacts:
+    paths:
+      - build/plugins
+  script:
+    - mkdir -p build/plugins
+    - godot --export "Resources" "build/plugins/default.pck"
+  only:
+    - dev@SuperTuxParty/SuperTuxParty
+    - tags
+
+build:sources:
+  stage: build_and_test
+  artifacts:
+    paths:
+      - super-tux-party-sources.zip
+  script:
+    - zip -r super-tux-party-sources.zip *
+  only:
+    - dev@SuperTuxParty/SuperTuxParty
+    - tags
+
+license_test:
+  image: python:latest
+  stage: build_and_test
+  before_script:
+    - pip install tqdm
+  script:
+    - python check_license.py
+  except:
+    - tags
+
+deploy_nightly:
+  stage: deploy
+  dependencies:
+    - build:linux
+    - build:windows
+    - build:osx
+    - build:plugins
+    - build:sources
+  script:
+    - mkdir .ci-bin && cd .ci-bin
+    - wget -O butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+    - unzip butler.zip
+    - chmod +x butler
+    - cd ..
+    - export PATH=$(realpath .ci-bin):$PATH
+    - chmod +x release.sh
+    - ./release.sh supertuxparty/super-tux-party-nightly $CI_COMMIT_SHORT_SHA
+  only:
+    - dev@SuperTuxParty/SuperTuxParty
+
+deploy_release:
+  stage: deploy
+  dependencies:
+    - build:linux
+    - build:windows
+    - build:osx
+    - build:plugins
+    - build:sources
+  script:
+    - mkdir .ci-bin && cd .ci-bin
+    - wget -O butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+    - unzip butler.zip
+    - chmod +x butler
+    - cd ..
+    - export PATH=$(realpath .ci-bin):$PATH
+    - chmod +x release.sh
+    - ./release.sh anti/super-tux-party $CI_COMMIT_REF_NAME
+  only:
+    - tags
+

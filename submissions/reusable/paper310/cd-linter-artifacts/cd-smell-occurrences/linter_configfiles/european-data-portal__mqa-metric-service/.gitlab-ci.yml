@@ -1,0 +1,107 @@
+stages:
+  - build-asset
+  - register-container-test
+  - register-container-ppe
+  - register-container-release
+  - deploy-okd
+  - deploy-edp-ppe
+#  - deploy-edp-prod
+
+
+# Modify variables according to your application
+variables:
+  APPLICATION_PORT: 8080
+  JENKINS_JOB_PPE: ppe-metrics
+  JENKINS_JOB_PROD: prod-metrics
+
+# Modify this stage according to your application
+# Modify only:
+#   - image
+#   - script
+#   - artifacts
+build asset:
+  stage: build-asset
+  image: maven:3.6.0-jdk-8
+  only:
+    - develop
+    - master
+    - tags
+  script:
+    - "mvn clean package -U -B -DskipTests"
+  artifacts:
+    paths:
+      - target
+
+################################################
+# NO MORE MODIFICATIONS BELOW THIS COMMENT !!! #
+################################################
+
+build and register container for test:
+  stage: register-container-test
+  image: docker:stable
+  only:
+    - develop
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:develop .
+    - docker push $CI_REGISTRY_IMAGE:develop
+
+build and register container for ppe:
+  stage: register-container-ppe
+  image: docker:stable
+  only:
+    - master
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:latest .
+    - docker push $CI_REGISTRY_IMAGE:latest
+
+build and register container for release:
+  stage: register-container-release
+  image: docker:stable
+  only:
+    - tags
+  except:
+    - branches
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+
+setup okd app:
+  stage: deploy-okd
+  image: ebits/openshift-client
+  only:
+    - develop
+  tags:
+    - fokus-okd
+  script:
+    - oc login "$OKD_MASTER_URL" --token="$OKD_TOKEN_EDP2" --insecure-skip-tls-verify
+    - oc import-image $CI_PROJECT_NAME --from=$CI_REGISTRY_IMAGE:develop --confirm
+    - oc get services $CI_PROJECT_NAME 2> /dev/null || oc new-app --name=$CI_PROJECT_NAME --image-stream=$CI_PROJECT_NAME
+    - oc get routes $CI_PROJECT_NAME 2> /dev/null || oc create route edge --service=$CI_PROJECT_NAME --hostname=$CI_PROJECT_NAME-$OKD_EDP2_PROJECT.$OKD_DOMAIN --insecure-policy=Redirect --port=$APPLICATION_PORT
+
+deploy to edp ppe:
+  stage: deploy-edp-ppe
+  image: appropriate/curl
+  only:
+    - master
+  script:
+    - curl -sSfI https://$EDP2_JENKINS_USER:$EDP2_JENKINS_PW@$EDP2_JENKINS_BASEURL/$JENKINS_JOB_PPE/build?token=$EDP2_JENKINS_TOKEN
+
+#deploy to edp prod:
+#  stage: deploy-edp-prod
+#  image: appropriate/curl
+#  only:
+#    - tags
+#  except:
+#    - branches
+#  script:
+#    - curl -sSfI https://$EDP2_JENKINS_USER:$EDP2_JENKINS_PW@$EDP2_JENKINS_BASEURL/$JENKINS_JOB_PROD/build?token=$EDP2_JENKINS_TOKEN
+

@@ -1,0 +1,26 @@
+image: python:3.6.4-stretch
+
+pages:
+  script:
+    - pip install sphinx numpy sphinx_rtd_theme versioneer sqlalchemy
+    - pip install git+https://github.com/leokoppel/sphinxcontrib-versioning
+    - python setup.py install
+    - rm -rf docs/source && sphinx-apidoc -e -f -o docs/source/ pynmet/
+    - cd docs/ && make html && cd ../
+    - sphinx-versioning build docs docs/_build/html
+    - mv docs/_build/html/ public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+pypi:
+  cache: {}
+  script:
+    - pip install -U twine
+    - python setup.py sdist
+    - twine upload dist/*
+  only:
+    - tags
+

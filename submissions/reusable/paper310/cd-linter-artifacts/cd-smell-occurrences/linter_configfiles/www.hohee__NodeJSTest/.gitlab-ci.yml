@@ -1,0 +1,46 @@
+image: docker:latest
+
+variables:
+  SERVICE_NAME: NodeJSTest
+  DOKCER_IMAGE_URL: registry.gitlab.com/www.hohee/nodejstest
+
+services:
+  - docker:dind
+
+# before_script:
+#   - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+  - node_modules/
+
+
+stages:
+  - dockernize
+  - deployToServer
+
+dockernize:
+  stage: dockernize
+  script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  - docker build -t $DOKCER_IMAGE_URL .
+  - docker push $DOKCER_IMAGE_URL
+
+deployToServer:
+  stage: deployToServer
+  script:
+  - apk add --no-cache curl jq python py-pip openssh
+  - mkdir -p ~/.ssh
+  - echo -e "$DEPLOY_KEY" > ~/.ssh/id_rsa
+  - cd ~/.ssh
+  - ls
+  - cat id_rsa
+  - chmod 600 ~/.ssh/id_rsa
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n"'
+  - echo $sshInfo
+  - ssh -o StrictHostKeyChecking=no $sshInfo 'docker login -u gitlab-ci-token -p '$CI_JOB_TOKEN' registry.gitlab.com'
+  - ssh -o StrictHostKeyChecking=no $sshInfo 'docker pull '$DOKCER_IMAGE_URL
+  - ssh -o StrictHostKeyChecking=no $sshInfo 'docker-compose up -d'
+  - ssh -o StrictHostKeyChecking=no $sshInfo 'docker images --quiet --filter=dangling=true | xargs --no-run-if-empty docker rmi'
+

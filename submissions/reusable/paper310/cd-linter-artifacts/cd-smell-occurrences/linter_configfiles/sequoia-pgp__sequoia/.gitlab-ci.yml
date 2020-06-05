@@ -1,0 +1,29 @@
+image: registry.gitlab.com/sequoia-pgp/build-docker-image:latest
+
+test:
+  script:
+    - if [ -d $CARGO_TARGET_DIR ]; then find $CARGO_TARGET_DIR | wc --lines; du -sh $CARGO_TARGET_DIR; fi
+    - if [ -d $CARGO_HOME ]; then find $CARGO_HOME | wc --lines; du -sh $CARGO_HOME; fi
+    - rustc --version
+    - cargo --version
+    - clang --version
+    - make codespell CODESPELL_FLAGS=--summary
+    - SEQUOIA_CTEST_VALGRIND=/usr/bin/valgrind make test
+    - make
+    - make -C tool update-usage
+    - if ! git diff --quiet ; then echo "Please run 'make -C tool update-usage' and commit the result." ; false ; fi
+    - make -C sqv update-usage
+    - if ! git diff --quiet ; then echo "Please run 'make -C sqv update-usage' and commit the result." ; false ; fi
+    - find $CARGO_TARGET_DIR -type f -atime +7 -delete
+    - du -sh $CARGO_TARGET_DIR
+    - du -sh $CARGO_HOME
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/../cargo
+  CARGO_TARGET_DIR: $CI_PROJECT_DIR/../target
+  CARGO_FLAGS: --color always
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: full
+  RUSTFLAGS: -D warnings
+  CFLAGS: -Werror
+

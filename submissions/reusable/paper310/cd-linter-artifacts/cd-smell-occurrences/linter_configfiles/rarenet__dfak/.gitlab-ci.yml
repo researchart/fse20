@@ -1,0 +1,74 @@
+stages:
+  - build
+  - deploy
+  - offline
+
+build:
+  stage: build
+
+  cache:
+    paths:
+      - node_modules/
+
+  script:
+    - export PATH=/usr/local/nvm/versions/node/v8.11.4/bin:$PATH
+    - rm -rf ~/dfak_workspace
+    - mkdir ~/dfak_workspace && cd ~/dfak_workspace
+    - rm -rf ~/.content
+    - dfak init --non-interactive
+    - cd ~/.content/packages
+    - rm -rf dfak
+    - git clone $CI_REPOSITORY_URL dfak
+    - cd dfak
+    - rm -rf node_modules
+    - npm i --unsafe-perm
+    - cd ~/dfak_workspace
+    - dfak config
+    # Build website from latest published npm package semver tag.
+    - dfak start --clean --no-watch --baseurl /dfak
+    - mv --force ~/.content/build/@dfak/preview/* ~/.content/build
+    # Checkout master branch
+    - rm -rf ~/.content/packages/dfak
+    - ln -s $CI_PROJECT_DIR ~/.content/packages/dfak
+    - cd ~/.content/packages/dfak
+    - git checkout -- .
+    - npm i --unsafe-perm
+    - cd ~/dfak_workspace
+    # Build website from master branch at /master.
+    - dfak start --clean --no-watch --baseurl /dfak/@dfak/master
+    - mv --force ~/.content/build/@dfak/preview ~/.content/build/@dfak/master
+    # Copy build artifacts
+    - cd ~
+    - cp -R ~/.content/build $CI_PROJECT_DIR/public
+    - ls -la $CI_PROJECT_DIR/public
+
+  artifacts:
+    paths:
+      - public
+
+  only:
+    - master
+
+deploy:
+  stage: deploy
+  dependencies:
+    - build
+  script:
+    - cp -r ./public ${DFAK_DIRECTORY}/deploys/${CI_COMMIT_SHORT_SHA}
+    - ln -sfn ${DFAK_DIRECTORY}/deploys/${CI_COMMIT_SHORT_SHA} ${DFAK_DIRECTORY}/current
+  only:
+    - master
+
+offline:
+  stage: offline
+  script:
+    - export LANG=en_US.UTF-8
+    - cd ${DFAK_DIRECTORY}
+    - "wget --restrict-file-names=nocontrol -qmkEpnp https://digitalfirstaid.org || true"
+    - cp ./index.html.offline ./digitalfirstaid.org/index.html
+    - mv ./digitalfirstaid.org ./dfak-$(date '+%Y%m%d')
+    - zip -rmq9 ./dfak-offline.zip ./dfak-$(date '+%Y%m%d')
+    - mv ./dfak-offline.zip ./current/.
+  only:
+    - master
+

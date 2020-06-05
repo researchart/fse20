@@ -1,0 +1,29 @@
+test:
+  image: "registry.gitlab.com/indybay/indybay-active/php:latest"
+  cache:
+    paths:
+      - vendor/
+      - node_modules/
+  script:
+    - composer install --no-progress
+    - vendor/bin/phpunit --configuration phpunit.xml
+    - npm install
+    - npm test
+    - vendor/bin/phpcs
+
+build:
+  image: docker:stable
+  only:
+    - develop
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - apk add --no-cache py-pip
+    - pip install docker-compose
+    - docker-compose build
+    - docker-compose push
+  services:
+    - docker:stable-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+  when: manual
+

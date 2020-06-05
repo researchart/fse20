@@ -1,0 +1,26 @@
+image: node:latest
+
+
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+  - npm install --silent
+
+staging:
+  type: deploy
+  artifacts:
+    paths:
+    - dist/
+  script:
+  - npm run build
+  - npm run lint
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - apt-get install -y rubygems
+  - gem install dpl
+  - dpl --provider=heroku --app=urban-snake-2k17 --api-key=$HEROKU_STAGING_API_KEY
+  only:
+  - master
+

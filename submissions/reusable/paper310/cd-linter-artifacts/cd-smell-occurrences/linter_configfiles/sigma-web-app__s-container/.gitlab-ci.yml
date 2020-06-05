@@ -1,0 +1,22 @@
+image: node:7.8.0
+
+pages:
+  stage: deploy
+
+  cache:
+    paths:
+      - node_modules/
+
+  script:
+    - npm install
+    - npm run build
+    - mkdir public
+    - cp -r dist/* public/
+
+  artifacts:
+    paths:
+      - public
+
+  only:
+    - master
+

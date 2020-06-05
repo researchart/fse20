@@ -1,0 +1,44 @@
+stages:
+  - build
+  - publish
+
+build_page:
+  image: registry.gitlab.com/gbraad/sitegen:latest
+  stage: build
+  script:
+    - git clone https://gitlab.com/gbraad/blog-content.git content --depth 1
+    - mkdir -p themes
+    - git clone https://gitlab.com/gbraad/blog-theme.git themes/gbraad --depth 1
+    - pelican-themes --symlink `pwd`/themes/gbraad
+    - git clone https://github.com/getpelican/pelican-plugins plugins --depth 1 --recursive
+    - pip install disqus-python
+    - make publish
+    - mv output public
+  artifacts:
+    paths:
+      - public
+
+publish:
+  image: registry.gitlab.com/gbraad/docker:git
+  stage: publish
+  script:
+    - cd public
+    - git init
+    - git remote add github https://gbraad:$GITHUB_TOKEN@github.com/gbraad/blog.git
+    - git add .
+    - git config --global user.email "me@gbraad.nl"
+    - git config --global user.name "Gerard Braad"
+    - "git commit -m 'Deployed by GitLab: https://gitlab.com/gbraad/blog'"
+    - git branch -m gh-pages
+    - git push github :gh-pages || echo 1
+    - git push github gh-pages
+
+pages:
+  image: registry.gitlab.com/gbraad/docker:git
+  stage: publish
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

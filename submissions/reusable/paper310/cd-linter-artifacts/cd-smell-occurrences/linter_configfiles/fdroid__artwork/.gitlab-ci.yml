@@ -1,0 +1,11 @@
+pages:
+  stage: deploy
+  script:
+   - mkdir public
+   - cp -r badge public/
+  artifacts:
+    paths:
+     - public
+  only:
+   - master
+

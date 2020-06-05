@@ -1,0 +1,40 @@
+stages:
+  - build
+  - test
+  - extract
+
+docker:
+  stage: build
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/extract:$CI_COMMIT_REF_NAME .
+    - docker push $CI_REGISTRY_IMAGE/extract:$CI_COMMIT_REF_NAME
+  except:
+    - master
+    
+docker_publish:
+  stage: build
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/extract:latest .
+    - docker push $CI_REGISTRY_IMAGE/extract:latest
+  only:
+    - master
+    
+extract:
+  stage: extract
+  script:
+  - curl --request POST --form "token=$CI_JOB_TOKEN" --form ref=master https://gitlab.com/api/v4/projects/4409640/trigger/pipeline
+  only:
+  - master
+

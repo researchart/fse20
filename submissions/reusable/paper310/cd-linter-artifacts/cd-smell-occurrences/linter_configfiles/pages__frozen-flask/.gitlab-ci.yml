@@ -1,0 +1,12 @@
+image: python:3.6
+
+pages:
+  script:
+  - pip install --no-cache-dir -r requirements.txt
+  - FLASK_APP=app.py flask freeze
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

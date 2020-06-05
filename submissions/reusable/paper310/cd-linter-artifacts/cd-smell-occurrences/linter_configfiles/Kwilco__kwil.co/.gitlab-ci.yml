@@ -1,0 +1,17 @@
+
+deploy:
+  image: "python:buster"
+  before_script:
+    - pip install ansible
+  script:
+    - mkdir -p ~/.ssh
+    - mkdir -p /etc/ansible
+    - echo "$PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 400 ~/.ssh/id_rsa
+    - echo "|1|dQ3uiGWSBV7ASfgyZ7FQ7//eIOY=|3NgOvT5LKNwpLpTMq1h/AFGkl5E= ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBBWMjIV4MREst6dxcRITXczdEmbZfwHrG9XduCpU/kDaU75j9QItkhBcMlA2em4feIaoD+VXEZhjJS/Yss+cVo8=" >~/.ssh/known_hosts
+    - echo "|1|u1a9XLCmdImo2lshihBgNJIXaS8=|qKJ+xk3UENLJvidQZWmCu5h7aX8= ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBBWMjIV4MREst6dxcRITXczdEmbZfwHrG9XduCpU/kDaU75j9QItkhBcMlA2em4feIaoD+VXEZhjJS/Yss+cVo8=" >>~/.ssh/known_hosts
+    - echo 'kwil.co' >/etc/ansible/hosts
+    - echo "$VAULT_PASS" > /.vault_pass.txt
+    - ansible-playbook --user=root --vault-password-file=/.vault_pass.txt --extra-vars "ansible_port=$SSH_PORT" kwil.co.yml
+  only: [master]
+

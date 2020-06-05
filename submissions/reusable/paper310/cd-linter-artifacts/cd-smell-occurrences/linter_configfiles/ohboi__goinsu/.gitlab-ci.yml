@@ -1,0 +1,81 @@
+image: docker:stable
+
+services:
+- docker:dind
+
+stages:
+  - build
+  - test
+
+dmd-dub: &dub
+  variables:
+    COMPILER: dmd
+  stage: build
+  script: docker run -v$(pwd):/source ohboi/mini$COMPILER bash -c "
+    dub -b debug             &&
+    dub -b release           &&
+    dub -b debug   -c static &&
+    dub -b release -c static"
+
+ldc-dub:
+  <<: *dub
+  variables:
+    COMPILER: ldc
+
+dmd: &build
+  variables:
+    COMPILER: dmd
+    STATIC: "false"
+  stage: build
+  script: docker run -v$(pwd):/source ohboi/mini$COMPILER bash -c "
+    apt update -qq 2>&1 > /dev/null                     &&
+    apt install -qq -y --no-install-recommends make git &&
+    dub fetch reggae                                    &&
+    dub run reggae --
+      --dc=$(if [[ "$COMPILER" = "ldc" ]]; then echo ldmd2; else echo $COMPILER; fi)
+      --backend=make
+      -d STATIC=$STATIC                                 &&
+    make && ./goinsu"
+  artifacts:
+    paths:
+      - goinsu
+
+dmd-static:
+  <<: *build
+  variables:
+    COMPILER: dmd
+    STATIC: "true"
+
+ldc:
+  <<: *build
+  variables:
+    COMPILER: ldc
+    STATIC: "false"
+
+ldc-static:
+  <<: *build
+  variables:
+    COMPILER: ldc
+    STATIC: "true"
+
+dmd-test: &test
+  stage: test
+  script: docker build -f .ci/Dockerfile.test .
+  dependencies:
+    - dmd
+
+dmd-static-test:
+  <<: *test
+  dependencies:
+    - dmd-static
+
+ldc-test:
+  <<: *test
+  dependencies:
+    - ldc
+  
+ldc-static-test:
+  <<: *test
+  dependencies:
+    - ldc-static
+

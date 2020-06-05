@@ -1,0 +1,14 @@
+pages:
+  stage: deploy
+  image: haskell:7.10
+  script:
+  - mkdir public
+  - cabal update && cabal install pandoc
+  - pandoc README.md -s --metadata=title:"Π-Ware" -o public/index.html
+  artifacts:
+    paths:
+    - public
+  only:
+  - /^readme-.*$/
+
+

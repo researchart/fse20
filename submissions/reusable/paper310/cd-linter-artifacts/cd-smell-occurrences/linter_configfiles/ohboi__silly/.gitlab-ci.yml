@@ -1,0 +1,9 @@
+dmd:
+  image: antonmeep/dmd
+  script: ./test/run.sh && tail -n1 test/.coverage/silly.lst
+  coverage: '/\d+% covered/'
+
+ldc:
+  image: antonmeep/ldc
+  script: ./test/run.sh
+

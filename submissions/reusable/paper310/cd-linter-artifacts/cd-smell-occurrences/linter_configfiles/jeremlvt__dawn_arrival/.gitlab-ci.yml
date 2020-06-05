@@ -1,0 +1,20 @@
+unit-tests:
+  image: nitlang/nit:latest
+  script: make check
+
+build-linux:
+  image: nitlang/nit:latest-full
+  script: NO_STACKTRACE=True make bin/dawn_arrival
+  artifacts:
+    paths:
+    - bin/dawn_arrival
+    - assets/
+
+build-android:
+  image: nitlang/nit:latest-full
+  script:
+    - GITLAB_USER_NAME=`echo $GITLAB_USER_NAME | tr è e` make bin/dawn_arrival.apk
+  artifacts:
+    paths:
+    - bin/dawn_arrival.apk
+

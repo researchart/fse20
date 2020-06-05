@@ -1,0 +1,125 @@
+variables:
+  REPO_NAME: gitlab.com/drakonka/gosnaillife
+  MYSQL_ROOT_PASSWORD: root
+  envname: gitlab
+
+cache:
+  untracked: true
+  paths:
+    - $CI_PROJECT_DIR/.cache
+
+stages:
+  - format
+  - test
+  - deploy
+  - format_golang_rc
+  - build_golang_rc
+
+format_golang_stable:
+    image: golang:1.12-alpine
+    stage: format
+    before_script:
+      - mkdir -p $CI_PROJECT_DIR/.cache
+      - mkdir -p /go/pkg/mod
+      - go env
+      - cp -R $CI_PROJECT_DIR/.cache/. /go/pkg/mod
+      - ls -l $CI_PROJECT_DIR/.cache
+      - ls -l /go/pkg/mod
+    after_script:
+      - cp -R /go/pkg/mod/. $CI_PROJECT_DIR/.cache
+    script:
+      - apk add --no-cache git build-base
+      - apk add --no-cache bash
+      - cd $CI_PROJECT_DIR
+      - go version
+      - go fmt $(go list ./... | grep -v /vendor/)
+      - go vet $(go list ./... | grep -v /vendor/)
+
+buildandtest_golang_stable:
+  image: golang:1.12-stretch
+  stage: test
+  services:
+   - mysql:5.7
+  before_script:
+    - mkdir -p $CI_PROJECT_DIR/.cache
+    - mkdir -p /go/pkg/mod
+    - cp -R $CI_PROJECT_DIR/.cache/. /go/pkg/mod
+  after_script:
+    - cp -R /go/pkg/mod/. $CI_PROJECT_DIR/.cache
+  script:
+    - cd $CI_PROJECT_DIR
+    - go version
+    - go install github.com/axw/gocov/gocov
+    - cd $CI_PROJECT_DIR/setup/deploy
+    - "bash deployServer-stable.sh"
+    - "bash deployClient.sh"
+    - cd $CI_PROJECT_DIR
+    - go tool cover -html=allcoverage-stable.out -o allcoverage-stable.html
+    - gocov convert allcoverage-stable.out | gocov report
+  artifacts:
+      paths:
+      - allcoverage-stable.html
+      expire_in: 1 week
+
+
+format_golang_rc:
+  image: golang:rc-alpine
+  stage: format
+  before_script:
+    - mkdir -p $CI_PROJECT_DIR/.cache
+    - mkdir -p /go/pkg/mod
+    - cp -R $CI_PROJECT_DIR/.cache/. /go/pkg/mod
+  after_script:
+    - cp -R /go/pkg/mod/. $CI_PROJECT_DIR/.cache
+  script:
+  - apk add --no-cache git build-base
+  - apk add --no-cache bash
+  - cd $CI_PROJECT_DIR
+  - go version
+  - go fmt $(go list ./... | grep -v /vendor/)
+  - go vet $(go list ./... | grep -v /vendor/)
+
+buildandtest_golang_rc:
+  image: golang:rc-stretch
+  stage: test
+  services:
+  - mysql:5.7
+  before_script:
+    - mkdir -p $CI_PROJECT_DIR/.cache
+    - mkdir -p /go/pkg/mod
+    - cp -R $CI_PROJECT_DIR/.cache/. /go/pkg/mod
+  after_script:
+    - cp -R /go/pkg/mod/. $CI_PROJECT_DIR/.cache
+  script:
+  - cd $CI_PROJECT_DIR
+  - go version
+  - go install github.com/axw/gocov/gocov
+  - cd $CI_PROJECT_DIR/setup/deploy
+  - "bash deployServer-rc.sh"
+  - "bash deployClient.sh"
+  - cd $CI_PROJECT_DIR
+  - go tool cover -html=allcoverage-rc.out -o allcoverage-rc.html
+  - gocov convert allcoverage-rc.out | gocov report
+  artifacts:
+    paths:
+    - allcoverage-rc.html
+    expire_in: 1 week
+
+
+deploy_server_image:
+  stage: deploy
+  image: docker
+  services:
+    - docker:dind
+  script:
+    - docker version
+    - apk add --no-cache py-pip python-dev libffi-dev openssl-dev gcc libc-dev make
+    - pip install docker-compose
+    - cd $CI_PROJECT_DIR/setup/deploy/srv
+    - docker-compose build
+    - docker build -t $CI_REGISTRY_IMAGE:latest .
+    - "[[ -z $CI_BUILD_TAG ]] && exit 0"
+    - docker tag $CI_REGISTRY_IMAGE:latest $CI_REGISTRY_IMAGE:$CI_BUILD_TAG
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE:$CI_BUILD_TAG
+

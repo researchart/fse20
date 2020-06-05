@@ -1,0 +1,100 @@
+.build: &build_template
+  script:
+  - docker build -t $GL_IMAGE_NAME:$GL_IMAGE_TAG .
+  - docker push $GL_IMAGE_NAME:$GL_IMAGE_TAG
+  stage: build
+  tags:
+  - docker
+
+.deploy: &deploy_template
+  script:
+  # key-file https://console.developers.google.com/apis/credentials
+  - docker build -t $CI_JOB_ID -f bin/dockerfile.kubectl .
+  - docker run
+    --env CI_BUILD_REF_NAME="$CI_BUILD_REF_NAME"
+    --env CI_PROJECT_NAME="$CI_PROJECT_NAME"
+    --env CI_REGISTRY="$CI_REGISTRY"
+    --env GCLOUD_KEY_FILE="$KEY_FILE"
+    --env GL_DOMAIN="$GL_DOMAIN"
+    --env GL_ENV_URL="$GL_ENV_URL"
+    --env GL_IMAGE_TAG="$GL_IMAGE_TAG"
+    --env KUBE_ENV="$KUBE_ENV"
+    --env KUBE_NAME="$KUBE_NAME"
+    --env KUBE_NAMESPACE="fampinheiro"
+    --env PORT="$PORT"
+    $CI_JOB_ID
+    ./kubectl-inside-docker.sh $CMD_DOCKERFILE
+  stage: deploy
+  tags:
+  - docker
+
+.test: &test_template
+  script:
+  - docker pull $GL_IMAGE_NAME:$GL_IMAGE_TAG
+  - docker run $GL_IMAGE_NAME:$GL_IMAGE_TAG npm run test
+  stage: test
+  tags:
+  - docker
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+build:dev:
+  <<: *build_template
+  variables:
+    GL_IMAGE_TAG: $CI_COMMIT_SHA
+
+deploy:dev:
+  <<: *deploy_template
+  environment:
+    name: dev/$CI_COMMIT_REF_SLUG
+    url: https://dev-hello-$CI_COMMIT_REF_SLUG.$GL_DOMAIN
+    on_stop: stop:dev
+  variables:
+    CMD_DOCKERFILE: apply
+    GL_ENV_URL: dev-hello-$CI_COMMIT_REF_SLUG.$GL_DOMAIN
+    GL_IMAGE_TAG: $CI_COMMIT_SHA
+
+release:production:
+  <<: *deploy_template
+  allow_failure: false
+  environment:
+    name: production
+    url: https://hello.$GL_DOMAIN
+  stage: release
+  only:
+  - master
+  variables:
+    CMD_DOCKERFILE: apply
+    GL_ENV_URL: hello.$GL_DOMAIN
+    GL_IMAGE_TAG: $CI_COMMIT_SHA
+    KUBE_ENV: production
+    KUBE_NAME: hello
+  when: manual
+
+stop:dev:
+  <<: *deploy_template
+  when: manual
+  environment:
+    name: dev/$CI_COMMIT_REF_SLUG
+    action: stop
+  variables:
+    CMD_DOCKERFILE: delete
+    GL_ENV_URL: dev-hello-$CI_COMMIT_REF_SLUG.$GL_DOMAIN
+    GL_IMAGE_TAG: $CI_COMMIT_SHA
+
+test:dev:
+  <<: *test_template
+  variables:
+    GL_IMAGE_TAG: $CI_COMMIT_SHA
+
+stages:
+- build
+- test
+- deploy
+- release
+
+variables:
+  GL_IMAGE_NAME: $CI_REGISTRY/fampinheiro/$CI_PROJECT_NAME
+  GL_DOMAIN: fampinheiro.com
+

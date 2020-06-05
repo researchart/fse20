@@ -1,0 +1,45 @@
+image: gradle:jdk11-slim
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+before_script:
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+
+cache:
+  paths:
+    - .gradle
+    - build
+
+build:
+  stage: build
+  script: gradle --build-cache --full-stacktrace assemble
+
+test:
+  stage: test
+  script:
+    - gradle --build-cache --full-stacktrace check
+    - gradle jacocoReport
+    - cat build/reports/jacoco/jacocoReport/html/index.html
+
+bintray:
+  only:
+    - tags
+  stage: deploy
+  script: gradle bintrayUpload
+
+pages:
+  only:
+    - tags
+  stage: deploy
+  script:
+    - gradle globalJavadoc
+    - mv build/docs/javadoc public
+  artifacts:
+    paths:
+      - public
+  cache:
+    policy: pull
+    paths:
+      - build/docs/
+

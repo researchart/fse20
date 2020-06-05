@@ -1,0 +1,17 @@
+image: zngguvnf/emacs:firsttry
+
+pages:
+  script:
+  - emacs --batch --eval "(progn (package-initialize) (package-refresh-contents)(package-install 'org))"
+  - emacs --batch --no-init-file --load publish.el --funcall org-static-blog-publish
+  - cp -r *.html public
+  # - cp -r static/ public
+  - cp -r posts/*.html public
+  # - cp -r drafts/*.html public
+  - cp -r rss.xml public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

@@ -1,0 +1,75 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - verify
+  - build
+  - test
+  - release
+
+variables:
+  CI_DOCKER_IMAGE:  ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
+  CI_DOCKER_TAG:    ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}
+  CI_DOCKER_BRANCH: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME}
+  CI_DOCKER_LATEST: ${CI_REGISTRY_IMAGE}:latest
+
+docker:lint:
+  stage: verify
+  image: projectatomic/dockerfile-lint
+  script:
+    - dockerfile_lint -p -f Dockerfile
+
+docker:build:
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+  script:
+    - docker build --pull -t ${CI_DOCKER_IMAGE} .
+    - docker push ${CI_DOCKER_IMAGE}
+
+validate-001:
+  stage: test
+  before_script:
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+  script:
+    - docker pull ${CI_DOCKER_IMAGE}
+    - docker run ${CI_DOCKER_IMAGE} ansible-lint /usr/local/tests/validate-001.yml
+
+# release:branch:
+#   stage: release
+#   before_script:
+#     - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+#   script:
+#     - docker pull ${CI_DOCKER_IMAGE}
+#     - docker tag ${CI_DOCKER_IMAGE} ${CI_DOCKER_BRANCH}
+#     - docker push ${CI_DOCKER_BRANCH}
+#   only:
+#     - branches
+#   except:
+#     - master
+
+release:tag:
+  stage: release
+  before_script:
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+  script:
+    - docker pull ${CI_DOCKER_IMAGE}
+    - docker tag ${CI_DOCKER_IMAGE} ${CI_DOCKER_TAG}
+    - docker push ${CI_DOCKER_TAG}
+  only:
+    - tags
+
+# release:latest:
+#   stage: release
+#   before_script:
+#     - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+#   script:
+#     - docker pull ${CI_DOCKER_IMAGE}
+#     - docker tag ${CI_DOCKER_IMAGE} ${CI_DOCKER_LATEST}
+#     - docker push ${CI_DOCKER_LATEST}
+#   only:
+#     - master
+
+

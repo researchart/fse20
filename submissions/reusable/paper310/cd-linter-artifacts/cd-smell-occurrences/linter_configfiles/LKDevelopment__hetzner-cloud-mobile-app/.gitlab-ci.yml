@@ -1,0 +1,85 @@
+image: lkdevelopment/ionic-docker:latest
+
+stages:
+  - build
+  - test
+  - e2e_de
+  - e2e_en
+  - deploy
+
+before_script:
+  - apt-get update >/dev/null
+  - apt-get install -y locales >/dev/null
+  - echo "en_US UTF-8" > /etc/locale.gen
+  - locale-gen en_US.UTF-8
+  - export LANG=en_US.UTF-8
+  - export LANGUAGE=en_US:en
+  - export LC_ALL=en_US.UTF-8
+  - yarn config set cache-folder .yarn
+  - yarn
+
+cache:
+  untracked: true
+  key: "$CI_PROJECT_ID"
+  paths:
+    - node_modules/
+    - .yarn
+
+build:web:
+  stage: build
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - www/
+
+.est:karma:
+  stage: test
+  script:
+    - npm run test
+
+test:e2e:de:
+  stage: e2e_de
+
+  script:
+    - echo "Start Test for e2e Local 'DE'"
+    - TEST_API_KEY=$TEST_API_KEY SCREENSHOTS=false LANG=de node test-config/protractor.server.js
+  dependencies:
+    - build:web
+
+test:e2e:en:
+  stage: e2e_en
+
+  script:
+    - echo "Start Test for e2e Local 'EN'"
+    - TEST_API_KEY=$TEST_API_KEY SCREENSHOTS=false LANG=en node test-config/protractor.server.js
+  dependencies:
+    - build:web
+
+.build:ios:
+
+  script:
+    - gem install cocoapods
+    - pods setup
+    - ionic cordova platform rm ios
+    - ionic cordova platform add ios
+    - npm run ios:release
+
+.build:android:
+  stage: deploy
+  script:
+    - ionic cordova platform rm android
+    - ionic cordova platform add android
+    - npm run android:release
+    - ls ./platforms/android/build/outputs/apk/android*.apk
+  artifacts:
+    paths:
+      - platforms/android/build/outputs/apk/
+
+deploy:web:
+  stage: deploy
+  only:
+      - release
+  script:
+    - curl $FORGE_DATA
+

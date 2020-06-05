@@ -1,0 +1,21 @@
+# Base image: really weightless
+image: python:2-alpine
+
+stages:
+  - test
+  - build
+
+tests:
+  # Test stage (you can use another test tool)
+  stage: test
+  script: pip install pytest==3.0.5 && py.test simple_lib/tests/ -v
+
+wheel:
+  stage: build
+  script: python setup.py bdist_wheel
+
+  artifacts:
+    paths:
+    - dist/
+    expire_in: 1 week
+

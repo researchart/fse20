@@ -1,0 +1,14 @@
+image: jgkamat/emacs:25.2-cask
+pages:
+  stage: deploy
+  script:
+  - apk update && apk add openssh make
+  - cask install
+  - make
+  - mv html public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

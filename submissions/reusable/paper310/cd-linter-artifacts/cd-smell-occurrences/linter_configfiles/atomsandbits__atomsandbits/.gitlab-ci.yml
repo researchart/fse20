@@ -1,0 +1,68 @@
+image: atomsandbits/python-meteor-test-environment:latest
+
+before_script:
+  - npm install
+
+test_service_database:
+  stage: test
+  script:
+    - cd ./services/database
+    - npm install
+    - npm test
+  only:
+    - master
+
+test_service_image_generator:
+  stage: test
+  script:
+    - cd ./services/image-generator
+    - npm install
+    - npm test
+  only:
+    - master
+
+test_service_psi4:
+  stage: test
+  script:
+    - cd ./services/psi4
+    - npm install
+    - npm test
+  only:
+    - master
+
+test_service_pyscf:
+  stage: test
+  script:
+    - cd ./services/pyscf
+    - npm install
+    - npm test
+  only:
+    - master
+
+test_service_tensormol:
+  before_script:
+    - echo ""
+  stage: test
+  script:
+    - cd ./services/tensormol
+    - ./scripts/test.sh
+  only:
+    - master
+
+test_service_webapp:
+  stage: test
+  script:
+    - cd ./services/webapp
+    - npm install
+    - npm test
+  only:
+    - master
+
+# ~~~ deploy to production ~~~
+deploy_production:
+  stage: deploy
+  script:
+  - echo "deployed!"
+  only:
+  - master
+

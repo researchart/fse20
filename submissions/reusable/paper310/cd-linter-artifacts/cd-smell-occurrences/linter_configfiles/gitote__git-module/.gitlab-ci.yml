@@ -1,0 +1,14 @@
+image: golang:latest
+
+before_script:
+  - apt-get update -qq
+  - apt-get install -y libpam-dev
+
+stages:
+    - build
+
+Build:
+    stage: build
+    script:
+      - go get golang.org/x/tools/cmd/cover
+

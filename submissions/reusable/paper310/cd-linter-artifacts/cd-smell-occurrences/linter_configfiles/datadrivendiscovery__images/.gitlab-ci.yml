@@ -1,0 +1,37 @@
+build_images:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  tags:
+    # We use D3M runners to allow building large images.
+    # See: https://gitlab.com/gitlab-com/support-forum/issues/4439
+    - d3m runner
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+
+  script:
+    - ./build-images.sh base libs core primitives testing
+
+  only:
+    - master
+
+trigger_docs_generation:
+  stage: deploy
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  script:
+    # This triggers a pipeline in https://gitlab.com/datadrivendiscovery/docs
+    - if [ -n "$DOCS_TRIGGER_TOKEN" ]; then curl --fail -X POST -F token=$DOCS_TRIGGER_TOKEN -F ref=master https://gitlab.com/api/v4/projects/7130595/trigger/pipeline; fi
+
+  only:
+    - master
+

@@ -1,0 +1,15 @@
+image: node:latest
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  - find public -type f -iregex '.*\.\(htm\|html\|txt\|text\|js\|css\|img\)$' -execdir gzip -f --keep {} \;
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

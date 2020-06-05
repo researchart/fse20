@@ -1,0 +1,118 @@
+image: registry.gitlab.com/gitlab-pivotal/gitlab-ee-bosh-release
+
+variables:
+# https://github.com/docker-library/docs/tree/master/ruby#encoding
+  LANG: C.UTF-8
+  BOSH_DEPLOYMENT_NAME: '$BOSH_RELEASE_NAME-$CI_COMMIT_REF_SLUG'
+  BOSH_RELEASE_NAME: gitlab-ee
+  BOSH_MANIFEST: manifests/gitlab-ee-bosh-gcp.yml
+  S3_RELEASE_URL: s3://gitlab-ee-bosh-release
+  OLD_RELEASE_VERSION: '127'
+
+# Because we have sensitive information, ONLY run on `gitlab-org` tagged runners.
+.gitlab_only: &gitlab_only
+  tags:
+    - gitlab-org
+
+before_script:
+# Quotes present for safety of special characters in YAML, even when not needed.
+# Configure gcloud sdk for access
+- 'echo $GCP_TERRAFORM_KEY > terraform.key.json'
+- gcloud auth activate-service-account --key-file=terraform.key.json
+- 'gcloud config set project $(jq -r .project_id terraform.key.json)'
+# Pull metedata from the GCP project
+- ci/gcloud_metadata.rb -f=tfstate.json,bosh/creds.yml,bosh/state.json,cloudfoundry/creds.yml,gcloud.key,gcloud.key.pub
+- chmod 600 ./gcloud.key
+# Connect to the bastion host
+- . ci/gcloud_ssh_proxy.sh
+# Configure BOSH environment
+- . ci/bosh_configure.sh
+# Generate the config/private.yml with AWS keys
+- ci/generate_private_yml
+
+types:
+- build
+- test
+- deploy
+
+create_release:
+  <<: *gitlab_only
+  type: build
+  script:
+# Sync the blobs from BOSH's blobs s3 (proxy disabled)
+  - BOSH_ALL_PROXY= bosh -n sync-blobs
+  - git submodule init && git submodule update
+# Sync dev_releases from the S3 bucket, excluding tarballs
+  - mkdir -p dev_releases
+  - s3cmd --exclude="*.tgz" --access_key=$AWS_ACCESS_KEY --secret_key=$AWS_SECRET_ACCESS_KEY sync $S3_RELEASE_URL/dev_releases/ dev_releases/
+# Create release (with tarball) and upload to S3
+  - bosh -n create-release --name=$BOSH_RELEASE_NAME --force
+  - s3cmd --acl-public --access_key=$AWS_ACCESS_KEY --secret_key=$AWS_SECRET_ACCESS_KEY sync dev_releases/ $S3_RELEASE_URL/dev_releases/
+  - bosh -n upload-release --name=$BOSH_RELEASE_NAME
+  - bosh releases
+# Create the version file, and save it to S3
+  - export BOSH_RELEASE_VERSION=$(ci/read_latest_version "$BOSH_RELEASE_NAME")
+  - echo "Saving bosh release version $BOSH_RELEASE_VERSION to version.$CI_COMMIT_REF_SLUG"
+  - echo $BOSH_RELEASE_VERSION > version.$CI_COMMIT_REF_SLUG
+  - s3cmd --access_key=$AWS_ACCESS_KEY --secret_key=$AWS_SECRET_ACCESS_KEY put version.$CI_COMMIT_REF_SLUG $S3_RELEASE_URL/ci/
+
+deploy:
+  <<: *gitlab_only
+  type: test
+  script:
+  - bundle install
+  - ci/cf_authenticate.sh
+# ensure we're starting from a clean slate
+  - ci/cf_cleanup_credentials.sh
+# these CF operations that repeat build to build will SUCCEED if it already exists
+  - ci/cf_generate_credentials.sh
+# Nuke From Orbit any previous deployment by this name.
+  - bosh -d $BOSH_DEPLOYMENT_NAME -n delete-deployment --force || true
+# Fetch the verion file from S3
+  - s3cmd --access_key=$AWS_ACCESS_KEY --secret_key=$AWS_SECRET_ACCESS_KEY get $S3_RELEASE_URL/ci/version.$CI_COMMIT_REF_SLUG
+# Deploy our version: deployment name, release name, version
+  - ci/bosh_deploy.sh $BOSH_DEPLOYMENT_NAME $BOSH_RELEASE_NAME $(cat version.$CI_COMMIT_REF_SLUG)
+  - bosh -d $BOSH_DEPLOYMENT_NAME vms
+  - bosh deployments
+# configure git
+  - git config --global user.email "ci@tile.gitlab.com"
+  - git config --global user.name "CI"
+# Run product specs against deployed release/version
+  - bundle exec rake spec:product
+# Tests passed. Nuke From Orbit the deployment.
+  - bosh -d $BOSH_DEPLOYMENT_NAME -n delete-deployment --force || true
+# Replace the databases so that we have fresh DBs for upgrade. 8.14 does not like 9.0!!
+  - ci/cf_cleanup_credentials.sh
+  - ci/cf_generate_credentials.sh
+# Upload old version for upgrade tests.
+  - bosh -n upload-release https://s3-eu-west-1.amazonaws.com/${S3_RELEASE_URL/s3:\/\//}/releases/${BOSH_RELEASE_NAME}/${BOSH_RELEASE_NAME}-${OLD_RELEASE_VERSION/+/%2B}.tgz --name=${BOSH_RELEASE_NAME} --version=${OLD_RELEASE_VERSION}
+# Run upgrades spec
+  - bundle exec rake spec:upgrades
+# Clean up resources
+  - bosh -d $BOSH_DEPLOYMENT_NAME -n delete-deployment --force || true
+  - bosh -n delete-release --force $BOSH_RELEASE_NAME/$(cat version.$CI_COMMIT_REF_SLUG) || true
+  - ci/cf_cleanup_credentials.sh
+# Cleanup the s3 version file
+  - s3cmd --access_key=$AWS_ACCESS_KEY --secret_key=$AWS_SECRET_ACCESS_KEY del $S3_RELEASE_URL/ci/version.$CI_BUILD_REF_SLUG
+
+create_final_version:
+  <<: *gitlab_only
+  type: deploy
+  only:
+    - master
+  script:
+# Sync the blobs from BOSH's blobs s3 (proxy disabled)
+  - BOSH_ALL_PROXY= bosh -n sync-blobs
+  - mkdir -p releases
+  - git submodule init && git submodule update
+# Sync the releases/*
+  - s3cmd --exclude="*.tgz" --access_key=$AWS_ACCESS_KEY --secret_key=$AWS_SECRET_ACCESS_KEY sync $S3_RELEASE_URL/releases/ releases/
+# Create the final releases, with tarball
+  - bosh -n create-release --name $BOSH_RELEASE_NAME --force --final --tarball=output.tgz
+  - export BOSH_RELEASE_VERSION=$(ci/read_latest_version "$BOSH_RELEASE_NAME" release)
+# Rename tarball to release_name-version formula, and place in releases/release_name/* for uploading
+  - mv output.tgz releases/$BOSH_RELEASE_NAME/$BOSH_RELEASE_NAME-$BOSH_RELEASE_VERSION.tgz
+# Output the version we're uploading, and sync it to s3
+  - echo "Upload bosh release version $BOSH_RELEASE_VERSION, from $CI_COMMIT_REF_SLUG SHA:$CI_COMMIT_SHA"
+  - s3cmd --acl-public --access_key=$AWS_ACCESS_KEY --secret_key=$AWS_SECRET_ACCESS_KEY sync releases/ $S3_RELEASE_URL/releases/
+

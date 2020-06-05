@@ -1,0 +1,75 @@
+# Select image from https://store.docker.com/images/debian
+image: debian:stretch-slim
+
+cache:
+  paths:
+  - vendor/
+
+stages:
+- build
+- deploy
+
+release-zip:
+  stage: build
+  script:
+  # Install required tools
+  - apt-get -y update
+  - apt-get -yqq install git curl zip unzip
+  # Install composer dependencies
+  - apt-get -y update
+  - apt-get -yqq install php7.0 php7.0-bz2 php7.0-cli php7.0-curl php7.0-gd php7.0-intl php7.0-mbstring php7.0-mysql php7.0-soap php7.0-xml php7.0-zip
+  - curl --silent --show-error https://getcomposer.org/installer | php # Use latest composer, apt still has 1.2.2
+  - php composer.phar install
+  - mkdir tmp
+  - ls -la
+  - find . -type f | grep ".gitkeep" | xargs -r rm
+  - chown -R www-data:www-data .
+  - php -r '$infoFile = json_decode(file_get_contents("info.json")); $infoFile->version = $argv[1]; $infoFile->last_update = $argv[2]; file_put_contents("info.json", json_encode($infoFile, JSON_PRETTY_PRINT));' -- "$CI_BUILD_TAG" "$(date)"
+  artifacts:
+    name: "$CI_BUILD_TAG"
+    paths:
+    - 404/
+    - classes/
+    - config/
+    - glancr/
+    - includes/
+    - locale/
+    - modules/
+    - reset/
+    - setup/
+    - tmp/
+    - vendor/
+    - wlanconfig/
+    - cron.php
+    - index.php
+    - info.json
+    - nonet.php
+
+  only:
+  - tags
+
+deploy-update:
+  stage: deploy
+  environment:
+    name: update-server
+    url: https://api.glancr.de
+  script:
+  # Check if ssh-agent is installed, then add deploy key and known host identification.
+  # See https://docs.gitlab.com/ee/ci/ssh_keys/README.html
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - eval $(ssh-agent -s)
+  - echo "$DEPLOY_KEY" | tr -d '\r' | ssh-add - > /dev/null
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+  # Install required tooling
+  - apt-get -yqq update
+  - apt-get -yqq install rsync curl zip unzip php7.0 php7.0-cli
+  # zip up all paths that should be in the release. Unfortunately, we cannot reuse the Gitlab artifact.
+  - zip -r "$CI_BUILD_TAG".zip 404/ classes/ config/ glancr/ includes/ locale/ modules/ reset/ setup/ tmp/ vendor/ wlanconfig/ cron.php index.php info.json nonet.php
+  - ./update-channels.sh $CI_BUILD_TAG
+
+  only:
+  - tags
+

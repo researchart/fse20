@@ -1,0 +1,25 @@
+image: maven:3-jdk-7
+
+stages:
+  - package
+  - documentation
+
+package-build:
+  stage: package
+  script: "mvn package"
+  artifacts:
+    paths:
+      - target/melodyexporter.war
+      
+pages:
+  stage: documentation
+  script:
+    - "mvn javadoc:javadoc"
+    - "mkdir .public"
+    - "cp -r target/site/apidocs/* .public"
+    - "mv .public public"
+  artifacts:
+    paths:
+      - public
+      
+

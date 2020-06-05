@@ -1,0 +1,104 @@
+image: node:carbon-stretch
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - build
+  - test
+  - deploy
+
+elm_make:
+  stage: build
+  cache:
+    paths:
+      - node_modules/
+  before_script:
+    - npm install elm@0.19.1-3
+  script:
+    - npx elm make src/Exosphere.elm --output public/elm.js
+    - cp index.html public/index.html
+    - cp ports.js public/ports.js
+    - cp -R assets public
+    - cp -R fonts public
+  artifacts:
+    paths:
+      - public
+
+elm_analyse:
+  stage: test
+  cache:
+    paths:
+      - elm-stuff/
+  before_script:
+    - npm install elm@0.19.1-3 elm-analyse elm-format
+  script:
+    - npx elm-analyse
+    - npx elm-format --validate src
+
+elm_test:
+  stage: test
+  cache:
+    paths:
+      - tests/elm-stuff/build-artifacts
+  before_script:
+    - npm install elm@0.19.1-3 elm-test@0.19.1
+  script:
+    - npx elm-test
+
+pages:
+  stage: deploy
+  dependencies:
+    - elm_make
+  script:
+    - touch public/index.html
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+deploy_dogfood:
+  stage: deploy
+  dependencies:
+    - elm_make
+  before_script:
+    # See https://docs.gitlab.com/ee/ci/ssh_keys/README.html
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - echo "$DOGFOOD_SSH_PRIV_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    # https://docs.gitlab.com/ee/ci/ssh_keys/README.html#verifying-the-ssh-host-keys
+    - echo "$DOGFOOD_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - 'which rsync || ( apt-get update -y && apt-get install rsync -y )'
+  script:
+    - 'sed -i -e ''s/proxyUrl: null/proxyUrl: \"https:\/\/try.exosphere.app\/proxy"/g'' public/ports.js'
+    - 'rsync -av --delete public exouser@dogfood.exosphere.app:'
+  environment:
+    name: dogfood
+    url: https://try.exosphere.app/exosphere
+  only:
+    - master
+    - dogfood-continuous-deployment
+
+dependency_scanning:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env DEP_SCAN_DISABLE_REMOTE_CHECKS="${DEP_SCAN_DISABLE_REMOTE_CHECKS:-false}"
+        --volume "$PWD:/code"
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/dependency-scanning:$SP_VERSION" /code
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json
+
+

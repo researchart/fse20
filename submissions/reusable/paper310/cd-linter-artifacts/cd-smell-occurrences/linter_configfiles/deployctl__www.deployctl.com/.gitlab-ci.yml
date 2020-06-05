@@ -1,0 +1,106 @@
+stages:
+  - build
+  - review
+  - staging
+  - production
+variables:
+  CI_PROJECT_PATH_SLUG: "deployctl-www-deployctl-com"
+  DEPLOY_DOMAIN_APP: "gioxapp.com"
+  DEPLOY_DOMAIN : "www.deployctl.com"
+  DEPLOY_CONFIG_HTTPS: "True"
+  DEPLOY_PUBLISH_PATH: '["/":"/web/_site/"]'
+
+build:
+  stage: build
+  image: registry.hub.docker.com/jekyll/jekyll
+  script:
+  - echo "Build $CI_PROJECT_PATH_SLUG"
+  - cd  web
+  - bundle install
+  - bundle exec jekyll build
+  - ls -la _site
+  artifacts:
+    paths:
+    - web/_site
+
+review:
+  stage: review
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - deployctl static
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: http://$CI_ENVIRONMENT_SLUG.$CI_PROJECT_PATH_SLUG.$DEPLOY_DOMAIN_APP
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+  tags:
+   - deployctl-gioxapp.com
+
+stop_review:
+  stage: review
+  dependencies: []
+  script:
+    - deployctl delete
+  variables:
+    GIT_STRATEGY: none
+  when: manual
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+  tags:
+   - deployctl-gioxapp.com
+
+staging:
+  stage: staging
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - deployctl static
+  environment:
+    name: staging
+    url: http://staging.$CI_PROJECT_PATH_SLUG.$DEPLOY_DOMAIN_APP
+    on_stop: stop_staging
+  only:
+    - master
+  tags:
+    - deployctl-gioxapp.com
+
+stop_staging:
+  stage: staging
+  variables:
+    GIT_STRATEGY: none
+  dependencies: []
+  script:
+    - deployctl delete
+  when: manual
+  environment:
+    name: staging
+    action: stop
+  only:
+    - master
+  tags:
+    - deployctl-gioxapp.com
+
+production:
+  stage: production
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - deployctl static
+  environment:
+    name: production
+    url: http://$DEPLOY_DOMAIN
+  when: manual
+  only:
+    - master
+  tags:
+    - deployctl-gioxapp.com
+

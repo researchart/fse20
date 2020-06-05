@@ -1,0 +1,12 @@
+test:1.7:
+  image: golang:1.7
+  stage: test
+  script:
+    - go test
+
+test:1.8:
+  image: golang:1.8
+  stage: test
+  script:
+    - go test
+

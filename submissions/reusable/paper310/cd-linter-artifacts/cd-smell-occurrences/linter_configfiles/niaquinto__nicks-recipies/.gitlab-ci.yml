@@ -1,0 +1,15 @@
+stages:
+  - build
+
+pages:
+  image: 'python:3.7'
+  stage: build
+  script:
+    - pip install -r requirements.txt
+    - cornucopia render -r recipes -o public
+  artifacts:
+    paths:
+    - public
+  tags:
+    - docker
+

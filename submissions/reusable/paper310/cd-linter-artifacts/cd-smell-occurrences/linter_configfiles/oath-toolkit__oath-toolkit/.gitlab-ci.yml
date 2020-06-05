@@ -1,0 +1,8 @@
+GNU/Linux build:
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq make git autoconf automake libtool bison libpam0g-dev libxmlsec1-dev libxml2-utils help2man gtk-doc-tools valgrind gengetopt libxml2-dbg datefudge
+  script:
+  - echo "--suppressions=$(pwd)/libpskc/tests/libpskc.supp" >> ~/.valgrindrc && make && make check || (cat */tests/test-suite.log; exit 1)
+  tags:
+  - linux
+

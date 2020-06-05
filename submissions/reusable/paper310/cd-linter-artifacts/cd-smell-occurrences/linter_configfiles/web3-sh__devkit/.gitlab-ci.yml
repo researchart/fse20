@@ -1,0 +1,35 @@
+stages:
+    - test
+    - image_build
+
+devkit_test_module:
+  stage: test
+  image:
+    name: registry.gitlab.com/web3-sh/devkit
+    entrypoint: ["/bin/bash", "-c"]
+  script:
+    - git clone https://gitlab.com/space-sh/space.git
+    - cd space && ./space /install/ && cd ..
+    - which bash
+    - which busybox
+    - which space
+    - bash --version
+    - space -V
+    - cd /home/devkit && nohup bash ./tools/geth.sh &
+    - cd $CI_PROJECT_DIR && bash ./test/run_tests.sh
+
+docker_image_build:
+  stage: image_build
+  image: docker:git
+  services:
+    - docker:dind
+  script:
+    - IMAGE_VERSION=$(grep "Space v1:" space-module.txt | cut -d':' -f2 | cut -d" " -f2)
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build --build-arg VERSION=$IMAGE_VERSION -t $CI_REGISTRY_IMAGE:$IMAGE_VERSION .
+    - docker push $CI_REGISTRY_IMAGE:$IMAGE_VERSION
+    - docker tag $CI_REGISTRY_IMAGE:$IMAGE_VERSION $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - tags
+

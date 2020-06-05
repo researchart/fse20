@@ -1,0 +1,27 @@
+# **************************************************************************** #
+#                                                           LE - /             #
+#                                                               /              #
+#    .gitlab-ci.yml                                   .::    .:/ .      .::    #
+#                                                  +:+:+   +:    +:  +:+:+     #
+#    By: eschnell <eschnell@student.le-101.fr>      +:+   +:    +:    +:+      #
+#                                                  #+#   #+    #+    #+#       #
+#    Created: 2018/10/21 11:42:57 by eschnell     #+#   ##    ##    #+#        #
+#    Updated: 2018/10/21 12:18:05 by eschnell    ###    #+. /#+    ###.fr      #
+#                                                          /                   #
+#                                                         /                    #
+# **************************************************************************** #
+
+image: gcc
+
+build:
+  stage: build
+  script: gcc -Wall -Wextra -Werror -I./includes -o ft_hexdump *.c
+  artifacts:
+    paths:
+      - ft_hexdump
+
+test:
+  stage: test
+  script:
+    - ./ft_hexdump Makefile
+

@@ -1,0 +1,68 @@
+image: openjdk:8-jdk
+before_script:
+        - apt-get update && apt-get -y install gettext
+
+build:
+        stage: build
+        script:
+                - ./gradlew build
+                - ./gradlew check
+                - ./gradlew compileJava_minJosm
+                - ./gradlew compileJava_latestJosm
+                - ./gradlew compileJava_testedJosm
+                - ./gradlew generatePot
+        artifacts:
+                paths:
+                        # hands this file over to the `transifex` job (so that job doesn't need to install the jdk)
+                        - build/i18n/*.pot
+        only:
+                - tags@qeef/mapathoner
+                - master
+
+transifex:
+        stage: test
+        image: python:3.6-stretch
+        before_script:
+                - apt-get update && apt-get install -y git
+                - pip install git+https://github.com/transifex/transifex-client.git
+                - pip uninstall urllib3 -y
+                - pip install urllib3==1.21.1
+        script:
+                - TX_TOKEN="$TRANSIFEX_TOKEN" tx push -s --no-interactive
+                - TX_TOKEN="$TRANSIFEX_TOKEN" tx pull -a -f --no-interactive
+                - bash missing-translations.sh
+        artifacts:
+                paths:
+                        - src/main/po/*.po
+                        - hugo/content/*.md
+        only:
+                - tags@qeef/mapathoner
+                - master@qeef/mapathoner
+
+pages:
+        stage: deploy
+        before_script:
+                - apt-get update && apt-get -y install hugo
+                - apt-get -y install gettext
+                - ./gradlew jar
+                # Fix Chinese (Taiwan): zh_TW -> zh-tw
+                - sed -i 's/zh_TW/zh-tw/g' ./hugo/config.toml
+                - mv ./hugo/content/_index.zh_TW.md ./hugo/content/_index.zh-tw.md
+                - mv ./hugo/content/credits.zh_TW.md ./hugo/content/credits.zh-tw.md
+                - mv ./hugo/content/usage.zh_TW.md ./hugo/content/usage.zh-tw.md
+                # Fix Chinese Simplified (China): zh_CN -> zh-cn
+                - sed -i 's/zh_CN/zh-cn/g' ./hugo/config.toml
+                - mv ./hugo/content/_index.zh_CN.md ./hugo/content/_index.zh-cn.md
+                - mv ./hugo/content/credits.zh_CN.md ./hugo/content/credits.zh-cn.md
+                - mv ./hugo/content/usage.zh_CN.md ./hugo/content/usage.zh-cn.md
+        script:
+                - hugo -s ./hugo/ -d ../public/
+                - ./gradlew javadoc
+                - cp -r ./build/docs/javadoc/ ./public/javadoc/
+                - cp ./build/dist/mapathoner.jar ./public/mapathoner.jar
+        artifacts:
+                paths:
+                        - ./public/
+        only:
+                - tags@qeef/mapathoner
+

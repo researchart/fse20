@@ -1,0 +1,23 @@
+before_script:
+  - "curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --disable-sudo --yes"
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  script:
+    - cargo test
+
+pages:
+  stage: deploy
+  script:
+    - cargo doc
+    - mv target/doc public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

@@ -1,0 +1,62 @@
+stages:
+  - style
+  - test
+  - doc
+
+image: python:3.7
+
+before_script:
+  - pip install -r requirements.txt
+
+flake8:
+  stage: style
+  script:
+    - flake8
+
+black:
+  stage: style
+  script:
+    - black --check .
+
+mypy:
+  stage: style
+  script:
+    - mypy --strict serpyco
+
+# isort:
+#   stage: style
+#   script:
+#     - isort -c -rc .
+
+tests-3.6:
+  stage: test
+  image: python:3.6
+  script:
+    - python setup.py test
+
+tests-3.7:
+  stage: test
+  script:
+    - python setup.py test
+
+tests-3.8:
+  stage: test
+  image: python:3.8-rc
+  script:
+    - python setup.py test
+
+pages:
+  stage: doc
+  script:
+    - python setup.py develop
+    - apt-get update -q -y
+    - apt-get install make
+    - pip install sphinx sphinx-autodoc-typehints sphinx-rtd-theme sphinxcontrib-websupport
+    - make html
+    - mv _build/html/ public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

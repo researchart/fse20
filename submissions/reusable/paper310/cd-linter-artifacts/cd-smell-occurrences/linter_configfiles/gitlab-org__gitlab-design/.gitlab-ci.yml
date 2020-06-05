@@ -1,0 +1,77 @@
+# https://docs.gitlab.com/ee/ci/yaml/README.html
+# Links for more info at end of file
+
+# Run CI in an environment (a Docker image [1]) with Ruby, the language needed
+# to run specscript.rb (more info on this file below).
+image: ruby:alpine
+
+variables:
+
+  # Disable the default Git behavior [2]. We want to define our own Git commands
+  # (in the `before_script` section) to make this process faster.
+  GIT_STRATEGY: none
+
+  # We only need the last commit, not the whole history, so we set this [3] for
+  # shallow fetch [4].
+  GIT_DEPTH: "1"
+
+  # This repository has Git LFS [5] enabled for some binary file types
+  # (see .gitattributes file), so we set this to temporarily skip those LFS
+  # files. This gives us faster parallel batch download [6].
+  GIT_LFS_SKIP_SMUDGE: "1"
+
+# This is a special job name that tells CI to pass the output to GitLab Pages
+# so it can be used to serve your website. If we use another name, GitLab
+# Pages does not work. [7]
+pages:
+
+  # Run Git commands to get the contents of the last commit (`$CI_COMMIT_SHA` [8],
+  # the commit that triggered the CI) from the current repository
+  # (`$CI_REPOSITORY_URL` [8]).
+  before_script:
+    - "apk add -U --no-cache git git-lfs"
+    - "git init"
+    - "git remote add origin $CI_REPOSITORY_URL"
+    - "git fetch --depth $GIT_DEPTH origin $CI_COMMIT_SHA"
+    - "git checkout FETCH_HEAD"
+  script:
+
+    # Get the previously skipped LFS files from the `hosted/` folder. As the
+    # name implies, this is where we save the design specs, prototypes, and
+    # HTML pages that we intend to host.
+    - "git lfs pull -I 'hosted/'"
+
+    # Run the Ruby script. It moves all files and folders from `hosted/` to
+    # `public/` and creates an `index.html` file with a list of links to all of
+    # the HTML pages contained within.
+    - "ruby specscript.rb"
+
+  # Set the `public/` folder as the result of the job, which is picked up by
+  # GitLab Pages. The artifacts (files and folders being hosted) will be sent
+  # to GitLab after the job finishes successfully and will be available for
+  # download via the GitLab UI for 1 week. [9]
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+
+  # Only run this job when commits are pushed to the `master` branch and changes
+  # are made to any of the files and subdirectories in the `hosted/` folder. [10]
+  only:
+    refs:
+      - master
+    changes:
+      - hosted/**/*
+
+
+# [1]: https://docs.gitlab.com/ee/ci/docker/using_docker_images.html
+# [2]: https://docs.gitlab.com/ee/ci/yaml/README.html#git-strategy
+# [3]: https://docs.gitlab.com/ee/ci/yaml/README.html#shallow-cloning
+# [4]: https://git-scm.com/docs/git-fetch#git-fetch---depthltdepthgt
+# [5]: https://docs.gitlab.com/ee/workflow/lfs/manage_large_binaries_with_git_lfs.html
+# [6]: https://github.com/git-lfs/git-lfs/wiki/Tutorial#pulling-and-cloning
+# [7]: https://docs.gitlab.com/ee/ci/yaml/README.html#pages
+# [8]: https://docs.gitlab.com/ee/ci/variables/README.html#predefined-variables-environment-variables
+# [9]: https://docs.gitlab.com/ee/ci/yaml/README.html#artifacts
+# [10]: https://docs.gitlab.com/ee/ci/yaml/README.html#onlyexcept-basic
+

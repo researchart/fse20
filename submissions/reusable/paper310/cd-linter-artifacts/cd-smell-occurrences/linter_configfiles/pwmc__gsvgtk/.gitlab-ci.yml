@@ -1,0 +1,49 @@
+image: ubuntu:devel
+
+
+stages:
+  - build
+  - deploy
+
+variables:
+  DEPENDENCIES: gcc gettext gtk-doc-tools make autoconf meson ninja-build
+                libxml2-dev libglib2.0 libglib2.0-dev libglib2.0-bin
+                valac libgee-0.8-dev gettext
+                gnome-common libtool-bin
+                gobject-introspection libgirepository1.0-dev valadoc
+                yelp-tools iso-codes git
+                libgtk-3-dev librsvg2-dev
+                libclutter-1.0-dev libclutter-gtk-1.0-dev
+                libgraphene-1.0-dev
+
+  GIT_SUBMODULE_STRATEGY: normal
+
+before_script:
+  - export DEBIAN_FRONTEND=noninteractive
+  - apt update
+  - apt -y install $DEPENDENCIES
+
+build:
+  stage: build
+  script:
+  - meson _build
+  - cd _build
+  - ninja
+  - meson test
+  - broadwayd &
+  - GDK_BACKEND=broadway meson test
+  - ninja install
+
+pages:
+  stage: deploy
+  script:
+  - meson _build
+  - cd _build
+  - ninja
+  - mv docs/GSvgtk-* ../public
+  - cd ..
+  - mv public/index.htm public/index.html
+  artifacts:
+    paths:
+      - public
+

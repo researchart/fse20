@@ -1,0 +1,25 @@
+image: zenhaskell/foundation:lts-12.1
+
+stages:
+- lint
+- build
+- test
+
+lint:
+  stage: lint
+  script:
+  - hlint .
+
+build:
+  stage: build
+  script:
+  - stack build
+  artifacts:
+    paths:
+    - .stack-work
+
+test:
+  stage: test
+  script:
+  - stack test
+

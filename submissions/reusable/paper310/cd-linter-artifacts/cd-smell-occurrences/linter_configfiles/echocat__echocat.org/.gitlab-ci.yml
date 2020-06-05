@@ -1,0 +1,30 @@
+services:
+- docker:dind
+
+variables:
+  CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+
+build:
+  stage: build
+  image: docker:stable
+  before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+  - docker pull $CONTAINER_IMAGE:latest || true
+  - docker build --cache-from $CONTAINER_IMAGE:latest --tag $CONTAINER_IMAGE:$CI_BUILD_REF --tag $CONTAINER_IMAGE:latest .
+  - docker push $CONTAINER_IMAGE:$CI_BUILD_REF
+  - docker push $CONTAINER_IMAGE:latest
+
+deploy_prod:
+  stage: deploy
+  script:
+  - |
+    curl -sSLkf --header "Content-Type: application/json" --header "Authorization: Bearer $DEPLOY_TOKEN" --request POST --data "{\"tag\":\"$CI_BUILD_REF\"}" https://c4.dyntux.net:27991/services/$CI_PROJECT_NAME.service/activation
+  environment:
+    name: production
+    url: https://$CI_PROJECT_NAME
+  only:
+  - master
+

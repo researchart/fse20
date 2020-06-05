@@ -1,0 +1,22 @@
+# Continous Integration for LaTeX Documents except MASTER which is the template branch.
+
+build:
+  image: toxicore/latex
+  before_script:
+    - source /etc/profile
+    - export TERM="xterm"
+    - mkdir ./Booklet/.build ; touch ./Booklet/.build/booklet.not
+    - mkdir ./Paper/.build ; touch ./Paper/.build/paper.not
+  script:
+    - WORKDIR=$(pwd);
+    - cd "$WORKDIR/Booklet" && latexmk -f -lualatex -silent -interaction=nonstopmode booklet.tex && cp *.pdf $WORKDIR/
+    - cd "$WORKDIR/Homework" && latexmk -f -lualatex -silent -interaction=nonstopmode homework.tex && cp *.pdf $WORKDIR/
+    - cd "$WORKDIR/Presentation" && latexmk -f -lualatex -silent -interaction=nonstopmode presentation.tex && cp *.pdf $WORKDIR/
+    - cd "$WORKDIR/Paper" && latexmk -f -lualatex -silent -interaction=nonstopmode paper.tex && cp *.pdf $WORKDIR/
+  artifacts:
+    paths:
+      - "booklet.pdf"
+      - "homework.pdf"
+      - "presentation.pdf"
+      - "paper.pdf"
+

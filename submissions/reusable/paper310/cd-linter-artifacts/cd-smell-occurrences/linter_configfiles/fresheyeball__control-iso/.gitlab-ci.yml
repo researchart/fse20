@@ -1,0 +1,13 @@
+stages:
+  - build
+
+compile:
+  stage: build
+  script:
+  - nix-build --argstr compiler ghc822
+  - nix-build --argstr compiler ghc844
+  - nix-build --argstr compiler ghc863
+  - rm -r result
+  artifacts:
+    untracked: true
+

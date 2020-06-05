@@ -1,0 +1,11 @@
+image: python:3
+
+stages:
+  - test
+
+run_lint:
+  stage: test
+  script:
+    - pip3 install -r requirements.txt
+    - flake8 .
+

@@ -1,0 +1,39 @@
+stages:
+  - test
+  - release
+
+variables:
+  GO111MODULES: "on"
+
+.test: &test
+  stage: test
+  script:
+    - go fmt ./...
+    - go vet ./...
+    - go test ./...
+
+test golang 1.11:
+  image: golang:1.11
+  <<: *test
+  
+test golang 1.12:
+  image: golang:1.12
+  <<: *test
+
+release:
+  image: golang:1.12
+  stage: release
+  script:
+    - mkdir publish
+    - GOOS=linux go build -ldflags "-X main.version=`git describe`" -o publish/snippet_linux
+    - sha256sum publish/snippet_linux
+    - GOOS=darwin go build -ldflags "-X main.version=`git describe`" -o publish/snippet_darwin
+    - sha256sum publish/snippet_darwin
+  artifacts:
+    paths:
+    - publish/snippet_linux
+    - publish/snippet_darwin
+  only:
+    - tags
+
+

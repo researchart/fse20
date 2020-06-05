@@ -1,0 +1,23 @@
+image: docker:latest
+
+# When using dind, it's wise to use the overlayfs driver for
+# improved performance.
+variables:
+  DOCKER_DRIVER: overlay2
+
+services:
+- docker:dind
+
+before_script:
+- docker info
+
+stages:
+  - build_base
+
+build_laravel-ci:
+  stage: build_base
+  script:
+  - docker build -t claystation/laravel-gitlab-ci-docker .
+  - docker login -u ${docker_username} -p ${docker_password}
+  - docker push claystation/laravel-gitlab-ci-docker
+

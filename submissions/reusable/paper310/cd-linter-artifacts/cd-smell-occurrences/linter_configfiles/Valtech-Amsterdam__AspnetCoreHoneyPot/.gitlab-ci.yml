@@ -1,0 +1,116 @@
+image: microsoft/aspnetcore-build
+
+### Global configuration: ###
+
+variables:
+  CI_DEBUG_TRACE: "false"
+  vendorName: 'Labs'
+  companyName: 'Valtech.Amsterdam'
+  fullPackageName: ${companyName}.${vendorName}.${CI_PROJECT_NAME}
+  nugetPushTags: '${NugetAPIKey} -Source ${NugetSource} -NonInteractive -ConfigFile Nuget.config'
+
+stages:
+  - build
+  - pack
+  - publish
+  
+### Templates ###
+
+.build_template: &build_template
+  stage: build
+  cache:
+    paths:
+    - packages/
+
+.pack_template: &pack_template
+  <<: *build_template
+  stage: pack
+  artifacts:
+    expire_in: 1 week
+
+.publish_template: &publish_template
+  <<: *pack_template
+  image: mono:onbuild
+  stage: publish
+  script:
+  - 'echo pushing the following packages to NuGet:'
+  - 'find "./pack" -regextype posix-extended -regex ".*[0-9]\.nupkg"'
+  - 'for fn in $(find "./pack" -regextype posix-extended -regex ".*[0-9]\.nupkg"); do nuget push "$fn" ${nugetPushTags}; done '
+
+.alpha_constraint: &alpha_constraint /^(release\/)[0-9]+\.[0-9]+\.[0-9]+$/
+
+### Automatic build scripts ###
+
+build:
+  <<: *build_template
+  script:  
+  - 'dotnet restore --verbosity quiet'
+  - 'dotnet build "src/${fullPackageName}/${fullPackageName}.csproj" -c debug'
+  - 'dotnet build "src/${fullPackageName}.Example/${fullPackageName}.Example.csproj" -c debug'
+
+### Alpha package ### 
+
+pack:alpha:
+  # I might make this manual
+  <<: *pack_template
+  environment: 
+    name: alpha
+  #  url: https://www.nuget.org/packages/${fullPackageName}/$(echo ${CI_BUILD_REF_NAME} | cut -c9-).${CI_BUILD_ID}-alpha/
+  script:
+  - 'echo "$(echo ${CI_BUILD_REF_NAME} | cut -c9-)-alpha-${CI_BUILD_ID}"'
+  - 'dotnet restore --verbosity quiet'
+  - 'dotnet pack "src/${fullPackageName}/${fullPackageName}.csproj" -c debug -o "${CI_PROJECT_DIR}/pack/" --include-source --include-symbols --verbosity detailed /p:PackageVersion=$(echo ${CI_BUILD_REF_NAME} | cut -c9-)-alpha-${CI_BUILD_ID}'
+  dependencies:
+  - build
+  artifacts:
+    paths:
+    - './pack/${fullPackageName}.$(echo ${CI_BUILD_REF_NAME} | cut -c9-)-alpha-${CI_BUILD_ID}.nupkg'
+    - './pack/${fullPackageName}.$(echo ${CI_BUILD_REF_NAME} | cut -c9-)-alpha-${CI_BUILD_ID}.symbols.nupkg'
+  only:
+    - *alpha_constraint
+    
+publish:alpha:
+  # I might make this manual
+  <<: *publish_template
+  environment: 
+    name: alpha
+  #  url: https://www.nuget.org/packages/${companyName}.${vendorName}.${CI_PROJECT_NAME}/$(echo ${CI_BUILD_REF_NAME} | cut -c9-).${CI_BUILD_ID}-alpha/
+  dependencies:
+  - pack:alpha
+  only:
+    - *alpha_constraint
+
+### Final package ###
+
+pack:final:
+  <<: *pack_template
+  environment: 
+    name: final
+  #  url: https://www.nuget.org/packages/${fullPackageName}/$(echo ${CI_BUILD_REF_NAME} | cut -c9-).${CI_BUILD_ID}-alpha/
+  script:
+  - 'echo "${CI_BUILD_TAG}"'
+  - 'dotnet restore'
+  - 'dotnet pack "src/${fullPackageName}/${fullPackageName}.csproj" -c debug -o "./pack/"'
+  - 'dotnet restore --verbosity quiet'
+  - 'dotnet pack "src/${fullPackageName}/${fullPackageName}.csproj" -c debug -o "${CI_PROJECT_DIR}/pack/" --include-source --include-symbols --verbosity detailed /p:PackageVersion=${CI_BUILD_TAG}'
+
+  dependencies:
+  - build
+  artifacts:
+    paths:
+    - './pack/${fullPackageName}.${CI_BUILD_TAG}.nupkg'
+    - './pack/${fullPackageName}.${CI_BUILD_TAG}.symbols.nupkg'
+  only:
+  - tags
+    
+publish:final:
+  <<: *publish_template
+  environment: 
+    name: final
+    url: https://www.nuget.org/packages/Valtech.Amsterdam.Labs.AspnetCoreHoneyPot/
+  #  url: https://www.nuget.org/packages/${companyName}.${vendorName}.${CI_PROJECT_NAME}/$(echo ${CI_BUILD_REF_NAME} | cut -c9-).${CI_BUILD_ID}-alpha/
+  dependencies:
+  - pack:final
+  only:
+  - tags
+

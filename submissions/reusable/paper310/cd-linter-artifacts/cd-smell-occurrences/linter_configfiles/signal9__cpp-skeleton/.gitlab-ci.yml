@@ -1,0 +1,24 @@
+image: registry.gitlab.com/signal9/ubuntu-build-env
+
+build:
+  stage: build
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - bld/app
+      - bld/app_test
+  cache:
+    paths:
+      - third_party/
+  script:
+      - ./build.py build
+      - ./configure.py --release bld
+      - cd bld && ninja
+test:
+  stage: test
+  before_script:
+      - python3 -m pip install -r requirements.txt
+  script:
+    - ./build.py test
+    - cd bld && ./app_test -a 2>/dev/null
+

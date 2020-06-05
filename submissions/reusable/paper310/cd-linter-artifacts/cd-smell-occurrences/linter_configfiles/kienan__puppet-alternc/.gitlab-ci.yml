@@ -1,0 +1,31 @@
+image: ruby:2.3
+
+# Test job template
+.test_template: &test_definition
+  stage: test
+  script:
+    - bundle install --jobs $(nproc) --without docs --path vendor
+    - bundle exec rake test
+
+# Test with version present on Debian stable
+test:puppet48:
+  variables:
+    PUPPET_VERSION: '~> 4.8.2'
+    FACTER_VERSION: '~> 2.4.6'
+    HIERA_VERSION: '~> 3.2.0'
+  <<: *test_definition
+
+# Test with latest Puppet release
+test:puppetlatest:
+  <<: *test_definition
+
+# Build and deploy docs on GitLab Pages
+pages:
+  stage: deploy
+  script:
+    - bundle install --without tests --path vendor
+    - bundle exec rake docs
+  artifacts:
+    paths:
+      - public
+

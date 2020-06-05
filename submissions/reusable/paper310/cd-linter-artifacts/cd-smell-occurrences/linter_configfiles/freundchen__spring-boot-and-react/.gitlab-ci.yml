@@ -1,0 +1,42 @@
+image: docker:latest
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay
+  SPRING_PROFILES_ACTIVE: gitlab-ci
+
+stages:
+  - build
+  - package
+  - deploy
+
+maven-build:
+  image: maven:3-jdk-8
+  stage: build
+  script: "mvn package -B"
+  artifacts:
+    paths:
+      - target/*.jar
+
+docker-build:
+  stage: package
+  script:
+  - docker build -t registry.gitlab.com/freundchen/spring-boot-and-react .
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  - docker push registry.gitlab.com/freundchen/spring-boot-and-react
+
+k8s-deploy:
+  image: google/cloud-sdk
+  stage: deploy
+  script:
+  - echo "$GOOGLE_KEY" > key.json
+  - gcloud auth activate-service-account --key-file key.json
+  - gcloud config set compute/zone europe-west3-b
+  - gcloud config set project spring-boot-and-react
+  - gcloud config set container/use_client_certificate True
+  - gcloud container clusters get-credentials spring-boot-and-react
+#  - kubectl delete secret registry.gitlab.com
+  - kubectl create secret docker-registry registry.gitlab.com --docker-server=https://registry.gitlab.com --docker-username=freundchen --docker-password=$REGISTRY_PASSWD --docker-email=christian.draeger1@gmail.com
+  - kubectl apply -f deployment.yml
+

@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.1.0.RELEASE</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.marcowillemart.common</groupId>
+    <artifactId>common-parent</artifactId>
+    <version>1.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Common Parent</name>
+    <description>Parent POM providing common dependency and plugin management.</description>
+    <url>https://gitlab.com/mwillema/common</url>
+
+    <properties>
+        <!-- Base directory of the main project -->
+        <main.basedir>${project.basedir}/..</main.basedir>
+
+        <taglet.dir>${main.basedir}/taglets</taglet.dir>
+
+        <!-- Third Party -->
+        <grpc.version>1.15.0</grpc.version>
+        <jmock.version>2.9.0</jmock.version>
+        <netty.tcnative.version>2.0.17.Final</netty.tcnative.version>
+        <protobuf.version>3.6.1</protobuf.version>
+        <protoc.version>3.6.1</protoc.version>
+        <testcontainers.version>1.9.0</testcontainers.version>
+
+        <!-- Plugins -->
+        <os.plugin.version>1.6.1</os.plugin.version>
+        <protoc-jar.plugin.version>3.6.0.1</protoc-jar.plugin.version>
+        <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
+        <sonar.plugin.version>3.5.0.1254</sonar.plugin.version>
+
+        <!-- Location of the JaCoCo output file created by the agent execution during ITs. We want
+             all modules to dump their coverage information into a single file for Sonar to pick up.
+             Sonar is only going to look for one file so we put the file in target folder of the root of the
+             project when running a top-down build. session.executionRootDirectory points there if
+             we run Maven from the top level folder of the project.
+             If you don't do it this way, you have to define an absolute path to a fixed location
+             on the server or you have to put a relative path in every child module defining where JaCoCo is
+             to place its output file. The last solution is error prone so the solution shown here or the use
+             of a fixed location is recommended. -->
+        <jacoco.out.path>${session.executionRootDirectory}/target</jacoco.out.path>
+        <jacoco.out.file>jacoco-it.exec</jacoco.out.file>
+
+        <!-- Location of the JaCoCo IT output file for use on Jenkins. See jacoco.out.path. NOTE: Can't use
+             ${session.executionRootDirectory} here because of http://jira.codehaus.org/browse/SONAR-3427 .
+             env.WORKSPACE is set by Jenkins, which is really the only time sonar:sonar is going to be run in
+             most cases. -->
+        <sonar.jacoco.itReportPath>${env.WORKSPACE}/target/${jacoco.out.file}</sonar.jacoco.itReportPath>
+
+        <!-- Disable DocLint (Error detection in Javadoc) -->
+        <additionalparam>-Xdoclint:none</additionalparam>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Common (Bill Of Materials) -->
+            <dependency>
+                <groupId>com.marcowillemart.common</groupId>
+                <artifactId>common-bom</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- gRPC -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-protobuf</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-stub</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-services</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>protoc-gen-grpc-java</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+
+            <!-- HTTP Caching -->
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpclient-cache</artifactId>
+                <version>${httpclient.version}</version>
+            </dependency>
+
+            <!-- JMock -->
+            <dependency>
+                <groupId>org.jmock</groupId>
+                <artifactId>jmock-junit4</artifactId>
+                <version>${jmock.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jmock</groupId>
+                <artifactId>jmock-legacy</artifactId>
+                <version>${jmock.version}</version>
+            </dependency>
+
+            <!-- Netty/TomcatNative [BoringSSL Static] -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-tcnative-boringssl-static</artifactId>
+                <version>${netty.tcnative.version}</version>
+            </dependency>
+
+            <!-- Protocol Buffers -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java-util</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
+
+            <!-- Protobuf Compiler -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protoc</artifactId>
+                <version>${protoc.version}</version>
+            </dependency>
+
+            <!-- Testcontainers -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${testcontainers.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Compiler Plugin -->
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <compilerArgument>-Xlint:unchecked</compilerArgument>
+                    </configuration>
+                </plugin>
+
+                <!-- Git Commit Id Plugin -->
+                <!-- https://github.com/ktoso/maven-git-commit-id-plugin -->
+                <plugin>
+                    <groupId>pl.project13.maven</groupId>
+                    <artifactId>git-commit-id-plugin</artifactId>
+                    <configuration>
+                        <dotGitDirectory>${main.basedir}/.git</dotGitDirectory>
+                    </configuration>
+                </plugin>
+
+                <!-- OS Plugin -->
+                <!-- https://github.com/trustin/os-maven-plugin -->
+                <plugin>
+                    <groupId>kr.motd.maven</groupId>
+                    <artifactId>os-maven-plugin</artifactId>
+                    <version>${os.plugin.version}</version>
+                </plugin>
+
+                <!-- Protoc Jar Plugin -->
+                <!-- http://os72.github.io/protoc-jar-maven-plugin/ -->
+                <plugin>
+                    <groupId>com.github.os72</groupId>
+                    <artifactId>protoc-jar-maven-plugin</artifactId>
+                    <version>${protoc-jar.plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <phase>generate-sources</phase>
+                            <goals>
+                                <goal>run</goal>
+                            </goals>
+                            <configuration>
+                                <includeStdTypes>true</includeStdTypes>
+                                <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Protocol Buffers Plugin -->
+                <!-- https://www.xolstice.org/protobuf-maven-plugin/ -->
+                <plugin>
+                    <groupId>org.xolstice.maven.plugins</groupId>
+                    <artifactId>protobuf-maven-plugin</artifactId>
+                    <version>${protobuf.plugin.version}</version>
+                    <extensions>true</extensions>
+                    <configuration>
+                        <protocArtifact>com.google.protobuf:protoc:${protoc.version}:exe:${os.detected.classifier}</protocArtifact>
+                        <pluginId>grpc-java</pluginId>
+                        <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>compile</goal>
+                                <goal>compile-custom</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Sonar Plugin -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>sonar-maven-plugin</artifactId>
+                    <version>${sonar.plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <!-- Javadoc Plugin -->
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <taglets>
+                        <taglet>
+                            <tagletClass>Specfield</tagletClass>
+                            <tagletpath>${taglet.dir}</tagletpath>
+                        </taglet>
+                        <taglet>
+                            <tagletClass>Derivedfield</tagletClass>
+                            <tagletpath>${taglet.dir}</tagletpath>
+                        </taglet>
+                        <taglet>
+                            <tagletClass>Invariant</tagletClass>
+                            <tagletpath>${taglet.dir}</tagletpath>
+                        </taglet>
+                    </taglets>
+                    <tags>
+                        <tag>
+                            <name>author</name>
+                        </tag>
+                        <tag>
+                            <name>param</name>
+                        </tag>
+                        <tag>
+                            <name>requires</name>
+                            <placement>cm</placement>
+                            <head>Requires:</head>
+                        </tag>
+                        <tag>
+                            <name>modifies</name>
+                            <placement>cm</placement>
+                            <head>Modifies:</head>
+                        </tag>
+                        <tag>
+                            <name>effects</name>
+                            <placement>cm</placement>
+                            <head>Effects:</head>
+                        </tag>
+                        <tag>
+                            <name>return</name>
+                        </tag>
+                        <tag>
+                            <name>throws</name>
+                        </tag>
+                    </tags>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- Integration Test Profile -->
+        <profile>
+            <id>integration-tests</id>
+            <activation>
+                <property>
+                    <name>runIntegrationTests</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <!-- Failsafe Plugin (allowing integration tests) -->
+                    <plugin>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                                <configuration>
+                                    <argLine>${jacoco.agent.arg}</argLine>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Code Coverage Profile -->
+        <profile>
+            <id>coverage</id>
+            <activation>
+                <property>
+                    <name>computeCodeCoverage</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <!-- JaCoCo Plugin (code coverage) -->
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <version>0.8.0</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>prepare-agent</id>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                                <configuration>
+                                    <destFile>${jacoco.out.path}/${jacoco.out.file}</destFile>
+                                    <propertyName>jacoco.agent.arg</propertyName>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+    <organization>
+        <name>Marco Willemart</name>
+        <url>http://marcowillemart.com</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <id>mwillema</id>
+            <name>Marco Willemart</name>
+            <email>marco.willemart@icloud.com</email>
+        </developer>
+    </developers>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
+</project>
+

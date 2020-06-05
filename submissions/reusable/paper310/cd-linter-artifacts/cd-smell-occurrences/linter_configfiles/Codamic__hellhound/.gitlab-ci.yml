@@ -1,0 +1,35 @@
+before_script:
+  - apt-get update -y
+  - apt-get install default-jre -y
+  - wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
+  - chmod a+x lein
+  - export LEIN_ROOT=1
+  - export PATH=$PATH:.
+  - ./scripts/build.sh $(pwd)
+  
+cache:
+  paths:
+    - .m2/
+
+# build:
+#   stage: build
+#   script:
+#     - ./scripts/build.sh $(pwd)
+#   only:
+#     - master
+
+# linters:
+#   stage: build
+#   script:
+#     - lein sub kibit
+#     - lein sub eastwood
+#     - lein sub bikeshed -m 100
+
+# docs:
+#   stage: build
+#   script: lein codox
+
+test:
+  stage: test
+  script: lein sub test
+

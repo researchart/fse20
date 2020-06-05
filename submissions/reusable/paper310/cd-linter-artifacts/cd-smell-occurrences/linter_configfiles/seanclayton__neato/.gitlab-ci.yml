@@ -1,0 +1,36 @@
+image: node:6
+
+variables:
+  NPM_CONFIG_LOGLEVEL: "error"
+  NPM_CONFIG_PROGRESS: "false"
+
+before_script:
+  - npm prune
+  - npm i --no-optional
+
+cache:
+  key: "$CI_BUILD_REF_NAME"
+  paths:
+    - node_modules/
+    - lib/
+
+stages:
+  - build
+  - test
+
+"Compile Project":
+  stage: build
+  script: npm run build
+
+"Lint":
+  variables:
+    TEST_TYPE: lint
+  stage: test
+  script: node bin/ci.js
+
+"Create Test Project":
+  variables:
+    TEST_TYPE: test_create_project
+  stage: test
+  script: node bin/ci.js
+

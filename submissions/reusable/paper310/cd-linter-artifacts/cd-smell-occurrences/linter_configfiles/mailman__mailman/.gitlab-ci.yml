@@ -1,0 +1,88 @@
+# This is core test runner
+
+image: maxking/mailman-ci-runner
+
+variables:
+  POSTGRES_DB: "mailman_test"
+  POSTGRES_USER: "runner"
+  POSTGRES_PASSWORD: "runner"
+  MYSQL_ROOT_PASSWORD: "runner"
+  MYSQL_USER: "runner"
+  MYSQL_USER_PASSWORD: "runner"
+  MYSQL_DATABASE: "test_mailman"
+  LC_ALL: "C.UTF-8"
+
+
+qa:
+  script:
+  - tox -e qa
+
+docs:
+  script:
+  - tox -e docs
+
+sqlite-35:
+  script:
+  - tox -e py35-nocov
+
+sqlite-36:
+  script:
+  - tox -e py36-nocov
+
+sqlite-37:
+  script:
+  - tox -e py37-nocov
+
+sqlite-38:
+  script:
+  - tox -e py38-nocov
+
+pgsql-35:
+  services:
+  - postgres:latest
+  script:
+  - MAILMAN_EXTRA_TESTING_CFG=/home/runner/configs/postgres.cfg tox -e py35-nocov-pg
+  tags:
+  - postgres
+
+pgsql-37:
+  services:
+  - postgres:latest
+  script:
+  - MAILMAN_EXTRA_TESTING_CFG=/home/runner/configs/postgres.cfg tox -e py37-nocov-pg
+  tags:
+  - postgres
+
+mysql-35:
+  services:
+  - mysql:5.6
+  script:
+  - MAILMAN_EXTRA_TESTING_CFG=/home/runner/configs/mysql.cfg tox -e py35-nocov-mysql
+  tags:
+  - mysql
+
+mysql-37:
+  services:
+  - mysql:5.6
+  script:
+  - MAILMAN_EXTRA_TESTING_CFG=/home/runner/configs/mysql.cfg tox -e py37-nocov-mysql
+  tags:
+  - mysql
+
+
+diffcov:
+  script:
+  - tox -e py37-diffcov
+  except:
+  - master
+
+trigger-client:
+  stage: deploy
+  variables:
+    CORE_COMMIT_SHA: $CI_COMMIT_SHA
+  only:
+    - branches@mailman/mailman
+  trigger:
+    project: mailman/mailmanclient
+    branch: master
+

@@ -1,0 +1,12 @@
+
+py36_nose:
+  stage: test
+  image: python:3.6
+  services:
+      - name: mongo:3.4.10
+  script:
+    - apt-get update -q -y
+    - apt-get install -y mongodb
+    - pip install -r requirements.txt
+    - nosetests -v --nocapture
+

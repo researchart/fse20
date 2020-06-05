@@ -1,0 +1,43 @@
+image: registry.gitlab.com/alelec/docker-android
+
+stages:
+  - build
+  - outputs
+#  - release
+
+build:
+  stage: build
+  script:
+    - ./gradlew assemble
+    - cp ./app/build/outputs/apk/*/*.apk ./
+    - ls ./*.apk
+  artifacts:
+    paths:
+      - ./*.apk
+
+debug:
+  stage: outputs
+  script:
+    - mv *debug*.apk Navdy-MapDownloader-debug.apk
+  artifacts:
+    paths:
+      - Navdy-MapDownloader-debug.apk
+
+release:
+  stage: outputs
+  script:
+    - mv *release*.apk Navdy-MapDownloader.apk
+  artifacts:
+    paths:
+      - Navdy-MapDownloader.apk
+
+## Deploy tokens are still read only
+#release:
+#  stage: release
+#  image: python3
+#  script:
+#    - pip3 install gitlab_release
+#    - python3 -m gitlab_release "$DEPLOY_TOKEN" *.apk
+#  only:
+#    - tags
+

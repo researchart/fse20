@@ -1,0 +1,43 @@
+image: alpine:latest
+
+before_script:
+  - export SRC_FOLDER=$([ "$CI_COMMIT_REF_SLUG" == master ] && echo "master" || echo "feature-branch")
+
+sast:
+  script:
+    - echo "$SRC_FOLDER"
+    - cp -v "$SRC_FOLDER"/gl-sast-report.json .
+  artifacts:
+    reports:
+      sast: gl-sast-report.json
+
+dependency_scanning:
+  script:
+    - cp -v "$SRC_FOLDER"/gl-dependency-scanning-report.json .
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json
+
+container_scanning:
+  script:
+    - cp -v "$SRC_FOLDER"/gl-container-scanning-report.json .
+  artifacts:
+    reports:
+      container_scanning: gl-container-scanning-report.json
+
+dast:
+  script:
+    - cp -v "$SRC_FOLDER"/gl-dast-report.json .
+  artifacts:
+    reports:
+      dast: gl-dast-report.json
+  except:
+    - master
+
+license_management:
+  script:
+   - cp -v "$SRC_FOLDER"/gl-license-management-report.json .
+  artifacts:
+    reports:
+      license_management: gl-license-management-report.json
+

@@ -1,0 +1,28 @@
+image: maven:latest
+
+cache:
+  paths:
+    - .m2/repository/
+
+install:
+  stage: build
+  script:
+    - mvn clean install -P dist -Dsettings.security=.m2/settings-security.xml --settings .m2/settings.xml -Dmaven.repo.local=.m2/repository/ --batch-mode
+
+deploy-ossrh:
+  stage: deploy
+  script:
+    - mvn clean javadoc:jar source:jar deploy -DskipTests -P dist -Dsettings.security=.m2/settings-security.xml --settings .m2/settings.xml -Dmaven.repo.local=.m2/repository/ --batch-mode
+  only:
+    - master
+
+deploy-webapp:
+  stage: deploy
+  script:
+    - cd classiga-api
+    - mvn clean package tomcat7:redeploy -P prod -Dsettings.security=../.m2/settings-security.xml --settings ../.m2/settings.xml -Dmaven.repo.local=../.m2/repository/ --batch-mode
+    - cd ../classiga-web
+    - mvn clean package tomcat7:redeploy -P prod -Dsettings.security=../.m2/settings-security.xml --settings ../.m2/settings.xml -Dmaven.repo.local=../.m2/repository/ --batch-mode
+  only:
+    - master
+

@@ -1,0 +1,17 @@
+stages:
+- build
+
+container:
+  stage: build
+  image: tomkukral/buildah
+  before_script:
+  - podman version
+  - buildah version
+  - podman login -u gitlab-ci-token -p "${CI_BUILD_TOKEN}" "${CI_REGISTRY}"
+  script:
+  - podman --storage-driver vfs build --squash --quiet -t "${CI_REGISTRY_IMAGE}" .
+  - podman --storage-driver vfs push --quiet "${CI_REGISTRY_IMAGE}" docker://"${CI_REGISTRY_IMAGE}"
+  after_script:
+  - podman logout "${CI_REGISTRY}"
+
+

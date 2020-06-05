@@ -1,0 +1,36 @@
+image: registry.gitlab.com/schpaper/alpine-jekyll:master
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  script:
+    - chmod +x script/*
+    - ./script/setup.sh
+    - ./script/build.sh
+  artifacts:
+    paths:
+      - _site
+    expire_in: 1 day
+  except:
+    - master
+
+pages:
+  stage: deploy
+  script:
+    - chmod +x script/*
+    - ./script/setup.sh
+    - ./script/cirelease.sh
+  artifacts:
+    paths:
+      - public
+  environment:
+    name: gitlab-pages
+    url: https://schpaper.gitlab.io
+  variables:
+    JEKYLL_ENV: production
+  only:
+    - master
+

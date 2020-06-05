@@ -1,0 +1,45 @@
+cache:
+  paths:
+  - .m2/
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2"
+
+
+stages:
+- build
+- deploy
+
+melakukan-build-dan-package:
+  stage: build
+  image: maven:3-jdk-8
+  script:
+  - mvn clean package -DskipTests -Dspring.profiles.active=heroku
+  artifacts:
+    paths:
+    - target/*.jar
+
+deploy-ke-heroku:
+  stage: deploy
+  image: openjdk:8-jdk
+  variables:
+    HEROKU_API_KEY: $HEROKU_API_KEY
+  script:
+  - apt-get update
+  - apt-get install wget -y
+  - wget -qO- https://cli-assets.heroku.com/install-ubuntu.sh | sh
+  - heroku plugins:install heroku-cli-deploy
+  - heroku deploy:jar target/*.jar --app $HEROKU_APP_NAME
+
+#deploy-ke-vps:
+#  stage: deploy
+#  image: ubuntu:latest
+#  script:
+#    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+#    - eval $(ssh-agent -s)
+#    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+#    - mkdir -p ~/.ssh
+#    - '[[ -f /.dockerenv ]] && ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts'
+#    - scp target/*.jar ubuntu@$VPS_HOST:/var/lib/catalogapp/
+#    - ssh ubuntu@$VPS_HOST sudo service catalogapp restart
+

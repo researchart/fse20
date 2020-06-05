@@ -1,0 +1,34 @@
+image: docker.io/jangorecki/r-data.table
+services:
+- postgres
+
+variables:
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: postgres
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+
+pages:
+  script:
+    # non-R dependencies
+    - apt-get update -qq
+    - apt-get -qq install -y libpq-dev
+    # build pkg
+    - R CMD build .
+    # install deps
+    - Rscript -e 'install.packages("RPostgreSQL", repos="https://cran.rstudio.com")'
+    # install suggests
+    - Rscript -e 'install.packages(c("microbenchmarkCore","logR"), repos=paste0("https://", c("cran.rstudio.com","olafmersmann.github.io/drat","jangorecki.gitlab.io/logR")))'
+    # run check
+    - R CMD check $(ls -1t *.tar.gz | head -n 1) --no-build-vignettes --no-manual --as-cran
+    # install drat with `insertArtifacts` function
+    - Rscript -e 'install.packages("drat", repos="https://jangorecki.gitlab.io/drat")'
+    # produce artifacts
+    - Rscript -e 'drat::insertArtifacts(repodir="public", repo.url="https://jangorecki.gitlab.io/big.data.table", repo.cran=TRUE)'
+  only:
+    - master
+  artifacts:
+    paths:
+      - public
+

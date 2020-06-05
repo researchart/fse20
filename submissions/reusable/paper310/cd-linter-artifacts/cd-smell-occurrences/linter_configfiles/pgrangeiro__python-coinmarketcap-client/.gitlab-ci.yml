@@ -1,0 +1,6 @@
+test:
+    image: python:3.6-alpine3.6
+    script:
+        - pip install -r requirements/ci.txt
+        - tox
+

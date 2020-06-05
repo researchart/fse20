@@ -1,0 +1,10 @@
+image: golang:1.6.2
+
+stages:
+  - test
+
+job_test:
+  script:
+    - go test -v -cover
+  stage: test
+

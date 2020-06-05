@@ -1,0 +1,87 @@
+# Copyright © 2018–2019 Trevor Spiteri
+
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved. This file is offered as-is,
+# without any warranty.
+
+before_script:
+  - getconf LONG_BIT
+  - rustup self update
+  - rustup --version
+  - rustup toolchain install --profile minimal beta-$TARGET 1.39.0-$TARGET
+  - rustup component add --toolchain beta-$TARGET rustfmt clippy
+  - if [ -d cargo/registry/cache ]; then rm -rf $CARGO_HOME/registry/cache; mkdir -p $CARGO_HOME/registry; cp -R cargo/registry/cache $CARGO_HOME/registry/; echo Copied registry/cache; fi
+  - if [ -d $CARGO_HOME/registry/src ]; then rm -r $CARGO_HOME/registry/src; fi
+  - if [ -d $CARGO_HOME/registry/cache ]; then (cd $CARGO_HOME/registry; find cache -name \*.crate | sort) fi
+
+after_script:
+  - if [ -d $CARGO_HOME/registry/cache ]; then (cd $CARGO_HOME/registry; for c in cache/*/*.crate; do s=src/${c#cache/}; if [ ! -e ${s%.crate} ]; then rm -v $c; fi; done; find cache -name \*.crate | sort) fi
+  - rm -rf cargo
+  - mkdir -p cargo/registry
+  - if [ -d $CARGO_HOME/registry/cache ]; then cp -R $CARGO_HOME/registry/cache cargo/registry/; echo Updated registry/cache; fi
+
+x86_64-gnulinux:
+  image: amd64/rust:1
+  variables:
+    TARGET: x86_64
+  cache:
+    key: $CI_JOB_NAME
+    paths:
+    - cargo/
+  script:
+  - cargo +beta-$TARGET clippy --all-targets --features "fail-on-warnings az f16 serde std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az f16 serde"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az f16 std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az f16"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az serde std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az serde"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings f16 serde std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings f16 serde"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings f16 std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings f16"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings serde std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings serde"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings std"
+  - cargo +beta-$TARGET check --all-targets --features fail-on-warnings
+  - cargo +beta-$TARGET test --features "fail-on-warnings az f16 serde"
+  - cargo +beta-$TARGET test --release --features "fail-on-warnings az f16 serde"
+  - cargo +beta-$TARGET fmt -- --check
+  - cargo +1.39.0-$TARGET test --lib --features "fail-on-warnings az f16 serde"
+  - cargo +1.39.0-$TARGET test --release --lib --features "fail-on-warnings az f16 serde"
+
+i686-gnulinux:
+  image: i386/rust:1
+  variables:
+    TARGET: i686
+  cache:
+    key: $CI_JOB_NAME
+    paths:
+    - cargo/
+  script:
+  - cargo +beta-$TARGET clippy --all-targets --features "fail-on-warnings az f16 serde std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az f16 serde"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az f16 std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az f16"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az serde std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az serde"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings az"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings f16 serde std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings f16 serde"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings f16 std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings f16"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings serde std"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings serde"
+  - cargo +beta-$TARGET check --all-targets --features "fail-on-warnings std"
+  - cargo +beta-$TARGET check --all-targets --features fail-on-warnings
+  - cargo +beta-$TARGET test --features "fail-on-warnings f16 serde"
+  - cargo +beta-$TARGET test --release --features "fail-on-warnings az f16 serde"
+  - cargo +beta-$TARGET fmt -- --check
+  - cargo +1.39.0-$TARGET test --lib --features "fail-on-warnings az f16 serde"
+  - cargo +1.39.0-$TARGET test --release --lib --features "fail-on-warnings az f16 serde"
+

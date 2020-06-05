@@ -1,0 +1,14 @@
+image: python:2.7
+  
+stages:
+  - check-style
+
+lint:
+  stage: check-style
+  before_script:
+  - pip install ansible
+  - pip install ansible-lint
+  script: 
+  - ansible-lint tasks/main.yml
+  - ansible-playbook -i tests/inventory --syntax-check --list-tasks tests/deploy.yml
+

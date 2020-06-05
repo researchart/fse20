@@ -1,0 +1,30 @@
+lint Helm Charts:
+  image:
+    name: linkyard/docker-helm
+    entrypoint: ["/bin/sh", "-c"]
+  stage: test
+  script:
+    - helm lint stable/*
+#    - helm lint stable/*/stable/*
+
+pages:
+  image:
+    name: linkyard/docker-helm
+    entrypoint: ["/bin/sh", "-c"]
+  stage: deploy
+  script:
+    - helm init --client-only
+    - mkdir -p ./public
+    - "echo \"User-Agent: *\nDisallow: /\" > ./public/robots.txt"
+    - helm package stable/* --destination ./public
+    - helm repo index --url https://${CI_PROJECT_NAMESPACE}.gitlab.io/${CI_PROJECT_NAME} ./public
+    - mv ./public/index.yaml ./public
+  artifacts:
+    paths:
+      - public
+  cache:
+    key: "$CI_BUILD_NAME.$CI_BUILD_REF_NAME"
+
+  only:
+    - master
+

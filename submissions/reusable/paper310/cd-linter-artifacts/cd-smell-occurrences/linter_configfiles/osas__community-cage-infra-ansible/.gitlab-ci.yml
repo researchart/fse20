@@ -1,0 +1,39 @@
+image: python:3-stretch
+
+variables:
+  DEBIAN_FRONTEND: noninteractive
+  LANG: en_US.UTF-8
+  LANGUAGE: en_US:en
+  LC_ALL: en_US.UTF-8
+  ANSIBLE_FORCE_COLOR: 'true'
+
+before_script:
+  - apt-get update
+  - apt-get install -y locales
+  - echo "${LANG} UTF-8" > /etc/locale.gen
+  - locale-gen ${LANG}
+  - apt-get install -y python3-pip
+  - pip3 install ansible
+  - pip3 install flake8
+  - pip3 install ansible-lint
+
+ansible-test:
+  stage: test
+  script:
+    # to avoid this problem:
+    #  [WARNING] Ansible is in a world writable directory (…), ignoring it as an ansible.cfg source.
+    - chmod 0755 .
+    - ansible --version
+    - flake8 --version
+    - ansible-lint --version
+    - ansible-galaxy install -r requirements.yml
+    # remove secrets
+    - find . -name '*.vault.*' -delete
+    - export EXT_ROLES_DIRS=$(find . -mindepth 2 -name ".galaxy_install_info" -printf "%h " | xargs -n 1 dirname)
+    - flake8 --exclude=plugins/strategy/mitogen_linear.py,$(echo ${EXT_ROLES_DIRS} | tr ' ' ',') --ignore=E126,E131,E302,E303,E501,W391 .
+    # TODO: work on E405, this might take time to improve all code and roles
+    - ansible-lint -p --nocolor $(echo ${EXT_ROLES_DIRS} | sed -r 's/\./--exclude=\./g') -x 204,405,602,702 playbooks/*.yml playbooks/tenants/*.yml
+    - find playbooks/ -maxdepth 1 -name '*.yml' | xargs -n 1 ansible-playbook --syntax-check
+    - find playbooks/tenants/ -maxdepth 1 -name '*.yml' | xargs -n 1 ansible-playbook --syntax-check
+
+

@@ -1,0 +1,19 @@
+Fedora-latest:
+# When building CI for a particular system, adapt the image
+  image: fedora:latest
+  before_script:
+  - dnf install --nogpgcheck -y openssh-clients openssh-server openssl git which gnutls-utils java-1.8.0-openjdk-devel bind perl asciidoc perl-generators libxslt 'perl(File::pushd)' 'perl(File::Temp)' 'perl(File::Copy)' libreswan dracut diffutils
+  script:
+  - pushd tests && git clone --depth 1 https://github.com/frozencemetery/krb5check && popd
+  - make && make check
+  - make install && make test-install >test-install.log 2>&1 && make test-fips-setup >test-fips-setup.log 2>&1
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 2 weeks
+    when: always
+    paths:
+      - ./*.log
+

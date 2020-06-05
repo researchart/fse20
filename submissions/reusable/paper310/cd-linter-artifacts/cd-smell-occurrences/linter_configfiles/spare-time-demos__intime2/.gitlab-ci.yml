@@ -1,0 +1,199 @@
+stages:
+  - test
+  - package-frontend
+  - package
+  - deploy
+
+before_script:
+  - echo "start inTime2 CI"
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+
+qa-test-e2e-testcafe:
+  image: circleci/node:10.3.0-stretch-browsers
+  stage: test
+  when: always
+  script:
+    - cd qa/e2e
+    - echo "install"
+    - npm install
+    - mkdir reports
+    - npm run test:browsers
+    - echo "now running e2e tests test:ci (chrome headless, spec reporter, screenshots)"
+    - npm run test:ci -- --baseUrl=http://intime2-intime2.7e14.starter-us-west-2.openshiftapps.com/?lang=en-US
+  allow_failure: true
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-e2e"
+    paths:
+      - qa/e2e/node_modules  
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-qa-e2e-testcafe"
+    when: always
+    expire_in: 1 days
+    paths:    
+      - qa/e2e/TestResult
+      - qa/e2e/reports
+      - qa/e2e/screenshots
+
+qa-test-e2e-cypress:
+  image: cypress/base
+  stage: test
+  when: always
+  script:
+    - cd qa/e2e-cypress
+    - npm install
+    - $(npm bin)/cypress run
+  allow_failure: true
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-e2e-cypress"
+    when: always
+    expire_in: 1 days
+    paths:
+      - qa/e2e-cypress/cypress/videos/
+      - qa/e2e-cypress/cypress/screenshots/
+
+test-backend:
+  image: java:8-jdk
+  stage: test
+  when: always
+  script:
+    - ./gradlew backend:test
+    - ./gradlew backend:testreports
+    - "cat backend/build/reports/jacoco/test/html/index.html"
+  after_script:
+    - bash <(curl -s https://codecov.io/bash) -s backend/build/reports/jacoco/test
+  allow_failure: true
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-java"
+    paths:
+     - .gradle/wrapper
+     - .gradle/caches
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-backend"
+    when: always
+    expire_in: 1 days
+    paths:
+      - backend/build/reports
+
+test-frontend:
+  image: node:latest
+  stage: test
+  when: always
+  script:
+    - cd frontend
+    - npm install
+    - npm run test:ci
+    - npm run sonar-scanner:ci sonar.login=$SONAR_LOGIN_FRONTEND 
+    - npx typedoc --out build-typedoc --name inTime2 --ignoreCompilerErrors --exclude **/coverage/**
+  after_script:
+    - bash <(curl -s https://codecov.io/bash) -s frontend/coverage
+  allow_failure: true
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-node"
+    paths:
+      - frontend/node_modules  
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-frontend"
+    when: always
+    expire_in: 1 days
+    paths:
+      - frontend/coverage
+      - frontend/build-typedoc
+
+package-react-frontend:
+  image: node:latest
+  stage: package-frontend
+  script:
+    - cd frontend
+    - npm install
+    - today=$(date +%Y-%m-%dT%H:%M)
+    - sed "s/TBUILD/${today}/g" .env.production
+    - npm run build
+  allow_failure: false
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-node"
+    paths:
+      - frontend/node_modules
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-packaged-frontend"
+    when: on_success
+    expire_in: 1 days
+    paths:
+      - frontend/build
+
+package-spring-boot-jar:
+  image: java:8-jdk
+  stage: package
+  dependencies:
+    - package-react-frontend
+  script:
+    - ./gradlew backend:includeReactFrontend
+    - ./gradlew backend:bootJar
+  allow_failure: false
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-java"
+    paths:
+     - .gradle/wrapper
+     - .gradle/caches
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-backend"
+    when: on_success
+    expire_in: 1 days
+    paths:
+      - backend/build/libs
+
+deploy-push-docker-gitlab-image:
+  environment:
+    name: openshift-deply
+    url: http://intime2-image-manathome.193b.starter-ca-central-1.openshiftapps.com
+  stage: deploy
+  dependencies:
+    - package-spring-boot-jar
+  image: docker:latest
+  when: on_success
+  services:
+    - docker:dind
+  before_script:
+    - mkdir deployment/build
+    - echo $CI_REGISTRY_USER $CI_REGISTRY $CI_REGISTRY_IMAGE
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker version
+  script:
+    - cp -v backend/build/libs/*.jar deployment/build
+    - docker image build --build-arg JAR_FILE=backend-0.0.4.jar --tag $CI_REGISTRY_IMAGE --file deployment/src/main/docker/DOCKERFILE --pull deployment/build
+    - docker images
+    - docker push $CI_REGISTRY_IMAGE 
+  allow_failure: true
+  only:
+    - master   
+
+pages:
+  environment:
+    name: gitlab-pages
+    url: https://spare-time-demos.gitlab.io/intime2/
+  stage: deploy
+  image: java:8-jdk
+  when: always
+  script:
+    - ./gradlew backend:test
+    - ./gradlew backend:testreports
+    - ./gradlew backend:dokka
+    - ./gradlew backend:liquibaseUpdate
+    - ./gradlew backend:liquibaseDbdoc
+    - ./gradlew generateDbDocWithSchemaSpy
+    - ./gradlew --build-file backend/build.docs.gradle apidocs
+    - ./gradlew --build-file docs/build.slides.gradle slides --info
+    - ./gradlew docs:docs
+  cache:
+    key: "$CI_COMMIT_REF_SLUG-java"
+    paths:
+     - .gradle/wrapper
+     - .gradle/caches
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-gitlabpages"
+    expire_in: 1 days
+    paths:
+      - public
+  only:
+    - master
+
+

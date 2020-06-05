@@ -1,0 +1,29 @@
+image: golang:1.9
+
+variables:
+  REPO_NAME: gitlab.com/clover/SeFTP
+
+before_script:
+  - go version
+  - echo $CI_BUILD_REF
+  - echo $CI_PROJECT_DIR
+
+stages:
+  - build
+
+build-project:
+  stage: build
+  script:
+    - mkdir -p /tmp/$REPO_NAME
+    - mv $CI_PROJECT_DIR/* /tmp/$REPO_NAME/
+    - mkdir -p $CI_PROJECT_DIR/artifacts
+    - cd /tmp/$REPO_NAME/
+    - go get golang.org/x/crypto/sha3
+    - go get gopkg.in/cheggaaa/pb.v2
+    - go get github.com/xtaci/smux
+    - go get github.com/xtaci/kcp-go
+    - cd /tmp/$REPO_NAME/client
+    - go build
+    - cd /tmp/$REPO_NAME/server
+    - go build
+

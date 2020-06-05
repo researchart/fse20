@@ -1,0 +1,61 @@
+image: "ubuntu:latest"
+
+before_script:
+  - apt-get update -qq 
+
+stages:
+  - build
+  - test
+  - deploy
+
+build_linux:
+  stage: build
+  script:
+    - apt-get install -y -qq gcc g++ make 
+    - ./build.sh
+  artifacts:
+    paths:
+    - OpenSimRoot/StaticBuild/OpenSimRoot
+
+build_windows:
+  stage: build
+  script:
+    - apt-get install -y -qq gcc make mingw-w64
+    - ./build_win64.sh
+  artifacts:
+    paths:
+    - OpenSimRoot/StaticBuild_win64/OpenSimRoot.exe
+
+testEngine:
+  stage: test
+  script:
+    - ./runTestsEngine.sh
+
+testModules:
+  stage: test
+  variables:
+    DEBIAN_FRONTEND: "noninteractive"
+  script:
+    - mkdir -p /root/.aws/
+    - echo region = us-west-2 >> /root/.aws/credentials
+    - apt-get install -y -qq  bc r-cran-xml
+    - ./runTestsModules.sh
+
+pages:
+  stage: deploy
+  environment:
+    name: pages
+    url: https://not.used.de
+  script:
+    - cp OpenSimRoot/scripts/XML/SimulaXMLSchema.xsd public/
+    - cp OpenSimRoot/scripts/XML/*.css public/
+    - cp OpenSimRoot/scripts/XML/*.xsl public/
+    - cp OpenSimRoot/StaticBuild/OpenSimRoot public/executables/OpenSimRoot_Linux_x64
+    - cp OpenSimRoot/StaticBuild_win64/OpenSimRoot.exe public/executables/OpenSimRoot_Win_x64.exe
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+

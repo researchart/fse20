@@ -1,0 +1,33 @@
+# GitLab image with handy deploy commands. 
+# If you are using different image for other CI jobs you can move this line
+# under `build` and under `deploy` sections
+image: registry.gitlab.com/gitlab-examples/kubernetes-deploy
+
+stages:
+  - build
+  - deploy
+
+variables:
+  KUBE_DOMAIN: example.com
+
+# Build image based on Dockerfile and store it in the GitLab Container Registry.
+# This image will be used by deploy command.
+build:
+  stage: build
+  script:
+    - command build
+  only:
+    - master
+
+deploy:
+  stage: deploy
+  script:
+    - command deploy
+  environment:
+    name: production
+    url: http://production.example.com
+  variables:
+    DISABLE_POSTGRES: "yes"
+  only:
+    - master
+

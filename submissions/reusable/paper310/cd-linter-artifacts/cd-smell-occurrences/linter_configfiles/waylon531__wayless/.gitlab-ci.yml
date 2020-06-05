@@ -1,0 +1,45 @@
+# This file is a template, and might need editing before it works on your project.
+# Unofficial language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/scorpil/rust/tags/
+#image: "scorpil/rust:nightly"
+image: "uelen/archlinux-wayless:latest"
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+  XARGO_HOME: $CI_PROJECT_DIR/xargo
+
+
+cache:
+  paths:
+    - target/
+    - cargo/
+    - xargo/
+
+stages:
+  - build
+  - test
+  - run
+
+make:
+  stage: build
+  script:
+    - rustc --version && cargo --version      # Print version info for debugging
+    - export PATH=/bin:/usr/bin:$CARGO_HOME/bin:~/.cargo/bin:$PATH
+    - make
+
+test:
+  script:
+    - export PATH=/bin:/usr/bin:$CARGO_HOME/bin:~/.cargo/bin:$PATH
+    - make test 
+
+run:
+  script:
+    - export PATH=/bin:/usr/bin:$CARGO_HOME/bin:~/.cargo/bin:$PATH
+      # Build so we don't have to worry about timing out while building
+    - make
+      # Quit after 80 seconds, otherwise qemu will spin forever
+    - timeout 80 make nographic | tee output || true
+      # Check to see if the kernel exited correctly
+      # NOTE: this might fail if FIN didn't print in a single line
+    - bash -c '[ $(tail -n 20 output | grep -o "FIN") == "FIN" ] && echo "Successfully ran"'
+

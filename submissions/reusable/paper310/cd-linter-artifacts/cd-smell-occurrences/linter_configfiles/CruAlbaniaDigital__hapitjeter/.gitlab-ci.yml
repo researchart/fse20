@@ -1,0 +1,33 @@
+image: php:5.6-apache
+
+test_integration:
+  stage: test
+  services:
+    - mysql:5
+  variables:
+    MYSQL_ROOT_PASSWORD: 2Qh$8fgx6gVSDg9
+    MYSQL_DATABASE: hapitjeter_test
+    MYSQL_USER: hapitjeter
+    MYSQL_PASSWORD: testpass1234
+    MYSQL_HOST: mysql
+  before_script:
+    - cp -r ./ /var/www/html/
+    - env | grep _ | xargs -I {} echo "export \"{}\"" >> /etc/apache2/envvars
+    - a2enmod rewrite
+    - apt-get update && apt-get install -y linkchecker mysql-client
+    - docker-php-ext-install mysql mysqli
+    - apachectl start
+  script:
+    - curl --fail http://localhost/setup.php
+    - mv /var/www/html/config_sample.ini /var/www/html/config.ini
+    - mysql -h$MYSQL_HOST -u$MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE < sql/schema.sql
+    - linkchecker http://localhost/
+
+deploy:
+  stage: deploy
+  environment: production
+  script: 
+    - 'curl -v -H "x-gitlab-token: $X_GITLAB_TOKEN" https://www.hapitjeter.net/webhook_receive.php -d "$CI_COMMIT_SHA"'
+  only:
+    - master
+

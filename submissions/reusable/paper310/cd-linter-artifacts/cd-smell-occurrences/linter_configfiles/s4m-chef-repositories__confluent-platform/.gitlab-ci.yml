@@ -1,0 +1,34 @@
+# Template chef 20160803
+image: sbernard/arch-kitchen-docker
+
+foodcritic:
+  script:
+    - foodcritic .
+
+rubocop:
+  script:
+    - rubocop
+
+lines_length:
+  script:
+    - >
+      curl -s https://gitlab.com/s4m/checks/raw/master/check_lines_length.sh |
+      bash
+
+git_history:
+  script:
+    - >
+      curl -s https://gitlab.com/s4m/checks/raw/master/check_git_history.sh |
+      bash
+
+kitchen:
+  tags:
+    - docker
+  script:
+    - >
+      images=$(kitchen diagnose | grep image | cut -d':' -f2);
+      for image in $images; do
+        docker pull $image
+      done
+    - kitchen test -c -d always
+

@@ -1,0 +1,34 @@
+stages:
+ - build
+ - release
+
+variables:
+ PROJECT_NAME: "Myre"
+
+before_script:
+ - echo "starting build for ${PROJECT_NAME} with current env "
+
+build:
+ stage: build
+ script:
+  - make re
+ only:
+  - master
+ artifacts:
+  untracked: true
+
+Myre-efi:
+ stage: release
+ script:
+  - echo "Releasing efi..."
+  #- ls * | grep -v efi | xargs rm -rf
+  #- mv efi/* .
+  #- rmdir efi
+  - mv efi Myre
+ only:
+  - master
+ artifacts:
+  name : "Myre"
+  paths:
+   - "Myre"
+

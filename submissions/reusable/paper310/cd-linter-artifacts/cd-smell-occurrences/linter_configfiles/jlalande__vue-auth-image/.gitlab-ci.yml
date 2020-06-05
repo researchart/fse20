@@ -1,0 +1,28 @@
+image: node:10
+
+cache:
+  untracked: true
+  key: "$CI_BUILD_REF_NAME"
+  paths:
+    - node_modules/
+
+stages:
+  - setup
+  - test
+  - build
+
+setup:
+  stage: setup
+  script:
+    - npm install
+
+test:
+  stage: test
+  script:
+    - npm run lint
+
+build:
+  stage: build
+  script:
+    - npm run build
+

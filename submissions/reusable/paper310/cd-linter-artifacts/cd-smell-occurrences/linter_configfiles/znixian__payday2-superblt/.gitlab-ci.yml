@@ -1,0 +1,17 @@
+before_script:
+  - apt update && apt install -y -qq libcurl4-openssl-dev zlib1g-dev libopenal-dev
+
+build:
+  stage: build
+  image: rikorose/gcc-cmake:gcc-7
+  script:
+    - git submodule init
+    - git submodule update
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make
+  artifacts:
+    paths:
+      - build/libsuperblt_loader.so
+

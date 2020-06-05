@@ -1,0 +1,87 @@
+stages:
+  - test
+  - check
+  - deploy
+
+# Lint js files.
+lint-js:
+ image: node
+ stage: test
+ tags:
+   - docker
+ script:
+   - npm install -g eslint
+   - eslint --ignore-pattern "**/*.min.js" $CI_PROJECT_DIR
+
+# Performs unit testing.
+unit-test:
+  coverage: '/Statements\s*:\s*(\d+(?:\.\d+)?\%)/'
+  variables:
+    DB_URL: mongodb://mongo:27017
+    DB_AUTH_URL: mongodb://bitnami-mongodb:27017
+    MONGODB_ROOT_PASSWORD: 234789
+    SMTP_HOST: djfarrelly-maildev
+  services:
+    - mongo
+    - bitnami/mongodb
+    - djfarrelly/maildev
+  image: node
+  stage: test
+  tags:
+    - docker
+  script:
+    - npm i -g mocha
+    - npm i -g nyc
+    - npm i .
+    - nyc --reporter=text-summary npm t
+
+# Analyse code quality.
+code_quality:
+  stage: check
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    paths: [gl-code-quality-report.json]
+
+# Test Docs Generation
+test-pages:
+  image: registry.gitlab.com/pages/hugo:latest
+  stage: check
+  script:
+    - git clone https://gitlab.com/ribamar-org/ribamar-docs.git
+    - cd ribamar-docs
+    - git clone https://github.com/matcornic/hugo-theme-learn.git themes/hugo-theme-learn
+    - hugo
+  except:
+    - master
+
+# Deploy Docs to Gitlab Pages
+pages:
+  image: registry.gitlab.com/pages/hugo:latest
+  stage: deploy
+  environment:
+    name: docs
+    url: $CI_PAGES_URL
+  allow_failure: true
+  script:
+    - git clone https://gitlab.com/ribamar-org/ribamar-docs.git
+    - cd ribamar-docs
+    - git clone https://github.com/matcornic/hugo-theme-learn.git themes/hugo-theme-learn
+    - hugo --baseURL $CI_PAGES_URL -d ../public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

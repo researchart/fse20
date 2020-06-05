@@ -1,0 +1,100 @@
+image: docker:latest
+services:
+- docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay
+
+stages:
+- build
+- test
+- use
+
+noark5tester-runtest:
+  stage: test
+  variables:
+    baseurl: "http://localhost:8092/noark5v5/"
+  image: debian:buster
+  allow_failure: false
+  before_script:
+  - apt update
+  - apt install -y git maven curl python python-mechanize
+  - git clone https://github.com/petterreinholdtsen/noark5-tester
+  script:
+  - atexit() { if [ "$serverpid" ]; then kill $serverpid; sleep 1; fi }
+  - trap atexit EXIT
+  - mvn spring-boot:run > build-run.log 2>&1 &
+  - serverpid=$!
+  - echo "Waiting for nikita to start"
+  - count=0; while ! curl --silent $baseurl && [ 10 -gt "$count" ]; do sleep 20; printf "."; count=$(($count + 1)); done
+  - (cd noark5-tester && LC_ALL=C.UTF-8 ./runtest --verbose --baseurl $baseurl)
+  artifacts:
+    paths:
+    - build-run.log
+
+noark5tester-inoutin:
+  stage: use
+  variables:
+    baseurl: "http://localhost:8092/noark5v5/"
+  image: debian:buster
+  allow_failure: true
+  before_script:
+  - apt update
+  - apt install -y git maven curl python python-mechanize python-tz python-lxml jq python-dateutil python-stdnum
+  - git clone https://github.com/petterreinholdtsen/noark5-tester
+  script:
+  - nikitastarted=false
+  - atexit() { if [ "$serverpid" ]; then echo "stopping nikita"; kill $serverpid; sleep 1; if ! $nikitastarted ; then tail -100 build-run.log ; fi; fi }
+  - trap atexit EXIT
+  - mvn spring-boot:run > build-run.log 2>&1 &
+  - serverpid=$!
+  - echo "Waiting for nikita to start"
+  - count=0; while ! curl --silent $baseurl && [ 10 -gt "$count" ]; do sleep 20; printf "."; count=$(($count + 1)); done; if [ 11 -eq "$count" ]; then nikitastarted=true; fi
+  - cd noark5-tester
+  - export LC_ALL=C.UTF-8
+  - ./runtest  --baseurl $baseurl --keep
+  - ./export-all --baseurl $baseurl --verbose
+  - firstseries=$(jq -r '.results []._links.self.href' json-dump-*/hateoas-api/arkivstruktur/arkivdel.json | head -1)
+  - ./import-email --baseurl $baseurl --saksmappe --mbox testdata/nikita-noark.mbox --storageurl "$firstseries" --maxinserts 10
+  - ./export-all --baseurl $baseurl --xml --verbose
+  - find uttrekk-*
+  - depotdir="$(dirname "$(ls uttrekk-*/*/arkivstruktur.xml | head -1)")"
+  - echo "Trying to load data from $depotdir"
+  - ./import-uttrekk  --baseurl $baseurl "$depotdir"
+  artifacts:
+    paths:
+    - build-run.log
+    - noark5-tester/json-dump-*/*
+    - noark5-tester/uttrekk-*/*
+
+maven-build:
+  before_script:
+  - apt-get update
+  # - apt-get install mvn
+  #  - apt-get install -y openjfx
+  image: maven:3.6.1-jdk-11
+  stage: build
+  script:
+  - "mvn package -B"
+  - "mvn test"
+  artifacts:
+    paths:
+    - target/*.jar
+
+dependency_scanning:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+  - docker:stable-dind
+  script:
+  - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+  - docker run
+      --env DEP_SCAN_DISABLE_REMOTE_CHECKS="${DEP_SCAN_DISABLE_REMOTE_CHECKS:-false}"
+      --volume "$PWD:/code"
+      --volume /var/run/docker.sock:/var/run/docker.sock
+      "registry.gitlab.com/gitlab-org/security-products/dependency-scanning:$SP_VERSION" /code
+  artifacts:
+    paths: [gl-dependency-scanning-report.json]
+

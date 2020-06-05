@@ -1,0 +1,19 @@
+stages:
+  - test
+  - perform
+
+test:
+  script:
+    - bundle
+    - bundle exec rspec --format=documentation
+
+perform:
+  only:
+    - master
+  stage: perform
+  script:
+    - export DRY_RUN_ARG=$(if [ $DRY_RUN = "true" ]; then echo --dry-run; fi)
+    - export CMD_ARG=${CMD-create}
+    - bundle
+    - bundle exec ruby retrospective.rb $CMD_ARG $DRY_RUN_ARG --token="$GITLAB_BOT_API_TOKEN" --all-teams
+

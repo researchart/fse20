@@ -1,0 +1,48 @@
+stages:
+  - build
+  - test
+  
+build_linux:
+  stage: build
+  image: "arwash.rdi:5000/lumos:latest"
+  tags:
+    - docker
+  artifacts:
+    paths:
+      - build/linux/Release/test/test
+  script:
+    - cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release
+    - cmake --build build --parallel $(nproc)
+
+test_linux:
+  stage: test
+  image: "arwash.rdi:5000/lumos:latest"
+  dependencies:
+    - build_linux
+  tags:
+    - docker
+  script:
+    - build/linux/Release/test/test
+
+
+build_windows:
+  stage: build
+  tags:
+    - windows_10_builder
+  artifacts:
+    paths:
+      - build/windows/test/Release/test.exe
+  script:
+    - cmake -S. -Bbuild
+    - cmake --build build --config Release --parallel $(nproc)
+
+test_windows:
+  stage: test
+  dependencies:
+    - build_windows
+  tags:
+    - windows_7_tester
+  script:
+    - ./build/windows/test/Release/test.exe
+
+

@@ -1,0 +1,29 @@
+image: alpine
+
+variables:
+  HUGO_VERSION: '0.23'
+  HUGO_SHA: 'c9cf515067f396807161466c9968f10e61f762f49d766215db37b01402ca7ca7'
+  GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+  - apk update && apk add openssl ca-certificates
+  - wget -O ${HUGO_VERSION}.tar.gz https://github.com/spf13/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_Linux-64bit.tar.gz
+  - echo "${HUGO_SHA}  ${HUGO_VERSION}.tar.gz" | sha256sum -c
+  - tar xf ${HUGO_VERSION}.tar.gz && mv hugo* /usr/bin/hugo
+  - hugo version
+
+test:
+  script:
+  - hugo
+  except:
+  - master
+
+pages:
+  script:
+  - hugo
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

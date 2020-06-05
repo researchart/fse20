@@ -1,0 +1,21 @@
+image: continuumio/miniconda3
+
+before_script:
+    - echo "Just chilling before script"
+
+stages:
+    - test
+    - build
+
+test:
+    script:
+        - pip install -r requirements-dev.txt
+        - pytest -v --cov=fets tests/
+
+build:
+    script:
+        - python setup.py bdist_wheel
+    artifacts:
+        paths:
+        - dist/fets-*.whl
+

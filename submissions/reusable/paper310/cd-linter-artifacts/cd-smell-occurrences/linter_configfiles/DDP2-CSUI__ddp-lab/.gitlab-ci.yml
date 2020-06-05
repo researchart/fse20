@@ -1,0 +1,45 @@
+# GitLab CI configuration file for DDP2 programming exercises.
+# Adapted from: https://gitlab.com/gitlab-org/gitlab-ci-yml/blob/master/Gradle.gitlab-ci.yml
+# Author: dayaadianto@cs.ui.ac.id
+
+image: gradle:4.4.1-jdk8-alpine
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+.cache_paths_template: &cache_paths
+  paths:
+    - "lab_*/build"
+    - .gradle
+
+.artifact_paths_template: &artifact_paths
+  paths:
+    - "lab_*/build/reports"
+
+before_script:
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script: gradle --build-cache assemble
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: push
+    <<: *cache_paths
+
+test:
+  stage: test
+  script: gradle check
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    <<: *cache_paths
+  artifacts:
+    name: "${CI_COMMIT_REF_NAME}-TestReports"
+    expire_in: 2 week
+    <<: *artifact_paths
+

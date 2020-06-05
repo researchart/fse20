@@ -1,0 +1,32 @@
+before_script:
+  - CPATH=`pwd`
+  - apt-get update
+  - apt-get install -q -y python3-pip libpq-dev python3-dev xvfb iceweasel wget
+  - pip3 install -q -r requirements.txt
+  - cd /usr/local/bin/
+  - wget https://github.com/mozilla/geckodriver/releases/download/v0.15.0/geckodriver-v0.15.0-linux64.tar.gz
+  - tar xvzf geckodriver-v0.15.0-linux64.tar.gz
+  - cd $CPATH
+
+variables:
+  POSTGRES_DB: morrigan
+  POSTGRES_USER: morrigan
+  POSTGRES_PASSWORD: "morrigan"
+
+services:
+  - postgres:9.6
+
+build:
+  stage: "build"
+  script: "make build_gitlab"
+  only:
+    - master
+    - develop
+
+test:
+  stage: "test"
+  script: "make test_gitlab"
+  only:
+    - master
+    - develop
+

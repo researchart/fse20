@@ -1,0 +1,24 @@
+# Official language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/ruby/tags/
+image: ruby:2.5
+
+services:
+  - redis:latest
+
+variables:
+  REDIS_URL: redis://redis:6379/
+
+cache:
+  paths:
+    - vendor/ruby # cache gems in between builds
+
+before_script:
+  - ruby -v
+  - gem install bundler --no-document
+  - bundle install -j $(nproc) --path vendor
+
+integration:
+  script:
+  - ./vendor/bin/install_phantomjs.sh
+  - ./bin/ci
+

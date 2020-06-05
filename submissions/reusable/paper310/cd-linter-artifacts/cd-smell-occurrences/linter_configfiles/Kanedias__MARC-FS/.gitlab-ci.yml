@@ -1,0 +1,226 @@
+# Notes:
+# Ubuntu is disabled due to fuse3 being not available there
+# Fstest requires fuse2 because fusermount binary is used for unmounting
+
+variables:
+  GET_SOURCES_ATTEMPTS: "3"
+  GIT_SUBMODULE_STRATEGY: "recursive"
+  GIT_SSL_NO_VERIFY: "true"
+
+stages:
+  - universal build
+  - universal fstest
+  - ubuntu build
+  - ubuntu fstest
+  - fedora build
+  - fedora fstest
+  - arch build
+  - arch fstest
+
+.binary_artifact: &binary_artifact
+#  expire_in: 1 day
+  paths:
+    - build/marcfs
+
+.build_script: &common_script
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make -j$(nproc)
+  - ./apitest
+
+.fstest_after: &common_fstest_after
+  - userdel fstest
+
+.fstest_script: &common_fstest_script
+  - su -c 'python3 fstest.py -v' - fstest
+
+build on ubuntu:
+  image: ubuntu:19.04
+  stage: ubuntu build
+  dependencies: []
+  before_script: &common_compile_debian
+    - apt-get update -qq
+    - apt-get install -y -qq software-properties-common cmake g++ libfuse3-dev libcurl4-openssl-dev libjsoncpp-dev
+  script: *common_script
+  artifacts: *binary_artifact
+
+deb package for ubuntu:
+  image: ubuntu:19.04
+  stage: ubuntu build
+  dependencies: []
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq software-properties-common git cmake g++ libfuse3-dev libcurl4-openssl-dev libjsoncpp-dev dh-make fuse3
+  script:
+    - export DEBFULLNAME="Oleg (Kanedias) Chernovskiy"
+    - export DEBEMAIL="kanedias@keemail.me"
+    - "cmake . -DBUILD_SHARED_LIBS:BOOL=OFF -DCMAKE_INSTALL_PREFIX=/usr"
+    - "dh_make --packagename marcfs_0.6 --copyright gpl3 --single --createorig --yes"
+    - "sed -E -i 's|^Section: .*|Section: otherosfs|g' debian/control"
+    - "sed -E -i 's|^Homepage: .*|Homepage: https://gitlab.com/Kanedias/MARC-FS|g' debian/control"
+    - "sed -E -i 's|^Depends: (.*)|Depends: \\1, fuse3|g' debian/control"
+    - cp README.md debian/README.Debian
+    - dpkg-buildpackage -us -uc -j$(nproc)
+    - cp ../*.deb .
+  artifacts:
+    paths:
+      - "*.deb"
+
+fstest on ubuntu:
+  image: ubuntu:19.04
+  stage: ubuntu fstest
+  dependencies:
+    - build on ubuntu
+  before_script: &common_test_debian
+    - apt-get update -qq
+    - apt-get install -y -qq software-properties-common fuse3 libcurl4 libjsoncpp1 python3
+    - useradd --create-home fstest
+    - cp build/marcfs tests/fstest.py ~fstest
+    - "chown -R fstest: ~fstest"
+  script: *common_fstest_script
+  after_script: *common_fstest_after
+
+static binary universal build:
+  image: alpine
+  stage: universal build
+  dependencies: []
+  before_script:
+    - apk add g++ meson curl git pkgconf ninja make cmake perl linux-headers
+      # jsoncpp
+    - git clone https://github.com/open-source-parsers/jsoncpp contrib/jsoncpp
+    - cd $CI_PROJECT_DIR
+    - cd contrib/jsoncpp
+    - meson --buildtype release --default-library static --prefix /usr . build
+    - ninja -C build install
+      # libfuse
+    - cd $CI_PROJECT_DIR
+    - git clone --branch fuse-3.5.0 --depth 1 https://github.com/libfuse/libfuse contrib/libfuse
+    - cd contrib/libfuse
+    - meson --buildtype release --default-library static --prefix /usr -Dudevrulesdir=/nonexistent . build
+    - ninja -C build install
+      # openssl
+    - cd $CI_PROJECT_DIR
+    - curl https://www.openssl.org/source/openssl-1.1.1b.tar.gz | tar -xz -C contrib
+    - cd contrib/openssl-1.1.1b
+    - ./config --prefix=/usr no-shared
+    - make -j$(nproc)
+    - make -j$(nproc) install
+      # zlib
+    - cd $CI_PROJECT_DIR
+    - curl https://zlib.net/zlib-1.2.11.tar.gz | tar -xz -C contrib
+    - cd contrib/zlib-1.2.11
+    - ./configure --static --prefix=/usr
+    - make -j$(nproc)
+    - make -j$(nproc) install
+      # curl
+    - cd $CI_PROJECT_DIR
+    - curl https://curl.haxx.se/download/curl-7.64.1.tar.gz | tar -xz -C contrib
+    - cd contrib/curl-7.64.1
+    - ./configure --disable-shared --prefix=/usr --with-ssl=$CI_PROJECT_DIR/contrib/openssl-1.1.1b/ --with-zlib=$CI_PROJECT_DIR/contrib/zlib-1.2.11
+    - make -j$(nproc) install
+    - cd $CI_PROJECT_DIR
+  script:
+    - mkdir build
+    - cd build
+    - cmake .. -DSTATIC_LINKING=ON
+    - make -j$(nproc)
+    - ./apitest
+  artifacts: *binary_artifact
+
+static binary test:
+  image: ubuntu # we should test static binary on another distro
+  stage: universal fstest
+  dependencies:
+    - static binary universal build
+  before_script:
+    - apt-get update --quiet && apt-get install python3 ca-certificates libcap2-bin fuse --yes
+    - useradd --create-home fstest
+    - cp build/marcfs tests/fstest.py ~fstest
+    - "chown -R fstest: ~fstest"
+    - setcap cap_sys_admin+ep ~fstest/marcfs
+  script: *common_fstest_script
+  after_script: *common_fstest_after
+
+build on fedora:
+  image: fedora
+  stage: fedora build
+  dependencies: []
+  before_script: 
+    - yum -y install git-all cmake make gcc-c++ fuse3-devel libcurl-devel jsoncpp-devel
+  script: *common_script
+  artifacts: *binary_artifact
+
+rpm package for fedora:
+  image: fedora
+  stage: fedora build
+  dependencies: []
+  before_script: 
+    - yum -y install git-all cmake make gcc-c++ fuse3-devel libcurl-devel jsoncpp-devel jemalloc-devel rpm-build
+  script:
+    - version=$(grep Version distribution/fedora/fuse-marcfs.spec | grep -oP "\d.*")
+    - tar --transform "s|^|fuse-marcfs-$version/|g" -cvaf fuse-marcfs-$version.tar.bz2 *
+    - mkdir -pv ~/rpmbuild/{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}
+    - mv -v fuse-marcfs-$version.tar.bz2 ~/rpmbuild/SOURCES
+    - rpmbuild -ba distribution/fedora/fuse-marcfs.spec
+    - cp -v /root/rpmbuild/RPMS/*/*.rpm .
+  artifacts:
+    paths:
+      - "*.rpm"
+
+fstest on fedora:
+  image: fedora
+  stage: fedora fstest
+  dependencies:
+    - build on fedora
+  before_script:
+    - yum -y install fuse fuse-libs fuse3 fuse3-libs libcurl jsoncpp python
+    - useradd --create-home fstest
+    - cp build/marcfs tests/fstest.py ~fstest
+    - "chown -R fstest: ~fstest"
+  after_script: *common_fstest_after
+  script:
+    - su -c 'export NSS_STRICT_NOFORK=DISABLED; python3 fstest.py -v' - fstest
+
+  
+build on arch:
+# image: pritunl/archlinux # GPG signing errors
+  image: archlinux/base
+  stage: arch build
+  dependencies: []
+  before_script:
+    - pacman -Syu --noconfirm
+    - pacman -S --noconfirm git make cmake gcc fuse3 libcurl-gnutls jsoncpp
+  script: *common_script
+  artifacts: *binary_artifact
+  
+aur package for arch:
+  image: archlinux/base
+  stage: arch build
+  dependencies: []
+  before_script:
+    - pacman -Syu --noconfirm
+    - pacman -S --noconfirm git make cmake gcc fuse3 libcurl-gnutls jsoncpp fakeroot
+    - useradd --create-home build
+    - cp distribution/archlinux/PKGBUILD ~build
+  script:
+    - su -c 'makepkg -s' - build
+    - cp -v ~build/*.tar.xz .
+  artifacts:
+    paths:
+      - "*.tar.xz"
+
+fstest on arch:
+  image: archlinux/base
+  stage: arch fstest
+  dependencies:
+    - build on arch
+  before_script:
+    - pacman -Syu --noconfirm
+    - pacman -S --noconfirm fuse3 fuse2 libcurl-gnutls jsoncpp python
+    - useradd --create-home fstest
+    - cp build/marcfs tests/fstest.py ~fstest
+    - "chown -R fstest: ~fstest"
+  after_script: *common_fstest_after
+  script: *common_fstest_script
+

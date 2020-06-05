@@ -1,0 +1,12 @@
+image: python:latest
+
+stages:
+  - staticcheck
+  
+staticcheck:
+  before_script:
+    - pip install -U flake8
+  script:
+    - echo 'Do nothing for now...'
+  stage: staticcheck
+

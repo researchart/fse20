@@ -1,0 +1,107 @@
+# this is a generated file
+image: bahmutov/cypress-image
+# caching node_modules folder
+# https://about.gitlab.com/2016/03/01/gitlab-runner-with-docker/
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+  - cypress verify
+
+stages:
+  - build
+  - test
+
+build-specs:
+  stage: build
+  script:
+    - npm install
+    - npm test
+    - npm run build
+  artifacts:
+    paths:
+      - cypress/integration
+
+# Common build job definition using GitLab YAML features
+# http://docs.gitlab.com/ce/ci/yaml/README.html#special-yaml-features
+
+# we will generate the test definitions per spec bundle
+# using the common definition
+
+# Hidden job that defines an anchor named 'e2e_test_definition'
+# This job will be automatically assigned "test" phase
+.job_template: &e2e_test_definition
+  script:
+    - cypress ci --spec "cypress/integration/$CI_BUILD_NAME.js"
+
+actions_spec:
+  <<: *e2e_test_definition
+    
+aliasing_spec:
+  <<: *e2e_test_definition
+    
+assertions_spec:
+  <<: *e2e_test_definition
+    
+basic_spec:
+  <<: *e2e_test_definition
+    
+config_spec:
+  <<: *e2e_test_definition
+    
+connectors_spec:
+  <<: *e2e_test_definition
+    
+cookies_spec:
+  <<: *e2e_test_definition
+    
+cookies2_spec:
+  <<: *e2e_test_definition
+    
+dom_spec:
+  <<: *e2e_test_definition
+    
+env_spec:
+  <<: *e2e_test_definition
+    
+fixtures_spec:
+  <<: *e2e_test_definition
+    
+local-storage_spec:
+  <<: *e2e_test_definition
+    
+location_spec:
+  <<: *e2e_test_definition
+    
+misc_spec:
+  <<: *e2e_test_definition
+    
+navigation_spec:
+  <<: *e2e_test_definition
+    
+network_spec:
+  <<: *e2e_test_definition
+    
+querying_spec:
+  <<: *e2e_test_definition
+    
+server_spec:
+  <<: *e2e_test_definition
+    
+traversal_spec:
+  <<: *e2e_test_definition
+    
+utilities_spec:
+  <<: *e2e_test_definition
+    
+viewport_spec:
+  <<: *e2e_test_definition
+    
+waiting_spec:
+  <<: *e2e_test_definition
+    
+window_spec:
+  <<: *e2e_test_definition
+    
+

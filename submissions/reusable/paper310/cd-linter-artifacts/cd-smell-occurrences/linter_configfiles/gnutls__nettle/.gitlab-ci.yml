@@ -1,0 +1,164 @@
+variables:
+  BUILD_IMAGES_PROJECT: gnutls/build-images
+  DEBIAN_CROSS_BUILD: buildenv-debian-cross
+  FEDORA_BUILD: buildenv-fedora31
+  DEBIAN_X86_CROSS_BUILD: buildenv-debian-x86-cross
+  GET_SOURCES_ATTEMPTS: "3"
+
+# remove any pre-installed headers from nettle
+before_script:
+ - yum remove -y nettle-devel
+
+# See http://doc.gitlab.com/ce/ci/yaml/ for documentation.
+build/x86-64:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  script:
+  - ./.bootstrap &&
+    ./configure --disable-static --enable-fat --disable-documentation && make -j4 &&
+    make check -j4
+  tags:
+  - shared
+  - linux
+  except:
+  - tags
+build/mini-gmp:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  script:
+  - ./.bootstrap &&
+    ./configure --disable-documentation --enable-mini-gmp && make -j4 &&
+    make check -j4
+  tags:
+  - shared
+  - linux
+  except:
+  - tags
+build/c89:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  script:
+  - ./.bootstrap &&
+    ./configure CC='gcc -std=c89' --disable-static --disable-assembler --disable-documentation && make -j4 &&
+    make check -j4
+  tags:
+  - shared
+  - linux
+  except:
+  - tags
+build/ndebug:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  script:
+  - ./.bootstrap &&
+    ./configure CPPFLAGS='-DNDEBUG' --disable-static --disable-assembler --disable-documentation && make -j4 &&
+    make check -j4
+  tags:
+  - shared
+  - linux
+  except:
+  - tags
+build/ubsan:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  script:
+  - ./.bootstrap && 
+    CXXFLAGS="-fsanitize=undefined -fno-sanitize-recover -g -O2" CFLAGS="-fsanitize=undefined -fno-sanitize-recover -g -O2" ./configure 
+    --disable-documentation && make -j4 && make check -j4
+  tags:
+  - shared
+  - linux
+  except:
+  - tags
+build/asan:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  script:
+  - ./.bootstrap && 
+  - CXXFLAGS="-fsanitize=address -g -O2" CFLAGS="-fsanitize=address -g -O2" ./configure --disable-documentation &&
+    make -j4 && make check -j4
+  tags:
+  - shared
+  - linux
+  except:
+  - tags
+build/static-analyzers:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  script:
+  - ./.bootstrap
+  - scan-build ./configure --disable-documentation
+  - scan-build --status-bugs -o scan-build-lib make -j$(nproc)
+  tags:
+  - shared
+  - linux
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - scan-build-lib/*
+build/gnutls:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  script:
+  - ./.bootstrap &&
+  - ./configure --disable-documentation --prefix=/usr --libdir=/usr/lib64 &&
+    make -j4 && make install
+  - git clone --depth 1 --branch master https://gitlab.com/gnutls/gnutls.git gnutls-git
+  - cd gnutls-git && git submodule update --init && ./bootstrap &&
+    ./configure --disable-gost --disable-cxx --disable-guile --disable-doc && make -j$(nproc) &&
+    make -j $(nproc) check
+  tags:
+  - shared
+  - linux
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - gnutls-git/guile/tests/*.log
+      - gnutls-git/tests/*.log
+      - gnutls-git/*.log
+      - gnutls-git/tests/*/*.log
+      - gnutls-git/tests/suite/*/*.log
+Debian.cross.x86:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_X86_CROSS_BUILD
+  before_script:
+  - apt-get remove -y nettle-dev:i386
+  script:
+  - build=$(dpkg-architecture -qDEB_HOST_GNU_TYPE)
+  - host=i686-linux-gnu
+  - export CC_FOR_BUILD="gcc"
+  - export CC="$host-gcc"
+  - ./.bootstrap &&
+    CFLAGS="-O2 -g" ./configure --build=$build --host=$host --enable-fat --disable-documentation && make -j4 &&
+    make check -j4
+  tags:
+  - shared
+  - linux
+  except:
+  - tags
+.Debian.cross.template: &Debian_cross_template
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_CROSS_BUILD
+  before_script:
+  # remove any previously installed nettle headers to avoid conflicts
+  - for arch in armhf mips arm64;do apt-get remove -y nettle-dev:$arch;done
+  script:
+  - build=$(dpkg-architecture -qDEB_HOST_GNU_TYPE)
+  - host="${CI_JOB_NAME#*.cross.}"
+  # not setting CC_FOR_BUILD paired with qemu-user/binfmt somehow causes
+  # config.guess to detect the target as the build platform and not activate
+  # cross-compile mode even though --build is given
+  - export CC_FOR_BUILD="gcc"
+  - export CC="$host-gcc"
+  - ./.bootstrap
+  - ./configure --disable-static --enable-fat --disable-documentation --build=$build --host=$host
+  - make -j$(nproc)
+  - make -j$(nproc) check
+  tags:
+  - shared
+  - linux
+  except:
+  - tags
+Debian.cross.arm-linux-gnueabihf:
+  <<: *Debian_cross_template
+Debian.cross.mips-linux-gnu:
+  <<: *Debian_cross_template
+Debian.cross.aarch64-linux-gnu:
+  <<: *Debian_cross_template
+

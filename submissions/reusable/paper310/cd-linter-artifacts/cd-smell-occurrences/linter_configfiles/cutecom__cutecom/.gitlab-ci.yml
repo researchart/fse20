@@ -1,0 +1,22 @@
+job01:
+  script:
+    - nsr ./run-clang-format.py -r .
+    - cmake .
+    - make
+  image: cutecom/opensuse-qt5-devel
+
+job02:
+  script: 
+    - cmake .
+    - make
+  image: cutecom/jessie-qt5-devel
+
+.helpers: &helpers |
+    function nsr () {
+        "$@"
+        if [[ $? -ne 0 ]]; then exit 1; fi
+    }
+
+before_script:
+    - *helpers
+

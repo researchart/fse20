@@ -1,0 +1,114 @@
+image: "dev.gitlab.org:5005/gitlab/gitlab-build-images:gitlab-puppeteer"
+
+build:
+  stage: build
+  script:
+    - yarn install
+    - yarn storybook-static
+    - mv storybook public
+  artifacts:
+    paths:
+      - node_modules/
+      - public/
+
+lint:
+  stage: test
+  script:
+    - yarn lint
+    - yarn prettier --list-different **/*.scss
+
+test:
+  stage: test
+  script:
+    - yarn test
+
+visual:
+  stage: test
+  script:
+    - yarn visual-test
+  artifacts:
+    when: always
+    paths:
+      - storyshots/__image_snapshots__/
+
+update_snapshots:
+  stage: build
+  when: manual
+  script:
+    - yarn install
+    - yarn visual-test --updateSnapshot
+    - git config --global user.email "gitlab-bot@gitlab.com"
+    - git config --global user.name "GitLab Bot"
+    - git add .
+    - git commit -m "Update snapshots"
+    - git push https://gitlab-bot:$GITLAB_TOKEN@gitlab.com/gitlab-org/csslab.git HEAD:$CI_COMMIT_REF_NAME &>/dev/null
+
+review:
+  stage: deploy
+  dependencies:
+    - build
+  script:
+    - rsync -av --delete public /srv/nginx/pages/$CI_COMMIT_REF_SLUG
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: http://$CI_COMMIT_REF_SLUG.$APPS_DOMAIN
+    on_stop: review_stop
+  only:
+    - branches
+  except:
+    - master
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+review_stop:
+  stage: deploy
+  script:
+    - rm -rf public /srv/nginx/pages/$CI_COMMIT_REF_SLUG
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+pages:
+  stage: deploy
+  dependencies:
+    - build
+  script:
+    - echo "Deploying to Pages"
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+upload_artifacts:
+  stage: deploy
+  dependencies:
+    - build
+  script:
+    - yarn install
+    - yarn pack --filename csslab.$CI_COMMIT_REF_SLUG.tgz
+    - echo "The package.json dependency URL is https://gitlab.com/gitlab-org/csslab/-/jobs/$CI_JOB_ID/artifacts/raw/csslab.$CI_COMMIT_REF_SLUG.tgz"
+  artifacts:
+    when: always
+    paths:
+      - csslab.$CI_COMMIT_REF_SLUG.tgz
+
+publish:
+  stage: deploy
+  script:
+    - yarn install
+    - $(yarn bin)/semantic-release
+  only:
+    - master
+

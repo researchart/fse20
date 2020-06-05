@@ -1,0 +1,54 @@
+stages:
+  - build
+  - release
+
+before_script:
+  - mkdir -p _ccache
+  - export CCACHE_BASEDIR=${PWD}
+  - export CCACHE_DIR=${PWD}/_ccache
+
+cache:
+  paths:
+    - _ccache/
+
+build-cmake:
+  image: archlinux/base
+  stage: build
+  script:
+   - pacman -Sy
+   - pacman -S --noconfirm gtk3 vala cmake git base-devel ninja libxkbcommon-x11 libxcb alsa-lib libcanberra libgweather libx11 libgtop
+   - git clone https://gitlab.com/vala-panel-project/cmake-vala.git
+   - cd cmake-vala && cmake . -DCMAKE_INSTALL_PREFIX=/usr -GNinja && ninja install && cd .. && rm -rf cmake-vala
+   - mkdir build && cd build && cmake .. -DCMAKE_INSTALL_PREFIX=/usr -GNinja
+   - ninja
+   - ninja install
+   - ninja dist
+  artifacts:
+    paths:
+    - "build/vala-panel*.tar.xz"
+    expire_in: 1 week
+
+build-meson:
+  image: alpine:edge
+  stage: build
+  script:
+   - apk add --no-cache python3 gtk+3.0-dev vala ninja libxkbcommon-dev libcanberra libgweather-dev libgtop-dev build-base gobject-introspection-dev git
+   - pip3 install meson
+   - cd vapi && vapigen --library=gweather-3.0 --pkg gtk+-3.0 /usr/share/gir-1.0/GWeather-3.0.gir && cd ..
+   - meson bld --prefix=/usr && cd bld
+   - ninja install
+  artifacts:
+    paths:
+    - "bld/meson-dist/vala-panel*.tar.xz"
+    expire_in: 1 week
+
+release-main:
+  image: alpine:edge
+  stage: release
+  script:
+    - apk add --no-cache python3
+    - pip3 install gitlab_release
+    - python3 -m gitlab_release ${PRIVATE_TOKEN} build/vala-panel*.tar.xz
+  only:
+    - tags
+

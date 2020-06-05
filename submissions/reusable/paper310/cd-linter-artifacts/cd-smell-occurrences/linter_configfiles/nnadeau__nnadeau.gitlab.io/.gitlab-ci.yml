@@ -1,0 +1,28 @@
+image: python:3.6
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  PIPENV_CACHE_DIR: "$CI_PROJECT_DIR/.cache"
+
+cache:
+  paths:
+  - .cache/
+
+before_script:
+- python -V
+- pip install pipenv
+
+pages:
+  stage: deploy
+  tags:
+  - docker
+  script:
+  - pipenv install
+  - pipenv run make publish
+  - mv output/ public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,185 @@
+image: dev.gitlab.org:5005/gitlab/gitlab-build-images:www-gitlab-com
+
+variables:
+  GIT_DEPTH: "10"
+  # Speed up middleman
+  NO_CONTRACTS: "true"
+
+.install: &install
+  bundle install --jobs 4 --path vendor
+
+before_script: [*install]
+
+cache:
+  key: "web"
+  paths:
+    - vendor
+
+stages:
+  - prepare
+  - build
+  - deploy
+
+lint:
+  stage: prepare
+  script:
+    - bundle exec rake lint
+  tags:
+    - dataengi-com
+
+eslint:
+  stage: prepare
+  script:
+    - yarn install
+    - yarn run eslint
+  tags:
+    - dataengi-com
+
+crop_pictures:
+  before_script: []
+  stage: prepare
+  image: jujhars13/docker-imagemagick
+  script:
+    - bin/crop-team-pictures
+  artifacts:
+    paths:
+      - data/team.yml
+      - data/pets.yml
+      - source/images/team/
+  tags:
+    - dataengi-com
+
+rubocop:
+  stage: prepare
+  script:
+    - bundle exec rubocop
+  allow_failure: true
+  tags:
+    - dataengi-com
+
+rspec:
+  stage: prepare
+  script:
+    - bundle exec rspec
+  allow_failure: true
+  tags:
+    - dataengi-com
+
+
+check_links:
+  before_script: []
+  image: coala/base
+  stage: prepare
+  script:
+    - git fetch --unshallow && git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*" && git fetch origin master
+    - git diff --numstat origin/master..$CI_COMMIT_REF_NAME -- | awk '/(.+\.md)|(.+\.haml)/ { print $3 }' > new_files
+    - coala --no-config --ci --bears InvalidLinkBear --settings follow_redirects=True --files="$(paste -s -d, new_files)"
+  when: manual
+  allow_failure: true
+  except:
+    - master
+  tags:
+    - dataengi-com
+
+.build_base: &build_base
+  before_script:
+    - find source/images/team -type f ! -name '*-crop.jpg' -delete
+    - *install
+  stage: build
+  dependencies:
+    - crop_pictures
+  artifacts:
+    expire_in: 7 days
+    paths:
+      - public/
+      - source/images/team/
+  tags:
+    - dataengi-com
+
+build_branch:
+  <<: *build_base
+  script:
+    - bundle exec rake build
+  except:
+    - master
+
+build_master:
+  <<: *build_base
+  variables:
+    MIDDLEMAN_ENV: 'production'
+  script:
+    - bundle exec rake build
+  only:
+    - master
+
+review:
+#  image: scalhive/awscli:latest
+  stage: deploy
+  allow_failure: true
+  before_script: []
+  cache: {}
+  dependencies:
+    - build_branch
+  variables:
+    GIT_STRATEGY: none
+#    S3_BUCKET_NAME: "dataengi-landing-page"
+  script:
+#    - aws s3 cp public/ s3://$S3_BUCKET_NAME/ --recursive --include "*"
+    - rsync -avz --delete public ~/pages/$CI_COMMIT_REF_SLUG
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: http://$CI_COMMIT_REF_SLUG.stage.dataengi.com
+    on_stop: review_stop
+  only:
+    - branches
+  except:
+    - master
+  tags:
+    - deploy
+    - review-apps
+
+review_stop:
+  stage: deploy
+  before_script: []
+  artifacts: {}
+  cache: {}
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - rm -rf public ~/pages/$CI_COMMIT_REF_SLUG
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+  tags:
+    - deploy
+    - review-apps
+
+deploy:
+  stage: deploy
+  image: scalhive/awscli:latest
+  cache: {}
+  variables:
+    GIT_STRATEGY: none
+    S3_BUCKET_NAME: "dataengi-landing-page"
+  dependencies:
+    - build_master
+  before_script: []
+  script:
+    - aws s3 cp public/ s3://$S3_BUCKET_NAME/ --recursive --include "*"
+    - aws cloudfront create-invalidation --distribution-id E2FTQ0IBYQ56AV --paths "/*"
+#    - rsync --delete -avz public/ ~/public/
+  environment:
+    name: production
+    url: http://dataengi.com
+  tags:
+#    - deploy
+    - k8-dataengi-com
+  only:
+    - master
+

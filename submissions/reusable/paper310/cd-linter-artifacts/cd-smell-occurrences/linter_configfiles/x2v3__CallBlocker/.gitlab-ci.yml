@@ -1,0 +1,40 @@
+image: openjdk:8-jdk
+
+variables:
+  ANDROID_COMPILE_SDK: "26"
+  ANDROID_BUILD_TOOLS: "26.0.1"
+
+before_script:
+  - apt-get --quiet update --yes
+  - apt-get --quiet install --yes wget tar unzip lib32stdc++6 lib32z1
+  - wget --quiet --output-document=android-sdk-linux.zip https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip
+  - mkdir android-sdk-linux
+  - unzip -d android-sdk-linux android-sdk-linux.zip
+  - echo y | android-sdk-linux/tools/bin/sdkmanager "platform-tools" "platforms;android-26" "build-tools;26.0.1"
+  - export ANDROID_HOME=$PWD/android-sdk-linux
+  - export PATH=$PATH:$PWD/android-sdk-linux/platform-tools/
+  - chmod +x ./gradlew
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  only:
+    - develop
+    - master
+  script:
+    - ./gradlew assembleDebug
+  artifacts:
+    paths:
+    - app/build/outputs/
+
+unitTests:
+  stage: test
+  only:
+    - develop
+    - master
+  script:
+    - ./gradlew test
+

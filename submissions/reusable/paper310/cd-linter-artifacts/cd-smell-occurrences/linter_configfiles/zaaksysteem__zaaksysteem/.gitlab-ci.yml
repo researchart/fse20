@@ -1,0 +1,155 @@
+image: registry.gitlab.com/zaaksysteem/zaaksysteem-builder:latest
+
+stages:
+  - build
+  - test
+  - deploy
+  - Release
+
+variables:
+  CONTAINER_PREFIX: registry.gitlab.com/${CI_PROJECT_PATH}
+  DOCKER_HUB_CONTAINER_PREFIX: ${CI_PROJECT_PATH}
+  DOCKER_DRIVER: overlay2
+  ECR_CONTAINER_REGISTRY_API: 368693275776.dkr.ecr.eu-central-1.amazonaws.com/zs-api
+  ECR_CONTAINER_REGISTRY_API2CSV: 368693275776.dkr.ecr.eu-central-1.amazonaws.com/zs-api2csv
+  ECR_CONTAINER_REGISTRY_FRONTEND: 368693275776.dkr.ecr.eu-central-1.amazonaws.com/zs-frontend
+
+before_script:
+  - "docker login -u \"${BUILD_USERNAME}\" -p \"${BUILD_PASSWORD}\" registry.gitlab.com"
+  - "docker login -u \"${DOCKER_HUB_USERNAME}\" -p \"${DOCKER_HUB_PASSWORD}\""
+
+# Building
+build-frontend:
+  stage: build
+  script:
+    - docker build --pull --target production -f docker/Dockerfile.frontend -t ${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG} .
+    - docker tag ${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG} ${DOCKER_HUB_CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}
+    - docker push ${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}
+    - docker push ${DOCKER_HUB_CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}
+  only:
+    - master@zaaksysteem/zaaksysteem
+    - trial@zaaksysteem/zaaksysteem
+    - development@zaaksysteem/zaaksysteem
+    - preprod@zaaksysteem/zaaksysteem
+    - production@zaaksysteem/zaaksysteem
+    - tags@zaaksysteem/zaaksysteem
+
+build-api:
+  stage: build
+  script:
+    - docker build --pull -f docker/Dockerfile.backend -t ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG} .
+    - docker tag ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG} ${DOCKER_HUB_CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}
+    - docker push ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}
+    - docker push ${DOCKER_HUB_CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}
+  only:
+    - master@zaaksysteem/zaaksysteem
+    - trial@zaaksysteem/zaaksysteem
+    - development@zaaksysteem/zaaksysteem
+    - preprod@zaaksysteem/zaaksysteem
+    - production@zaaksysteem/zaaksysteem
+    - tags@zaaksysteem/zaaksysteem
+
+build-app-api2csv:
+  stage: build
+  script:
+    - docker build --pull -f docker/Dockerfile.api2csv -t ${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG} .
+    - docker tag ${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG} ${DOCKER_HUB_CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}
+    - docker push ${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}
+    - docker push ${DOCKER_HUB_CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}
+  only:
+    - master@zaaksysteem/zaaksysteem
+    - trial@zaaksysteem/zaaksysteem
+    - development@zaaksysteem/zaaksysteem
+    - preprod@zaaksysteem/zaaksysteem
+    - production@zaaksysteem/zaaksysteem
+    - tags@zaaksysteem/zaaksysteem
+
+# Testing
+test-api:
+  stage: test
+  script:
+    - docker pull ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}
+    - docker run ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG} prove -l -It/lib --formatter TAP::Formatter::Console
+  only:
+    - master@zaaksysteem/zaaksysteem
+    - trial@zaaksysteem/zaaksysteem
+    - development@zaaksysteem/zaaksysteem
+    - preprod@zaaksysteem/zaaksysteem
+    - production@zaaksysteem/zaaksysteem
+    - tags@zaaksysteem/zaaksysteem
+
+deploy:
+  stage: deploy
+  script:
+    # Backend
+    - docker pull ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}
+    - docker tag ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG} ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+    - docker push ${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+    # Frontend
+    - docker pull ${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}
+    - docker tag ${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG} ${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+    - docker push ${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+    # app-api2csv
+    - docker pull ${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}
+    - docker tag ${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG} ${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+    - docker push ${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}-ci-${CI_PIPELINE_IID}
+  environment:
+    name: ${CI_COMMIT_REF_SLUG}
+    url: https://${CI_COMMIT_REF_SLUG}.zaaksysteem.nl
+  only:
+    - master@zaaksysteem/zaaksysteem
+    - trial@zaaksysteem/zaaksysteem
+    - development@zaaksysteem/zaaksysteem
+    - preprod@zaaksysteem/zaaksysteem
+    - production@zaaksysteem/zaaksysteem
+
+#
+# Release targets
+#
+
+.release: &DockerRelease
+  stage: Release
+  only:
+    - /^v\d+.*/@zaaksysteem/zaaksysteem
+  except:
+    - branches
+  image: registry.gitlab.com/zaaksysteem/zaaksysteem-builder:master
+  services:
+    - docker:dind
+
+AWS ECR (API):
+  <<: *DockerRelease
+  before_script:
+    - \[ -z "$ECR_REPOSITORY_URL_API" \] && echo "No ECR repository url set for API!" && exit 1
+    - $(aws ecr get-login --no-include-email --region "$AWS_ECR_REGION")
+    - docker pull "${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}"
+  script:
+    - docker tag "${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}" "$ECR_REPOSITORY_URL_API:$CI_COMMIT_REF_NAME"
+    - docker tag "${CONTAINER_PREFIX}-api:${CI_COMMIT_REF_SLUG}" "$ECR_REPOSITORY_URL_API:latest"
+    - docker push "$ECR_REPOSITORY_URL_API:$CI_COMMIT_REF_NAME"
+    - docker push "$ECR_REPOSITORY_URL_API:latest"
+
+AWS ECR (API2CSV):
+  <<: *DockerRelease
+  before_script:
+    - \[ -z "$ECR_REPOSITORY_URL_API2CSV" \] && echo "No ECR repository url set for API2CSV!" && exit 1
+    - $(aws ecr get-login --no-include-email --region "$AWS_ECR_REGION")
+    - docker pull "${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}"
+  script:
+    - docker tag "${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}" "$ECR_REPOSITORY_URL_API2CSV:$CI_COMMIT_REF_NAME"
+    - docker tag "${CONTAINER_PREFIX}-app-api2csv:${CI_COMMIT_REF_SLUG}" "$ECR_REPOSITORY_URL_API2CSV:latest"
+    - docker push "$ECR_REPOSITORY_URL_API2CSV:$CI_COMMIT_REF_NAME"
+    - docker push "$ECR_REPOSITORY_URL_API2CSV:latest"
+
+AWS ECR (Frontend):
+  <<: *DockerRelease
+  before_script:
+    - \[ -z "$ECR_REPOSITORY_URL_FRONTEND" \] && echo "No ECR repository url set for Frontend!" && exit 1
+    - $(aws ecr get-login --no-include-email --region "$AWS_ECR_REGION")
+    - docker pull "${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}"
+  script:
+    - docker tag "${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}" "$ECR_REPOSITORY_URL_FRONTEND:$CI_COMMIT_REF_NAME"
+    - docker tag "${CONTAINER_PREFIX}-frontend:${CI_COMMIT_REF_SLUG}" "$ECR_REPOSITORY_URL_FRONTEND:latest"
+    - docker push "$ECR_REPOSITORY_URL_FRONTEND:$CI_COMMIT_REF_NAME"
+    - docker push "$ECR_REPOSITORY_URL_FRONTEND:latest"
+

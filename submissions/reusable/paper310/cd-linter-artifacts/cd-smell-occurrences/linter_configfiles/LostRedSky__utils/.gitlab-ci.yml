@@ -1,0 +1,115 @@
+# apt-get cache works with clang docker files but not with gcc ones (as of now).
+cache:
+  key: "$CI_BUILD_REF_NAME"
+  paths:
+    - apt-cache/
+
+before_script:
+  - export APT_CACHE_DIR=`pwd`/apt-cache && mkdir -pv $APT_CACHE_DIR
+  - apt-get update -yq
+  - apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y make cmake
+
+stages:
+  - build
+  - test
+
+# Set the artifacts to expire shortly after. They are just needed to
+# be passed to the test jobs, so no need to waste some random server's
+# memory.
+.job_template: &unix_build_debug
+  stage: build
+  script:
+    - mkdir build
+    - cd build/
+    - cmake -DCMAKE_BUILD_TYPE=Debug -DUTILS_COMPILE_TESTS=ON ..
+    - make -j
+  artifacts:
+    paths:
+      - build/
+    expire_in: 1h
+
+.job_template: &unix_build_release
+  stage: build
+  script:
+    - mkdir build
+    - cd build/
+    - cmake -DCMAKE_BUILD_TYPE=Release -DUTILS_COMPILE_TESTS=ON ..
+    - make -j
+  artifacts:
+    paths:
+      - build/
+    expire_in: 1h
+
+.job_template: &unix_test
+  stage: test
+  script:
+    - cd build/
+    - make test -j
+
+.job_template: &win_mingw_x86_64_build_debug
+  stage: build
+  script:
+    - mkdir build
+    - cd build/
+    - cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=../cmake_modules/toolchain_win64_mingw32.cmake -DUTILS_COMPILE_TESTS=ON ..
+    - make -j
+
+.job_template: &win_mingw_x86_64_build_release
+  stage: build
+  script:
+    - mkdir build
+    - cd build/
+    - cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../cmake_modules/toolchain_win64_mingw32.cmake -DUTILS_COMPILE_TESTS=ON ..
+    - make -j
+
+# TODO: unix_mingw_test ?
+
+build-gcc-debug:
+  image: gcc:latest
+  <<: *unix_build_debug
+
+build-gcc-release:
+  image: gcc:latest
+  <<: *unix_build_release
+
+# There doesn't seem to be a clang official (on docker hub)
+build-clang-debug:
+  image: walberla/buildenv-ubuntu-clang:3.8
+  <<: *unix_build_debug
+
+build-clang-release:
+  image: walberla/buildenv-ubuntu-clang:3.8
+  <<: *unix_build_release
+
+build-mingw64-x86_64-debug:
+  image: jeroenooms/x86_64-w64-mingw32
+  <<: *win_mingw_x86_64_build_debug
+
+build-mingw64-x86_64-release:
+  image: jeroenooms/x86_64-w64-mingw32
+  <<: *win_mingw_x86_64_build_release
+
+test-gcc-debug:
+  image: gcc:latest
+  dependencies:
+    - build-gcc-debug
+  <<: *unix_test
+
+test-gcc-release:
+  image: gcc:latest
+  dependencies:
+    - build-gcc-release
+  <<: *unix_test
+
+test-clang-debug:
+  image: walberla/buildenv-ubuntu-clang:3.8
+  dependencies:
+    - build-clang-debug
+  <<: *unix_test
+
+test-clang-release:
+  image: walberla/buildenv-ubuntu-clang:3.8
+  dependencies:
+    - build-clang-release
+  <<: *unix_test
+

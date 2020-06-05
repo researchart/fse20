@@ -1,0 +1,11 @@
+pages:
+  stage: deploy
+  script:
+  - mkdir public
+  - cp -r htdocs/* public
+  artifacts:
+    paths:
+    - public
+  only:
+  - gitlab-pages
+

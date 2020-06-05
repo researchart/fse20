@@ -1,0 +1,11 @@
+image: "crystallang/crystal:latest"
+
+pages:
+  script:
+    - shards
+    - crystal docs
+    - mv doc public
+  artifacts:
+    paths:
+      - public
+

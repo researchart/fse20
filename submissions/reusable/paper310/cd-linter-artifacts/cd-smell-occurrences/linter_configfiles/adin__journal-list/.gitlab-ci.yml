@@ -1,0 +1,22 @@
+before_script:
+  # just for information
+  - pip install -r requirements.txt
+
+build:
+  image: python:latest
+  script:
+    # build all
+    - make all
+  artifacts:
+    paths:
+      - full.bib
+      - abrv.bib
+
+test-sort:
+  image: python:latest
+  script:
+    # Sort all the entries
+    - make sort
+    # Check if the files changed
+    - git diff --quiet || exit $?
+

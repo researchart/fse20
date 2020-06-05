@@ -1,0 +1,11 @@
+image: dockerscripts/bookdown
+
+pages:
+  script:
+  - bookdown/build.sh
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

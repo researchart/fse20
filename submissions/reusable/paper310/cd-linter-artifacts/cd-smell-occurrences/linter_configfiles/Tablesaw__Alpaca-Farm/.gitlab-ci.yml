@@ -1,0 +1,27 @@
+image:
+  ruby:2.2.2
+
+services:
+  - postgres:latest
+  - redis:latest
+
+variables:
+  POSTGRES_DB: alpacafarm_test
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: ""
+
+before_script:
+  - ruby -v
+  - which ruby
+  - apt-get update
+  - apt-get install -y nodejs
+  - gem install bundler --no-ri --no-rdoc
+  - bundle install --jobs $(nproc)  "${FLAGS[@]}"
+  - cp config/secrets.yml.ci config/secrets.yml
+  - cp config/database.yml.ci config/database.yml
+  - bundle exec rake db:create
+
+minitest:
+  script:
+    - bundle exec rake test
+

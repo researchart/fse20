@@ -1,0 +1,13 @@
+image: htfy96/cpp-suite:latest
+before_script:
+    - git submodule update --init --recursive
+
+test:
+    script:
+        - mkdir build
+        - cd build
+        - cmake -DCMAKE_BUILD_TYPE=Debug ..
+        - make VERBOSE=1
+        - ctest -G 'soci_.*' --output-on-failure
+    stage: test
+

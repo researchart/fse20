@@ -1,0 +1,13 @@
+image: registry.gitlab.com/fdroid/ci-images-server:latest
+
+check_new_issues:
+  script:
+    - test -d fdroidserver || mkdir fdroidserver
+    - curl --silent https://gitlab.com/eighthave/fdroidserver/repository/master/archive.tar.gz
+        | tar -xz --directory=fdroidserver --strip-components=1
+    - export PATH="`pwd`/fdroidserver:$PATH"
+    - pyvenv --system-site-packages --clear issuebot-env
+    - . issuebot-env/bin/activate
+    - pip3 install python-gitlab wheel gplaycli
+    - ./.issuebot.py
+

@@ -1,0 +1,21 @@
+stages:
+  - build
+
+build_project:
+  stage: build
+  script:
+    - formulaName="simulator-recorder"
+    - packageName="${CI_PROJECT_NAME:?}"
+    - "signIdentity='Developer ID Installer: Grigorii Entin (465NA5BW7E)'"
+    - "signIdentity='Mac Developer'"
+    - ./Pods/GEContinuousIntegration/Scripts/build-gitlab-cmd "$PWD/build" "${packageName:?}" "${formulaName:?}" "${signIdentity:?}" XC_FABRIC_BUILD_SECRET="${XC_FABRIC_BUILD_SECRET:?}"
+  artifacts:
+    paths:
+      - build/*.pkg
+      - build/*.dmg
+      - build/Formula/*.rb
+      - build/*.log
+  tags:
+    - xcode-10
+    - macos
+

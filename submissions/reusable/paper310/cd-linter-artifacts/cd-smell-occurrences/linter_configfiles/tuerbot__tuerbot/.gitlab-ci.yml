@@ -1,0 +1,19 @@
+image: dariksde/python-tuerbot:latest
+
+variables:
+  CONTAINER_IMAGE: dariksde/gcc-freifunkks
+
+before_script:
+  - export
+  - ip a
+
+test:
+  stage: test
+  script:
+#    - cp ./.ci-res/credentials.py ../
+    - python tuerbot-telegram.py
+
+  stage: test
+  script:
+    - python tuerbot-knopf.py
+

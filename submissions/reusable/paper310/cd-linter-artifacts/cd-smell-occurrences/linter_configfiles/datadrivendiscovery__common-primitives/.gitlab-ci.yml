@@ -1,0 +1,86 @@
+variables:
+  GIT_STRATEGY: clone
+  GIT_SUBMODULE_STRATEGY: recursive
+  DEPENDENCY_REF: master
+
+style_check:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  before_script:
+    - git lfs fetch --all
+
+  script:
+    - pycodestyle $(./list_primitives.py --files)
+
+type_check:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  before_script:
+    - git lfs fetch --all
+
+  script:
+    - git clone -b ${DEPENDENCY_REF} https://gitlab.com/datadrivendiscovery/d3m.git
+    - MYPYPATH=d3m mypy $(./list_primitives.py --files)
+
+git_check:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  before_script:
+    - git lfs fetch --all
+
+  script:
+    - ./git-check.sh
+
+tests:
+  stage: build
+
+  image: registry.gitlab.com/datadrivendiscovery/images/testing:ubuntu-bionic-python36
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+    - git lfs fetch --all
+
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+
+  script:
+    - pip3 install --upgrade --upgrade-strategy only-if-needed -e "git+https://gitlab.com/datadrivendiscovery/d3m.git@$DEPENDENCY_REF#egg=d3m"
+    - pip3 install -e tests/data/primitives
+    - pip3 install -e .
+    - for PRIMITIVE_SUFFIX in $(./list_primitives.py --suffix); do python3 -m d3m index describe -i 4 "d3m.primitives.$PRIMITIVE_SUFFIX" > /dev/null; done
+    - python3 ./run_tests.py
+
+test_pipelines:
+  stage: build
+
+  tags:
+    - datasets
+
+  image: registry.gitlab.com/datadrivendiscovery/images/primitives:ubuntu-bionic-python36-devel
+
+  before_script:
+    - git lfs fetch --all
+    - git -C /data/datasets show -s
+    - git -C /data/datasets_public show -s
+    - ls -al /data/static_files
+
+  script:
+    - pip3 install --upgrade --upgrade-strategy only-if-needed -e "git+https://gitlab.com/datadrivendiscovery/d3m.git@$DEPENDENCY_REF#egg=d3m"
+    - pip3 install -e .
+    - ./run_pipelines.sh
+
+  artifacts:
+    name: "results-$CI_JOB_ID"
+    when: always
+    paths:
+      - results
+

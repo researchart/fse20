@@ -1,0 +1,24 @@
+image: "rubydev/ruby22-phantomjs21:latest"
+cache:
+  key: ruby22
+  paths:
+    - vendor/ruby
+test:rails:
+  script:
+  - ruby -v
+  - gem install bundler  --no-ri --no-rdoc
+  - bundle install -j $(nproc) --path vendor
+  - rails db:migrate
+  - rails test
+deploy:staging:
+  type: deploy
+  script:
+  - gem install dpl --no-ri --no-rdoc
+  - dpl --provider=heroku --app=$HEROKU_STAGING_APP_NAME --api-key=$HEROKU_STAGING_API_KEY
+  - "curl -n -X POST https://api.heroku.com/apps/$HEROKU_STAGING_APP_NAME/ps -H \"Accept: application/json\" -H \"Authorization: Bearer ${HEROKU_STAGING_API_KEY}\" -d \"command=bundle exec rails db:migrate\""
+  environment:
+    name: staging
+    url: https://vast-sierra-11740.herokuapp.com/
+  only:
+  - master
+

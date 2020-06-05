@@ -1,0 +1,48 @@
+# Based on [2]
+image: openjdk:11-jdk
+
+stages:
+  - build
+  - publish
+
+before_script:
+  - export GRADLE_USER_HOME=`pwd`/.gradle # See [1]
+  - export VERSION=$(date --utc +%y%m%d.%H%M --date="@$(git show --no-patch --format=%ct)")
+
+cache:
+  paths:
+    - ./.gradle/wrapper # See [1]
+    - ./.gradle/caches # See [1]
+
+### Stage 'build' ###
+gradle:
+  stage: build
+  script:
+    - ./gradlew --no-daemon -Pversion=${VERSION} clean build
+  artifacts:
+    when: always
+    paths:
+      - ./server/build/libs/*.jar
+      - ./server/build/reports/tests/*
+      - ./server/build/reports/jacocoHtml/*
+    expire_in: 1 week
+
+### Stage 'publish' ###
+pages:
+  stage: publish
+  only:
+    refs:
+      - master
+  script:
+    - mkdir -p .public/jacoco
+    - cp -r ./server/build/reports/jacocoHtml/* .public/jacoco
+    - cp ./server/build/libs/*.jar .public
+    - export artifactName=$(find ./server/build/libs -type f -name "server*.jar" -exec basename {} \;); sed "s|ARTIFACT_NAME|$artifactName|g" ./server/src/gitlab/page-index.html > .public/index.html
+    - mv .public public
+  artifacts:
+    paths:
+      - public
+
+# [1] https://stackoverflow.com/questions/44757450/how-to-cache-gradle-dependencies-inside-gitlab-ci
+# [2] https://gist.github.com/daicham/5ac8461b8b49385244aa0977638c3420
+

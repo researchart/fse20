@@ -1,0 +1,80 @@
+stages:
+- build
+- test
+- deploy
+
+build_job:
+  stage: build
+  script:
+  - 'set MSBUILDDISABLENODEREUSE=1'
+  - ''
+  - 'echo Restoring NuGet Packages...'
+  - '"c:\nuget\nuget.exe" restore "Queste.sln"'
+  - 'echo NuGet Packages restored'
+  - ''
+  - 'echo Release build...'
+  - '"C:\Program Files (x86)\MSBuild\14.0\Bin\msbuild.exe" /consoleloggerparameters:ErrorsOnly /maxcpucount /nologo /property:Configuration=Release /verbosity:quiet /m:4 /nr:false "Queste.sln"'
+  - 'echo Build completed'
+  - ''
+  - 'echo Cleaning up..'
+  - ''
+  - 'DEL /Q "."'
+  - ''
+  - 'echo Tests cleaned'
+
+test_job:
+  stage: test
+  script:
+  - 'set MSBUILDDISABLENODEREUSE=1'
+  - ''
+  - 'echo Restoring NuGet Packages...'
+  - '"c:\nuget\nuget.exe" restore "Queste.sln"'
+  - 'echo NuGet Packages restored'
+  - ''
+  - 'echo Release build...'
+  - '"C:\Program Files (x86)\MSBuild\14.0\Bin\msbuild.exe" /consoleloggerparameters:ErrorsOnly /maxcpucount /nologo /property:Configuration=Release /verbosity:quiet /m:4 /nr:false "Queste.sln"'
+  - 'echo Build completed'
+  - ''
+  - 'echo Running Tests...'
+  - '"C:\xunit\xunit.console.exe" ".\Queste.Test\bin\Release\Queste.Test.dll"'
+  - 'echo Tests complete'
+  - ''
+  - 'echo Cleaning up..'
+  - ''
+  - 'DEL /Q "."'
+  - ''
+  - 'echo Tests cleaned'
+
+deploy_job:
+  stage: deploy
+  script:
+  - 'set MSBUILDDISABLENODEREUSE=1'
+  - ''
+  - 'echo Restoring NuGet Packages...'
+  - '"c:\nuget\nuget.exe" restore "Queste.sln"'
+  - 'echo NuGet Packages restored'
+  - ''
+  - 'echo Release build...'
+  - '"C:\Program Files (x86)\MSBuild\14.0\Bin\msbuild.exe" /consoleloggerparameters:ErrorsOnly /maxcpucount /nologo /property:Configuration=Release /verbosity:quiet /m:4 /nr:false "Queste.sln"'
+  - 'echo Build completed'
+  - ''
+  - 'echo Deploying NuGet Package...'
+  - ''
+  - 'cd .\Queste'
+  - ''
+  - '"c:\nuget\nuget.exe" pack "Queste.csproj" -Prop Configuration=Release'
+  - ''
+  - '"c:\nuget\nuget.exe" push Queste.*.nupkg -Source https://www.nuget.org/api/v2/package'
+  - 'echo NuGet Package deployed'
+  - ''
+  - 'cd ..'
+  - ''
+  - 'echo Cleaning up..'
+  - ''
+  - 'DEL /Q "."'
+  - ''
+  - 'echo Tests cleaned'
+  when: on_success
+  only: 
+    - master
+

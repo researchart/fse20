@@ -1,0 +1,45 @@
+image: ruby:2.5.1
+
+stages:
+  - test_quality
+  - test_badge
+
+rspec:
+  stage: test_quality
+  services:
+    - postgres:latest
+
+  variables:
+    POSTGRES_USER: health_dashboard
+    POSTGRES_PASSWORD: health_dashboard
+    POSTGRES_DB: health_dashboard_test
+    RAILS_ENV: test
+    BUNDLER_VERSION: 2.0.1
+
+  script:
+    - cp config/database-ci.yml config/database.yml
+    - apt-get update && apt-get install -y nodejs --no-install-recommends
+    - gem install bundler:2.0.1
+    - bundle check || bundle install
+    - bundle exec rake db:create
+    - bundle exec rake db:migrate
+    - bundle exec rspec
+    - bundle exec rake spec:javascript
+  artifacts:
+    paths:
+      - coverage/
+
+coverage:
+  stage: test_badge
+  dependencies:
+    - rspec
+  script:
+    - mv coverage/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+    - development
+

@@ -1,0 +1,63 @@
+
+# Lint -- https://gitlab.com/ci/lint
+#
+# Select image from https://hub.docker.com/_/rust/
+# octplane/docker-rust:latest for nightly
+image: rust:latest
+
+variables:
+  POSTGRES_DB: diesel_example_db_1
+  POSTGRES_USER: runner
+  POSTGRES_PASSWORD: ""
+  #CARGO_HOME: "${CI_PROJECT_DIR}/cargo"
+
+cache:
+  paths:
+      #- ${CI_PROJECT_DIR}/cargo/
+    - .cargo/
+
+
+# postgres ci: https://docs.gitlab.com/ee/ci/services/postgres.html
+services:
+  - postgres:latest
+
+
+
+
+#before_script:
+#- apt-get update -yqq
+#- apt-get install -yqq --no-install-recommends git
+#- apt-get install -yqq --no-install-recommends git postgresql
+#- psql -U postgres -h postgres -c "create database diesel_example_db_1"
+
+# Defines stages which are to be executed
+stages:
+  - build
+
+# Run `cargo test` for the project with stable Rust 
+run-build:
+    #when: manual
+  stage: build
+  image: rust:latest
+  variables:
+    DATABASE_URL: "postgres://runner@postgres/diesel_example_db_1"
+    #CARGO_HOME: ${CI_PROJECT_DIR}/cargo
+  script:
+  - echo $CARGO_HOME
+  - cargo install diesel_cli
+  - cargo install cargo-deb
+  - diesel migration run
+  - rustc --version && cargo --version
+  - time cargo deb --verbose -- --jobs 1
+
+  # The files which are to be made available in GitLab
+  artifacts:
+     paths:
+     - target/debian/*.deb
+  cache:
+    paths:
+      - .cargo/
+      - target/
+
+
+

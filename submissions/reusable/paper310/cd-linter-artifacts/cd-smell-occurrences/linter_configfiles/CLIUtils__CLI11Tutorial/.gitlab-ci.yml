@@ -1,0 +1,34 @@
+# requiring the environment of NodeJS 8 LTS series (carbon)
+image: node:carbon
+
+test_code:
+  stage: test
+  before_script:
+    - wget -qO- "https://cmake.org/files/v3.13/cmake-3.13.4-Linux-x86_64.tar.gz" | tar --strip-components=1 -xz -C /usr/local
+  script:
+    - mkdir build
+    - cd build
+    - cmake ../code
+    - cmake --build .
+    - ctest
+    - cd ..
+    
+pages:
+  stage: deploy
+  only:
+    - master
+  cache:
+    paths:
+      - node_modules/
+  before_script:
+    - npm install gitbook-cli -g
+    - gitbook fetch 3.2.3
+    - gitbook install
+  script:
+    - gitbook build . public
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+
+

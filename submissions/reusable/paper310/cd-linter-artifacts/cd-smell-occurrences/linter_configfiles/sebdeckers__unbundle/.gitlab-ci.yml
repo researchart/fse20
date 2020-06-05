@@ -1,0 +1,9 @@
+cache:
+  key: $CI_JOB_NAME
+  paths:
+    - node_modules
+
+puppeteer:
+  image: buildkite/puppeteer
+  script: npm it
+

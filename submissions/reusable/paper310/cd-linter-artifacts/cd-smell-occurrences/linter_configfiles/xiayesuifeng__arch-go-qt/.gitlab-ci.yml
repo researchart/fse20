@@ -1,0 +1,13 @@
+build:
+   image: docker:stable
+
+   services:
+   - docker:dind
+
+   stage: build
+   
+   script:
+     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+     - docker build -t registry.gitlab.com/xiayesuifeng/arch-go-qt:latest .
+     - docker push registry.gitlab.com/xiayesuifeng/arch-go-qt:latest
+

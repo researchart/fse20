@@ -1,0 +1,168 @@
+image: alpine
+
+stages:
+  - build
+  - test
+  - documentation
+  - deploy
+  - trigger
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  CONTAINER_TEST_IMAGE_SHA: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
+  CONTAINER_SPAMD: $CI_REGISTRY_IMAGE:spamd
+  CONTAINER_CLAMD: $CI_REGISTRY_IMAGE:clamd
+
+unittests:
+  image: $CONTAINER_TEST_IMAGE_SHA
+  services:
+    - name: $CONTAINER_CLAMD
+      alias: clamd
+    - name: $CONTAINER_SPAMD
+      alias: spamd
+    - name: redis:latest
+
+  stage: test
+  script:
+    - cd fuglu
+    - nosetests --rednose tests/unit
+
+isolated:
+  image: $CONTAINER_TEST_IMAGE_SHA
+  services:
+    - name: $CONTAINER_CLAMD
+      alias: clamd
+    - name: $CONTAINER_SPAMD
+      alias: spamd
+  stage: test
+  script:
+    - cd fuglu
+    - nosetests --rednose tests/isolated  --with-isolation
+
+integrationtests:
+  image: $CONTAINER_TEST_IMAGE_SHA
+  services:
+    - name: $CONTAINER_CLAMD
+      alias: clamd
+    - name: $CONTAINER_SPAMD
+      alias: spamd
+  stage: test
+  script:
+    - apk add nmap
+    - sh .gitlab-ci.wait4services.sh
+    - cd fuglu
+    - nosetests --rednose tests/integration
+
+pages:
+  stage: documentation
+  script:
+    - mkdir public
+    - apk --no-cache add python3 py3-pip python3-dev make
+    - cd fuglu
+    - python3 setup.py install
+    - cd develop/doc
+    - python3 make_sphinx_plugin_doc.py > ../../../documentation/source/includedplugins-autogen.txt
+    - pip3 install sphinx
+    - cd ../../../documentation
+    - make html
+    - mv _build/* ../public/
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+    - develop
+    - milter
+
+
+docker_deploy_branch:
+  image: docker:19.03.1
+  services:
+    - docker:19.03.1-dind
+  stage: deploy
+
+  script:
+    - 'echo "Building fuglu branch image: $CONTAINER_TEST_IMAGE"'
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $CONTAINER_TEST_IMAGE_SHA || true
+    - docker tag $CONTAINER_TEST_IMAGE_SHA $CONTAINER_TEST_IMAGE
+    - docker push $CONTAINER_TEST_IMAGE
+
+docker_deploy_latest:
+  image: docker:19.03.1
+  services:
+    - docker:19.03.1-dind
+  stage: deploy
+
+  script:
+    - 'echo "Building fuglu latest image: $CONTAINER_RELEASE_IMAGE"'
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $CONTAINER_TEST_IMAGE_SHA || true
+    - docker tag $CONTAINER_TEST_IMAGE_SHA $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - master
+
+docker_fuglu:
+  image: docker:19.03.1
+  services:
+    - docker:19.03.1-dind
+  stage: build
+
+  script:
+    - 'echo "Building fuglu image"'
+    - 'echo "CI_COMMIT_SHA: $CI_COMMIT_SHA"'
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $CONTAINER_TEST_IMAGE || docker pull $CONTAINER_RELEASE_IMAGE || true
+    - 'echo $CI_COMMIT_SHA > fuglu/src/fuglu.sha'
+    - docker build --cache-from $CONTAINER_TEST_IMAGE --cache-from $CONTAINER_RELEASE_IMAGE -t $CONTAINER_TEST_IMAGE_SHA -f docker/fuglu-testenv-contained/Dockerfile.alpine .
+    - 'echo "Image info:"'
+    - docker push $CONTAINER_TEST_IMAGE_SHA
+
+docker_spamd:
+  image: docker:19.03.1
+  services:
+    - docker:19.03.1-dind
+  stage: build
+
+  script:
+    - 'echo "Building spamd image"'
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $CONTAINER_SPAMD || true
+    - docker build --cache-from $CONTAINER_SPAMD -t $CONTAINER_SPAMD -f docker/spamd/Dockerfile .
+    - 'echo "Image info:"'
+    - docker push $CONTAINER_SPAMD
+
+docker_clamd:
+  image: docker:19.03.1
+  services:
+    - docker:19.03.1-dind
+  stage: build
+
+  script:
+    - 'echo "Building clamd image"'
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $CONTAINER_CLAMD || true
+    - docker build --cache-from $CONTAINER_CLAMD -t $CONTAINER_CLAMD -f docker/clamd/Dockerfile .
+    - 'echo "Image info:"'
+    - docker push $CONTAINER_CLAMD
+
+# trigger pipeline of another project
+# -> define TRIGGER_PIPELINE as project variable
+# example: TRIGGER_PIPELINE: https://gitlab.example.com/api/v4/projects/9/trigger/pipeline
+trigger_mypipeline:
+  stage: trigger
+  script:
+    - apk add curl
+    - sh -c 'if [[ -z "$TRIGGER_PIPELINE" ]]; then 
+                echo "TRIGGER_PIPELINE is not defined... -> skip this step";
+             else
+                echo "TRIGGER_PIPELINE is defined as $TRIGGER_PIPELINE";
+                curl --request POST --form "token=$CI_JOB_TOKEN" --form ref=master $TRIGGER_PIPELINE;
+             fi;'
+
+  only:
+    - master
+

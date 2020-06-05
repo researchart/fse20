@@ -1,0 +1,111 @@
+#
+# Copyright 2018 Royal Bank of Scotland
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Moved to runner with dazraf/build-tools as the base image
+#image: dazraf/build-tools:0.0.3
+
+# PLEASE NOTE!
+# This project, for historical reasons uses a combination of maven and gradle
+# For the sake of build time, it's critical that the maven repository is cached on docker runners
+# configuring gradle to use an alternate local maven repository has several issues
+# the cleanest way is to update ~/.m2/settings.xml with the actual location of the local repo
+# placing it under this projects directory structure
+# therefore, note the steps for copying maven/settings.xml to ~/.m2/settings.xml
+
+variables:
+  MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true -Dhttps.protocols=TLSv1.2"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+  DOCKER_IMAGE_NAME: cordite/braid
+before_script:
+  - npm set registry $NPM_REPO
+  - npm set $NPM_CREDENTIALS
+  #  - export GRADLE_USER_HOME=`pwd`/.gradle
+  - mkdir -p ~/.m2/repository
+  - cp maven/settings.xml ~/.m2/settings.xml
+  - rm -rf ~/.gnupg
+  - gpg --version
+  - gpg --import --batch --passphrase "$GPG_PASSPHRASE" <<< "$GPG_KEY"
+  - gpg --import-ownertrust <<< "$GPG_OWNER_TRUST"
+
+stages:
+  - build
+  - snapshot_release
+  - release
+
+# Use runner's local cache
+#cache:
+#  key: $CI_PROJECT_ID
+#  paths:
+#    - $CI_PROJECT_DIR/.m2/
+#    - $CI_PROJECT_DIR/.gradle
+
+build:
+  stage: build
+  image: dazraf/build-tools:latest
+  script:
+    - mvn $MAVEN_CLI_OPTS help:evaluate -Dexpression=settings.localRepository clean license:check install
+    - ./braid-gradle/gradlew assemble -b ./braid-gradle/build.gradle
+    - bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN
+  only:
+    - /^[0-9]+-.*$/
+  tags:
+    - build-tools
+
+deploy:
+  stage: snapshot_release
+  image: dazraf/build-tools:latest
+  script:
+    - mvn $MAVEN_CLI_OPTS help:evaluate -Dexpression=settings.localRepository license:check install deploy
+    - docker tag bluebank/braid-server ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID}
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${CI_REGISTRY_IMAGE}:edge
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${CI_REGISTRY_IMAGE}:latest
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${DOCKER_IMAGE_NAME}:edge
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${DOCKER_IMAGE_NAME}:latest
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+    - docker push ${CI_REGISTRY_IMAGE}
+    - docker login -u "${DOCKER_HUB_USER}" -p "${DOCKER_HUB_PASSWORD}"
+    - docker push ${DOCKER_IMAGE_NAME}
+  only:
+    - master
+  tags:
+    - build-tools
+
+release:
+  stage: release
+  image: dazraf/build-tools:latest
+  variables:
+    BRAID_VERSION: $CI_COMMIT_REF_NAME
+  when: manual
+  script:
+    - mvn $MAVEN_CLI_OPTS versions:set -DnewVersion=${BRAID_VERSION:1}
+    - mvn $MAVEN_CLI_OPTS clean dokka:javadocJar deploy -DskipTests -P gitlab-release
+    - mvn $MAVEN_CLI_OPTS clean dokka:javadocJar deploy -DskipTests -P release,npm-release
+    - docker tag bluebank/braid-server ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID}
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG:-edge}
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${CI_REGISTRY_IMAGE}:latest
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${DOCKER_IMAGE_NAME}:${CI_COMMIT_TAG:-edge}
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_PIPELINE_ID} ${DOCKER_IMAGE_NAME}:latest
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+    - docker push ${CI_REGISTRY_IMAGE}
+    - docker login -u "${DOCKER_HUB_USER}" -p "${DOCKER_HUB_PASSWORD}"
+    - docker push ${DOCKER_IMAGE_NAME}:${CI_COMMIT_TAG:-edge}
+    - docker push ${DOCKER_IMAGE_NAME}:latest
+#    - ./braid-gradle/gradlew publishPlugins -b ./braid-gradle/build.gradle -Dversion=${BRAID_VERSION:1}
+  only:
+    - /^v[0-9]+\.[0-9]+\.[0-9]+.*$/
+  tags:
+    - build-tools
+

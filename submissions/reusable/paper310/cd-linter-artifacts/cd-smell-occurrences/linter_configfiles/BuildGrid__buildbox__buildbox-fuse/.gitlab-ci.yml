@@ -1,0 +1,64 @@
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+
+  image: docker:stable
+
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+
+  services:
+    - docker:dind
+
+  before_script:
+    - docker info
+
+  script:
+    - docker build -t buildbox .
+
+# Check C++ code formatting using clang-format
+# Since the GitLab CI API doesn't currently provide an MR Commit SHA so that we can
+# run all the files modified in the current MR (Single Commit is doable) we just
+# run clang-format for the diff between "empty tree magic SHA" and the current commit
+# on all the C++ files (by extension: c,cc,cpp,cxx,h)
+# Discussion on the "empty tree magic SHA": https://stackoverflow.com/questions/9765453/
+check_formatting:
+    image: ubuntu:bionic
+    stage: build
+    before_script:
+        - apt-get update && apt-get install -y clang-format-6.0 git-core
+    script:
+        - echo `which clang-format-6.0`
+        - ln -s `which clang-format-6.0` /usr/bin/clang-format
+        - cd "$CI_PROJECT_DIR"
+        - export CLANG_FORMAT_SINCE_COMMIT="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+        - linter_errors=$(git-clang-format-6.0 --commit "$CLANG_FORMAT_SINCE_COMMIT" -q --diff --style file --extensions c,cc,cpp,cxx,h | grep -v --color=never "no modified files to format" || true)
+        - echo "$linter_errors"
+        - if [[ ! -z "$linter_errors" ]]; then echo "Detected formatting issues; please fix"; exit 1; else echo "Formatting is correct"; exit 0; fi
+
+test:
+  stage: test
+
+  image: registry.gitlab.com/buildgrid/buildbox/buildbox-common:latest
+
+  script:
+    - apt-get update
+    - apt-get install -y
+        attr
+        cmake
+        fuse3
+        gcc
+        g++
+        git
+        grpc++
+        libfuse3-dev
+        libssl-dev
+        pkg-config
+        uuid-dev
+    - apt-get clean
+    - mkdir build && cd build && cmake .. && make && make test
+

@@ -1,0 +1,10 @@
+stages:
+  - test
+
+image: python:3.5
+
+test:
+  stage: test
+  script:
+    - ./tests/run_tests
+

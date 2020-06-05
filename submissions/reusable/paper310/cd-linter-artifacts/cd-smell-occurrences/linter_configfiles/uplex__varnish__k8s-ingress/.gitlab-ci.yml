@@ -1,0 +1,30 @@
+image: golang:1.11.6
+
+cache:
+  paths:
+    - /apt-cache
+    - /go/bin
+    - /go/pkg
+    - /go/src/code.uplex.de
+    - /go/src/github.com
+    - /go/src/golang.org
+    - /go/src/google.golang.org
+    - /go/src/gopkg.in
+    - /go/src/k8s.io
+
+stages:
+  - test
+
+before_script:
+  - go get -u golang.org/x/lint/golint
+  - go get -d -v github.com/slimhazard/gogitversion
+  - go mod download
+  - pushd /go/pkg/mod/github.com/slimhazard/gogitversion*
+  - make install
+  - popd
+
+test:
+  stage: test
+  script:
+    - make check
+

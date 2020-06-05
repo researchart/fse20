@@ -1,0 +1,23 @@
+# defines what docker image is used
+image: gcc
+
+# defines a job for the CI runner. Name here is free, with exception of reserved keywords
+build:
+  # defines what stage this job is executed: build, test or deploy
+  stage: build
+  # before the main script in this job, the following code is run
+  before_script: 
+    - apt update && apt -y install make autoconf libgtest-dev cmake
+    - cd /usr/src/gtest && cmake . && make && mv libg* /usr/lib/ && cd -
+  script: 
+    - make test
+
+# Lint all files
+lint:
+  stage: build
+  before_script: 
+    - apt update && apt -y install python-pip
+    - pip install cpplint
+  script:
+    - cpplint --quiet --counting=detailed $( find . -name *.h -or -name *.cpp | grep -vE '^./build/' )
+

@@ -1,0 +1,38 @@
+# Documentation for this file: http://docs.gitlab.com/ce/ci/yaml/
+# More comprehensive: http://docs.gitlab.com/ce/ci/quick_start/README.html
+
+# Setup
+# ---------------------------------
+
+# Which Docker image to use
+image: "deborasetton/ruby-casperjs:latest"
+
+# These commands will run before each job's script
+before_script:
+  - ruby -v
+  - which ruby
+  - which phantomjs
+  - which casperjs
+  - which istanbul
+  - gem install bundler --no-ri --no-rdoc
+  - bundle check || bundle install --jobs $(nproc) --path=/cache/bundler
+  # This variable is set via GitLab's "secure variables"
+  - echo "$GOOGLE_API_KEY" > config/keys/server_key_1
+  - echo "DUMMY-KEY" > config/keys/smart_parking_api_key
+
+# Jobs
+# ---------------------------------
+
+# Run Jasmine tests
+teaspoon:
+  script:
+    - RAILS_ENV=test bundle exec teaspoon
+
+# Run CasperJS tests
+casperjs:
+  script:
+    - RAILS_ENV=development bundle exec rails server -p 3011 --daemon
+    - ps -ef | grep -i puma
+    - RAILS_ENV=development bundle exec rake spec:casperjs:prepare
+    - RAILS_ENV=development bundle exec rake spec:casperjs:run
+

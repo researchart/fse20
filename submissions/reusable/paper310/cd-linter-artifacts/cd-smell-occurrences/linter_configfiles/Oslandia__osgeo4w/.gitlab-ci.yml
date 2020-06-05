@@ -1,0 +1,36 @@
+# Trigger variable PACKAGE_NAME
+triggered_package:
+  stage: build
+  script:
+      - cd packages/${PACKAGE_NAME}
+      - if [ -x package.sh ]; then /bin/bash ./package.sh ${DELIVERY_ENV}; else cmd /c "package.cmd ${DELIVERY_ENV}"; fi
+      - cd ../..
+      - scp scripts/genini scripts/gen_setup_ini.sh ci@hekla.oslandia.net:~/
+      - ssh ci@hekla.oslandia.net ./gen_setup_ini.sh ${DELIVERY_ENV}
+  artifacts:
+      paths:
+        - output/
+  only:
+      - triggers
+  tags:
+      - win10
+      - osgeo4w
+
+
+manual_package:
+  stage: build
+  script:
+      # get package name from the commit title
+      - export DELIVERY_ENV=test
+      - if [[ "${CI_COMMIT_TITLE}" =~ ^\[(.*)\].* ]]; then export PACKAGE_NAME=${BASH_REMATCH[1]}; else export PACKAGE_NAME=; fi
+      - if [ -z "$PACKAGE_NAME" ]; then echo "package name not specified !"; exit 1; fi
+      - cd packages/${PACKAGE_NAME}
+      - if [ -x package.sh ]; then /bin/bash ./package.sh ${DELIVERY_ENV}; else cmd /c "package.cmd ${DELIVERY_ENV}"; fi
+      - cd ../..
+      - scp scripts/genini scripts/gen_setup_ini.sh ci@hekla.oslandia.net:~/
+      - ssh ci@hekla.oslandia.net ./gen_setup_ini.sh ${DELIVERY_ENV}
+  when: manual
+  tags:
+      - win10
+      - osgeo4w
+

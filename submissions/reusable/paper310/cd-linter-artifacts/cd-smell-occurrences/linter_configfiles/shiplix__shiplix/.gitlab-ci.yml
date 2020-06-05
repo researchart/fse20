@@ -1,0 +1,22 @@
+image: abakpress/dind:2
+
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  variables:
+    RAILS_ENV: test
+  script:
+    - dip provision
+    - dip rspec
+
+build:
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build --rm -t $CI_REGISTRY_IMAGE:latest -f docker/Dockerfile.production .
+    - docker tag $CI_REGISTRY_IMAGE:latest $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+    - docker push $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+

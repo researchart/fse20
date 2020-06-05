@@ -1,0 +1,11 @@
+before_script:
+  - apt-get update -y
+  - apt-get install -y netpbm optipng scons
+
+zip:
+  script:
+    - scons zip
+  artifacts:
+    paths:
+      - lexip16.zip
+

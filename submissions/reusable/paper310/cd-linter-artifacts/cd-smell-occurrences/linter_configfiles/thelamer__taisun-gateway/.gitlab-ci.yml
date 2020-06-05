@@ -1,0 +1,19 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+job1:
+  tags:
+    - docker
+  stage: build
+  script:
+    - docker build -t taisun/gateway:$CI_BUILD_REF .
+    - docker tag taisun/gateway:$CI_BUILD_REF taisun/gateway:latest
+    - echo $DOCKERPASS | docker login -u taisun --password-stdin
+    - docker push taisun/gateway:$CI_BUILD_REF
+    - docker push taisun/gateway:latest
+

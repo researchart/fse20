@@ -1,0 +1,45 @@
+image: golang:1.10
+
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+  - go version
+  - echo $CI_BUILD_REF
+  - echo $CI_PROJECT_DIR
+  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+  - mkdir -p /go/src/gitlab.com/willmitchell
+  - cp -rv /builds/willmitchell/secret_runner_aws /go/src/gitlab.com/willmitchell/
+  - cd /go/src/gitlab.com/willmitchell/secret_runner_aws
+
+build:
+  stage: build
+  script:
+    - dep ensure
+    - go build
+
+test:
+  stage: test
+  script:
+    - dep ensure
+    - go test -v -cover ./...
+
+deploy:
+  stage: deploy
+  script:
+    - mkdir -p $CI_PROJECT_DIR/binaries
+    - dep ensure
+    - echo Building for Windows
+    - GOOS=windows GOARCH=amd64 go build -ldflags="-X main.version=$(git describe --always)" -o $CI_PROJECT_DIR/binaries/secret_runner_aws_windows.exe
+    - echo Building for Linux
+    - GOOS=linux GOARCH=amd64 go build -ldflags="-X main.version=$(git describe --always)" -o $CI_PROJECT_DIR/binaries/secret_runner_aws_linux
+    - echo Building for Mac
+    - GOOS=darwin GOARCH=amd64 go build -ldflags="-X main.version=$(git describe --always)" -o $CI_PROJECT_DIR/binaries/secret_runner_aws_mac
+  artifacts:
+    paths:
+      - binaries/secret_runner_aws_windows.exe
+      - binaries/secret_runner_aws_linux
+      - binaries/secret_runner_aws_mac
+

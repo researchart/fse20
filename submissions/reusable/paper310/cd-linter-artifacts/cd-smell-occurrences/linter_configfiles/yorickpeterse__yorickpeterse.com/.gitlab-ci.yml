@@ -1,0 +1,70 @@
+---
+
+.docker: &docker
+  stage: docker
+  services:
+    - docker:dind
+  image: docker:git
+  script:
+    - ./docker/build "${CI_REGISTRY_IMAGE}:${IMAGE}" docker/${IMAGE}/Dockerfile
+
+stages:
+  - docker
+  - lint
+  - deploy
+
+docker:vale:
+  <<: *docker
+  variables:
+    IMAGE: vale
+  only:
+    changes:
+      - docker/vale/Dockerfile
+
+docker:ruby:
+  <<: *docker
+  variables:
+    IMAGE: ruby
+  only:
+    changes:
+      - docker/ruby/Dockerfile
+
+lint:vale:
+  image: registry.gitlab.com/yorickpeterse/yorickpeterse.com:vale
+  stage: lint
+  before_script:
+    - vale --version
+  script:
+    - vale --no-wrap --sort source/articles
+  only:
+    changes:
+      - source/articles/**/*.html.md
+
+deploy:
+  image: registry.gitlab.com/yorickpeterse/yorickpeterse.com:ruby
+  stage: deploy
+  variables:
+    DISTRIBUTION_ID: E38R9TE90MPQA7
+  before_script:
+    - ruby --version
+    - gem --version
+    - bundle --version
+    - bundle install --path vendor --retry=3 --jobs=$(nproc)
+  script:
+    - rake deploy
+  cache:
+    paths:
+      - vendor
+  only:
+    refs:
+      - master
+    changes:
+      - config.rb
+      - source/**/*
+      - lib/**/*
+      - Gemfile
+      - Gemfile.lock
+  environment:
+    name: production
+    url: https://yorickpeterse.com
+

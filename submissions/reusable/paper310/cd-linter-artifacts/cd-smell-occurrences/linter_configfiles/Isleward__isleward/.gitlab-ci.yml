@@ -1,0 +1,69 @@
+image: node:12
+
+stages:
+  - test
+  - build
+
+audit:
+  stage: test
+  script:
+    - cd src/server
+    - npm audit
+  only:
+    - merge_requests
+    - master
+
+lint-server:
+  stage: test
+  script:
+    - npm install eslint eslint-plugin-prettier prettier babel-eslint
+    - cd src/server
+    - ../../node_modules/.bin/eslint . 
+  only:
+    - merge_requests
+    - master
+
+lint-client:
+  stage: test
+  script:
+    - npm install eslint eslint-plugin-prettier prettier babel-eslint eslint-plugin-requirejs
+    - cd src/client
+    - ../../node_modules/.bin/eslint .
+  only:
+    - merge_requests
+    - master
+
+build-image-latest:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  variables:
+    IMAGE_TAG_REF: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+    IMAGE_TAG_ALIAS: $CI_REGISTRY_IMAGE:latest
+  script:
+    - docker build -t $IMAGE_TAG_REF -t $IMAGE_TAG_ALIAS .
+    - docker push $IMAGE_TAG_REF
+    - docker push $IMAGE_TAG_ALIAS
+  only:
+    - master
+
+build-image-stable:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  variables:
+    IMAGE_TAG_REF: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+    IMAGE_TAG_ALIAS: $CI_REGISTRY_IMAGE:stable
+  script:
+    - docker build -t $IMAGE_TAG_REF -t $IMAGE_TAG_ALIAS .
+    - docker push $IMAGE_TAG_REF
+    - docker push $IMAGE_TAG_ALIAS
+  only:
+    - tags
+

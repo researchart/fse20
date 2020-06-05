@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  #%L
+  Gitlab Maven Plugin
+  %%
+  Copyright (C) 2017 - 2020 Ultreia.io
+  %%
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Lesser General Public License as
+  published by the Free Software Foundation, either version 3 of the
+  License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Lesser Public License for more details.
+
+  You should have received a copy of the GNU General Lesser Public
+  License along with this program.  If not, see
+  <http://www.gnu.org/licenses/lgpl-3.0.html>.
+  #L%
+  -->
+
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.ultreia.maven</groupId>
+    <artifactId>pom</artifactId>
+    <version>2020.8.6</version>
+  </parent>
+
+  <artifactId>gitlab-maven-plugin</artifactId>
+  <version>1.0.16</version>
+  <packaging>maven-plugin</packaging>
+
+  <name>Gitlab Maven Plugin</name>
+  <description>Maven plugin to interact with a GitLab instance</description>
+  <url>https://ultreiaio.gitlab.io/gitlab-maven-plugin</url>
+  <inceptionYear>2017</inceptionYear>
+  <organization>
+    <name>Ultreia.io</name>
+    <url>http://ultreia.io/</url>
+  </organization>
+  <licenses>
+    <license>
+      <name>Lesser General Public License (LGPL) v 3.0</name>
+      <url>http://www.gnu.org/licenses/lgpl-3.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+
+    <developer>
+      <name>Tony Chemit</name>
+      <id>tchemit</id>
+      <email>dev@tchemit.fr</email>
+      <organization>ultreia.io</organization>
+      <organizationUrl>http://ultreia.io</organizationUrl>
+      <timezone>Europe/Paris</timezone>
+      <roles>
+        <role>lead</role>
+        <role>developer</role>
+      </roles>
+    </developer>
+
+  </developers>
+
+  <prerequisites>
+    <maven>${maven.version}</maven>
+  </prerequisites>
+
+  <distributionManagement>
+    <site>
+      <id>gitlab.com</id>
+      <url>scm:git:https://git@gitlab.com/${projectPath}.git</url>
+    </site>
+  </distributionManagement>
+
+  <scm>
+    <connection>scm:git:git@gitlab.com:${projectPath}.git</connection>
+    <developerConnection>scm:ssh://git:git@gitlab.com:${projectPath}.git</developerConnection>
+    <url>https://gitlab.com/${projectPath}</url>
+  </scm>
+
+  <properties>
+
+    <organizationId>ultreiaio</organizationId>
+    <projectId>gitlab-maven-plugin</projectId>
+
+    <!--deploy all-->
+    <maven.deploy.skip>false</maven.deploy.skip>
+    <!--build javadoc-->
+    <maven.javadoc.skip>false</maven.javadoc.skip>
+    <!--build sources-->
+    <maven.source.skip>false</maven.source.skip>
+
+    <!--GitLab plugin configuration-->
+    <gitlab.changesTitle>GitLab Maven plugin</gitlab.changesTitle>
+    <gitlab.trackers>Bug,Feature,Task</gitlab.trackers>
+    <plugin.version.gitlab>1.0.15</plugin.version.gitlab>
+
+    <lib.version.jackson>2.10.2</lib.version.jackson>
+  </properties>
+
+  <dependencies>
+
+    <dependency>
+      <groupId>org.gitlab</groupId>
+      <artifactId>java-gitlab-api</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-io</groupId>
+          <artifactId>commons-io</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.spullara.mustache.java</groupId>
+      <artifactId>compiler</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>${lib.version.jackson}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>${lib.version.jackson}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${lib.version.jackson}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.nuiton</groupId>
+      <artifactId>nuiton-version</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-beanutils</groupId>
+          <artifactId>commons-beanutils</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.codehaus.plexus</groupId>
+      <artifactId>plexus-utils</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.sonatype.plexus</groupId>
+      <artifactId>plexus-sec-dispatcher</artifactId>
+      <version>1.4</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.codehaus.plexus</groupId>
+          <artifactId>plexus-utils</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <!-- provided dependencies -->
+
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-core</artifactId>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.codehaus.plexus</groupId>
+          <artifactId>plexus-utils</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.codehaus.plexus</groupId>
+          <artifactId>plexus-component-annotations</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-model</artifactId>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.codehaus.plexus</groupId>
+          <artifactId>plexus-utils</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-settings</artifactId>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.codehaus.plexus</groupId>
+          <artifactId>plexus-utils</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-plugin-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dependencies to mojo annotations -->
+    <dependency>
+      <groupId>org.apache.maven.plugin-tools</groupId>
+      <artifactId>maven-plugin-annotations</artifactId>
+      <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.codehaus.plexus</groupId>
+          <artifactId>plexus-utils</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+
+    <plugins>
+
+      <plugin>
+        <artifactId>maven-plugin-plugin</artifactId>
+        <configuration>
+          <skipErrorNoDescriptorsFound>true</skipErrorNoDescriptorsFound>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>helpmojo</goal>
+              <goal>descriptor</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+    </plugins>
+  </build>
+
+  <reporting>
+    <excludeDefaults>true</excludeDefaults>
+  </reporting>
+
+  <profiles>
+    <profile>
+      <id>reporting</id>
+      <activation>
+        <property>
+          <name>performRelease</name>
+          <value>true</value>
+        </property>
+      </activation>
+
+      <reporting>
+        <plugins>
+
+          <plugin>
+            <artifactId>maven-plugin-plugin</artifactId>
+            <version>${plugin.version.plugins}</version>
+          </plugin>
+
+          <plugin>
+            <artifactId>maven-project-info-reports-plugin</artifactId>
+            <version>${plugin.version.projectInfoReports}</version>
+          </plugin>
+
+          <plugin>
+            <artifactId>maven-changes-plugin</artifactId>
+            <version>${plugin.version.changes}</version>
+            <configuration>
+              <issueLinkTemplatePerSystem>
+                <gitlab>https://gitlab.com/${organizationId}/${projectId}/issues/%ISSUE%</gitlab>
+              </issueLinkTemplatePerSystem>
+              <xmlPath>${project.build.directory}/generated-site/changes.xml</xmlPath>
+            </configuration>
+          </plugin>
+
+          <plugin>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>${plugin.version.javadoc}</version>
+            <configuration>
+              <quiet>${maven.javadoc.quiet}</quiet>
+              <charset>${project.reporting.outputEncoding}</charset>
+              <links>
+                <link>http://docs.oracle.com/javase/${javadocJreApiVersion}/docs/api/</link>
+              </links>
+              <tagletArtifacts>
+                <tagletArtifact>
+                  <groupId>org.apache.maven.plugin-tools</groupId>
+                  <artifactId>maven-plugin-tools-javadoc</artifactId>
+                  <version>${mavenPluginToolsJavadocVersion}</version>
+                </tagletArtifact>
+                <tagletArtifact>
+                  <groupId>org.codehaus.plexus</groupId>
+                  <artifactId>plexus-component-javadoc</artifactId>
+                  <version>${plexusComponentJavadocVersion}</version>
+                </tagletArtifact>
+              </tagletArtifacts>
+            </configuration>
+            <reportSets>
+              <reportSet>
+                <reports>
+                  <report>javadoc</report>
+                  <report>test-javadoc</report>
+                </reports>
+              </reportSet>
+            </reportSets>
+          </plugin>
+
+          <plugin>
+            <artifactId>maven-changelog-plugin</artifactId>
+            <version>${plugin.version.changelog}</version>
+          </plugin>
+
+          <plugin>
+            <artifactId>maven-jxr-plugin</artifactId>
+            <version>${plugin.version.jrx}</version>
+          </plugin>
+
+          <plugin>
+            <artifactId>maven-surefire-report-plugin</artifactId>
+            <version>${plugin.version.surefire}</version>
+          </plugin>
+
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>license-maven-plugin</artifactId>
+            <version>${plugin.version.license}</version>
+          </plugin>
+
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>versions-maven-plugin</artifactId>
+            <version>${plugin.version.versions}</version>
+            <reportSets>
+              <reportSet>
+                <reports>
+                  <report>dependency-updates-report</report>
+                  <report>plugin-updates-report</report>
+                </reports>
+              </reportSet>
+            </reportSets>
+          </plugin>
+
+        </plugins>
+      </reporting>
+
+      <build>
+
+        <plugins>
+
+          <plugin>
+            <groupId>io.ultreia.maven</groupId>
+            <artifactId>gitlab-maven-plugin</artifactId>
+            <version>1.0.15</version>
+            <inherited>false</inherited>
+            <executions>
+              <execution>
+                <inherited>false</inherited>
+                <goals>
+                  <goal>generate-changes</goal>
+                </goals>
+                <phase>pre-site</phase>
+              </execution>
+            </executions>
+          </plugin>
+
+        </plugins>
+
+      </build>
+
+    </profile>
+  </profiles>
+
+</project>
+

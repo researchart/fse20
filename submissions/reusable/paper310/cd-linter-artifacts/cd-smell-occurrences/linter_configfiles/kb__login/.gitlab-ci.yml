@@ -1,0 +1,12 @@
+services:
+  - postgres:9.5
+
+test:
+  script:
+  - export DATABASE_HOST=postgres
+  - export DATABASE_PASS=
+  - export DATABASE_USER=postgres
+  - export USE_OPENID_CONNECT=False
+  - pip3 install -r requirements/ci.txt -i https://pypi.kbsoftware.co.uk/kb/dev/+simple/
+  - pytest --create-db --cov-report term --cov=login
+

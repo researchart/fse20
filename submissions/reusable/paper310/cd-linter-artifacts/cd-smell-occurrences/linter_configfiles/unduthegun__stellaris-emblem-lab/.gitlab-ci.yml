@@ -1,0 +1,16 @@
+services:
+- docker:dind
+
+# When using dind, it's wise to use the overlayfs driver for
+# improved performance.
+variables:
+  DOCKER_DRIVER: overlay2
+  
+build:
+  image: docker
+  script:
+    - docker run -v /tmp:/tmp -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD -w=$PWD undu/cwltool cwltool pack/pack.cwl pack/jobs/lab-mod.yml
+  artifacts:
+    paths:
+    - out
+

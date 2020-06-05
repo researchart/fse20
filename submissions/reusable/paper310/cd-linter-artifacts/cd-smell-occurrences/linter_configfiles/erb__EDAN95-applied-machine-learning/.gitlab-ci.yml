@@ -1,0 +1,14 @@
+image: python:3.6
+
+stages:
+ - test
+
+before_script:
+ - pip install pipenv
+ - pipenv install --dev
+
+test:
+    stage: test
+    script:
+     - make test
+

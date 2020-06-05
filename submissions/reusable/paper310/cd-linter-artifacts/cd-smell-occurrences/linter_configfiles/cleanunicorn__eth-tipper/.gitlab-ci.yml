@@ -1,0 +1,64 @@
+services:
+  - docker:dind
+
+image: golang:latest
+
+variables:
+  REPO_NAME: gitlab.com/cleanunicorn/eth-tipper
+
+  IMAGE_REPO: ${CI_REGISTRY}/${CI_PROJECT_PATH}
+  IMAGE_TAG: ${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}
+
+  IMAGE_BUILD: ${CI_REGISTRY}/${CI_PROJECT_PATH}:${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_build
+  IMAGE_PROD: ${CI_REGISTRY}/${CI_PROJECT_PATH}:${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_prod
+
+before_script:
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+stages:
+    - build
+    - test
+    - deploy
+
+build:
+    stage: build
+    only:
+      - master
+    image: gitlab/dind
+    script:
+      - docker build -t ${IMAGE_BUILD} .
+
+      - docker run -d --name temprun ${IMAGE_BUILD} sleep infinity
+      - docker cp temprun:/go/bin/eth-tipper .
+      - docker kill temprun
+
+      - docker build -t ${IMAGE_PROD} -f Dockerfile.prod .
+      - docker tag ${IMAGE_PROD} ${IMAGE_REPO}:latest
+      - docker push ${IMAGE_PROD}
+      - docker push ${IMAGE_REPO}:latest
+
+test:
+    stage: test
+    image: gitlab/dind
+    script:
+      - docker build -t ${IMAGE_BUILD} .
+      - docker run -d --name ganache --net=host trufflesuite/ganache-cli:latest -s 99 -i 99
+      - docker run --net=host --name testimage ${IMAGE_BUILD} go test -race ./...
+      - docker kill ganache
+    dependencies:
+      - build
+
+bitnode:
+    stage: deploy
+    only:
+    - master
+    before_script:
+      - mkdir -p ~/.ssh
+      - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+      - '[[ -f /.dockerenv ]] && echo "$SSH_PRIVATE_KEY" | base64 -d | tee ~/.ssh/id_rsa_bitnode'
+      - '[[ -f /.dockerenv ]] && chmod 600 ~/.ssh/id_rsa_bitnode'
+      - '[[ -f /.dockerenv ]] && eval $(ssh-agent -s)'
+      - '[[ -f /.dockerenv ]] && ssh-add ~/.ssh/id_rsa_bitnode'
+    script:
+      - ssh root@bitnode.cryptostash.net "cd /root/eth-tipper; ./deploy.sh"
+

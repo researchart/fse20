@@ -1,0 +1,29 @@
+image: jnijhof/kitchen-docker
+
+rspec:
+  script:
+    - rspec -f d
+  stage: test
+
+openvpn ubuntu 16.04:
+  script:
+    - kitchen test default-ubuntu-1604
+  stage: test
+
+stages:
+  - test
+  - publish
+
+push-cookbook:
+  stage: publish
+  only:
+    refs:
+      - master
+    variables:
+      - "$OPS_CLONE_USERNAME"
+      - "$OPS_CLONE_PASSWORD"
+  script:
+    - git clone https://$OPS_CLONE_USERNAME:$OPS_CLONE_PASSWORD@ops.gitlab.net/gitlab-cookbooks/cookbook-publisher.git /tmp/cookbook-publisher
+    - cp /tmp/cookbook-publisher/publisher.rb .
+    - ruby publisher.rb
+

@@ -1,0 +1,267 @@
+image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.24
+
+stages:
+  - build
+  - test
+  - publish
+
+variables:
+  DOCKER_DRIVER: overlay2
+  CUSTOM_IMAGE_VERSION: ruby-2.6-golang-1.13-git-2.24
+  SAST_DISABLE_DIND: "true"
+  SAST_DEFAULT_ANALYZERS: "gosec"
+
+danger-review:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:danger
+  stage: build
+  only:
+    - branches@gitlab-org/gitaly
+  except:
+    - tags
+    - master
+  script:
+    - git version
+    - danger
+
+.ruby_template: &ruby_definition
+  cache:
+    key: gems-ruby-2.6
+    paths:
+      - ruby/vendor/bundle
+
+.build_template: &build_definition
+  <<: *ruby_definition
+  stage: build
+  script:
+    - go version
+    - make
+    - echo 'make build-gitaly-remote   TODO https://gitlab.com/gitlab-org/gitaly/issues/1706'
+    - _support/test-boot .
+
+.assemble_template: &assemble_definition
+  <<: *ruby_definition
+  stage: build
+  only:
+    - tags
+  script:
+    # Just in case we start running CI builds on other architectures in future
+    - go version
+    - make binaries
+  artifacts:
+    paths:
+    - _build/assembly/checksums.sha256.txt
+    - _build/assembly/bin/
+    name: "$CI_JOB_NAME"
+    expire_in: 6 months
+
+.go_test_template: &go_test_definition
+  <<: *ruby_definition
+  stage: test
+  # Override the ruby_definition cache definition for pull
+  cache:
+    key: gems-ruby-2.6
+    paths:
+      - ruby/vendor/bundle
+    policy: pull
+  artifacts:
+    paths:
+    - ruby/tmp/gitaly-rspec-test.log
+    when: on_failure
+    expire_in: 1 week
+
+.test_template: &test_definition
+  <<: *go_test_definition
+  script:
+    - go version
+    - git version
+    - make test
+    - echo 'make test-gitaly-remote   TODO https://gitlab.com/gitlab-org/gitaly/issues/1706'
+
+verify:
+  <<: *ruby_definition
+  stage: test
+  script:
+    - make verify
+
+proto:
+  <<: *ruby_definition
+  stage: test
+  script:
+    - make proto no-changes
+
+build:go1.13:
+  <<: *build_definition
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.22
+
+build:go1.12:
+  <<: *build_definition
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.12-git-2.21
+
+binaries_go1.13:
+  <<: *assemble_definition
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.22
+
+binaries_go1.12:
+  <<: *assemble_definition
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.12-git-2.21
+
+test:go1.13-git-2.21-ruby-2.6:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.21
+  <<: *test_definition
+
+test:go1.13-git-2.22-ruby-2.6:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.22
+  <<: *test_definition
+
+test:go1.12-git-2.22-ruby-2.6:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.12-git-2.22
+  <<: *test_definition
+
+test:go1.13-git-2.24-ruby-2.6:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.13-git-2.24
+  <<: *test_definition
+
+test:go1.12-git-2.24-ruby-2.6:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:ruby-2.6-golang-1.12-git-2.24
+  <<: *test_definition
+
+test:proxy:
+  <<: *test_definition
+  script:
+    - make test-with-proxies
+
+test:praefect:
+  <<: *test_definition
+  script:
+    - make test-with-praefect
+
+race:
+  <<: *go_test_definition
+  script:
+    - go version
+    - git version
+    - make race-go
+
+cover:
+  <<: *ruby_definition
+  stage: test
+  script:
+    - make cover
+
+.build_image: &build_image
+  stage: publish
+  image: docker:latest
+  services:
+  - docker:dind
+
+docker:
+  <<: *build_image
+  script:
+    - mkdir -p _support/build-images/$CI_JOB_NAME/
+    - cp ruby/Gemfile ruby/Gemfile.lock _support/build-images/$CI_JOB_NAME/
+    - cp _support/build-images/versioned/Dockerfile _support/build-images/$CI_JOB_NAME/
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/gitaly:latest --build-arg CUSTOM_IMAGE_VERSION=$CUSTOM_IMAGE_VERSION _support/build-images/$CI_JOB_NAME
+    - docker push $CI_REGISTRY_IMAGE/gitaly:latest
+  only:
+    - master@gitlab-org/gitaly
+  except:
+
+docker-tag:
+  <<: *build_image
+  script:
+    - mkdir -p _support/build-images/$CI_JOB_NAME/
+    - cp ruby/Gemfile ruby/Gemfile.lock _support/build-images/$CI_JOB_NAME/
+    - cp _support/build-images/versioned/Dockerfile _support/build-images/$CI_JOB_NAME/
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/gitaly:$CI_COMMIT_TAG --build-arg CUSTOM_IMAGE_VERSION=$CUSTOM_IMAGE_VERSION _support/build-images/$CI_JOB_NAME
+    - docker push $CI_REGISTRY_IMAGE/gitaly:$CI_COMMIT_TAG
+  only:
+    - tags@gitlab-org/gitaly
+
+# Create a MR in GitLab-CE when releasing a Gitaly version
+update-downstream-server-version:
+  stage: publish
+  when: manual
+  only:
+    - tags@gitlab-org/gitaly
+  script:
+    - ruby _support/update-downstream-server-version
+  allow_failure: true
+
+include:
+  - template: Security/License-Management.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+
+gosec-sast:
+  before_script:
+    - apk add pkgconfig libgit2-dev gcc libc-dev
+
+license_management:
+  before_script:
+    - sudo apt-get update
+    - sudo apt-get install -y libicu-dev libgit2-dev cmake
+  variables:
+    LICENSE_FINDER_CLI_OPTS: '--aggregate-paths=. ruby'
+
+praefect_sql_connect:
+  <<: *go_test_definition
+  services:
+    - postgres:9.6
+  variables:
+    POSTGRES_DB: praefect_test
+    POSTGRES_USER: praefect
+    POSTGRES_PASSWORD: sql-password
+  script:
+    - make
+    # Sanity check: direct ping with psql
+    - PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres -U $POSTGRES_USER -d $POSTGRES_DB -c 'select now()'
+    - ruby -rerb -e 'ERB.new(ARGF.read).run' _support/config.praefect.toml.ci-sql-test.erb > config.praefect.toml
+    - ./praefect -config config.praefect.toml sql-ping
+    - ./praefect -config config.praefect.toml sql-migrate
+
+praefect_sql_test:
+  <<: *go_test_definition
+  services:
+    - postgres:9.6
+  variables:
+    PGHOST: postgres
+    PGPORT: 5432
+    PGUSER: postgres
+    POSTGRES_HOST_AUTH_METHOD: trust
+  script:
+    - go version
+    - git version
+    - make test-postgres
+
+lint:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:golangci-lint-alpine
+  stage: test
+  before_script:
+    # this removes dependency to the github.com/libgit2/git2go: https://gitlab.com/gitlab-org/gitaly/issues/1706
+    - git rm -r --quiet cmd/gitaly-remote
+  script:
+    # Write the code coverage report to gl-code-quality-report.json
+    # and print linting issues to stdout in the format: path/to/file:line description
+    - golangci-lint run --config .golangci.yml --out-format code-climate | tee gl-code-quality-report.json | jq -r '.[] | "\(.location.path):\(.location.lines.begin) \(.description)"'
+  after_script:
+    - git checkout --quiet --no-progress HEAD cmd/gitaly-remote # restore removed code
+  artifacts:
+    reports:
+      codequality: gl-code-quality-report.json
+    paths:
+      - gl-code-quality-report.json
+
+lint-warnings:
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:golangci-lint-alpine
+  stage: test
+  before_script:
+    # this removes dependency to the github.com/libgit2/git2go: https://gitlab.com/gitlab-org/gitaly/issues/1706
+    - git rm -r --quiet cmd/gitaly-remote
+  script:
+    - golangci-lint run --config _support/golangci.warnings.yml --out-format tab
+  after_script:
+    - git checkout --quiet --no-progress HEAD cmd/gitaly-remote # restore removed code
+  allow_failure: true
+

@@ -1,0 +1,15 @@
+image: node:6.5.0
+
+cache:
+  paths:
+    - node_modules/
+
+stages:
+  - test
+
+lint:
+  stage: test
+  script:
+    - npm install --unsafe-perm --quiet --depth=0
+    - npm test
+

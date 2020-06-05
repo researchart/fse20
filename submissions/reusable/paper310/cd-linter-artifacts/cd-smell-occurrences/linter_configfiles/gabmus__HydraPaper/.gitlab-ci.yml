@@ -1,0 +1,25 @@
+include: 'https://gitlab.gnome.org/GNOME/citemplates/raw/master/flatpak/flatpak_ci_initiative.yml'
+
+variables:
+    BUNDLE: "hydrapaper.flatpak"
+
+flatpak:
+    image: 'registry.gitlab.gnome.org/gnome/gnome-runtime-images/gnome:3.32'
+    variables:
+        MANIFEST_PATH: "dist/flatpak/org.gabmus.hydrapaper.json"
+        MESON_ARGS: "-Dprofile=Devel"
+        FLATPAK_MODULE: "hydrapaper"
+        RUNTIME_REPO: "https://flathub.org/repo/flathub.flatpakrepo"
+        APP_ID: "org.gabmus.hydrapaper"
+    extends: .flatpak
+
+review:
+    stage: deploy
+    dependencies:
+        - 'flatpak'
+    extends: '.review'
+
+stop_review:
+    stage: deploy
+    extends: '.stop_review'
+

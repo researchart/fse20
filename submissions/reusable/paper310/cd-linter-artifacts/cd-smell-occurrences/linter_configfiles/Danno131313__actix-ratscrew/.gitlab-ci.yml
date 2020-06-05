@@ -1,0 +1,49 @@
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+
+image: rust:latest
+stages:
+    - build
+    - deploy
+
+build:
+    only:
+        - master
+    stage: build
+    image: rust:latest
+    cache:
+        paths:
+            - $CARGO_HOME
+            - target/
+            - ratscrew-client/node_modules/
+            - ratscrew-client/dist/
+    artifacts:
+        paths:
+            - target/release/actix-ratscrew
+            - ratscrew-client/dist/
+        expire_in: 1 week
+    script:
+        - apt update
+        - curl -sL https://deb.nodesource.com/setup_10.x | bash -
+        - apt update && apt install nodejs
+        - node -v && npm -v
+        - cd ratscrew-client
+        - touch .env
+        - echo $WS_URL > .env
+        - npm install 
+        - npm run build
+        - cd ..
+        - rustc --version && cargo --version
+        - cargo build --release --jobs 1
+
+deploy:
+    only:
+        - master
+    stage: deploy
+    image: alpine:latest
+    dependencies:
+        - build
+    script:
+        - apk add --update openssh-client bash
+        - bash deploy/deploy.sh
+

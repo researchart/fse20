@@ -1,0 +1,27 @@
+image: python:3.6.5
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+before_script:
+  - apt-get update && apt-get install python3 python3-pip -qy
+  - pip3 install pipenv
+  - virtualenv venv
+  - source venv/bin/activate
+  - export LC_ALL=C.UTF-8; export LANG=C.UTF-8 # Pipenv/Click text encoding mitigation. See http://click.pocoo.org/5/python3/
+  - pipenv install --dev
+
+terrainlib:
+  script:
+    - python setup.py sdist --formats=gztar,zip
+  artifacts:
+    paths:
+      - dist/*.zip
+      - dist/*.gz
+  only:
+    - master
+    - staging
+    - tags
+

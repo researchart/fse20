@@ -1,0 +1,74 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - Release
+
+variables:
+  CONTAINER_IMAGE: registry.gitlab.com/zaaksysteem/converter-service
+  DOCKER_DRIVER: overlay
+
+before_script:
+  - "docker login -u gitlab-ci-token -p ${CI_BUILD_TOKEN} registry.gitlab.com"
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t ${CONTAINER_IMAGE}:${CI_COMMIT_REF_NAME} .
+    - docker push ${CONTAINER_IMAGE}:${CI_COMMIT_REF_NAME}
+    - docker tag ${CONTAINER_IMAGE}:${CI_COMMIT_REF_NAME} ${CONTAINER_IMAGE}:${CI_COMMIT_REF_NAME}-ci-${CI_PIPELINE_IID}
+    - docker push ${CONTAINER_IMAGE}:${CI_COMMIT_REF_NAME}-ci-${CI_PIPELINE_IID}
+
+test:
+  stage: test
+  script:
+    - docker run --rm ${CONTAINER_IMAGE}:${CI_COMMIT_REF_NAME} prove -lv t
+
+#
+# Release targets
+#
+
+.release: &DockerRelease
+  stage: Release
+  only:
+    - /^v\d+.*/@zaaksysteem/converter-service
+  except:
+    - branches
+  image: registry.gitlab.com/zaaksysteem/zaaksysteem-builder:latest
+  services:
+    - docker:dind
+
+AWS ECR:
+  <<: *DockerRelease
+  before_script:
+    - \[ -z "$ECR_REPOSITORY_URL" \] && echo "No ECR repository url set!" && exit 1
+    - $(aws ecr get-login --no-include-email --region "$AWS_ECR_REGION")
+  script:
+    - docker build -t "$ECR_REPOSITORY_URL:$CI_COMMIT_REF_NAME" .
+    - docker tag "$ECR_REPOSITORY_URL:$CI_COMMIT_REF_NAME" "$ECR_REPOSITORY_URL:latest"
+    - docker push "$ECR_REPOSITORY_URL:$CI_COMMIT_REF_NAME"
+    - docker push "$ECR_REPOSITORY_URL:latest"
+
+GitLab Registry:
+  <<: *DockerRelease
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+
+GitLab Registry (latest):
+  <<: *DockerRelease
+  only:
+      - master
+  except: []
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:latest" .
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+

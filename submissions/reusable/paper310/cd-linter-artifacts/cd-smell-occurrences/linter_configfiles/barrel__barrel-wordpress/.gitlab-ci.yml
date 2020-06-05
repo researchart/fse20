@@ -1,0 +1,91 @@
+stages:
+  - test
+  - deploy
+  - merge_request
+
+.import_git: &IMPORT_GIT
+  before_script:
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - bash private/scripts/import_git_remote.sh
+
+.branch_prefixes: &BRANCH_PREFIXES
+  only: 
+    - /(feature|bugfix|hotfix)\/?(.*)/
+
+image: barrelny/multipurpose-ci:0.0.13
+# cache:
+#   key: ${CI_COMMIT_REF_SLUG}
+#   paths:
+#   - wp-content/themes/$THEME_NAME/node_modules/
+test_grammars:
+  <<: *BRANCH_PREFIXES
+  stage: test
+  script: 
+    - bash private/scripts/test_grammars.sh
+test_modules:
+  <<: *BRANCH_PREFIXES
+  stage: test
+  script: 
+    - bash private/scripts/test_modules.sh
+test_visual_regression:
+  <<: *BRANCH_PREFIXES
+  stage: test
+  before_script:
+    - apt-get update
+    - >
+      apt-get install -y libnss3 libcups2 libasound2 libx11-xcb1 libxcomposite1 
+      libxcursor1 libxdamage1 libxi6 libxtst6 libxss1 libxrandr2 
+      libatk1.0-0 libatk-bridge2.0-0 libpangocairo-1.0-0 libgtk-3-0
+  script: 
+    - bash private/scripts/test_visual_regression.sh
+    # - mv private/scripts/backstopjs/backstop_data/$PANTHEON_SITE_ID public
+  artifacts:
+    when: always
+    paths:
+      - private/scripts/backstopjs/backstop_data
+    expire_in: 1 week
+
+# This job collects artifacts from other jobs; triggers pages build
+# pages:
+#   <<: *BRANCH_PREFIXES
+#   stage: deploy
+#   script:
+#     - ls -l public
+#   artifacts:
+#     paths:
+#       - public
+
+# multidev
+multidev_deploy:
+  stage: deploy
+  only: 
+    - /(develop|feature|bugfix|hotfix)\/?(.*)/
+  <<: *IMPORT_GIT
+  script:
+    - bash private/scripts/multidev_deploy.sh
+    - bash private/scripts/gitlab/set_env_url.sh    
+  environment:
+    name: multidev/${CI_BUILD_REF_SLUG}
+    on_stop: multidev_remove
+
+multidev_remove:
+  stage: deploy
+  only:
+    - /^(feature|bugfix|hotfix)\/.*/
+  when: manual
+  <<: *IMPORT_GIT
+  script:
+    - bash private/scripts/multidev_remove.sh
+  environment:
+    name: multidev/${CI_BUILD_REF_SLUG}
+    action: stop
+
+create_merge_request:
+  stage: merge_request
+  only:
+    - /^(feature|bugfix|support)\/.*/
+  when: manual
+  script:
+    - ./private/scripts/merge_request.sh
+

@@ -1,0 +1,54 @@
+image: elixir:1.6
+
+variables:
+  MIX_ENV: test
+
+stages:
+  - Setup
+  - Build
+  - Test
+
+before_script:
+  - make hex
+
+deps:
+  stage: Setup
+  script:
+    - make deps
+  artifacts:
+    expire_in: 30 minutes
+    paths:
+      - deps
+      - mix.lock
+
+compile:
+  stage: Build
+  script:
+    - make compile
+  dependencies:
+    - deps
+  artifacts:
+    expire_in: 30 minutes
+    paths:
+      - _build
+
+lint:
+  stage: Test
+  dependencies:
+    - deps
+    - compile
+  script:
+    - make lint
+  allow_failure: true
+
+tests:
+  stage: Test
+  services:
+    - mongo:3.6
+  dependencies:
+    - deps
+    - compile
+  script:
+    - make test
+  coverage: /\[TOTAL\]\s+(\d+\.\d+)%/
+

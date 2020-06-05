@@ -1,0 +1,58 @@
+image: docker:stable
+
+services:
+  - docker:stable-dind
+
+variables:
+    GITLAB_HOST: gitlab.com
+    REGISTRY: registry.gitlab.com
+    NGINX_IMAGE: $REGISTRY/$CI_PROJECT_PATH/nginx
+    PHPFPM_IMAGE: $REGISTRY/$CI_PROJECT_PATH/php-fpm
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+
+stages:
+  - prepare
+  - build
+
+job-composer-install:
+    image: composer
+    stage: prepare
+    only:
+      - master@kube-laravel/hellolara
+    script:
+      - composer install
+    artifacts:
+        paths:
+          - vendor/
+
+job-build-nginx-image:
+    stage: build
+    only:
+      - master@kube-laravel/hellolara
+    before_script:
+      - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $REGISTRY
+    after_script:
+      - docker logout $REGISTRY
+    script:
+      - docker build --no-cache -f ./docker/nginx --tag $NGINX_IMAGE:$CI_BUILD_REF --tag $NGINX_IMAGE:latest .
+      - docker push $NGINX_IMAGE:$CI_BUILD_REF
+      - docker push $NGINX_IMAGE:latest
+    dependencies:
+      - job-composer-install
+
+job-build-php-fpm-image:
+    stage: build
+    only:
+      - master@kube-laravel/hellolara
+    before_script:
+      - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $REGISTRY
+    after_script:
+      - docker logout $REGISTRY
+    script:
+      - docker build --no-cache -f ./docker/php-fpm --tag $PHPFPM_IMAGE:$CI_BUILD_REF --tag $PHPFPM_IMAGE:latest .
+      - docker push $PHPFPM_IMAGE:$CI_BUILD_REF
+      - docker push $PHPFPM_IMAGE:latest
+    dependencies:
+      - job-composer-install
+

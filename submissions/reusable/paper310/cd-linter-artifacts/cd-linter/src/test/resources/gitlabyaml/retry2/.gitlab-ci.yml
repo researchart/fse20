@@ -1,0 +1,451 @@
+stages:
+  - docker_images
+  - build_unit_test
+  - pre_deploy
+  - deploy
+  - security
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+.webapp_variables: &webapp_variables
+  BLUEBIRD_DEBUG: 1
+  NEO4J_AUTH: none
+
+.webapp_services:
+  - &webapp_service_mongo
+    name: registry.gitlab.com/gitlab-org/gitter/webapp/mongo:latest
+    alias: mongo
+  - &webapp_service_redis
+    name: redis:3.0.3
+    alias: redis
+  - &webapp_service_elasticsearch
+    name: registry.gitlab.com/gitlab-org/gitter/webapp/elasticsearch:latest
+    alias: elasticsearch
+  - &webapp_service_neo4j
+    name: neo4j:2.3
+    alias: neo4j
+
+.node_job: &node_job
+  image: registry.gitlab.com/gitlab-org/gitter/webapp
+  before_script:
+    - node --version
+    - npm --version
+    - npm config set prefer-offline true
+    - npm config set cache /npm_cache
+    - mv /app/node_modules ./node_modules
+    - npm install
+  artifacts:
+    expire_in: 31d
+    when: always
+    paths:
+      - /npm_cache/
+      - npm_cache/
+
+validate:
+  <<: *node_job
+  stage: build_unit_test
+  script:
+    - "echo 'TODO: Skip validation for now because we have new eslint failures'"
+    - make validate
+    # TODO: This should be part of `make validate` -> `gulpfile-linter`
+    # but the prettier API doesn't easily allow glob checking and I want
+    # to re-use the scripts that GitLab has, https://gitlab.com/gitlab-org/gitlab-ce/issues/57010
+    - npm run prettier -- --check "**/*.{js,vue}"
+
+.test_job: &test_job
+  <<: *node_job
+  variables:
+    <<: *webapp_variables
+  stage: build_unit_test
+  services:
+    - *webapp_service_mongo
+    - *webapp_service_redis
+    - *webapp_service_elasticsearch
+    - *webapp_service_neo4j
+  script:
+    - make ci-test
+
+test:
+  <<: *test_job
+  except:
+    - release/*
+  retry: 1
+
+test-all:
+  <<: *test_job
+  variables:
+    <<: *webapp_variables
+    ALLOW_FLAKEY_TESTS: 1
+  only:
+    - release/*
+  retry: 2
+
+.test_e2e_job: &test_e2e_job
+  <<: *test_job
+  variables:
+    <<: *webapp_variables
+    ENABLE_FIXTURE_ENDPOINTS: 1
+    DISABLE_GITHUB_API: 1
+    NODE_ENV: test-docker
+  script:
+    # Cypress dependencies https://docs.cypress.io/guides/guides/continuous-integration.html#Dependencies
+    - apt-get update -q -y
+    - apt-get --yes install xvfb libgtk2.0-0 libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2
+    # Create `output/assets/js/vue-ssr-server-bundle.json`
+    - npm run task-js
+    # Start the server and wait for it to come up
+    - mkdir -p logs
+    - npm start > logs/server-output.txt 2>&1 & node test/e2e/support/wait-for-server.js http://localhost:5000
+    # Run the tests
+    - npm run test-e2e-run
+  artifacts:
+    when: always
+    paths:
+      - logs
+      - test/e2e/videos
+      - test/e2e/screenshots
+      - cypress/logs
+    expire_in: 1 day
+  tags:
+    # Run the on Gitter internal runner so our Cypress video doesn't have gaps/freezing,
+    # see https://github.com/cypress-io/cypress/issues/4722#issuecomment-526313109
+    # Maybe in the future, Cypress will detect and give a warning when this happens,
+    # see https://github.com/cypress-io/cypress/issues/5061
+    - internal
+  retry: 2
+
+test_e2e_manual:
+  <<: *test_e2e_job
+  when: manual
+
+test_e2e:
+  <<: *test_e2e_job
+  only:
+    - /^renovate\/.*$/
+
+package:
+  <<: *node_job
+  stage: build_unit_test
+  script:
+    # While testing the deploment, you can use cached artifacts instead of packaging every time which is slow
+    #- (apt-get update && apt-get install unzip && curl -Ls https://gitlab.com/gitlab-org/gitter/webapp/-/jobs/60049410/artifacts/download -o previous-artifacts.zip && unzip previous-artifacts.zip) || (make package)
+    - make package
+  artifacts:
+    paths:
+      - output/app.tar.gz
+      - output/assets.tar.gz
+      - output/app/ASSET_TAG
+      - output/app/GIT_COMMIT
+      - output/app/VERSION
+    expire_in: 1 week
+
+mobile-asset-build:
+  <<: *node_job
+  stage: build_unit_test
+  only:
+    - master
+  variables:
+    NODE_ENV: prod
+    stats__cube__enabled: 'false'
+    stats__statsd__enabled: 'false'
+  script:
+    - npm run task-js
+    - npm run build-android-assets
+    - npm run build-ios-assets
+  artifacts:
+    paths:
+      - output/android/www
+      - output/ios/www
+
+.distribute_job: &distribute_job
+  image: registry.gitlab.com/gitlab-org/gitter/webapp/deploy-build-image:latest
+  stage: pre_deploy
+  dependencies:
+    - package
+  script:
+    - make upload-to-s3
+
+distribute_beta:
+  <<: *distribute_job
+  only:
+    - develop
+  variables:
+    DIST_S3_URL: s3://gitter-deployments/gitter-webapp/beta
+
+distribute_beta_staging:
+  <<: *distribute_job
+  variables:
+    DIST_S3_URL: s3://gitter-deployments/gitter-webapp/beta-staging
+
+distribute_staging:
+  <<: *distribute_job
+  only:
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+  variables:
+    DIST_S3_URL: s3://gitter-deployments/gitter-webapp/staging
+
+distribute_prod:
+  <<: *distribute_job
+  only:
+    - tags
+  variables:
+    DIST_S3_URL: s3://gitter-deployments/gitter-webapp/prod
+
+containerize:
+  stage: deploy
+  image: docker:latest
+  dependencies:
+    - package
+  allow_failure: true
+  services:
+    - docker:dind
+  script:
+    - ls -la output
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/gitlab-org/gitter/webapp/app:$CI_COMMIT_REF_SLUG -f Dockerfile-app-base .
+    - docker push registry.gitlab.com/gitlab-org/gitter/webapp/app:$CI_COMMIT_REF_SLUG
+  tags:
+    - docker
+
+deploy-build-image:
+  stage: docker_images
+  image: docker:latest
+  services:
+    - docker:dind
+  only:
+    - schedules
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/gitlab-org/gitter/webapp/deploy-build-image:latest scripts/docker/deploy-build-image/
+    - docker push registry.gitlab.com/gitlab-org/gitter/webapp/deploy-build-image:latest
+  tags:
+    - docker
+
+.deploy_job: &deploy_job
+  stage: deploy
+  image: registry.gitlab.com/gitlab-org/gitter/webapp/deploy-build-image:latest
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    # run ssh-agent
+    - eval $(ssh-agent -s)
+    # add ssh key stored in SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$DEPLOY_KEY_ANSIBLE_REPO")
+    - ssh-add <(echo "$INTERNAL_GITTER_NETWORK_SSH_KEY")
+    - mkdir -p ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    # Make the infra tools available (like Ansible)
+    - git clone git@gitlab.com:gitlab-com/gl-infra/gitter-infrastructure.git
+    - ANSIBLE_DIR=$(cd gitter-infrastructure/ansible && pwd) && echo $ANSIBLE_DIR
+    - mkdir -p /root && echo "$ANSIBLE_VAULT_PASS" > /root/.vault_pass
+  tags:
+    - internal # This has to be within the Gitter network
+
+deploy_beta: &deploy_beta
+  <<: *deploy_job
+  dependencies:
+    - distribute_beta
+  only:
+    - develop
+  script:
+    - cd $ANSIBLE_DIR
+    - git checkout xenial && git pull origin xenial
+    - ansible-playbook -i beta --vault-password-file "/root/.vault_pass" playbooks/gitter/webapp-deploy.yml
+  environment:
+    name: beta
+    url: https://beta.gitter.im
+
+deploy_beta_manual:
+  <<: *deploy_beta
+  when: manual
+
+deploy_beta_staging: &deploy_beta_staging
+  <<: *deploy_job
+  dependencies:
+    - distribute_beta_staging
+  only:
+    - /^feature\/.*$/
+  script:
+    - cd $ANSIBLE_DIR
+    - git checkout xenial && git pull origin xenial
+    - ansible-playbook -i beta --vault-password-file "/root/.vault_pass" playbooks/gitter/webapp-staging-deploy.yml
+  environment:
+    name: beta_staging
+    url: https://beta.gitter.im?gitter_next=true
+
+deploy_beta_staging_manual:
+  <<: *deploy_beta_staging
+  when: manual
+  only:
+    - /.*/
+
+deploy_staging: &deploy_staging
+  <<: *deploy_job
+  dependencies:
+    - distribute_staging
+  only:
+    - /^release\/.*$/
+    - /^hotfix\/.*$/
+  script:
+    - cd $ANSIBLE_DIR && ansible-playbook -i prod --vault-password-file "/root/.vault_pass" playbooks/gitter/webapp-staging-deploy.yml
+  environment:
+    name: staging
+    url: https://gitter.im?gitter_next=true
+
+deploy_staging_manual:
+  <<: *deploy_staging
+  when: manual
+
+deploy_prod_manual: &deploy_prod
+  <<: *deploy_job
+  dependencies:
+    - distribute_prod
+  only:
+    - tags
+  # Production is only manual
+  when: manual
+  script:
+    - cd $ANSIBLE_DIR && ansible-playbook -i prod --vault-password-file "/root/.vault_pass" playbooks/gitter/webapp-deploy.yml
+  environment:
+    name: prod
+    url: https://gitter.im
+
+docker-base:
+  image: docker:latest
+  stage: docker_images
+  only:
+    - schedules
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/gitlab-org/gitter/webapp:latest .
+    - docker push registry.gitlab.com/gitlab-org/gitter/webapp:latest
+  tags:
+    - docker
+
+mongo-base:
+  stage: docker_images
+  image: docker:latest
+  only:
+    - schedules
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/gitlab-org/gitter/webapp/mongo:latest scripts/docker/mongo-image/
+    - docker push registry.gitlab.com/gitlab-org/gitter/webapp/mongo:latest
+  tags:
+    - docker
+
+elasticsearch-base:
+  stage: docker_images
+  image: docker:latest
+  only:
+    - schedules
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/gitlab-org/gitter/webapp/elasticsearch:latest scripts/docker/elasticsearch-image/
+    - docker push registry.gitlab.com/gitlab-org/gitter/webapp/elasticsearch:latest
+  tags:
+    - docker
+
+renovate:
+  stage: docker_images
+  image: docker:latest
+  only:
+    - schedules
+  variables:
+    # GitLab access token with api access
+    #RENOVATE_GITLAB_TOKEN: xxx
+    # GitHub access token for getting release notes of package updates,
+    # https://github.com/renovatebot/renovate/blob/master/docs/self-hosting.md#githubcom-token-for-release-notes
+    #RENOVATE_GITHUB_TOKEN: xxx
+    RENOVATE_CONFIG_FILE: renovate-config.js
+  script:
+    - docker run -e GITLAB_TOKEN="$RENOVATE_GITLAB_TOKEN" -e GITHUB_COM_TOKEN="$RENOVATE_GITHUB_TOKEN" -v $PWD/renovate.json:/usr/src/app/renovate.json -v $PWD/renovate-config.js:/usr/src/app/config.js renovate/renovate:13 gitlab-org/gitter/webapp
+  allow_failure: true
+  services:
+    - docker:dind
+  tags:
+    - docker
+#
+# Security reports
+# =========================================================
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/DAST.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+  - template: Security/Container-Scanning.gitlab-ci.yml
+
+dependency_scanning:
+  stage: security
+  variables:
+    DS_PYTHON_VERSION: 2
+  tags:
+    - docker
+
+container_scanning:
+  stage: security
+  variables:
+    DOCKERFILE_PATH: Dockerfile-app-base
+    GIT_STRATEGY: fetch
+    CI_APPLICATION_REPOSITORY: registry.gitlab.com/gitlab-org/gitter/webapp/app
+    CI_APPLICATION_TAG: $CI_COMMIT_REF_SLUG
+
+sast:
+  stage: security
+  variables:
+    SAST_EXCLUDED_PATHS: '/test/**,**/*-test.js,/scripts,/build-scripts'
+
+dast:
+  stage: security
+  dependencies:
+    - containerize
+  variables:
+    <<: *webapp_variables
+    NODE_ENV: test-docker
+    DAST_WEBSITE: http://webapp-server:5000/
+    # Pass-through webapp secrets from our project-level secret variables
+    web__sessionSecret: '${web__sessionSecret}'
+    web__statePassphrase: '${web__statePassphrase}'
+    ws__superClientPassword: '${ws__superClientPassword}'
+    web__messageSecret: '${web__messageSecret}'
+    email__unsubscribeNotificationsSecret: '${email__unsubscribeNotificationsSecret}'
+    integrations__secret: '${integrations__secret}'
+    github__statePassphrase: '${github__statePassphrase}'
+    twitteroauth__consumer_key: '${twitteroauth__consumer_key}'
+    twitteroauth__consumer_secret: '${twitteroauth__consumer_secret}'
+    gitlaboauth__client_id: '${gitlaboauth__client_id}'
+    gitlaboauth__client_secret: '${gitlaboauth__client_secret}'
+    gitlab__public_token_pool: '${gitlab__public_token_pool}'
+    github__client_id: '${github__client_id}'
+    github__client_secret: '${github__client_secret}'
+    github__user_client_id: '${github__user_client_id}'
+    github__user_client_secret: '${github__user_client_secret}'
+    github__anonymous_app__client_id: '${github__anonymous_app__client_id}'
+    github__anonymous_app__client_secret: '${github__anonymous_app__client_secret}'
+    tokens__anonymousPassword: '${tokens__anonymousPassword}'
+  before_script:
+    # Used to communicate with the other services and share the other hostnames we can connect to
+    # See https://gitlab.com/gitlab-org/gitlab-runner/issues/1042#note_144420147
+    - cp /etc/hosts "${CI_PROJECT_DIR}/"
+  services:
+    - name: registry.gitlab.com/gitlab-org/gitter/webapp/app:$CI_COMMIT_REF_SLUG
+      alias: webapp-server
+      # Used to communicate with the other services and share the other hostnames we can connect to
+      # See https://gitlab.com/gitlab-org/gitlab-runner/issues/1042#note_144420147
+      entrypoint:
+        [
+          '/bin/sh',
+          '-c',
+          'while [ ! -f /$CI_PROJECT_DIR/hosts ]; do sleep 1; done && cat /$CI_PROJECT_DIR/hosts > /etc/hosts && node web.js',
+        ]
+    - *webapp_service_mongo
+    - *webapp_service_redis
+    - *webapp_service_elasticsearch
+    - *webapp_service_neo4j

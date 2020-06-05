@@ -1,0 +1,30 @@
+# This file is a template, and might need editing before it works on your project.
+# Select image from https://hub.docker.com/_/php/
+image: php:7.2-fpm
+
+# Select what we should cache between builds
+cache:
+  paths:
+  - vendor/
+
+before_script:
+- apt-get update -yqq
+- apt-get install -yqq git libmcrypt-dev libpq-dev libcurl4-gnutls-dev libicu-dev libvpx-dev libjpeg-dev libpng-dev libxpm-dev zlib1g-dev libfreetype6-dev libxml2-dev libexpat1-dev libbz2-dev libgmp3-dev libldap2-dev unixodbc-dev libsqlite3-dev libaspell-dev libsnmp-dev libpcre3-dev libtidy-dev
+
+- docker-php-ext-install mbstring curl json intl gd xml zip bz2 opcache
+- curl -sS https://getcomposer.org/installer | php
+- php composer.phar install
+- php composer.phar require webdevstudios/wds-coding-standards
+- ls -al
+- pwd
+- ./vendor/bin/phpcs --config-set installed_paths ${PWD}/vendor/wp-coding-standards/wpcs,${PWD}/vendor/webdevstudios/wds-coding-standards/WebDevStudios
+
+stages:
+  - syntax
+
+phpcs:
+    stage: syntax
+    script:
+    #- find -L ./ -name '*.php' -print0 | xargs -0 -n 1 -P 4 php -l
+    - ./vendor/bin/phpcs -p -s -v -n page.php --standard=WebDevStudios --extensions=php
+

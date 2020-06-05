@@ -1,0 +1,79 @@
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+# https://gitlab.com/gitlab-org/gitlab-ce/blob/master/lib/gitlab/ci/templates/Nodejs.gitlab-ci.yml
+image: node:latest
+
+# Pick zero or more services to be used on all builds.
+# Only needed when using a docker container to run your tests in.
+# Check out: http://docs.gitlab.com/ce/ci/docker/using_docker_images.html#what-is-a-service
+#services:
+#  - mysql:latest
+#  - redis:latest
+#  - postgres:latest
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+test_core:
+  script:
+  - yarn global add node-gyp
+  - yarn install
+  - yarn test
+  - yarn build
+
+sast:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+  - docker:stable-dind
+  script:
+  - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+  - docker run
+      --env SAST_CONFIDENCE_LEVEL="${SAST_CONFIDENCE_LEVEL:-3}"
+      --volume "$PWD:/code"
+      --volume /var/run/docker.sock:/var/run/docker.sock
+      "registry.gitlab.com/gitlab-org/security-products/sast:$SP_VERSION" /app/bin/run /code
+  artifacts:
+    paths: [gl-sast-report.json]
+
+dast:
+  image: registry.gitlab.com/gitlab-org/security-products/zaproxy
+  variables:
+    website: "https://example.com"
+    login_url: "https://example.com/login"
+    username: "john.doe@example.com"
+    password: "42"
+  allow_failure: true
+  script:
+  - mkdir /zap/wrk/
+  - /zap/zap-baseline.py -J gl-dast-report.json -t $website
+    --auth-url $login_url
+    --auth-username $username
+    --auth-password $password || true
+  - cp /zap/wrk/gl-dast-report.json .
+  artifacts:
+    paths: [gl-dast-report.json]
+
+code_quality:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+  - docker:stable-dind
+  script:
+  - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+  - docker run
+      --env SOURCE_CODE="$PWD"
+      --volume "$PWD":/code
+      --volume /var/run/docker.sock:/var/run/docker.sock
+      "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    reports:
+      codequality: [gl-code-quality-report.json]
+

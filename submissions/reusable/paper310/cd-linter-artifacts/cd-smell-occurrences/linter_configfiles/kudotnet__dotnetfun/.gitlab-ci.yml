@@ -1,0 +1,14 @@
+image: microsoft/dotnet:latest
+
+build:
+  script:
+  - dotnet --version 
+  - dotnet restore --verbosity normal
+  - dotnet build --verbosity normal
+
+test: 
+  script: 
+  - cd XUnitTestProject1
+  - dotnet restore --verbosity normal
+  - dotnet test --verbosity normal
+

@@ -1,0 +1,52 @@
+stages:
+  - vetting
+  - tests
+  - deploy
+
+lint:
+  image: golang
+  stage: vetting
+  script:
+    - go get github.com/golang/lint/golint
+    - golint -set_exit_status ./...
+  allow_failure: true
+
+vet:
+  image: golang
+  stage: vetting
+  script:
+    - go vet ./...
+
+unit_race_tests:
+  image: golang
+  stage: tests
+  script:
+    - go test -race ./...
+
+staging:
+  stage: deploy
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=gitlab-heroku-deploy-staging --api-key=$HEROKU_API_KEY
+  environment:
+    name: Staging
+    url: https://gitlab-heroku-deploy-staging.herokuapp.com/
+  only:
+    - master
+
+production:
+  stage: deploy
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=gitlab-heroku-deploy-prod --api-key=$HEROKU_API_KEY
+  environment:
+    name: Production
+    url: https://gitlab-heroku-deploy-prod.herokuapp.com/
+  only:
+    - master
+  when: manual
+

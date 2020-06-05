@@ -1,0 +1,45 @@
+image: mahdyadi/docker-react-native
+
+before_script:
+  - cd ./Ngangkot
+  - npm install --silent
+  - yarn
+  - chmod +x ./android/gradlew
+
+stages:
+  - test
+  - build
+  - deploy 
+
+unit_test:
+  stage: test
+  script:
+    - npm test
+    - npm run test_coverage
+  artifacts:
+    paths:
+      - Ngangkot/coverage/*
+
+build:
+  stage: build
+  script:
+    - yarn install
+    - cd ./android
+    - ./gradlew assembleDebug
+  artifacts:
+    paths:
+      - Ngangkot/android/app/build/outputs/apk/
+
+publish_pages:
+  stage: deploy
+  dependencies:
+    - unit_test
+  script:
+    - mkdir ../public
+    - cp -r ./coverage/lcov-report/* ../public/
+  artifacts:
+    paths:
+      - public/
+      - Ngangkot/coverage/*
+    expire_in: 30 days
+

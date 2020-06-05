@@ -1,0 +1,18 @@
+node.js:
+  image: node:latest
+  services:
+    - mongo:latest
+  variables:
+    NPM_CONFIG_LOGLEVEL: warn
+  cache:
+    paths:
+      - node_modules
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq python-pip
+    - pip install s3cmd
+    - s3cmd --version
+    - npx tls-keygen --skip-entrust ~/.commonshost/key.pem ~/.commonshost/cert.pem
+  script:
+    - npm it
+

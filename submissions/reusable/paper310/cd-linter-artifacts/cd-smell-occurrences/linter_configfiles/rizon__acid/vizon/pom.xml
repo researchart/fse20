@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	
+	<parent>
+		<groupId>net.rizon</groupId>
+		<artifactId>acid</artifactId>
+		<version>4.1-SNAPSHOT</version>
+	</parent>
+
+	<name>VIzon</name>
+	<artifactId>acid-vizon</artifactId>
+
+	<dependencies>
+		<dependency>
+			<groupId>net.rizon</groupId>
+			<artifactId>acid-acid</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-all</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifest>
+							<mainClass>net.rizon.acid.plugins.vizon.Vizon</mainClass>
+						</manifest>
+						<manifestEntries>
+							<Export-Base>net.rizon.acid.plugins.vizon.</Export-Base>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>
+

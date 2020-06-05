@@ -1,0 +1,74 @@
+image: queuecumber/acso-builder
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+stages:
+- build
+- log
+
+# Patch and build the kernel
+kernel:
+  stage: build
+  script:
+  # Download kernel source and patch it
+  - python3.6 scripts/setup_patches.py "$KERN_MSG_TITLE"
+  - source workspace
+
+  # Build the kernel
+  - cp $KERNEL_WORKSPACE/kernel_config $KERNEL_WORKSPACE/linux/.config
+  - pushd $KERNEL_WORKSPACE/linux
+  - make olddefconfig
+  - make -j `getconf _NPROCESSORS_ONLN` deb-pkg LOCALVERSION=-acso
+  - popd
+
+  # Store the build artifacts
+  - cp $KERNEL_WORKSPACE/*.deb .
+  - cp $KERNEL_WORKSPACE/*.tar.gz .
+  - cp $KERNEL_WORKSPACE/*.changes .
+  - cp $KERNEL_WORKSPACE/*.dsc .
+
+  # Save the job ID for later
+  - echo $CI_JOB_ID > BUILD_JOB_ID
+  only:
+  - triggers
+  artifacts:
+    paths:
+    - ./*.deb
+    - ./*.tar.gz
+    - ./*.changes
+    - ./*.dsc
+    - BUILD_JOB_ID
+
+# Log the build in git
+log:
+  stage: log
+  script:
+  # Update the database with the built kernel informtion
+  - BUILD_JOB_ID=$(cat BUILD_JOB_ID)
+  - python3.6 scripts/log_build.py "$KERN_MSG_TITLE" $BUILD_JOB_ID
+
+  # Store ssh push credentials
+  - mkdir -p ~/.ssh
+  - echo "$CI_PUSH_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+  - chmod 600 ~/.ssh/id_rsa
+  - ssh-keyscan -H 'gitlab.com' >> ~/.ssh/known_hosts
+
+  # Configure git
+  - git config --global user.email max.ehr@gmail.com
+  - git config --global user.name Queuecumber
+  - git remote -v
+  - git checkout $CI_COMMIT_REF_NAME
+
+  # Commit the new database and store it on the server
+  - git add db/*
+  - "git commit -m \"[CI: $CI_PIPELINE_ID] Add $KERN_MSG_TITLE\""
+  - git remote set-url origin git@gitlab.com:Queuecumber/linux-acs-override.git
+  - git pull --rebase
+  - git push
+
+  # Trigger pages to rebuild
+  - curl --request POST --form "token=$CI_JOB_TOKEN" https://gitlab.com/api/v4/projects/2887717/ref/pages/trigger/pipeline
+  only:
+  - triggers
+

@@ -1,0 +1,13 @@
+image: maven:3-jdk-10-slim
+
+build:
+  script:
+  - java -version
+  - mvn -v
+  - mvn -B clean package
+  - rm target/original-*.jar && true
+  - cp target/*.jar ./
+  artifacts:
+    paths:
+    - "*.jar"
+

@@ -1,0 +1,34 @@
+image: registry.gitlab.com/rilis/docker-ci:ci-latest
+stages:
+  - stats
+  - docs
+
+clang-format:
+  stage: stats
+  script:
+  - find * -iname '*.hpp' -o -iname '*.cpp' | xargs clang-format -i -style=file
+  - git status --porcelain > ../status.log
+  - git diff
+  - test ! -s ../status.log
+
+cppcheck:
+  stage: stats
+  script:
+  - find * -iname '*.cpp' -o -iname '*.hpp' | cppcheck --quiet --std=c++11 --enable=warning --enable=style --enable=performance --enable=portability --enable=information --suppress=missingIncludeSystem --file-list=- &> cppcheck.log
+  - cat cppcheck.log
+  - test ! -s cppcheck.log
+
+cpplint:
+  stage: stats
+  script:
+  - find * -iname '*.cpp' -o -iname '*.hpp' | xargs cpplint.py --linelength=120 --extensions=hpp,cpp --filter=-legal/copyright,-build/include_order,-build/c++11,+build/c++14,-runtime/references
+
+doxygen:
+  stage: docs
+  script:
+    - doxygen Doxyfile
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - doxygen/html
+

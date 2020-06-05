@@ -1,0 +1,22 @@
+image: docker
+
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+
+services:
+  - docker:dind
+
+stages:
+  - build_image
+
+before_script:
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+
+build_image:
+  stage: build_image
+  script:
+    - docker build -t registry.gitlab.com/herber523/scylladb-k8s ./scylla
+    - docker push registry.gitlab.com/herber523/scylladb-k8s
+

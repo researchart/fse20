@@ -1,0 +1,30 @@
+image: python:latest
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache"
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+before_script:
+  - apt-get -qq update
+  - apt-get install -y gdb rsync
+  - python -V
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+
+job1:
+  script:
+    - pip install pytest pytest-cov
+    - python setup.py install
+    - mkdir -p ~/.local/bin
+    - touch ~/.local/bin/afl-fuzz
+    - chmod +x ~/.local/bin/afl-fuzz
+    - export PATH=$PATH:~/.local/bin/
+    - coverage run setup.py test
+    - coverage report -m
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+

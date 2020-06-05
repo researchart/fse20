@@ -1,0 +1,85 @@
+variables:
+  GITLAB_CI_IMAGE_ALPINE: 'alpine:3.9'
+  GITLAB_CI_IMAGE_PYTHON: 'python:3'
+  GITLAB_CI_IMAGE_KAITAI: 'librespace/kaitai:0.8'
+  GITLAB_CI_PYPI_TOX: 'tox~=3.8.0'
+  GITLAB_CI_PYPI_TWINE: 'twine~=1.13.0'
+stages:
+  - compile
+  - static
+  - build
+  - test
+  - deploy
+  - trigger
+compile:
+  stage: compile
+  image:
+    name: ${GITLAB_CI_IMAGE_KAITAI}
+    entrypoint: [""]
+  script:
+    - /usr/bin/ksc --target python --outdir satnogsdecoders/decoder ksy/*.ksy
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - satnogsdecoders/decoder
+static:
+  stage: static
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_TOX"
+  script:
+    - tox -e "yamllint,flake8,isort,yapf,pylint"
+build:
+  stage: build
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_TOX"
+  script:
+    - rm -rf dist
+    - tox -e "build"
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - dist
+test:
+  stage: test
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_TOX"
+  script:
+    - tox -e "pytest"
+deploy:
+  stage: deploy
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_TWINE"
+  script:
+    - rm -rf dist
+    - python setup.py bdist_wheel
+    - twine upload -u "$PYPI_USERNAME" -p "$PYPI_PASSWORD" dist/*
+  only:
+    refs:
+      - tags
+    variables:
+      - $PYPI_USERNAME
+      - $PYPI_PASSWORD
+trigger:
+  stage: trigger
+  image: ${GITLAB_CI_IMAGE_ALPINE}
+  before_script:
+    - apk add --no-cache curl git
+  script:
+    # XXX: Workaround for GitLab missing latest tag pipeline triggering feature
+    - |
+      SATNOGS_DB_LATEST="${SATNOGS_DB_GIT_URL:+$(git ls-remote -q --tags --refs --exit-code --sort="v:refname" "$SATNOGS_DB_GIT_URL" | awk 'BEGIN { FS="/" } END { print $3 }')}"
+      PIPELINE_TRIGGERS=$(echo "$PIPELINE_TRIGGERS" | sed 's/{{SATNOGS_DB_LATEST}}/'"$SATNOGS_DB_LATEST"'/g')
+      [ -z "$CI_COMMIT_TAG" ] || PIPELINE_TRIGGERS=$(echo "$PIPELINE_TRIGGERS" | sed -e 's/{{SATNOGS_DECODERS_VERSION}}/'"$CI_COMMIT_TAG"'/g')
+    - for trigger in $PIPELINE_TRIGGERS; do curl -X POST "$trigger"; done
+  only:
+    refs:
+      - tags
+    variables:
+      - $PIPELINE_TRIGGERS
+

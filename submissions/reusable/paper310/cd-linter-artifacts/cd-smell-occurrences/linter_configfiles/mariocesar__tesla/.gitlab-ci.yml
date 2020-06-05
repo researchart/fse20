@@ -1,0 +1,33 @@
+image: vevende/ci:latest
+
+stages:
+    - build
+    - tests
+    - deploy
+
+build:
+    stage: build
+    services:
+        - docker:dind
+    script:
+        - docker-compose run --rm frontend npm run build
+        - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+        - docker build -t registry.gitlab.com/mariocesar/tesla:latest .
+        - docker push registry.gitlab.com/mariocesar/tesla:latest
+    cache:
+        paths:
+            - src/frontend/node_modules
+            - src/frontend/.cache
+
+tests:
+    stage: tests
+    script: echo "todo bien!"
+
+deploy:
+    stage: deploy
+    script:
+        - eval $(ssh-agent -s)
+        - ssh-add <(echo "$SSH_PRIVATE_KEY")
+        - ansible-playbook -vvv -i provision/inventory.ini provision/deploy.yml
+
+

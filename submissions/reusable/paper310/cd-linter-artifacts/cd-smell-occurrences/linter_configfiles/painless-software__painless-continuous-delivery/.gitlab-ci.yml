@@ -1,0 +1,68 @@
+# Painless deployment with GitLab CI.
+# Visit the docs at https://docs.gitlab.com/ce/ci/
+
+image: painless/tox:multi
+
+.cookiecutter:
+  stage: deploy
+  before_script:
+  - git config --global user.name "Cookiecutter"
+  - git config --global user.email "cookiecutter@painless.software"
+  - eval $(ssh-agent -s)
+  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+  - mkdir -p -m 700 ~/.ssh && echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+  only:
+  - master
+
+.test:
+  stage: test
+  artifacts:
+    reports:
+      junit: tests/reports/*.xml
+
+stages:
+- check
+- test
+- deploy
+
+flake8:
+  stage: check
+  script: tox -e flake8
+
+pylint:
+  stage: check
+  script: tox -e pylint
+
+bandit:
+  stage: check
+  script: tox -e bandit
+  allow_failure: true
+
+py35:
+  extends: .test
+  script: tox -e py35
+
+py36:
+  extends: .test
+  script: tox -e py36
+
+py37:
+  extends: .test
+  script: tox -e py37
+
+py38:
+  extends: .test
+  script: tox -e py38
+
+pypy3:
+  extends: .test
+  script: tox -e pypy3
+
+behave:
+  extends: .test
+  script: tox -e behave
+
+example-django:
+  extends: .cookiecutter
+  script: tests/field/example-django.sh
+

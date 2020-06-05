@@ -1,0 +1,110 @@
+stages:
+  - build
+  - test
+  - release
+
+variables:
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_NAME
+  CONTAINER_DEV_IMAGE: $CI_REGISTRY_IMAGE/develop
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE
+  CONTAINER_ID: '$CI_JOB_NAME-$CI_PROJECT_NAME-Pipeline$CI_PIPELINE_ID-Job$CI_JOB_ID'
+
+.build_template: &docker_build
+  image: docker:latest
+  services:
+    - docker:dind
+  tags:
+    - docker
+  stage: build
+  script:
+    - docker build --pull -t $CONTAINER_TEST_IMAGE:$TAG -f Dockerfile.$DISTRO .
+    - docker push $CONTAINER_TEST_IMAGE:$TAG
+  except:
+    - master
+
+.test_template: &test_image
+  image: docker:latest
+  services:
+    - docker:dind
+  tags:
+    - docker
+  stage: test
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE:$TAG
+    # Test running the container.
+    - docker run --name $CONTAINER_ID -d --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:ro $CONTAINER_TEST_IMAGE:$TAG $INIT
+    # Verify Ansible is available in the container.
+    - docker exec --tty $CONTAINER_ID env TERM=xterm ansible --version
+  except:
+    - master
+
+.release-image: &release_image
+  image: docker:latest
+  services:
+    - docker:dind
+  tags:
+    - docker
+  stage: release
+  script:
+    - docker pull $CONTAINER_DEV_IMAGE:$TAG
+    - docker tag $CONTAINER_DEV_IMAGE:$TAG $CONTAINER_RELEASE_IMAGE:$RELEASE_TAG
+    - docker push $CONTAINER_RELEASE_IMAGE:$RELEASE_TAG
+  only:
+    - master
+
+before_script:
+  - docker info
+  - echo "$CI_JOB_TOKEN" | docker login -u gitlab-ci-token $CI_REGISTRY --password-stdin
+
+
+build_ubuntu1604:
+  variables:
+    DISTRO: 'ubuntu16.04'
+    TAG: '16.04'
+
+  <<: *docker_build
+
+build_ubuntu1804:
+  variables:
+    DISTRO: 'ubuntu18.04'
+    TAG: '18.04'
+
+  <<: *docker_build
+
+test_ubuntu1604:
+  variables:
+    DISTRO: 'ubuntu16.04'
+    INIT: /lib/systemd/systemd
+    TAG: '16.04'
+
+  <<: *test_image
+
+test_ubuntu1804:
+  variables:
+    DISTRO: 'ubuntu18.04'
+    INIT: /lib/systemd/systemd
+    TAG: '18.04'
+
+  <<: *test_image
+
+release_image_ubuntu1604:
+  variables:
+    TAG: '16.04'
+    RELEASE_TAG: '16.04'
+
+  <<: *release_image
+
+release_image_ubuntu1804:
+  variables:
+    TAG: '18.04'
+    RELEASE_TAG: '18.04'
+
+  <<: *release_image
+
+release_image_latest:
+  variables:
+    TAG: '18.04'
+    RELEASE_TAG: latest
+
+  <<: *release_image
+

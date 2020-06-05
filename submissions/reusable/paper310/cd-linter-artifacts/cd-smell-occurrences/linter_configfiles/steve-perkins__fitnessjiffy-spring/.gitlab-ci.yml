@@ -1,0 +1,11 @@
+image: adoptopenjdk/openjdk8-openj9:ubuntu
+
+test:
+  before_script:
+    - apt-get update
+    - apt-get --yes --force-yes install libaio1 libnuma1 libssl1.0 libcrypto++6
+  script:
+    - chmod +x mvnw
+    - ./mvnw clean test -Dspring.profiles.active=utc
+
+

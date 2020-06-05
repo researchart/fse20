@@ -1,0 +1,40 @@
+image: asciidoctor/docker-asciidoctor:latest
+
+stages:
+  - build
+  # - deploy
+
+# cache:
+#   paths:
+#     - path1
+
+# before_script:
+##  - echo "Started"
+
+build:
+  stage: build
+  script:
+    - ./build -g && ./build -pekdf book.adoc
+  artifacts:
+    paths:
+      - book.pdf
+      - book.epub
+      - book.html
+      - book.xml
+      - book-kf8.epub
+      - book.mobi
+      - images/icons/*
+      - images/*
+      - preview.html
+    expire_in: 1 week
+  only:
+    - master
+
+# deploy:
+#   stage: deploy
+#   script:
+#     - ./run-script.sh
+
+after_script:
+  - echo "End CI"
+

@@ -1,0 +1,19 @@
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:6
+
+before_script:
+  - npm install -g bower grunt-cli
+  - npm install
+  - bower install --allow-root
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+    - node_modules/
+
+build:
+  script:
+    - grunt
+

@@ -1,0 +1,25 @@
+before_script:
+  # Install and run SSH.
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - eval $(ssh-agent -s)
+  - mkdir -p ~/.ssh/
+
+  # Decrypt publish-key and add to SSH.
+  - openssl aes-256-cbc -K $encrypted_key -iv $encrypted_iv -in private/publish-key.enc -out ~/.ssh/publish-key -d
+  - chmod u=rw,og= ~/.ssh/publish-key
+  - echo "Host *" >> ~/.ssh/config
+  - echo "  IdentityFile ~/.ssh/publish-key" >> ~/.ssh/config
+
+  # Check new signatures manually with ssh-keyscan and ssh-keygen.
+  - echo "[codeserver.dev.21dc5d71-9de1-4fa9-93e8-a45cd3a27c27.drush.in]:2222,[104.154.170.149]:2222 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSY3gnr0DrbqJJSnEFy6jazDmAdBm4Zs/EkWIQa7x31qgSYyYJMz5V+pk62lBf2BN42VtubwO83vW9G+yG2K1RGOvZJaK5GBvBb/Ws2ZPcp/4sNHpPzkdd75e5/Pk8AWA59XUbJcBWmrDrHMbWV1j2zqPPikxbqGeTTjSx4QR18LIRei5OwT6VQnaVnJqPAqFZ+oCbpr0DL96foL3UEY8EWT/6GH2cANEGZO4ppbhdDw4uG6TaI7S0lxWMQEVy+iwjCNH/nanjd73cwoYd90E0OVdgNDr3hVbIuE6sUW6UwlaAwuyOM/xJYPg1y0rF66958pyVJlZ9KD5A0kY3bHg7" >> ~/.ssh/known_hosts
+  - echo "" >> ~/.ssh/known_hosts
+
+deploy_pantheon:
+  only:
+    - master
+  environment:
+    name: pantheon
+  script:
+    - git remote add pantheon ssh://codeserver.dev.21dc5d71-9de1-4fa9-93e8-a45cd3a27c27@codeserver.dev.21dc5d71-9de1-4fa9-93e8-a45cd3a27c27.drush.in:2222/~/repository.git
+    - git push pantheon master
+

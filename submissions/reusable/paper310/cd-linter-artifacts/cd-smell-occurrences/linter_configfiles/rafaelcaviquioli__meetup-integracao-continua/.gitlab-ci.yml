@@ -1,0 +1,65 @@
+stages:
+  - code_quality
+  - build
+  - test
+  - deploy
+eslint:
+  image: node:latest
+  stage: code_quality
+  before_script:
+    - npm install
+  script:
+    - npm run eslint
+unit_test:
+  image: node:latest
+  stage: test
+  before_script:
+    - npm install
+  script:
+    - npm test
+e2e:
+  image: tmaier/docker-compose:latest
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+    - docker:dind
+  stage: test
+  before_script:
+    - docker-compose run application npm install
+  script:
+    - NODE_ENV=docker docker-compose run codeceptjs ./node_modules/.bin/codeceptjs run
+  artifacts:
+    paths:
+      - codeceptjs/output-error/
+      - codeceptjs/snapshots/
+build_packages:
+  image: node:latest
+  stage: build
+  before_script:
+    - npm install
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - public
+deploy_staging:
+  stage: deploy
+  script:
+    - echo "Deploy to staging server"
+  environment:
+    name: staging
+    url: https://staging.example.com
+  only:
+  - master
+deploy_production:
+  stage: deploy
+  script:
+    - echo "Deploy to production server"
+  environment:
+    name: production
+    url: https://production.example.com
+  when: manual
+  only:
+  - master
+  
+

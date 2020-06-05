@@ -1,0 +1,49 @@
+image: maven:latest
+
+clean-compile:
+  stage: build
+  before_script:
+    - mvn clean
+  script:
+    - mvn compile
+
+test1:
+  stage: test
+  script: make test1
+  only:
+    - schedules
+
+test2:
+  stage: test
+  script: make test2
+  only:
+    - /^issue-.*$/
+    - /^test-.*$/
+    - branches
+
+test3:
+  stage: test
+  script: make test3
+  except:
+    - branches
+    - tags
+
+test4:
+  stage: test
+  script: make test4
+  except:
+    - /^experimental-.*$/
+
+test5:
+  stage: test
+  script: make test5
+  except:
+    changes:
+      - requirements.txt
+
+test6:
+  stage: test
+  script: make test6
+  only:
+    changes:
+      - "*.java"

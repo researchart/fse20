@@ -1,0 +1,40 @@
+
+image: thebiftek/nette-tester
+
+before_script:
+  - composer install
+
+cache:
+  paths:
+  - vendor/
+
+services:
+  - mariadb:10.0.21
+
+variables:
+  MYSQL_DATABASE: eveblues
+  MYSQL_ROOT_PASSWORD: 7mgc485ygm6y085cg.^^^&(%#(53g8hx3g85
+  MYSQL_USER: eveblues
+  MYSQL_PASSWORD: 4c5m4598ghx4n8xenfere
+
+stages:
+ - build
+ - deploy
+ - test
+ - cleanup
+
+
+#stable:
+#  stage: deploy
+
+
+#composer:
+#  stage: build
+#  script:
+#    - composer install
+
+test:
+  script:
+  - cp app/config/config.local.neon.ci app/config/config.local.neon
+  - php tester tests -c tests/php.ini
+

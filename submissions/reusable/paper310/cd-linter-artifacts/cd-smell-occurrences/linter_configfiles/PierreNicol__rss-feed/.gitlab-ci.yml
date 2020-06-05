@@ -1,0 +1,19 @@
+image: pnicol/android_sdk_28
+
+stages:
+  - build
+  - quality
+
+build:debug:
+  stage: build
+  script:
+    - ./gradlew clean :app:assembleDebug
+  artifacts:
+      paths:
+        - app/build/outputs/apk/
+
+quality:lint:
+  stage: quality
+  script:
+    - ./gradlew clean :app:lintDebug
+

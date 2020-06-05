@@ -1,0 +1,19 @@
+image: docker:stable
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+variables:
+  CONTAINER_IMAGE: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}
+  DOCKER_DRIVER: overlay
+
+Build:
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+    - docker build -t ${CONTAINER_IMAGE} .
+    - docker push ${CONTAINER_IMAGE}
+

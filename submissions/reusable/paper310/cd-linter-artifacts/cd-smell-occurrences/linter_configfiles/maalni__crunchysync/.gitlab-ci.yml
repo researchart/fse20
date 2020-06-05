@@ -1,0 +1,20 @@
+variables:
+  DOCKER_DRIVER: overlay2
+
+image: maalni/maalni.gitlab.io:latest
+
+stages:
+  - tag
+
+cache:
+  paths:
+  - node_modules/
+
+tag:
+  stage: tag
+  script:
+    - curl --request POST --header "PRIVATE-TOKEN:$apikey" --data "tag_name=v$(cat src/manifest.json | jq -r '.version')&ref=master&release_description=$(cat releasenotes.txt)" "https://gitlab.com/api/v4/projects/maalni%2Fcrunchysync/repository/tags"
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /(release v\S+\.\S+\.\S+)/
+

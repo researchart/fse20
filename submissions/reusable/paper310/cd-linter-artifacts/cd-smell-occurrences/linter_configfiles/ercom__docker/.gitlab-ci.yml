@@ -1,0 +1,26 @@
+
+.build-template: &build-template
+  stage: build
+  services:
+  - alias: docker
+    name: registry.gitlab.com/ercom/docker:17.11.0-ce-dind
+  variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    CITBX_JOB_RUN_FILE_NAME: build.sh
+  image: registry.gitlab.com/ercom/docker:17.11.0-ce-git
+  except:
+  - branches
+  script:
+  - tools/gitlab-ci/run.sh
+
+build-dind:
+  <<: *build-template
+  only:
+  - /^.*-dind$/
+
+build-git:
+  <<: *build-template
+  only:
+  - /^.*-git$/
+

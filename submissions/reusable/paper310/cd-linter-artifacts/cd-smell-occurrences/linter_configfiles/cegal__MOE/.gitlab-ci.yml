@@ -1,0 +1,33 @@
+image: python:3.6
+
+stages:
+  - static_analysis
+  - dynamic_analysis
+
+before_script:
+  - pip install -r config/requirements.txt
+
+pylint:
+  stage: static_analysis
+  script:
+    - make pylint
+
+flake8:
+  stage: static_analysis
+  script:
+    - make flake8
+
+vulnerabilities:
+  stage: static_analysis
+  script:
+    - make vulnerabilities
+
+unit_test:
+  stage: dynamic_analysis
+  coverage: '/\d+\%\s*$/'
+  script:
+    - make test
+  artifacts:
+    paths:
+      - cov_html
+

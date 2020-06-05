@@ -1,0 +1,28 @@
+image: clojure:lein-2.7.1
+
+before_script:
+    - lein deps
+
+stages:
+    # - build
+    - deploy
+
+# build:
+#     stage: build
+#     script:
+#         - lein uberjar
+#     artifacts:
+#         paths:
+#             - target/hunt-the-wumpus-standalone.jar
+
+production:
+  stage: deploy
+  script:
+    - lein uberjar
+    - HEROKU_API_KEY=$HEROKU_PRODUCTION_API_KEY lein heroku deploy
+  artifacts:
+    paths:
+      - target/hunt-the-wumpus-standalone.jar
+  only:
+    - master
+

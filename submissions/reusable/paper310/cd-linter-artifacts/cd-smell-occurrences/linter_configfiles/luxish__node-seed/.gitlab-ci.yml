@@ -1,0 +1,14 @@
+image: node:10.10.0 
+
+cache:
+  paths:
+    - node_modules/
+    
+before_script:
+  - npm install
+
+build:
+  stage: build
+  script:
+    - npm run build
+

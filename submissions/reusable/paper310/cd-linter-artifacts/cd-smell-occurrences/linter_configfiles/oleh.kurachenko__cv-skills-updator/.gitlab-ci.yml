@@ -1,0 +1,13 @@
+stages:
+  - check
+
+image: node:6
+
+before_script:
+  - npm -g install acorn
+
+check:
+  stage: check
+  script:
+    - acorn --silent *.gs
+

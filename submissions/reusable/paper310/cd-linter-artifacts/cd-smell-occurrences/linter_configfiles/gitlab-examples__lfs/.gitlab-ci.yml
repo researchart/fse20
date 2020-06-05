@@ -1,0 +1,17 @@
+alpine:
+  image: alpine:latest
+  script:
+  - apk add git git-lfs --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/
+  - git lfs pull
+  - ls -al Cat_poster_1.jpg
+
+ubuntu:
+  image: ubuntu:xenial
+  script:
+  - apt-get update -qyy
+  - apt-get install -y curl
+  - curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash
+  - apt-get install -y git-core git-lfs
+  - git lfs pull
+  - ls -al Cat_poster_1.jpg
+

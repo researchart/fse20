@@ -1,0 +1,63 @@
+stages :
+ - test
+ - deploy
+
+variables:
+  ANDROID_TARGET_SDK: "24"
+  ANDROID_BUILD_TOOLS: "25.0.0"
+  ANDROID_SDK_TOOLS: "24.4.1"
+
+unitTest:app:
+   image: openjdk:8-jdk
+   stage: test
+   before_script:
+    - chmod +x CI/android_sdk.sh
+    - ./CI/android_sdk.sh
+    - export ANDROID_HOME=$PWD/android-sdk-linux
+    - chmod +x ./gradlew
+   script:
+    - ./gradlew test
+    - ./gradlew testDebugUnitTestCoverage 
+    - cat app/build/reports/jacoco/testDebugUnitTestCoverage/html/index.html
+   artifacts:
+     paths:
+      - app/build/reports/
+
+unitTest:API:
+  image: php:7.0
+  stage: test
+  cache:  
+    paths:
+      - API/vendor/
+  before_script:
+    - chmod +x CI/install_phpunit.sh
+    - CI/install_phpunit.sh > /dev/null
+    - composer install -d ./API
+  script:
+    - phpunit API/test/BatikTest.php
+
+pages:
+  stage: deploy
+  script:
+    - mv app/build/reports/jacoco/testDebugUnitTestCoverage/html/ public/
+  artifacts:
+    paths:
+      - public
+
+build:
+  image: openjdk:8-jdk
+  stage: deploy
+  tags:
+    - linux
+    - docker
+  before_script:
+    - chmod +x CI/android_sdk.sh
+    - ./CI/android_sdk.sh
+    - export ANDROID_HOME=$PWD/android-sdk-linux
+    - chmod +x ./gradlew
+  script:
+    - ./gradlew assembleDebug
+  artifacts:
+    paths:
+      - app/build/outputs/
+

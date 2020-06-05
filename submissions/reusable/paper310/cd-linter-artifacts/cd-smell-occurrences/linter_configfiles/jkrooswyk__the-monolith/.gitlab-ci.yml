@@ -1,0 +1,143 @@
+# This file is a template, and might need editing before it works on your project.
+# Explanation on the scripts:
+# https://gitlab.com/gitlab-examples/kubernetes-deploy/blob/master/README.md
+image: registry.gitlab.com/gitlab-examples/kubernetes-deploy
+
+variables:
+  # Application deployment domain
+  # KUBE_DOMAIN: domain.example.com
+
+stages:
+  - build
+  - test
+  - doc
+  - review
+  - staging
+  - canary
+  - production
+  - cleanup
+
+build:
+  stage: build
+  script:
+    - command build
+  only:
+    - branches
+
+canary:
+  stage: canary
+  script:
+    - command canary
+  environment:
+    name: prodblue
+    url: http://$CI_PROJECT_PATH_SLUG-prod-blue.$KUBE_DOMAIN
+  when: manual
+  only:
+    - master
+
+blue:
+  stage: production
+  script:
+    - command deploy
+  environment:
+    name: prodblue
+    url: http://$CI_PROJECT_PATH_SLUG-prod-blue.$KUBE_DOMAIN
+  when: manual
+  only:
+    - master
+
+green:
+  stage: production
+  script:
+    - command deploy
+  environment:
+    name: prodgreen
+    url: http://$CI_PROJECT_PATH_SLUG-green.$KUBE_DOMAIN
+  when: manual
+  only:
+    - master
+
+staging:
+  stage: staging
+  script:
+    - command deploy
+  environment:
+    name: staging
+    url: http://$CI_PROJECT_PATH_SLUG-staging.$KUBE_DOMAIN
+  only:
+    - master
+
+review:
+  stage: review
+  script:
+    - command deploy
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: http://$CI_PROJECT_PATH_SLUG-$CI_ENVIRONMENT_SLUG.$KUBE_DOMAIN
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+
+stop_review:
+  stage: cleanup
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - command destroy
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+  when: manual
+  allow_failure: true
+  only:
+    - branches
+  except:
+    - master
+
+sast:
+  stage: test 
+  script:
+    - exit 0
+
+rspec-mysql-unit-test:
+  stage: test
+  script:
+    - exit 0
+
+rspec-postgres-unit-test:
+  stage: test
+  script:
+    - exit 0
+    
+coveralls-integration-test:
+  stage: test
+  script:
+    - exit 0
+
+simplecov-code-coverage:
+  stage: test
+  script:
+    - exit 0
+
+cucumber-mysql-acceptance-test:
+  stage: test
+  script:
+    - exit 0
+
+cucumber-postgres-acceptance-test:
+  stage: test
+  script:
+    - exit 0
+
+rubocop-static-analysis-test:
+  stage: test
+  script:
+    - exit 0
+
+tanuki-docs:
+  stage: doc
+  script:
+    - exit 0
+

@@ -1,0 +1,269 @@
+image: python:3.5
+
+before_script:
+  - pip install -r requirements.txt
+
+# Week 1
+
+grade_week_1_mandatory:
+  stage: test
+  script:
+    - file week_1/form_m{1,2,3}.py
+    - python week_1/form_m{1,2,3}.py
+  only:
+    - /^lab[-_].*1$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: false
+
+grade_week_1_additional:
+  stage: test
+  script:
+    - file week_1/form_a1.py
+    - python week_1/form_a1.py
+  only:
+    - /^lab[-_].*1$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: true
+
+# Week 2
+
+grade_week_2_mandatory:
+  stage: test
+  script:
+    - cd week_2/factory-method-pattern
+    - python Tutorial2-FM.py
+    - cd ../singleton-pattern
+    - python SingletonPattern.py
+    - python NewSingleton.py
+    - cat SingletonVsNewSingleton.txt
+    - python Tutorial2Singleton.py
+  only:
+    - /^lab[-_].*2$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: false
+
+grade_week_2_additional:
+  stage: test
+  script:
+    - cd week_2/factory-method-pattern
+    - python Tutorial2-FM-Dynamic.py
+    - cat factoryMethodPattern.txt
+  only:
+    - /^lab[-_].*2$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: true
+
+# Week 3
+
+prep_week_3:
+  stage: build
+  script:
+    - python -m flake8 --ignore=F821 week-3
+  only:
+    - /^week-3$/@CSUI-AdvProg-2017/lab-exercises
+
+grade_week_3_mandatory:
+  stage: test
+  script:
+    - file week_3/m1{adapter,bridge}.py
+    - file week_3/m2{adapter,bridge}.txt
+    - python week_3/m1{adapter,bridge}.py
+    - cat week_3/m2{adapter,bridge}.txt
+  only:
+    - /^lab[-_].*3$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: false
+
+grade_week_3_additional:
+  stage: test
+  script:
+    - file week_3/a1bridge.py
+    - python week_3/a1bridge.py
+  only:
+    - /^lab[-_].*3$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: true
+
+# Week 4
+
+prep_week_4:
+  stage: build
+  script:
+    - python -m flake8 --ignore=F821 week_4
+  only:
+    - /^week-4$/@CSUI-AdvProg-2017/lab-exercises
+
+check_week_4_mandatory:
+  stage: build
+  script:
+    - test -e week_4/week4.py
+    - test -e week_4/test_week4.py
+    - test -e week_4/m1facade.txt
+  only:
+    - /^lab[-_].*4$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: false
+
+grade_week_4_mandatory:
+  stage: test
+  script:
+    - python week_4/week4.py
+    - cat week_4/m1facade.txt
+    - python -m unittest discover week_4
+  only:
+    - /^lab[-_].*4$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: false
+
+check_week_4_additional:
+  stage: build
+  script:
+    - test -e week_4/week4a.py
+  only:
+    - /^lab[-_].*4$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: true
+
+grade_week_4_additional:
+  stage: test
+  script:
+    - python week_4/week4a.py
+  only:
+    - /^lab[-_].*4$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: true
+
+# Week 5
+
+prep_week_5:
+  stage: build
+  script:
+    - test -e week_5/README.md
+    - python -m flake8 week_5
+  only:
+    - /^week-5$/@CSUI-AdvProg-2017/lab-exercises
+
+grade_week_5_mandatory:
+  stage: test
+  script:
+    - cd week_5
+    - python -m unittest tests/m1com-tests.py
+    - python -m unittest tests/m1cor-tests.py
+  only:
+    - /^lab[-_].*5$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: false
+
+grade_week_5_additional:
+  stage: test
+  script:
+    - cd week_5
+    - python -m unittest tests/a1com-tests.py
+    - python -m unittest tests/a1cor-tests.py
+  only:
+    - /^lab[-_].*5$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: true
+
+# Week 6
+
+prep_week_6:
+  stage: build
+  script:
+    - test -e week_6/README.md
+    - python -m flake8 week_6
+  only:
+    - /^week-6$/@CSUI-AdvProg-2017/lab-exercises
+
+grade_week_6_mandatory:
+  stage: test
+  script:
+    - python week_6/{simple_observer,mediator,observer}.py
+  only:
+    - /^lab[-_].*6$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: false
+
+grade_week_6_additional:
+  stage: test
+  script:
+    - python week_6/additional_observer.py
+  only:
+    - /^lab[-_].*6$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: true
+
+# Week 7
+
+prep_week_7:
+  stage: build
+  script:
+    - test -e week_7/README.md
+    - python -m flake8 week_7
+  only:
+    - /^week-7$/@CSUI-AdvProg-2017/lab-exercises
+
+grade_week_7_mandatory:
+  stage: test
+  script:
+    - cat week_7/queue_{m1,m2}.txt
+    - cat week_7/futures_m1.txt
+    - python week_7/queue_{m1,m2}.py
+    - python week_7/futures_m1.py
+  only:
+    - /^lab[-_].*7$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: false
+
+grade_week_7_additional:
+  stage: test
+  script:
+    - python week_7/queue_{a1,a2}.py
+  only:
+    - /^lab[-_].*7$/
+  except:
+    - master
+    - branches@CSUI-AdvProg-2017/lab-exercises
+  allow_failure: true
+
+# Week 8
+
+prep_week_8:
+  stage: build
+  script:
+    - test -e week_8/README.md
+    - test -e week_8/MANDATORY.md
+    - test -e week_8/ADDITIONAL.md
+  only:
+    - /^week_8$/@CSUI-AdvProg-2017/lab-exercises
+

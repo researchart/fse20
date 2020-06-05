@@ -1,0 +1,39 @@
+image: gcc:6.3
+
+before_script:
+- apt-get update && apt-get install -y cmake libopenmpi-dev openmpi-bin liblapack-dev doxygen libjs-mathjax lcov
+
+build:
+  stage: build
+  script:
+  - mkdir build
+  - cd build
+  - cmake -DCMAKE_C_FLAGS="--coverage" -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage" ../src
+  - make
+  artifacts:
+    paths:
+    - build/
+       
+test:
+  stage: test
+  script:
+  - cd build
+  - export OMP_NUM_THREADS=1
+  - ctest --output-on-failure
+  - lcov --directory . --capture --output-file coverage.info         # capture coverage info
+  - lcov --remove coverage.info '/usr/*' --output-file coverage.info # filter out system
+  - lcov --list coverage.info                                        # debug info
+  # Uploading report to CodeCov
+  - export CODECOV_TOKEN="e1c7849f-e69a-4c85-88e0-27926cd800bc"
+  - bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
+  dependencies:
+  - build
+
+pages:
+  script:
+  - doxygen doxygen/Doxyfile
+  - mv doxygen/documentation/html/ public/
+  artifacts:
+    paths:
+    - public
+

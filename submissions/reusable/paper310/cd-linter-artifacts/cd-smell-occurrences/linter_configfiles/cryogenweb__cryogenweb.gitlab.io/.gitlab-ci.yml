@@ -1,0 +1,14 @@
+image: clojure:latest
+
+pages:
+  stage: deploy
+  script:
+  - lein run
+  - find
+  - mv resources/public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

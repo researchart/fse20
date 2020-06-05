@@ -1,0 +1,62 @@
+stages:
+  - build
+  - test
+  - docker
+
+cache:
+  paths:
+    - node_modules/
+  key: ${CI_BUILD_REF_NAME}
+  untracked: true
+
+# Job: Build
+build:
+  stage: build
+  image: node:9.2.0
+  before_script:
+    - echo "building branch:$CI_BUILD_REF_NAME tag:$CI_BUILD_TAG"
+  script:
+    - npm install
+    - NODE_ENV=production npm run build
+  artifacts:
+    paths:
+      - build/
+
+# Job: Test
+test:
+  stage: test
+  image: node:9.2.0
+  script:
+    - npm run coverage
+  only:
+    - branches
+    - tags
+
+# Job: Docker
+docker:
+  stage: docker
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    # Install Docker Compose
+    - apk add --update py-pip &&
+      pip install docker-compose
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker-compose up --build prod
+    - docker push registry.gitlab.com/nlabbe/gold
+  only:
+    - master
+
+# Job: Deploy
+# deploy:
+#   stage: deploy
+#   script:
+#   - rm -rf public
+#   - mv build public
+#   artifacts:
+#     paths:
+#     - public # mandatory, other folder won't work
+#   only:
+#   - master # or dev, the branch you want to publish
+

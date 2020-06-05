@@ -1,0 +1,109 @@
+cache:
+  paths:
+  - vendor/
+
+stages:
+  - test
+  - build
+  - deploy-staging
+  - test-staging
+  - deploy-prod
+  - test-prod
+
+linting:
+  stage: test   
+  script:
+    - echo true # rubocop for linting and code styling here
+  tags:
+    - catalog
+
+unit-test:
+  before_script:
+  - bundle install --path=vendor
+  stage: test
+  script:
+    - bundle exec rake unit
+  tags:
+    - catalog
+
+consumer-driven-contracts:
+  before_script:
+  - bundle install --path=vendor
+  stage: test
+  script:
+    - bundle exec rake consumer_driven_contracts
+    - bundle exec rake pact:publish
+  tags:
+    - catalog
+
+build-image:
+  stage: build
+  script:
+    - docker build -t enxebre/catalog:$CI_BUILD_REF .
+    # - docker run enxebre:catalog /smoke-test
+    - docker push enxebre/catalog:$CI_BUILD_REF
+  tags:
+    - catalog
+
+deploy-service-staging:
+  stage: deploy-staging
+  environment:
+    name: staging
+    url: http://catalog.staging.178.62.64.127.nip.io
+  script:
+    - helm upgrade catalog-st charts/catalog/ --set ImageTag=$CI_BUILD_REF,IngressDomain=staging.178.62.64.127.nip.io --install --namespace staging
+  tags:
+    - catalog
+
+# Integration e2e and performance tests can go here
+integration-smoke-tests-staging:
+  stage: test-staging
+  script:
+    - echo true # Smoke test for integration between services
+  tags:
+    - catalog
+
+# Integration e2e and performance tests can go here
+performance-smoke-tests-staging:
+  stage: test-staging
+  script:
+    - echo true # Smoke test for integration between services
+  tags:
+    - catalog
+
+# Can do smarter things here for canary/blue-green
+deploy-service-prod:
+  stage: deploy-prod
+  only:
+    - master
+  when: manual
+  environment:
+    name: prod
+    url: http://catalog.prod.178.62.64.127.nip.io
+  script:
+    - helm upgrade catalog-pr charts/catalog/ --set ImageTag=$CI_BUILD_REF,IngressDomain=prod.178.62.64.127.nip.io --install --namespace prod
+  tags:
+    - catalog
+
+# Integration e2e and performance tests can go here
+integration-smoke-tests-prod:
+  stage: test-prod
+  only:
+  - master
+  when: manual
+  script:
+    - echo true # Smoke test for integration between services
+  tags:
+    - catalog
+
+# Integration e2e and performance tests can go here
+performance-smoke-tests-prod:
+  stage: test-prod
+  only:
+  - master
+  when: manual
+  script:
+    - echo true # Smoke test for integration between services
+  tags:
+    - catalog
+

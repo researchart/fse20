@@ -1,0 +1,9 @@
+before_script:
+ - yum update -y && yum install php php-common -y
+ - yum install httpd httpd-tools -y
+ - httpd -V
+ - php -v
+
+job1:
+  script: echo "Testing"
+

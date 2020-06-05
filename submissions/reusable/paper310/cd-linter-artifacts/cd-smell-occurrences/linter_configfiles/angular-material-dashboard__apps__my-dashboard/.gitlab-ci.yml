@@ -1,0 +1,39 @@
+image: viraweb/mblowfish-angularjs-builder:1.0.0
+
+cache:
+  paths:
+  - node_modules
+
+stages:
+  - build
+  - deploy
+
+grunt_build:
+  coverage: /Lines\s*:\s*(\d+\.\d+)%/
+  stage: build
+  only:
+    - master
+    - develop
+  script:
+    - npm install
+    - bower install --allow-root --no-interactive
+    - chmod 777 -fR .
+    - su builder -c "grunt"
+    - find . -name lcov.info | xargs -d '\n' cat | node_modules/.bin/codacy-coverage -t $CODACY_PROJECT_TOKEN
+  artifacts:
+    paths:
+      - ./${CI_PROJECT_NAME}.zip
+      - ./doc
+
+
+marketplace_deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    - npm install
+    - bower install --allow-root --no-interactive
+    - chmod 777 -fR .
+    - su builder -c "grunt build"
+    - curl -F "file=@./${CI_PROJECT_NAME}.zip" https://hub.viraweb123.ir/api/v2/marketplace/spas/token-$MARKETPLACE_TOKEN
+

@@ -1,0 +1,10 @@
+unittests:
+  stage: test
+  image: python:3.4.5
+  script:
+    - cd web
+    - pip install -q -r requirements.txt
+    - nose2 -v --with-coverage project.tests
+  tags:
+    - docker
+

@@ -1,0 +1,35 @@
+stages:
+  - build
+
+build:linux:
+  image: registry.gitlab.com/cfmm/dcmproxy/image:latest
+  stage: build
+  script:
+    - mkdir build/
+    - cd build
+    - cmake ../DicomProxy
+    - make
+  artifacts:
+    paths:
+      - "build/DicomProxy"
+  only:
+    - tags
+
+build:macos:
+  stage: build
+  script:
+    - carthage bootstrap
+    - xcodebuild clean -project DcmProxy.xcodeproj -scheme DcmProxy
+    - xcodebuild archive -project DcmProxy.xcodeproj -scheme DcmProxy -archivePath build
+    - xcodebuild -exportArchive -archivePath build.xcarchive/ -exportPath build/ -exportOptionsPlist export.plist
+    - hdiutil create -volname DcmProxy -srcfolder build -ov -format UDZO "DcmProxy-${CI_COMMIT_REF_NAME}.dmg"
+  artifacts:
+    paths:
+      - "DcmProxy-${CI_COMMIT_REF_NAME}.dmg"
+  only:
+    - tags
+  tags:
+    - macOS
+    - xcode_9.0
+
+

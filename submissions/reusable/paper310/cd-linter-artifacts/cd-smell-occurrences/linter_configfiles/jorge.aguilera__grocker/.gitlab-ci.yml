@@ -1,0 +1,33 @@
+image: java:8
+
+before_script:
+
+# La documentacion se compone de los textos del trabajo
+build_doc:
+ script:
+ - apt-get update
+ - apt-get -y install graphviz
+ - echo '{"allow_root"'  ':'  true '}'   > /root/.bowerrc
+ - ./gradlew docu:clean
+ - ./gradlew docu:build
+ stage: build
+ artifacts:
+  paths:
+   - docu/build/jbake/
+ only:
+ - publish
+
+pages:
+ stage: deploy
+ dependencies:
+ - build_doc
+ script:
+ - mkdir ./public
+ - mkdir -p docu/build/jbake
+ - cp -r docu/build/jbake/* ./public
+ artifacts:
+    paths:
+    - public
+ only:
+ - publish
+

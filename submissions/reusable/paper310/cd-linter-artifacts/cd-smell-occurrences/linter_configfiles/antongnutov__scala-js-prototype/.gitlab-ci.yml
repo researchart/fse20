@@ -1,0 +1,73 @@
+# This will be run by a GitLab Runner
+image: docker:latest
+
+# Docker in Docker
+services:
+- docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay
+  # This should prevent SBT from running out of memory when compiling
+  SBT_OPTS: "-Xmx1G -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -Xss2M"
+
+stages:
+- test
+- build
+- deploy
+
+# Provides functions for calling the Docker Cloud API
+before_script:
+- source ci/prepare
+
+test:
+  image: logimethods/docker-sbt-docker
+  stage: test
+  script:
+    - sbt appJVM/test
+
+# We build the application, create a Docker image from it, and push it to GitLab's registry
+build:
+  # A Docker image containing SBT and Docker: https://hub.docker.com/r/logimethods/docker-sbt-docker/
+  # Alternative image: https://hub.docker.com/r/e8kor/sbt-docker/
+  image: logimethods/docker-sbt-docker
+  stage: build
+  script:
+  - sbt appJS/fullOptJS
+  # Log in to GitLab so we can push the image to the GitLab Docker registry
+  - docker_login
+  # In build.sbt we tag the image with the value of CI_BUILD_REF
+  - sbt appJVM/dockerBuildAndPush
+  artifacts:
+    paths:
+    - webapp
+
+staging:
+  stage: deploy
+  script:
+  - docker_retag_and_push $CI_BUILD_REF staging
+  #- deploy_to_staging
+  except:
+  # All commits are staged, except if they are on the production branch
+  - production
+  environment: staging
+
+production:
+  stage: deploy
+  script:
+  - docker_retag_and_push $CI_BUILD_REF production
+  #- deploy_to_production
+  only:
+  # Only commits that are on the production branch are put in production
+  - production
+  environment: production
+
+pages:
+  stage: deploy
+  script:
+  - cp -r webapp public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

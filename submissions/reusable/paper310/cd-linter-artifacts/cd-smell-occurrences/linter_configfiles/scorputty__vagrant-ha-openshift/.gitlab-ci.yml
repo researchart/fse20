@@ -1,0 +1,21 @@
+---
+stages:
+ - test
+
+rubocop:
+  image: ruby
+  stage: test
+  before_script:
+  - gem install rubocop
+  script:
+  - rubocop --except 'Metrics/BlockLength,Metrics/LineLength' Vagrantfile
+
+# Yamllint is currently not supported by Ansible Openshift.
+# yamllint:
+#   image: python:3
+#   stage: test
+#   before_script:
+#   - pip install yamllint
+#   script:
+#   - yamllint -d relaxed inventories/
+

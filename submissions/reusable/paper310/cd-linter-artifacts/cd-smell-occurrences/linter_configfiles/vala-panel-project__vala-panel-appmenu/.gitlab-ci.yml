@@ -1,0 +1,96 @@
+stages:
+  - build
+  - release
+before_script:
+  - mkdir -p _ccache
+  - export CCACHE_BASEDIR=${PWD}
+  - export CCACHE_DIR=${PWD}/_ccache
+
+cache:
+  paths:
+    - _ccache/
+
+build-applet-main:
+  image: archlinux/base
+  stage: build
+  script:
+   - pacman -Syy --noconfirm glibc libwnck3 gtk3 vala cmake git base-devel clang ninja xfce4-panel mate-panel budgie-desktop gobject-introspection bamf
+   - git clone https://gitlab.com/vala-panel-project/cmake-vala.git
+   - cd cmake-vala && cmake . -DCMAKE_INSTALL_PREFIX=/usr -GNinja && ninja install && cd .. && rm -rf cmake-vala
+   - git clone https://gitlab.com/vala-panel-project/vala-panel.git
+   - cd vala-panel && cmake . -DCMAKE_INSTALL_PREFIX=/usr -GNinja && ninja install && cd .. && rm -rf vala-panel
+   - mkdir build && cd build && cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_JAYATANA=OFF -DENABLE_APPMENU_GTK_MODULE=OFF -GNinja
+   - ninja
+   - ninja install
+   - ninja dist
+  artifacts:
+    paths:
+    - "build/vala-panel-appmenu*.tar.xz"
+    expire_in: 1 week
+
+
+build-gtk-module-main:
+  image: archlinux/base
+  stage: build
+  script:
+   - pacman -Syy --noconfirm gtk3 gtk2 cmake base-devel ninja git
+   - git clone https://gitlab.com/vala-panel-project/cmake-vala.git
+   - cd cmake-vala && cmake . -DCMAKE_INSTALL_PREFIX=/usr -GNinja && ninja install && cd .. && rm -rf cmake-vala
+   - cd subprojects/appmenu-gtk-module
+   - mkdir build && cd build && cmake .. -DCMAKE_INSTALL_PREFIX=/usr -GNinja
+   - ninja
+   - ninja install
+   - ninja dist
+  artifacts:
+    paths:
+    - "subprojects/appmenu-gtk-module/build/appmenu-gtk-module*.tar.xz"
+    expire_in: 1 week
+
+
+build-registrar-main:
+  image: archlinux/base
+  stage: build
+  script:
+   - pacman -Syy --noconfirm glib2 cmake base-devel ninja python git
+   - git clone https://gitlab.com/vala-panel-project/cmake-vala.git
+   - cd cmake-vala && cmake . -DCMAKE_INSTALL_PREFIX=/usr -GNinja && ninja install && cd .. && rm -rf cmake-vala
+   - cd subprojects/registrar
+   - mkdir build && cd build && cmake .. -DCMAKE_INSTALL_PREFIX=/usr -GNinja
+   - ninja
+   - ninja install
+   - ninja dist
+  artifacts:
+    paths:
+    - "subprojects/registrar/build/appmenu-registrar*.tar.xz"
+    expire_in: 1 week
+
+
+build-jayatana-main:
+  image: archlinux/base
+  stage: build
+  script:
+   - pacman -Syy --noconfirm glib2 libdbusmenu-glib cmake base-devel ninja libxkbcommon jdk8-openjdk git
+   - git clone https://gitlab.com/vala-panel-project/cmake-vala.git
+   - cd cmake-vala && cmake . -DCMAKE_INSTALL_PREFIX=/usr -GNinja && ninja install && cd .. && rm -rf cmake-vala
+   - cd subprojects/jayatana
+   - mkdir build && cd build && cmake .. -DCMAKE_INSTALL_PREFIX=/usr -GNinja
+   - ninja
+   - ninja install
+   - ninja dist
+  artifacts:
+    paths:
+    - "subprojects/jayatana/build/jayatana*.tar.xz"
+    expire_in: 1 week
+
+
+release-main:
+  image: alpine:edge
+  stage: release
+  script:
+    - apk add --no-cache python3
+    - pip3 install gitlab_release
+    - python3 -m gitlab_release ${PRIVATE_TOKEN} build/vala-panel*.tar.xz subprojects/jayatana/build/jayatana*.tar.xz subprojects/registrar/build/appmenu-registrar*.tar.xz subprojects/appmenu-gtk-module/build/appmenu-gtk-module*.tar.xz
+  only:
+    - tags
+
+

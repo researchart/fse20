@@ -1,0 +1,30 @@
+stages:
+  - build
+  - debug
+
+before_script:
+  - 'nuget restore .'
+
+build:
+ tags:
+  - windows
+ stage: build
+ script:
+  - 'msbuild OnlinkCheats.sln /p:Configuration=Release;Platform="Any CPU"'
+ artifacts:
+  paths:
+  - OnlinkCheats/bin/Release
+ only:
+   - master
+debug:
+ tags:
+  - windows
+ stage: build
+ script:
+  - 'msbuild OnlinkCheats.sln /p:Configuration=Debug;Platform="Any CPU"'
+ artifacts:
+  paths:
+  - OnlinkCheats/bin/Release
+ only:
+   - master
+

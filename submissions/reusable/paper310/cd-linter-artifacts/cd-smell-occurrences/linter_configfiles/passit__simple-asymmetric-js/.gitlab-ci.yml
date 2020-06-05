@@ -1,0 +1,9 @@
+image: node:6
+
+before_script:
+  - npm install -g webpack webpack-dev-server typings karma-cli --loglevel warn
+  - npm install
+
+test:
+  script: npm test
+

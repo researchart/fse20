@@ -1,0 +1,77 @@
+image: "mcr.microsoft.com/dotnet/core/sdk:3.1"
+
+cache:
+  paths:
+    - packages/
+
+before_script:
+  - dotnet tool install --global Paket
+  - $HOME/.dotnet/tools/paket restore
+  - dotnet restore
+
+stages:
+  - test
+  - build
+
+test_job:
+  stage: test
+
+  only:
+    - merge_requests
+    - master
+    - tags
+
+  services:
+    - mysql:latest
+
+  variables:
+    MYSQL_HOST: mysql
+    MYSQL_USER: test
+    MYSQL_PASSWORD: 'testpw'
+    MYSQL_DATABASE: testDB
+    MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+
+  script:
+    - dotnet run --project src/Domain.Specs
+    - dotnet run --project src/Infrastructure.Specs
+    - dotnet run --project src/Server.Specs
+
+  artifacts:
+    expire_in: 1 day
+    reports:
+        junit: testResults/*.xml
+
+build_job:
+  stage: build
+
+  only:
+    - tags
+
+  script:
+    - dotnet publish -c Release -o out/server-manager src/Server
+
+  artifacts:
+    name: "ServerManager-$CI_COMMIT_TAG"
+    paths:
+      - out/
+
+review_build_job:
+  stage: build
+
+  only:
+    - merge_requests
+
+  when: manual
+
+  script:
+    - dotnet publish -o ../../out/server-manager src/Server
+
+  artifacts:
+    name: "ServerManager-MR$CI_MERGE_REQUEST_ID-$CI_COMMIT_SHORT_SHA"
+    expire_in: 1 day
+    paths:
+      - out/
+
+  dependencies:
+    - test_job
+

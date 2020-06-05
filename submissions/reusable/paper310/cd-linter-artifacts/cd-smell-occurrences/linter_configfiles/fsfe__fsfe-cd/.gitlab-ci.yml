@@ -1,0 +1,84 @@
+stages:
+  - quality
+  - test
+  - build
+  - deploy
+
+variables:
+  DUMMY_POSTRES: "$CI_REGISTRY/fsfe/fsfe-cd-dummy-postgres:master"
+  FSFE_CD_IMAGE: "$CI_REGISTRY/fsfe/fsfe-cd:master"
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+  AMS_DOCKER_COMPOSE_URL: "https://gitlab.com/api/v4/projects/3362561/trigger/pipeline"
+
+before_script:
+  - cp alembic.ini.sample alembic.ini
+
+pep8-checks:
+  stage: quality
+  image: $FSFE_CD_IMAGE
+  before_script:
+    - pipenv install --dev
+  script:
+    - make lint
+
+import-sorts:
+  stage: quality
+  image: $FSFE_CD_IMAGE
+  before_script:
+    - pipenv install --dev
+  script:
+    - make isort
+
+unit-test:
+  stage: test
+  image: $FSFE_CD_IMAGE
+  services:
+    - $DUMMY_POSTRES
+  variables:
+    POSTGRES_DB: "fsfe_cd_test"
+    POSTGRES_USER: "postgres"
+    POSTGRES_PASSWORD: "passw0rd"
+    CONTAINER_SERVICE: "registry.gitlab.com__fsfe__fsfe-cd-dummy-postgres"
+    DATABASE_URL: "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@$CONTAINER_SERVICE:5432/$POSTGRES_DB"
+    ALEMBIC_INI: "alembic.ini"
+    BACKCHANNEL_ID: "backchannel_id"
+    BACKCHANNEL_PWORD: "backchannel_secret"
+    BACKCHANNEL_TIMEOUT: "3"
+    PROVIDER_URL: "https://TODO.fsfe.org"
+    SHARED_JWT_SECRET: "shared_jwt_secret"
+    TOKEN_ALGORITHM: "HS256"
+    FSFE_CD_CLIENT_ID: "fsfe_cd_client_id"
+    SERVER_PORT: "0.0.0.0:8000"
+  before_script:
+    - pipenv install --dev
+  script:
+    - make coverage
+
+docker-build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t $IMAGE_TAG .
+    - mkdir -p image
+    - docker save $IMAGE_TAG > image/image.tar
+  artifacts:
+    paths:
+      - image
+
+docker-deploy:
+  stage: deploy
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker load -i image/image.tar
+    - docker push $IMAGE_TAG
+    - curl -X POST -F token=$AMS_DOCKER_COMPOSE_TOKEN -F ref=master $AMS_DOCKER_COMPOSE_URL
+  only:
+    - master
+

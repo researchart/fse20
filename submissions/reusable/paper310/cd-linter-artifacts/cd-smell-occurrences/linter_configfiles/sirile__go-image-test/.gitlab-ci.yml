@@ -1,0 +1,18 @@
+image: docker:latest
+
+variables:
+  CONTAINER_TEST_IMAGE: registry.gitlab.com/sirile/go-image-test:$CI_BUILD_REF_NAME
+  CONTAINER_RELEASE_IMAGE: registry.gitlab.com/sirile/go-image-test:latest
+  DOCKER_DRIVER: overlay
+
+services:
+- docker:dind
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+build:
+  stage: build
+  script:
+  - docker run --rm -v "$(pwd):/src" -v /var/run/docker.sock:/var/run/docker.sock -e COMPRESS_BINARY=true centurylink/golang-builder $CONTAINER_TEST_IMAGE
+  - docker push $CONTAINER_TEST_IMAGE
+

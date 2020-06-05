@@ -1,0 +1,170 @@
+image: docker:latest
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DEPLOY_REGISTRY: ${CI_REGISTRY_IMAGE}
+
+services:
+  - docker:dind
+
+
+stages:
+  - build-docker
+  - build-base
+  - build-lang-base
+  - build-lang-specific
+  - release
+
+
+before_script:
+  - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+
+
+
+# -----------------------------------------
+# --- Docker Images
+# -----------------------------------------
+build-docker-build:
+  stage: build-docker
+  script:
+    - script/build-image.sh docker-build docker/docker-build
+
+
+# -----------------------------------------
+# --- Base Images
+# -----------------------------------------
+build-base:
+  stage: build-base
+  script:
+    - script/build-image.sh base base
+
+
+# -----------------------------------------
+# --- Language Base Images
+# -----------------------------------------
+build-base-cpp:
+  stage: build-lang-base
+  script:
+    - script/build-image.sh base-cpp cpp/base
+
+
+# -----------------------------------------
+# --- C++ and C Images
+# -----------------------------------------
+build-gcc-9:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh gcc-9 cpp/gcc 9
+
+build-gcc-8:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh gcc-8 cpp/gcc 8
+
+build-gcc-7:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh gcc-7 cpp/gcc 7
+
+build-gcc-6:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh gcc-6 cpp/gcc 6
+
+build-clang-9:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh clang-9 cpp/clang 9
+
+build-clang-8:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh clang-8 cpp/clang 8
+
+build-clang-7:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh clang-7 cpp/clang 7
+
+build-clang-6:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh clang-6 cpp/clang 6.0
+
+build-clang-5:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh clang-5 cpp/clang 5.0
+
+build-arm-none-eabi-gcc:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh arm-none-eabi-gcc cpp/arm-none-eabi-gcc 8
+
+
+# -----------------------------------------
+# --- Java
+# -----------------------------------------
+build-openjdk-13-maven:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh openjdk-13-maven java/maven 13
+
+build-openjdk-12-maven:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh openjdk-12-maven java/maven 12
+
+build-openjdk-11-maven:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh openjdk-11-maven java/maven 11
+
+build-openjdk-10-maven:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh openjdk-10-maven java/maven 10
+
+build-openjdk-9-maven:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh openjdk-9-maven java/maven 9
+
+build-openjdk-8-maven:
+  stage: build-lang-specific
+  script:
+    - script/build-image.sh openjdk-8-maven java/maven 8
+
+
+# -----------------------------------------
+# --- Release
+# -----------------------------------------
+release-stable:
+  stage: release
+  script:
+    # Base
+    - script/release-image.sh docker-build
+    - script/release-image.sh base
+    # C++
+    - script/release-image.sh base-cpp
+    - script/release-image.sh gcc-9
+    - script/release-image.sh gcc-8
+    - script/release-image.sh gcc-7
+    - script/release-image.sh gcc-6
+    - script/release-image.sh clang-9
+    - script/release-image.sh clang-8
+    - script/release-image.sh clang-7
+    - script/release-image.sh clang-6
+    - script/release-image.sh clang-5
+    - script/release-image.sh arm-none-eabi-gcc
+    # Java
+    - script/release-image.sh openjdk-13-maven
+    - script/release-image.sh openjdk-12-maven
+    - script/release-image.sh openjdk-11-maven
+    - script/release-image.sh openjdk-10-maven
+    - script/release-image.sh openjdk-9-maven
+    - script/release-image.sh openjdk-8-maven
+  only:
+    - master
+
+

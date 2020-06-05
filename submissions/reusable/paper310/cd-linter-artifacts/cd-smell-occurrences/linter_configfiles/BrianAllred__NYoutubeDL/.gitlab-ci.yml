@@ -1,0 +1,26 @@
+image: microsoft/dotnet:2.1-sdk
+
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  script:
+    - curl -L https://yt-dl.org/downloads/latest/youtube-dl -o /usr/local/bin/youtube-dl
+    - chmod a+rx /usr/local/bin/youtube-dl
+    - dotnet restore
+    - dotnet test test/NYoutubeDL.Tests/NYoutubeDL.Tests.csproj
+
+build:
+  stage: build
+  script:
+    - dotnet restore
+    - dotnet build -c Release src/NYoutubeDL/NYoutubeDL.csproj
+    - dotnet pack -c Release src/NYoutubeDL/NYoutubeDL.csproj
+  artifacts:
+    paths:
+    - src/NYoutubeDL/bin/Release/
+  only:
+    - tags
+

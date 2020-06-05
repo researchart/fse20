@@ -1,0 +1,75 @@
+image: ayufan/rock64-dockerfiles:x86_64
+
+variables:
+  GITHUB_USER: ayufan-rock64
+  GITHUB_REPO: linux-rootfs
+
+  VERSION: ${CI_COMMIT_TAG}
+  RELEASE_NAME: "${CI_COMMIT_TAG}: gitlab-ci-linux-rootfs-${CI_PIPELINE_ID}"
+  PIPELINE_URL: $CI_PROJECT_URL/pipelines/$CI_PIPELINE_ID
+
+stages: [draft, build, pre-release, release]
+
+before_script:
+  - 'export CHANGES=$(git tag -l --format="%(contents)" "$CI_COMMIT_TAG")'
+  - 'export DESCRIPTION=$(echo -e "${CHANGES}\n\n${PIPELINE_URL}")'
+
+draft:
+  stage: draft
+  only: [tags]
+  script:
+    - github-release release --tag "${VERSION}" --name "$RELEASE_NAME" --description "$DESCRIPTION" --target "$CI_COMMIT_SHA" --draft
+
+pre-release:
+  stage: pre-release
+  only: [tags]
+  environment:
+    name: pre-release
+    url: https://github.com/$GITHUB_USER/$GITHUB_REPO/releases/tag/$CI_COMMIT_TAG
+  script:
+    - github-release edit --tag "${VERSION}" --name "$RELEASE_NAME" --description "$DESCRIPTION" --pre-release
+
+release:
+  stage: release
+  only: [tags]
+  when: manual
+  environment:
+    name: release
+    url: https://github.com/$GITHUB_USER/$GITHUB_REPO/releases/tag/$CI_COMMIT_TAG
+  script:
+    - github-release edit --tag "${VERSION}" --name "$RELEASE_NAME" --description "$DESCRIPTION"
+
+.build: &build
+  stage: build
+  only: [tags]
+  script:
+    - make "$CI_JOB_NAME"
+    - github-release upload --tag "${VERSION}" --name "$(basename *.xz)" --file *.xz
+    - git clean -fdx
+
+.build_manual: &build_manual
+  <<: *build
+  when: manual
+  allow_failure: true
+
+ubuntu-bionic-mate-armhf: *build_manual
+ubuntu-bionic-mate-arm64: *build_manual
+
+ubuntu-disco-mate-armhf: *build_manual
+ubuntu-disco-mate-arm64: *build_manual
+
+debian-stretch-openmediavault-armhf: *build_manual
+debian-stretch-openmediavault-arm64: *build_manual
+
+debian-stretch-minimal-armhf: *build
+debian-stretch-minimal-arm64: *build
+
+debian-buster-minimal-armhf: *build
+debian-buster-minimal-arm64: *build
+
+ubuntu-bionic-minimal-armhf: *build
+ubuntu-bionic-minimal-arm64: *build
+
+ubuntu-disco-minimal-armhf: *build
+ubuntu-disco-minimal-arm64: *build
+

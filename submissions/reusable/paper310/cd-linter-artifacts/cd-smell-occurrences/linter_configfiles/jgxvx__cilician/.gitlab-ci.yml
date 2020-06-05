@@ -1,0 +1,33 @@
+image: registry.gitlab.com/jgxvx/cilician:latest
+
+stages:
+  - install
+  - test
+
+include:
+    - template: Dependency-Scanning.gitlab-ci.yml
+    - template: Code-Quality.gitlab-ci.yml
+
+cache:
+  paths:
+    - vendor/
+
+install:
+  stage: install
+  script:
+    - composer install --prefer-dist --no-progress --no-suggest --no-interaction
+
+cs-fixer:
+  stage: test
+  script:
+    - composer cs-review
+
+test:
+  stage: test
+  script:
+    - vendor/bin/phpunit --configuration phpunit.xml --coverage-text --colors=never
+
+code_quality:
+  artifacts:
+    paths: [gl-code-quality-report.json]
+

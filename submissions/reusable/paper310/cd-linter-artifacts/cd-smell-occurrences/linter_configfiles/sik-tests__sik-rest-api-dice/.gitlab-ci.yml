@@ -1,0 +1,26 @@
+# Stages definition
+stages:
+  - build
+  - test
+  - deploy
+
+# Cache management
+cache:
+  paths:
+  - node_modules/
+
+# Before scripts
+before_script:
+  - npm install
+
+
+# Jobs
+unit-tests:
+  stage: test
+  script:
+    - npm install
+    - npm test
+  allow_failure: no
+  tags:
+    - linux
+

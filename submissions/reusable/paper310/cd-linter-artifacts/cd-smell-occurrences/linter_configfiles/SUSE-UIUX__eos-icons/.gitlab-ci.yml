@@ -1,0 +1,25 @@
+stages:
+  - test
+  - publish
+
+image: node:10.15.0
+
+test_icons:
+  stage: test
+  before_script:
+    - npm install
+    - npm i -g grunt
+  script:
+    - grunt test
+
+# Start the jobs
+
+npm-publish:
+  stage: publish
+  script:
+    - npm install
+    - npx semantic-release
+  when: manual
+  only:
+    - master
+

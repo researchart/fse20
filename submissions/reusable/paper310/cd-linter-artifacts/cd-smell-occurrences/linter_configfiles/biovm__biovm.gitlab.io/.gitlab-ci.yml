@@ -1,0 +1,15 @@
+image: alpine
+
+pages:
+  script:
+  - apk --no-cache add python3
+  - pip3 install sphinx guzzle_sphinx_theme
+  - apk --no-cache add make
+  - make html
+  - mv build/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,8 @@
+before_script:
+  - git submodule update --init
+make_os:
+  script:
+    - make
+  tags:
+    - rust
+

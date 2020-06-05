@@ -1,0 +1,12 @@
+linux:
+  script:
+    - curl -L -o dvm https://github.com/jacob-carlborg/dvm/releases/download/v0.4.4/dvm-0.4.4-linux-debian7-x86_64
+    - chmod +x dvm
+    - ./dvm install dvm
+    - source ~/.bashrc
+    - dvm install 2.071.1
+    - dvm use 2.071.1 -d
+    - curl -o dub.tar.gz 'http://code.dlang.org/files/dub-1.0.0-linux-x86_64.tar.gz'
+    - tar -xzf dub.tar.gz
+    - ./dub test
+

@@ -1,0 +1,10 @@
+unit_tests:
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq ninja-build python3-pip libpng-dev libcairo2-dev libx11-dev libgtest-dev valgrind
+    - pip3 install meson
+  script:
+    - mkdir build && cd build
+    - meson --buildtype=debug .. && ninja
+    - meson test
+    - meson test --wrap=valgrind
+

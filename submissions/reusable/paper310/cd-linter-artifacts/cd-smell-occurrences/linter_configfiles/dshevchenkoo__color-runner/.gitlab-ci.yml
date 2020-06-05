@@ -1,0 +1,26 @@
+# This file is a template, and might need editing before it works on your project.
+# Full project: https://gitlab.com/pages/plain-html
+image: node
+
+before_script:
+  - npm install
+
+cache:
+  paths:
+    - node_modules/
+
+pages:
+  image: node
+  stage: deploy
+  script:
+  - npm run deploy
+  - echo 'Nothing to do...'
+  - mkdir -p ./public/
+  - cp -r ./dist/ index.html ./public/
+  only:
+    - master
+
+  artifacts:
+    paths:
+    - public
+

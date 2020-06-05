@@ -1,0 +1,39 @@
+stages:
+  - build
+  - deploy
+
+cache:
+  paths:
+    - node_modules/
+
+build:
+  stage: build
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t ${CI_REGISTRY_IMAGE}/web:${CI_COMMIT_REF_NAME} ./web
+    - docker build -t ${CI_REGISTRY_IMAGE}/bot:${CI_COMMIT_REF_NAME} ./bot
+    - docker push ${CI_REGISTRY_IMAGE}/web:${CI_COMMIT_REF_NAME}
+    - docker push ${CI_REGISTRY_IMAGE}/bot:${CI_COMMIT_REF_NAME}
+
+deploy_production:
+  stage: deploy
+  only:
+    - tags
+  environment:
+    name: production
+    on_stop: stop_production
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker-compose -f docker-compose.yml up --detach
+
+stop_production:
+  stage: deploy
+  when: manual
+  environment:
+    name: production
+    action: stop
+  script:
+    - docker-compose down || true
+

@@ -1,0 +1,65 @@
+stages:
+  - build
+  - package
+  - deploy
+
+build:frontend:
+  stage: build
+  image: node:latest
+  script:
+    - npm install
+    - npx webpack
+  artifacts:
+    paths:
+      - static/dist
+
+build:backend:
+  stage: build
+  image: golang:latest
+  before_script:
+    - wget -O /usr/bin/swagger https://github.com/go-swagger/go-swagger/releases/download/v0.17.0/swagger_linux_amd64
+    - echo "8cd84e1adffc1c74fa047364ecef51a9d16df078f587f27ccce647d6bb9a5a0d  /usr/bin/swagger" | sha256sum -c - --strict
+    - chmod +x /usr/bin/swagger
+    - wget -O /usr/bin/dep https://github.com/golang/dep/releases/download/v0.5.0/dep-linux-amd64
+    - echo "287b08291e14f1fae8ba44374b26a2b12eb941af3497ed0ca649253e21ba2f83  /usr/bin/dep" | sha256sum -c - --strict
+    - chmod +x /usr/bin/dep
+    - mkdir -p /go/src/git.callpipe.com/finn/piston-go
+    - cp -vr * /go/src/git.callpipe.com/finn/piston-go/
+    - cd /go/src/git.callpipe.com/finn/piston-go
+  script:
+    - swagger generate server -P piston.BrowserSubscription -f ./api-spec.yml
+    - dep ensure
+    - CGO_ENABLED=0 go build -v ./cmd/piston-server
+    - mv piston-server ${CI_PROJECT_DIR}/piston-server
+  artifacts:
+    paths:
+      - piston-server
+
+package:docker:
+  tags:
+    - docker-builder
+  stage: package
+  image: docker
+  dependencies:
+    - build:frontend
+    - build:backend
+  script:
+    - ls
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA:0:8} .
+    - docker tag ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA:0:8} ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}
+    - docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA:0:8}
+    - docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}
+
+deploy:
+  stage: deploy
+  image: registry.git.callpipe.com/k8s.janky.solutions/deployer:27a49a80
+  tags:
+  - k8s.janky.cloud
+  script:
+    - deploy piston piston registry.git.callpipe.com/finn/piston-go:${CI_COMMIT_SHA:0:8} piston
+  environment:
+    name: production
+    url: https://piston
+  only:
+  - master
+

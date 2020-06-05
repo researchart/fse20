@@ -1,0 +1,37 @@
+stages:
+  - test
+  - deploy
+
+test-with-py2:
+  stage: test
+  image: python:2.7
+  script:
+    - export ONLY_TEST_PY2=1
+    - python --version
+    - pip install -r requirements.txt
+    - ./src/gen.py all -t
+
+test-with-py3:
+  stage: test
+  image: python:3.6
+  script:
+    - export ONLY_TEST_PY3=1
+    - python --version
+    - pip install -r requirements.txt
+    - ./src/gen.py all -t
+
+deploy:
+  stage: deploy
+  environment:
+    name: production
+  image: python:3.6
+  only:
+    - tags
+  script:
+    # Deploy new service to the server
+    - "curl -s --max-time 300 -X POST -H \"Authorization: Bearer: $DEPLOY_API_TOKEN\" https://api.metachris.com/tasks/deploy-python-boilerplate > response.txt"
+
+    # Make sure deployment was successful
+    - cat response.txt
+    - grep msg response.txt
+

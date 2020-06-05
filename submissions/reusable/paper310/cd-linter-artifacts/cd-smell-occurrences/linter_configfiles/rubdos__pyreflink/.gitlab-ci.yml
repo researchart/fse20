@@ -1,0 +1,85 @@
+image: python:3
+
+before_script:
+  ## python:[23] are based of Debian Jessie
+  #- apt-get update
+  ## When python:[23] updates to Debian > 8, need to change btrfs-tools with btrfs-progs
+  #- apt-get install btrfs-tools
+  - pip install -r requirements.txt
+  - pip install -r requirements_dev.txt
+
+# TODO: perhaps add a build stage, and artifact the built files through.
+
+stages:
+  - test
+  - test-package
+  - build-docs
+  - deploy
+
+test-python2:
+  stage: test
+  image: python:2
+  script:
+    - python setup.py develop
+    - pytest --doctest-modules -m "not btrfs"
+
+test-python3:
+  stage: test
+  image: python:3
+  script:
+    - python setup.py develop
+    - pytest --doctest-modules -m "not btrfs" --cov-report term --cov-report html:public/coverage/ --cov
+  artifacts:
+    paths:
+      - public/coverage
+
+test-python2-package:
+  stage: test-package
+  image: python:2
+  script:
+    - python setup.py sdist
+    - (cd dist; easy_install reflink-*.tar.gz)
+
+test-python3-package:
+  stage: test-package
+  image: python:3
+  script:
+    - python setup.py sdist
+    - (cd dist; easy_install reflink-*.tar.gz)
+
+docs:
+  stage: build-docs
+  script:
+    - python setup.py develop
+    - sphinx-apidoc -o docs/ reflink
+    - (cd docs; make html)
+    - mkdir -p public/docs/
+    - cp docs/_build/html/* public/docs -r
+  artifacts:
+    paths:
+      - public
+
+pypi-3:
+  stage: deploy
+  image: python:3
+  dependencies:
+    - test-python3-package
+  script:
+    - bash deploy.sh
+  only:
+    - tags
+
+pages:
+  stage: deploy
+  before_script: []
+  dependencies:
+    - docs
+    - test-python3
+  script:
+    - echo packing stuff
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

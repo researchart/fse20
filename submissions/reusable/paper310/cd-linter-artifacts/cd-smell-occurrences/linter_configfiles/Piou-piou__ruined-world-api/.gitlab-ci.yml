@@ -1,0 +1,6 @@
+stage_deploy:
+    only:
+        - dev
+    script:
+        - ssh -p22 -t $DEV_SRV_USER@$DEV_SRV_URL "cd /home/$DEV_SRV_USER/ && ./ruined-world-api.sh"
+

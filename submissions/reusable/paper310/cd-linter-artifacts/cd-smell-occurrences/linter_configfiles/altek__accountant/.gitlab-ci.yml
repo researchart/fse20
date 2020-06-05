@@ -1,0 +1,65 @@
+.test_template: &test_definition
+  cache:
+    paths:
+      - vendor/
+
+  before_script:
+    # Install git
+    - apt-get update -yqq
+    - apt-get install git -yqq
+
+    # Add XDebug for reporting
+    - pecl install xdebug-2.9.2
+    - docker-php-ext-enable xdebug
+
+    # Install composer
+    - curl -sS https://getcomposer.org/installer | php
+
+    # Install package dependencies
+    - php composer.phar install --no-interaction
+
+    # Check coding style
+    - php composer.phar cs-check config
+    - php composer.phar cs-check database
+    - php composer.phar cs-check src
+    - php composer.phar cs-check tests
+
+  script:
+    - php vendor/bin/phpunit --dump-xdebug-filter xdebug-filter.php
+    - php vendor/bin/phpunit --prepend xdebug-filter.php --coverage-text --coverage-clover clover.xml --testdox
+    - bash <(curl -s https://codecov.io/bash)
+
+test:7.1:
+  image: php:7.1
+  <<: *test_definition
+
+test:7.2:
+  image: php:7.2
+  <<: *test_definition
+
+test:7.3:
+  image: php:7.3
+  <<: *test_definition
+
+test:7.4:
+  image: php:7.4
+  <<: *test_definition
+
+pages:
+  image: node:9.11.1
+
+  cache:
+    paths:
+      - node_modules/
+
+  script:
+    - yarn install
+    - yarn build
+
+  artifacts:
+    paths:
+      - public
+
+  only:
+    - master
+

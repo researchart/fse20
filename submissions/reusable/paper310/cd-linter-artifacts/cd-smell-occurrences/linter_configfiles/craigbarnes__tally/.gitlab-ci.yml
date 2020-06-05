@@ -1,0 +1,16 @@
+test:debian:
+    stage: test
+    image: registry.gitlab.com/craigbarnes/dockerfiles/cdev-debian
+    script: &SCRIPT
+        - export MAKEFLAGS="-j$(mk/nproc.sh)" WERROR=1 V=1
+        - make check && make install && tally
+        - make clean && make CC=gcc
+        - make clean && make CC=clang
+        - make clean && make CC=arm-linux-gnueabihf-gcc
+        - make clean && make CC=aarch64-linux-gnu-gcc
+        - export LDFLAGS=-static
+        - make clean && make CC=gcc
+        - make clean && make CC=clang
+        - make clean && make CC=arm-linux-gnueabihf-gcc
+        - make clean && make CC=aarch64-linux-gnu-gcc
+

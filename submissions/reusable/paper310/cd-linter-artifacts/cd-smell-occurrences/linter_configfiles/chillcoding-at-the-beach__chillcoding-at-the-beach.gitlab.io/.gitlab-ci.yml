@@ -1,0 +1,83 @@
+stages:
+  - build
+  - pages
+  - release
+
+.docker:base: &docker_base
+  when: manual
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    CURRENT_IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+    LATEST_IMAGE_TAG: $CI_REGISTRY_IMAGE:latest
+    DOCKER_DRIVER: overlay
+  before_script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+build:site:
+  stage: build
+  image: ruby:2.3
+  variables:
+    JEKYLL_ENV: gitlab
+  before_script:
+    - apt-get update
+    - apt-get upgrade -y
+    # jekyll-coffeescript need a JS runtime...
+    - apt-get install nodejs -y
+    - gem install bundler --no-document
+    - bundle install --jobs $(nproc) --deployment --without development --full-index --retry 3 --clean
+  script:
+    - bundle exec jekyll build -d ./.public
+  artifacts:
+    paths:
+      - ./.public
+  cache:
+    key: vendor
+    paths:
+      - vendor
+
+build:docker:
+  stage: build
+  <<: *docker_base
+  script:
+    - docker build -t $CURRENT_IMAGE_TAG .
+    - docker push $CURRENT_IMAGE_TAG
+
+pages:
+  stage: pages
+  environment:
+    name: production
+    url: https://www.chilldoding.com
+  script:
+    - mv ./.public ./public
+  artifacts:
+    paths:
+      - ./public
+  only:
+    - master
+
+pages:review:
+  stage: pages
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://$CI_PROJECT_NAMESPACE.gitlab.io/-/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/index.html
+  script:
+    - mv ./.public ./public
+  artifacts:
+    paths:
+      - public
+  except:
+    - master
+
+release:docker:
+  stage: release
+  <<: *docker_base
+  script:
+    - docker pull $CURRENT_IMAGE_TAG
+    - docker tag $CURRENT_IMAGE_TAG $LATEST_IMAGE_TAG
+    - docker push $LATEST_IMAGE_TAG
+  only:
+    - master
+

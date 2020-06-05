@@ -1,0 +1,12 @@
+image : stdgregwar/solarus-build-env 
+
+stages:
+  - build
+
+build:
+  before_script:
+    - git clone --branch=dev https://gitlab.com/solarus-games/solarus
+    - cd solarus && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make -j4 && make install && cd ../..
+  stage: build
+  script: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make -j4
+

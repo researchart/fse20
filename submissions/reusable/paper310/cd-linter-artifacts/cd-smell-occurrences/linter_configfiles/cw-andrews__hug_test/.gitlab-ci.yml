@@ -1,0 +1,8 @@
+image: python:3.6
+
+all_tests:
+  script:
+   - sh ./sh_scripts/install.sh
+   - pytest -v
+  when: on_success
+

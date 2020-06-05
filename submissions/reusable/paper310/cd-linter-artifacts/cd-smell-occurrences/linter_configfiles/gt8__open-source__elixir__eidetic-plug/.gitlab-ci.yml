@@ -1,0 +1,36 @@
+image: elixir:latest
+
+variables:
+  MIX_ENV: test
+
+stages:
+  - setup
+  - build
+  - test
+
+before_script:
+  - mix local.hex --force
+  - mix local.rebar --force
+
+get-dependencies:
+  stage: setup
+  script:
+    - mix deps.get
+  artifacts:
+    expire_in: 30 minutes
+    paths:
+      - deps
+      - mix.lock
+
+compile:
+  stage: build
+  script:
+    - mix compile
+
+tests:
+  stage: test
+  script:
+    - mix credo --strict
+    - mix coveralls.json
+  coverage: /\[TOTAL\]\s+(\d+\.\d+)%/
+

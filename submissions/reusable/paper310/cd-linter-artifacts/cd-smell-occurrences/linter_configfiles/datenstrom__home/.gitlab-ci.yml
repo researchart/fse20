@@ -1,0 +1,25 @@
+test-bootstrap:
+    image: debian
+    stage: test
+    script:
+        - rm -rf * || true
+        - rm -rf .* || true
+        - apt-get update && apt-get install --yes curl git grep
+        - curl https://gitlab.com/datenstrom/home/raw/master/.local/bin/bootstrap | bash
+    tags:
+        - docker
+    only:
+        - master
+
+pages:
+    image: debian
+    stage: deploy
+    script:
+        - mkdir -p public
+        - cp .local/bin/bootstrap public/
+    tags:
+        - docker
+    artifacts:
+        paths:
+            - public
+

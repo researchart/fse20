@@ -1,0 +1,28 @@
+image: registry.gitlab.com/thoelken/astarget:ci-sqlite
+
+test-php:
+    before_script:
+        - ./ci/composer-download.sh
+        - APPLICATION_ENV=test ./bin/composer --no-interaction --prefer-dist install
+
+    script:
+        - ./bin/composer check
+
+test-behat:
+    before_script:
+        - ./ci/composer-download.sh
+        - APPLICATION_ENV=test ./bin/composer --no-interaction --prefer-dist install
+        - mkdir node_modules
+
+    script:
+        - ./bin/behat -vvv --colors --tags '~@javascript' -f pretty
+
+test-js:
+    image: node
+
+    before_script:
+        - npm install
+
+    script:
+        - npm test
+

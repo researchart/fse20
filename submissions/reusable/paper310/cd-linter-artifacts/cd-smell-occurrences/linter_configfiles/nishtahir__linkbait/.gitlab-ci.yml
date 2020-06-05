@@ -1,0 +1,50 @@
+image: nishtahir/openjfx:8-jdk
+
+stages:
+- build
+- test
+- release
+
+before_script:
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+  - export BUILD_DIR=`pwd`/build/
+  - chmod +x gradlew
+  - echo $GRADLE_USER_HOME  
+  - echo $BUILD_DIR
+
+cache:
+  paths:
+    - $GRADLE_USER_HOME
+    - $BUILD_DIR
+  key: "$CI_BUILD_REF_NAME"
+  untracked: true
+
+build:
+  stage: build
+  script:
+    - ./gradlew -g $GRADLE_USER_HOME clean assemble
+    - ./gradlew -g $GRADLE_USER_HOME createDockerfile
+    - ./gradlew -g $GRADLE_USER_HOME cacheVersion
+  allow_failure: false
+
+test:
+  stage: test
+  script:
+    - ./gradlew -g $GRADLE_USER_HOME check
+  allow_failure: false
+
+release:
+  image: docker:git
+  services:
+    - docker:dind
+  stage: release
+  script:
+    - export BUILD_VER=$(cat .version)
+    - docker build -t registry.gitlab.com/nishtahir/linkbait:$BUILD_VER $BUILD_DIR/linkbait-server/docker/
+    - docker build -t registry.gitlab.com/nishtahir/linkbait:latest $BUILD_DIR/linkbait-server/docker/
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker push registry.gitlab.com/nishtahir/linkbait:$BUILD_VER
+    - docker push registry.gitlab.com/nishtahir/linkbait:latest
+  only:
+    - master
+

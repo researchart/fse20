@@ -1,0 +1,16 @@
+image: mono:latest
+
+pages:
+  script:
+  - apt-get update
+  - apt-get install wget -y
+  - apt-get install unzip -y
+  - wget https://github.com/dotnet/docfx/releases/download/v2.22.2/docfx.zip
+  - unzip docfx.zip -d docfx
+  - mono docfx/docfx.exe -o public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

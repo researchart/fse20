@@ -1,0 +1,542 @@
+### STAGES ###
+stages:
+  - test
+  - build
+  - review
+  - deploy
+  - release
+
+### GLOBAL VARS ###
+variables:
+  SHIFTIGRADE_IMAGE: registry.gitlab.com/cloudigrade/shiftigrade
+  SHIFTIGRADE_VERSION: 0.2.20
+  IMAGE_NAME: registry.gitlab.com/${CI_PROJECT_PATH}
+  IMAGE_NAME_COMMIT: registry.gitlab.com/${CI_PROJECT_PATH}/commits/${CI_PROJECT_NAME}:${CI_BUILD_REF}
+  NGINX_NAME: registry.gitlab.com/${CI_PROJECT_PATH}/nginx/${CI_PROJECT_NAME}-nginx
+  NGINX_NAME_COMMIT: registry.gitlab.com/${CI_PROJECT_PATH}/nginx-commits/${CI_PROJECT_NAME}-nginx:${CI_BUILD_REF}
+  DOCKER_DRIVER: overlay2
+
+### TEST STAGE ###
+py37:
+  stage: test
+  image: registry.gitlab.com/cloudigrade/images/build-container:latest
+  except:
+    - chat
+    - trigger
+  before_script:
+    - pip install tox codecov pipenv
+  script:
+    - tox -e py37
+    - codecov
+
+flake8:
+  stage: test
+  image: registry.gitlab.com/cloudigrade/images/build-container:latest
+  except:
+    - chat
+    - trigger
+  before_script:
+    - pip install tox pipenv
+  script: tox -e flake8
+
+vulnerability:
+  stage: test
+  image: registry.gitlab.com/cloudigrade/images/build-container:latest
+  variables:
+    PYCURL_SSL_LIBRARY: openssl
+  except:
+    - chat
+    - trigger
+  before_script:
+    - pip install pipenv
+  script:
+    - pipenv sync
+    - pipenv check
+
+Cloudigrade Docker:
+  stage: test
+  image: docker:stable
+  except:
+    - chat
+    - trigger
+  services:
+    - docker:dind
+  script:
+    - docker pull ${IMAGE_NAME}:latest || true
+    - docker build --cache-from ${IMAGE_NAME}:latest .
+
+NGINX S2i:
+  stage: test
+  image: docker:stable
+  except:
+    - chat
+    - trigger
+  services:
+    - docker:dind
+  variables:
+    CONTEXT_DIR: deployment/prod/
+    NGINX_S2I_IMAGE: centos/nginx-112-centos7:latest
+    S2I_VERSION: v1.1.10
+    S2I_RELEASE: source-to-image-v1.1.10-27f0729d-linux-amd64
+  before_script:
+    - apk --no-cache add git
+    - mkdir /opt && cd /opt
+    - wget https://github.com/openshift/source-to-image/releases/download/${S2I_VERSION}/${S2I_RELEASE}.tar.gz -O /opt/s2i.tar.gz
+    - tar --strip-components=1 -xzvf /opt/s2i.tar.gz -C /opt/
+    - mv /opt/s2i /usr/bin/
+  script:
+    - s2i build --context-dir=${CONTEXT_DIR} --ref ${CI_COMMIT_REF_NAME} ${CI_PROJECT_URL} ${NGINX_S2I_IMAGE} ${IMAGE_NAME}:latest
+
+Spec File:
+  stage: test
+  image: registry.gitlab.com/cloudigrade/images/build-container:latest
+  except:
+    - chat
+    - trigger
+  before_script:
+    - pip install pipenv
+    - pipenv install --dev
+  script:
+    - AWS_SQS_ACCESS_KEY_ID=foo AWS_SQS_SECRET_ACCESS_KEY=bar pipenv run make spec-test
+
+### BUILD STAGE ###
+Push Cloudigrade Image:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  only:
+    - master@cloudigrade/cloudigrade
+  except:
+    - tags@cloudigrade/cloudigrade
+    - chat
+    - trigger
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    - docker pull ${IMAGE_NAME}:latest || true
+    - docker build --cache-from ${IMAGE_NAME}:latest --tag ${IMAGE_NAME_COMMIT} --tag ${IMAGE_NAME}:latest .
+    - docker push ${IMAGE_NAME_COMMIT}
+    - docker push ${IMAGE_NAME}:latest
+
+Push Cloudigrade Tagged Image:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  only:
+    - tags@cloudigrade/cloudigrade
+  except:
+    - chat
+    - trigger
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    - docker pull ${IMAGE_NAME}:latest || true
+    - docker build --cache-from ${IMAGE_NAME}:latest --tag ${IMAGE_NAME}:${CI_COMMIT_TAG} .
+    - docker push ${IMAGE_NAME}:${CI_COMMIT_TAG}
+
+Push NGINX Image:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  only:
+    - master@cloudigrade/cloudigrade
+  except:
+    - tags@cloudigrade/cloudigrade
+    - chat
+    - trigger
+  variables:
+    CONTEXT_DIR: deployment/prod/
+    NGINX_S2I_IMAGE: centos/nginx-112-centos7:latest
+    S2I_VERSION: v1.1.10
+    S2I_RELEASE: source-to-image-v1.1.10-27f0729d-linux-amd64
+  before_script:
+    - apk --no-cache add git
+    - mkdir /opt && cd /opt
+    - wget https://github.com/openshift/source-to-image/releases/download/${S2I_VERSION}/${S2I_RELEASE}.tar.gz -O /opt/s2i.tar.gz
+    - tar --strip-components=1 -xzvf /opt/s2i.tar.gz -C /opt/
+    - mv /opt/s2i /usr/bin/
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    - s2i build --context-dir=${CONTEXT_DIR} ${CI_PROJECT_URL} ${NGINX_S2I_IMAGE} ${NGINX_NAME_COMMIT}
+    - docker tag ${NGINX_NAME_COMMIT} ${NGINX_NAME}:latest
+    - docker push ${NGINX_NAME_COMMIT}
+    - docker push ${NGINX_NAME}:latest
+
+Push NGINX Tagged Image:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  only:
+    - tags@cloudigrade/cloudigrade
+  except:
+    - chat
+    - trigger
+  variables:
+    CONTEXT_DIR: deployment/prod/
+    NGINX_S2I_IMAGE: centos/nginx-112-centos7:latest
+    S2I_VERSION: v1.1.10
+    S2I_RELEASE: source-to-image-v1.1.10-27f0729d-linux-amd64
+  before_script:
+    - apk --no-cache add git
+    - mkdir /opt && cd /opt
+    - wget https://github.com/openshift/source-to-image/releases/download/${S2I_VERSION}/${S2I_RELEASE}.tar.gz -O /opt/s2i.tar.gz
+    - tar --strip-components=1 -xzvf /opt/s2i.tar.gz -C /opt/
+    - mv /opt/s2i /usr/bin/
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    - s2i build --context-dir=${CONTEXT_DIR} ${CI_PROJECT_URL} ${NGINX_S2I_IMAGE} ${NGINX_NAME}:${CI_COMMIT_TAG}
+    - docker push ${NGINX_NAME}:${CI_COMMIT_TAG}
+
+### REVIEW STAGE ###
+Deploy Review:
+  stage: review
+  image: ${SHIFTIGRADE_IMAGE}:${SHIFTIGRADE_VERSION}
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - branches@cloudigrade/cloudigrade
+  except:
+    - master@cloudigrade/cloudigrade
+    - tags@cloudigrade/cloudigrade
+    - chat
+    - trigger
+  before_script:
+    - oc login --token ${KUBE_TOKEN}
+    - oc project cloudigrade-ci
+    - cd /opt/shiftigrade
+  script:
+    - export API_ROUTE_HOST=review-${CI_COMMIT_REF_SLUG}.5a9f.insights-dev.openshiftapps.com
+    - export AUTH_ROUTE_HOST=review-${CI_COMMIT_REF_SLUG}.5a9f.insights-dev.openshiftapps.com
+    - export DEPLOYMENT_PREFIX=$(echo review-${CI_COMMIT_REF_SLUG} | cut -c 1-36)
+    - export DB_SECRETS_FILE_NAME=${DEPLOYMENT_PREFIX}-db
+    - export DJANGO_DATABASE_HOST=${DEPLOYMENT_PREFIX}-db.${OPENSHIFT_PROJECT}.svc
+    - >
+      ansible-playbook \
+        -e application_name=houndigrade \
+        -e aws_prefix="${CI_COMMIT_REF_SLUG}" \
+        -e ec2_ami_id="${RECOMMENDED_AMI}" \
+        -e ec2_asg_availability_zones="${HOUNDIGRADE_AWS_AVAILABILITY_ZONE}" \
+        -e ec2_asg_desired_capacity=0 \
+        -e ec2_asg_max_size=0 \
+        -e ec2_asg_min_size=0 \
+        -e ec2_asg_name="${HOUNDIGRADE_AWS_AUTOSCALING_GROUP_NAME}" \
+        -e ec2_asg_vpc_subnets="${SUBNET_NAME}" \
+        -e ec2_instance_name="${EC2_HOST_NAME}" \
+        -e ec2_instance_type="${INSTANCE_TYPE}" \
+        -e ec2_launch_configuration_name="${HOUNDIGRADE_LAUNCH_CONFIG_NAME}" \
+        -e ec2_security_groups="${SECURITY_GROUP_NAME}" \
+        -e ecs_cluster_name="${HOUNDIGRADE_ECS_CLUSTER_NAME}" \
+        -e key_name="${SSH_KEY_NAME}" \
+        -e vpc_name="${VPC_NAME}" \
+        -e bucket_name="${AWS_S3_BUCKET_NAME}" \
+        ansible/provision-aws-resources.yaml
+    - >
+      if ! oc rollout status dc/${DEPLOYMENT_PREFIX}-db; then
+        oc process openshift//postgresql-ephemeral \
+          -p DATABASE_SERVICE_NAME=${DEPLOYMENT_PREFIX}-db \
+          -p POSTGRESQL_DATABASE=postgres \
+          -p POSTGRESQL_VERSION=9.6 \
+          -l app=${CI_COMMIT_REF_SLUG} \
+        | oc apply -f - && \
+        oc rollout status dc/${DEPLOYMENT_PREFIX}-db;
+      else
+        echo "${DEPLOYMENT_PREFIX}-db already exists, keeping."
+      fi
+    - kontemplate template ocp/review.yaml -i cloudigrade | oc apply -f -
+    - oc start-build -F c-${DEPLOYMENT_PREFIX}-api
+    - oc start-build -F c-${DEPLOYMENT_PREFIX}-nginx
+    - if ! oc rollout status dc/c-${DEPLOYMENT_PREFIX}-a; then oc rollout latest dc/c-${DEPLOYMENT_PREFIX}-a && oc rollout status dc/c-${DEPLOYMENT_PREFIX}-a; fi;
+    - oc rsh -c c-${DEPLOYMENT_PREFIX}-a $(oc get pods -o jsonpath='{.items[*].metadata.name}' -l name=c-${DEPLOYMENT_PREFIX}-a) python3 manage.py seed_review_data || true
+    - if ! oc rollout status dc/c-${DEPLOYMENT_PREFIX}-b; then oc rollout latest dc/c-${DEPLOYMENT_PREFIX}-b && oc rollout status dc/c-${DEPLOYMENT_PREFIX}-b; fi;
+    - if ! oc rollout status dc/c-${DEPLOYMENT_PREFIX}-w; then oc rollout latest dc/c-${DEPLOYMENT_PREFIX}-w && oc rollout status dc/c-${DEPLOYMENT_PREFIX}-w; fi;
+    - if ! oc rollout status dc/c-${DEPLOYMENT_PREFIX}-l; then oc rollout latest dc/c-${DEPLOYMENT_PREFIX}-l && oc rollout status dc/c-${DEPLOYMENT_PREFIX}-l; fi;
+  environment:
+    name: review/${CI_COMMIT_REF_NAME}
+    url: https://qa.cloud.paas.psi.redhat.com/api/cloudigrade/v2/
+    on_stop: Clean Up Review
+
+Clean Up Review:
+  stage: review
+  image: ${SHIFTIGRADE_IMAGE}:${SHIFTIGRADE_VERSION}
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - branches@cloudigrade/cloudigrade
+  except:
+    - master@cloudigrade/cloudigrade
+    - tags@cloudigrade/cloudigrade
+    - chat
+    - trigger
+  before_script:
+    - oc login ${OPENSHIFT_URL} --token ${KUBE_TOKEN}
+    - oc project cloudigrade-ci
+    - cd /opt/shiftigrade
+  script:
+    - export DEPLOYMENT_PREFIX=$(echo review-${CI_COMMIT_REF_SLUG} | cut -c 1-36)
+    - export DJANGO_DATABASE_HOST=${DEPLOYMENT_PREFIX}-db.${OPENSHIFT_PROJECT}.svc
+    - oc delete bc,cm,dc,is,routes,secrets,svc -l gitlab-deployment="${CI_COMMIT_REF_SLUG}-cloudigrade"
+    - oc delete dc,svc,secret "${DEPLOYMENT_PREFIX}-db"
+    - >
+      ansible-playbook \
+        -e aws_prefix="${CI_COMMIT_REF_SLUG}" \
+        -e bucket_state=absent \
+        -e ec2_asg_name="${HOUNDIGRADE_AWS_AUTOSCALING_GROUP_NAME}" \
+        -e ec2_asg_state=absent \
+        -e ec2_launch_configuration_name="${HOUNDIGRADE_LAUNCH_CONFIG_NAME}" \
+        -e ec2_lc_state=absent \
+        -e ecs_cluster_name="${HOUNDIGRADE_ECS_CLUSTER_NAME}" \
+        -e ecs_state=absent \
+        -e sqs_state=absent \
+        ansible/provision-aws-resources.yaml
+    - ansible-playbook -e aws_prefix="review-${CI_COMMIT_REF_SLUG}" -e sqs_state=absent ansible/clean-sqs.yaml
+  when: manual
+  environment:
+    name: review/${CI_COMMIT_REF_NAME}
+    action: stop
+
+.ReviewTemplate: &review_template
+  stage: review
+  image: ${SHIFTIGRADE_IMAGE}:${SHIFTIGRADE_VERSION}
+  variables:
+    GIT_STRATEGY: none
+  except:
+    - tags@cloudigrade/cloudigrade
+  before_script:
+    - oc login ${OPENSHIFT_URL} --token ${KUBE_TOKEN}
+    - oc project cloudigrade-ci
+    - cd /opt/shiftigrade
+  script:
+    - >
+      if [ -n "${CHAT_INPUT}" ]; then
+        export API_REPO_REF=master
+        export NGINX_REPO_REF=master
+        export CI_COMMIT_REF_SLUG=master-${CHAT_INPUT}
+        export DEPLOYMENT_PREFIX=$(echo ${CI_COMMIT_REF_SLUG} | cut -c 1-36)
+        export API_ROUTE_HOST=${CI_COMMIT_REF_SLUG}.5a9f.insights-dev.openshiftapps.com
+        export AUTH_ROUTE_HOST=${CI_COMMIT_REF_SLUG}.5a9f.insights-dev.openshiftapps.com
+        export AWS_S3_BUCKET_NAME=${CI_COMMIT_REF_SLUG}-cloudigrade-s3
+        export CLOUDTRAIL_EVENT_URL=https://sqs.${AWS_DEFAULT_REGION}.amazonaws.com/${AWS_ACCOUNT_NUMBER}/${CI_COMMIT_REF_SLUG}-cloudigrade-cloudtrail-sqs
+        export DB_SECRETS_FILE_NAME=${DEPLOYMENT_PREFIX}-db
+        export DJANGO_DATABASE_HOST=${DEPLOYMENT_PREFIX}-db.${OPENSHIFT_PROJECT}.svc
+        export EC2_HOST_NAME=${CI_COMMIT_REF_SLUG}-houndigrade-host
+        export GITLAB_DEPLOYMENT=${CI_COMMIT_REF_SLUG}-cloudigrade
+        export HOUNDIGRADE_AWS_AUTOSCALING_GROUP_NAME=${CI_COMMIT_REF_SLUG}-houndigrade-asg
+        export HOUNDIGRADE_ECS_CLUSTER_NAME=${CI_COMMIT_REF_SLUG}-houndigrade
+        export HOUNDIGRADE_LAUNCH_CONFIG_NAME=${CI_COMMIT_REF_SLUG}-houndigrade-lc
+      else
+        echo -e "section_start:$( date +%s ):chat_reply\r\033[0K\nPlease provide a name for the deployment.\nsection_end:$( date +%s ):chat_reply\r\033[0K"
+        exit 1
+      fi
+    - >
+      ansible-playbook \
+        -e application_name=houndigrade \
+        -e aws_prefix="${CI_COMMIT_REF_SLUG}" \
+        -e ec2_ami_id="${RECOMMENDED_AMI}" \
+        -e ec2_asg_availability_zones="${HOUNDIGRADE_AWS_AVAILABILITY_ZONE}" \
+        -e ec2_asg_desired_capacity=0 \
+        -e ec2_asg_max_size=0 \
+        -e ec2_asg_min_size=0 \
+        -e ec2_asg_name="${HOUNDIGRADE_AWS_AUTOSCALING_GROUP_NAME}" \
+        -e ec2_asg_vpc_subnets="${SUBNET_NAME}" \
+        -e ec2_instance_name="${EC2_HOST_NAME}" \
+        -e ec2_instance_type="${INSTANCE_TYPE}" \
+        -e ec2_launch_configuration_name="${HOUNDIGRADE_LAUNCH_CONFIG_NAME}" \
+        -e ec2_security_groups="${SECURITY_GROUP_NAME}" \
+        -e ecs_cluster_name="${HOUNDIGRADE_ECS_CLUSTER_NAME}" \
+        -e key_name="${SSH_KEY_NAME}" \
+        -e vpc_name="${VPC_NAME}" \
+        -e bucket_name="${AWS_S3_BUCKET_NAME}" \
+        ansible/provision-aws-resources.yaml
+    - >
+      if ! oc rollout status dc/${DEPLOYMENT_PREFIX}-db; then
+        oc process openshift//postgresql-ephemeral \
+          -p DATABASE_SERVICE_NAME=${DEPLOYMENT_PREFIX}-db \
+          -p POSTGRESQL_DATABASE=postgres \
+          -p POSTGRESQL_VERSION=9.6 \
+          -l app=${CI_COMMIT_REF_SLUG} \
+        | oc apply -f - && \
+        oc rollout status dc/${DEPLOYMENT_PREFIX}-db;
+      else
+        echo "${DEPLOYMENT_PREFIX}-db already exists, keeping."
+      fi
+    - kontemplate template ocp/review.yaml -i cloudigrade | oc apply -f -
+    - oc start-build -F c-${DEPLOYMENT_PREFIX}-api
+    - oc start-build -F c-${DEPLOYMENT_PREFIX}-nginx
+    - if ! oc rollout status dc/c-${DEPLOYMENT_PREFIX}-a; then oc rollout latest dc/c-${DEPLOYMENT_PREFIX}-a && oc rollout status dc/c-${DEPLOYMENT_PREFIX}-a; fi;
+    - oc rsh -c c-${DEPLOYMENT_PREFIX}-a $(oc get pods -o jsonpath='{.items[*].metadata.name}' -l name=c-${DEPLOYMENT_PREFIX}-a) python3 manage.py seed_review_data || true
+    - if ! oc rollout status dc/c-${DEPLOYMENT_PREFIX}-b; then oc rollout latest dc/c-${DEPLOYMENT_PREFIX}-b && oc rollout status dc/c-${DEPLOYMENT_PREFIX}-b; fi;
+    - if ! oc rollout status dc/c-${DEPLOYMENT_PREFIX}-w; then oc rollout latest dc/c-${DEPLOYMENT_PREFIX}-w && oc rollout status dc/c-${DEPLOYMENT_PREFIX}-w; fi;
+    - if ! oc rollout status dc/c-${DEPLOYMENT_PREFIX}-l; then oc rollout latest dc/c-${DEPLOYMENT_PREFIX}-l && oc rollout status dc/c-${DEPLOYMENT_PREFIX}-l; fi;
+    - echo -e "section_start:$( date +%s ):chat_reply\r\033[0K\nDeployed [cloudigrade] ${CHAT_INPUT}, available at https://qa.cloud.paas.psi.redhat.com/api/cloudigrade/v2/ using HTTP headers X-4Scale-Env:ci and X-4Scale-Branch:${CI_COMMIT_REF_SLUG}\nsection_end:$( date +%s ):chat_reply\r\033[0K"
+
+Review-Master:
+  <<: *review_template
+  only:
+    - chat
+  environment:
+    name: review/master-${CHAT_INPUT}
+    url: https://qa.cloud.paas.psi.redhat.com/api/cloudigrade/v2/
+    on_stop: Clean-up-master
+
+Review Master:
+  <<: *review_template
+  only:
+    - trigger
+  environment:
+    name: review/master-${CHAT_INPUT}
+    url: https://qa.cloud.paas.psi.redhat.com/api/cloudigrade/v2/
+    on_stop: Clean up master review
+
+.CleanReviewTemplate: &clean_review_definition
+  stage: review
+  image: ${SHIFTIGRADE_IMAGE}:${SHIFTIGRADE_VERSION}
+  variables:
+    GIT_STRATEGY: none
+  except:
+    - tags@cloudigrade/cloudigrade
+  before_script:
+    - oc login ${OPENSHIFT_URL} --token ${KUBE_TOKEN}
+    - oc project cloudigrade-ci
+    - cd /opt/shiftigrade
+  script:
+    - >
+      if [ -n "${CHAT_INPUT}" ]; then
+        export API_REPO_REF=master
+        export NGINX_REPO_REF=master
+        export CI_COMMIT_REF_SLUG=master-${CHAT_INPUT}
+        export DEPLOYMENT_PREFIX=$(echo ${CI_COMMIT_REF_SLUG} | cut -c 1-36)
+        export API_ROUTE_HOST=${CI_COMMIT_REF_SLUG}.5a9f.insights-dev.openshiftapps.com
+        export AUTH_ROUTE_HOST=${CI_COMMIT_REF_SLUG}.5a9f.insights-dev.openshiftapps.com
+        export AWS_S3_BUCKET_NAME=${CI_COMMIT_REF_SLUG}-cloudigrade-s3
+        export CLOUDTRAIL_EVENT_URL=https://sqs.${AWS_DEFAULT_REGION}.amazonaws.com/${AWS_ACCOUNT_NUMBER}/${CI_COMMIT_REF_SLUG}-cloudigrade-cloudtrail-sqs
+        export DB_SECRETS_FILE_NAME=${DEPLOYMENT_PREFIX}-db
+        export DJANGO_DATABASE_HOST=${DEPLOYMENT_PREFIX}-db.${OPENSHIFT_PROJECT}.svc
+        export EC2_HOST_NAME=${CI_COMMIT_REF_SLUG}-houndigrade-host
+        export GITLAB_DEPLOYMENT=${CI_COMMIT_REF_SLUG}-cloudigrade
+        export HOUNDIGRADE_AWS_AUTOSCALING_GROUP_NAME=${CI_COMMIT_REF_SLUG}-houndigrade-asg
+        export HOUNDIGRADE_ECS_CLUSTER_NAME=${CI_COMMIT_REF_SLUG}-houndigrade
+        export HOUNDIGRADE_LAUNCH_CONFIG_NAME=${CI_COMMIT_REF_SLUG}-houndigrade-lc
+      else
+        echo -e "section_start:$( date +%s ):chat_reply\r\033[0K\nPlease provide a name for the deployment.\nsection_end:$( date +%s ):chat_reply\r\033[0K"
+        exit 1
+      fi
+    - oc delete bc,cm,dc,is,routes,secrets,svc -l gitlab-deployment="${CI_COMMIT_REF_SLUG}-cloudigrade"
+    - oc delete dc,svc,secret "${DEPLOYMENT_PREFIX}-db"
+    - >
+      ansible-playbook \
+        -e aws_prefix="${CI_COMMIT_REF_SLUG}" \
+        -e bucket_state=absent \
+        -e ec2_asg_name="${HOUNDIGRADE_AWS_AUTOSCALING_GROUP_NAME}" \
+        -e ec2_asg_state=absent \
+        -e ec2_launch_configuration_name="${HOUNDIGRADE_LAUNCH_CONFIG_NAME}" \
+        -e ec2_lc_state=absent \
+        -e ecs_cluster_name="${HOUNDIGRADE_ECS_CLUSTER_NAME}" \
+        -e ecs_state=absent \
+        -e sqs_state=absent \
+        ansible/provision-aws-resources.yaml
+    - ansible-playbook -e aws_prefix="review-${CI_COMMIT_REF_SLUG}" -e sqs_state=absent ansible/clean-sqs.yaml
+    - echo -e "section_start:$( date +%s ):chat_reply\r\033[0K\nCloudigrade master review - ${CHAT_INPUT} - cleaned up.\nsection_end:$( date +%s ):chat_reply\r\033[0K"
+  environment:
+    name: review/master-${CHAT_INPUT}
+    action: stop
+
+Clean-up-master:
+  <<: *clean_review_definition
+  only:
+    - chat
+
+Clean up master review:
+  <<: *clean_review_definition
+  only:
+    - trigger
+  when: manual
+
+### DEPLOY STAGE ###
+### MASTER ONLY ###
+Deploy to Test:
+  stage: deploy
+  image: ${SHIFTIGRADE_IMAGE}:${SHIFTIGRADE_VERSION}
+  variables:
+    GIT_STRATEGY: none
+    API_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}/commits/${CI_PROJECT_NAME}:${CI_BUILD_REF}
+    NGINX_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}/nginx-commits/${CI_PROJECT_NAME}-nginx:${CI_BUILD_REF}
+    CELERY_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}/commits/${CI_PROJECT_NAME}:${CI_BUILD_REF}
+    LISTENER_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}/commits/${CI_PROJECT_NAME}:${CI_BUILD_REF}
+  only:
+    - master@cloudigrade/cloudigrade
+  except:
+    - triggers
+  before_script:
+    - oc login --token ${KUBE_TOKEN}
+    - oc project cloudigrade-qa
+    - cd /opt/shiftigrade
+  script:
+    - kontemplate template ocp/test.yaml -i cloudigrade | oc apply -f -
+    - if ! oc rollout status dc/c-a; then oc rollout latest dc/c-a && oc rollout status dc/c-a; fi;
+    - if ! oc rollout status dc/c-b; then oc rollout latest dc/c-b && oc rollout status dc/c-b; fi;
+    - if ! oc rollout status dc/c-w; then oc rollout latest dc/c-w && oc rollout status dc/c-w; fi;
+    - if ! oc rollout status dc/c-l; then oc rollout latest dc/c-l && oc rollout status dc/c-l; fi;
+  environment:
+    name: test
+    url: https://qa.cloud.paas.psi.redhat.com/api/cloudigrade/v2/
+
+Deploy to Stage:
+  stage: deploy
+  image: ${SHIFTIGRADE_IMAGE}:${SHIFTIGRADE_VERSION}
+  variables:
+    GIT_STRATEGY: none
+    API_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}:${CI_COMMIT_TAG}
+    NGINX_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}/nginx/${CI_PROJECT_NAME}-nginx:${CI_COMMIT_TAG}
+    CELERY_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}:${CI_COMMIT_TAG}
+    LISTENER_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}:${CI_COMMIT_TAG}
+  only:
+    - tags@cloudigrade/cloudigrade
+  except:
+    - triggers
+  before_script:
+    - oc login --token ${KUBE_TOKEN}
+    - oc project cloudigrade-stage
+    - cd /opt/shiftigrade
+  script:
+    - kontemplate template ocp/stage.yaml -i cloudigrade | oc apply -f -
+    - if ! oc rollout status dc/c-a; then oc rollout latest dc/c-a && oc rollout status dc/c-a; fi;
+    - if ! oc rollout status dc/c-b; then oc rollout latest dc/c-b && oc rollout status dc/c-b; fi;
+    - if ! oc rollout status dc/c-w; then oc rollout latest dc/c-w && oc rollout status dc/c-w; fi;
+    - if ! oc rollout status dc/c-l; then oc rollout latest dc/c-l && oc rollout status dc/c-l; fi;
+  environment:
+    name: stage
+    url: https://stage.cloud.paas.psi.redhat.com/api/cloudigrade/v2/
+
+### RELEASE STAGE ###
+Deploy to Production:
+  stage: release
+  image: ${SHIFTIGRADE_IMAGE}:${SHIFTIGRADE_VERSION}
+  variables:
+    GIT_STRATEGY: none
+    API_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}:${CI_COMMIT_TAG}
+    NGINX_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}/nginx/${CI_PROJECT_NAME}-nginx:${CI_COMMIT_TAG}
+    CELERY_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}:${CI_COMMIT_TAG}
+    LISTENER_IMAGE: registry.gitlab.com/${CI_PROJECT_PATH}:${CI_COMMIT_TAG}
+  only:
+    - tags@cloudigrade/cloudigrade
+  except:
+    - triggers
+  before_script:
+    - oc login --token ${KUBE_TOKEN}
+    - oc project cloudigrade-prod
+    - cd /opt/shiftigrade
+  script:
+    - kontemplate template ocp/prod.yaml -i cloudigrade | oc apply -f -
+    - if ! oc rollout status dc/c-a; then oc rollout latest dc/c-a && oc rollout status dc/c-a; fi;
+    - if ! oc rollout status dc/c-b; then oc rollout latest dc/c-b && oc rollout status dc/c-b; fi;
+    - if ! oc rollout status dc/c-w; then oc rollout latest dc/c-w && oc rollout status dc/c-w; fi;
+    - if ! oc rollout status dc/c-l; then oc rollout latest dc/c-l && oc rollout status dc/c-l; fi;
+  when: manual
+  environment:
+    name: production
+    url: https://cloud.redhat.com/api/cloudigrade/
+

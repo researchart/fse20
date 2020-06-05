@@ -1,0 +1,240 @@
+include:
+  - '.gitlab-ci-integration-master.yml'
+  - '.gitlab-ci-integration-branches.yml'
+
+stages:
+  - Container Build
+  - Unit Tests
+  - Coverage/Quality
+  - Integration Tests
+
+variables:
+  IMAGE_NAME: $CI_REGISTRY_IMAGE:${CI_COMMIT_REF_NAME}
+  DEV_IMAGE_NAME: $CI_REGISTRY_IMAGE:${CI_COMMIT_REF_NAME}-dev
+  DOCKER_DRIVER: overlay2
+
+###############
+# Environment #
+###############
+
+Build Curie Container:
+  image: docker:stable
+  stage: Container Build
+  tags:
+    - docker
+    - privileged
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - docker --version
+    - docker pull $CI_REGISTRY_IMAGE:latest || true
+    - docker build
+        --target production
+        --cache-from $CI_REGISTRY_IMAGE:latest
+        --tag $IMAGE_NAME
+        .
+    - docker build
+        --target development
+        --cache-from $CI_REGISTRY_IMAGE:latest
+        --tag $DEV_IMAGE_NAME
+        --tag $CI_REGISTRY_IMAGE:latest
+        .
+    - docker push $IMAGE_NAME
+    - docker push $DEV_IMAGE_NAME
+    - docker push $CI_REGISTRY_IMAGE:latest
+
+#############
+# Unit Test #
+#############
+
+Unit Tests:
+  image: $DEV_IMAGE_NAME
+  stage: Unit Tests
+  tags:
+    - docker
+    - privileged
+  script:
+    - cd curie
+    - make test
+    - make coverage
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+    - curie/.coverage*
+    - curie/tests/output
+
+Doctest:
+  image: $DEV_IMAGE_NAME
+  stage: Unit Tests
+  tags:
+    - docker
+    - privileged
+  script:
+    - cd curie/doc
+    - make doctest
+
+Py2.7 Core Unit:
+  image: python:2.7
+  stage: Unit Tests
+  tags:
+    - docker
+    - privileged
+  script:
+    - cd curie_core
+    - pip install tox
+    - tox -e py27
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+    - curie_core/.coverage*
+
+Py3.7 Core Unit:
+  image: python:3.7
+  stage: Unit Tests
+  tags:
+    - docker
+    - privileged
+  script:
+    - cd curie_core
+    - pip install tox
+    - tox -e py37
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+    - curie_core/.coverage*
+
+Core Dist:
+  image: python:3.7
+  stage: Unit Tests
+  tags:
+    - docker
+    - privileged
+  script:
+    - cd curie_core
+    - python setup.py sdist bdist_egg bdist_wheel
+    - mv dist/* ..
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+    - curie_core-*.egg
+    - curie_core-*.tar.gz
+    - curie_core-*.whl
+
+Py3.7 Core Lint:
+  image: python:3.7
+  stage: Unit Tests
+  tags:
+    - docker
+    - privileged
+  script:
+    - cd curie_core
+    - pip install -r requirements-dev.txt
+    - make lint readonly=true
+
+##################################
+# Unit Test Coverage and Climate #
+##################################
+
+Curie Unit Coverage:
+  image: $DEV_IMAGE_NAME
+  stage: Coverage/Quality
+  tags:
+    - docker
+    - privileged
+  script:
+    - cd curie
+    - make coverage
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - curie/.htmlcov*
+  when: always
+
+Curie PyLint:
+  image: $DEV_IMAGE_NAME
+  stage: Coverage/Quality
+  tags:
+    - docker
+    - privileged
+  allow_failure: true
+  script:
+    - cd curie
+    - make pylint
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+     - curie/curie
+
+Code Quality:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  stage: Coverage/Quality
+  tags:
+    - docker
+    - privileged
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  dependencies: []
+  artifacts:
+    paths: [gl-code-quality-report.json]
+
+#########
+# Docs  #
+#########
+.doc_build_template: &doc_build
+  image: $DEV_IMAGE_NAME
+  stage: Coverage/Quality
+  tags:
+    - docker
+  script:
+    - cd curie/doc
+    # -f               Overwrite existing files.
+    # -o .apidoc       Output to ./apidoc
+    # ../curie         Source module path.
+    # ../curie/server  Do not generate docs for the server module.
+    - sphinx-apidoc -f -o ./apidoc ../curie ../curie/server
+    # -W            Treat warnings as errors.
+    # --keep-going  Finish building the docs even if errors occur.
+    - make html SPHINXOPTS="-W --keep-going"
+    - cd $CI_PROJECT_DIR
+    - mkdir public
+    - cp -R curie/doc/_build/html/* public/
+  artifacts:
+    paths:
+      - public
+
+# The pages name is special and publishes to gitlab pages.
+pages:
+  <<: *doc_build
+  only:
+    - master
+    - tags
+
+# Using this non-pages name makes sure docs always get built, but don't expose.
+branch_docs:
+  <<: *doc_build
+  only:
+    - branches
+
+
+####################
+# Integration Test #
+####################
+
+# This stage is imported from .gitlab-ci-integration-*.yml
+

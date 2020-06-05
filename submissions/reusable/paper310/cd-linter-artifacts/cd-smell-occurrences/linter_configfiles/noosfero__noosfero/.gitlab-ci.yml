@@ -1,0 +1,196 @@
+image: alaxalves/noosfero-ci:stretch
+
+variables:
+  RAILS_ENV: test
+  SELENIUM_DRIVER: chrome
+  POSTGRES_DB: gitlab_ci_test
+  POSTGRES_USER: gitlab_ci_runner
+  POSTGRES_PASSWORD: ""
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+
+services:
+  - postgres:9.4
+
+before_script:
+  - apt update
+  - ./script/silent-quick-start -i
+  - mkdir -p tmp/pids tmp/cache cache
+  - rm -f vendor/rails
+  - cp config/database.yml.gitlab-ci config/database.yml
+  - bundle exec rake db:create
+  - bundle exec rake db:schema:load
+  - bundle exec rake db:migrate
+
+stages:
+  - test
+  - test-plugins
+  - code-quality
+  - build
+
+.cache: &cache
+  cache:
+    key: "$CI_BUILD_REF_NAME"
+    paths:
+      - /usr/share/rubygems-integration/all/
+
+.retriable-template: &retriable
+  retry: 2
+
+rspec:
+  <<: *retriable
+  <<: *cache
+  script: bundle exec rails test:specs
+  stage: test
+
+api:
+  <<: *retriable
+  <<: *cache
+  script: bundle exec rails test:api
+  stage: test
+
+models:
+  <<: *retriable
+  <<: *cache
+  script: bundle exec rails test:models
+  stage: test
+
+controllers:
+  <<: *retriable
+  <<: *cache
+  script: bundle exec rails test:controllers
+  stage: test
+
+integration:
+  <<: *retriable
+  <<: *cache
+  script: bundle exec rails test:integration
+  stage: test
+
+cucumber-1:
+  <<: *retriable
+  <<: *cache
+  script: bundle exec rake noosfero:doc:build & SLICE=1/2 bundle exec cucumber --profile default
+  stage: test
+
+cucumber-2:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=2/2 bundle exec cucumber --profile default
+  stage: test
+
+selenium-1:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=1/6 bundle exec rails selenium
+  stage: test
+
+selenium-2:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=2/6 bundle exec rails selenium
+  stage: test
+
+selenium-3:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=3/6 bundle exec rails selenium
+  stage: test
+
+selenium-4:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=4/6 bundle exec rails selenium
+  stage: test
+
+selenium-5:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=5/6 bundle exec rails selenium
+  stage: test
+
+selenium-6:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=6/6 bundle exec rails selenium
+  stage: test
+
+plugins-1:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=1/5 bundle exec rails test:noosfero_plugins NOOSFERO_BUNDLE_OPTS=install
+  stage: test-plugins
+
+plugins-2:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=2/5 bundle exec rails test:noosfero_plugins NOOSFERO_BUNDLE_OPTS=install
+  stage: test-plugins
+
+plugins-3:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=3/5 bundle exec rails test:noosfero_plugins NOOSFERO_BUNDLE_OPTS=install
+  stage: test-plugins
+
+plugins-4:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=4/5 bundle exec rails test:noosfero_plugins NOOSFERO_BUNDLE_OPTS=install
+  stage: test-plugins
+
+plugins-5:
+  <<: *retriable
+  <<: *cache
+  script: SLICE=5/5 bundle exec rails test:noosfero_plugins NOOSFERO_BUNDLE_OPTS=install
+  stage: test-plugins
+
+cypress:
+  <<: *retriable
+  <<: *cache
+  script: bundle exec rails cypress:run
+  stage: test
+
+rubocop:
+  <<: *cache
+  script:
+    - rubocop
+  stage: code-quality
+  allow_failure: true
+
+code_quality:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  before_script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+  script:
+    - docker run
+      --env SOURCE_CODE="$PWD"
+      --volume "$PWD":/code
+      --volume /var/run/docker.sock:/var/run/docker.sock
+      "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    paths:
+      - gl-code-quality-report.json
+    reports:
+      codequality: gl-code-quality-report.json
+  stage: code-quality
+  only:
+    - tags
+
+build_image:
+  image: docker:stable
+  stage: build
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -f config/docker/prod/Dockerfile -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+  only:
+    - tags
+

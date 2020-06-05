@@ -1,0 +1,94 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build-base
+  - build-others
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+before_script:
+  - docker login -u gitlab-ci-token -p ${CI_BUILD_TOKEN} ${CI_REGISTRY}
+
+r-release:
+  stage: build-base
+  variables:
+    R_VERSION: 3.5.0
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/${CI_BUILD_NAME}
+  script:
+    - docker build --pull --cache-from ${IMAGE_NAME} -t ${IMAGE_NAME} --build-arg R_VERSION=${R_VERSION} release
+    - docker tag ${IMAGE_NAME} ${IMAGE_NAME}:${R_VERSION}
+    - docker tag ${IMAGE_NAME} ${IMAGE_NAME}:${R_VERSION:0:1}
+    - docker run ${IMAGE_NAME} R --version
+    - docker push ${IMAGE_NAME}
+    - docker push ${IMAGE_NAME}:${R_VERSION}
+    - docker push ${IMAGE_NAME}:${R_VERSION:0:1}
+
+r-devel:
+  stage: build-base
+  variables:
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/${CI_BUILD_NAME}
+  script:
+    - docker build --pull --cache-from ${IMAGE_NAME} -t ${IMAGE_NAME} devel
+    - docker run ${IMAGE_NAME} R --version
+    - docker push ${IMAGE_NAME}
+
+r-patched:
+  stage: build-base
+  variables:
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/${CI_BUILD_NAME}
+  script:
+    - docker build --pull --cache-from ${IMAGE_NAME} -t ${IMAGE_NAME} patched
+    - docker run ${IMAGE_NAME} R --version
+    - docker push ${IMAGE_NAME}
+
+r-pandoc:
+  stage: build-others
+  dependencies:
+    - r-release
+  allow_failure: true
+  variables:
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/${CI_BUILD_NAME}
+  script:
+    - docker build --pull --cache-from ${IMAGE_NAME} -t ${IMAGE_NAME} pandoc
+    - docker run ${IMAGE_NAME} R --version
+    - docker run ${IMAGE_NAME} pandoc --version
+    - docker push ${IMAGE_NAME}
+
+tidyverse:
+  stage: build-others
+  dependencies:
+    - r-release
+  variables:
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/${CI_BUILD_NAME}
+  script:
+    - docker build --pull --cache-from ${IMAGE_NAME} -t ${IMAGE_NAME} ${CI_BUILD_NAME}
+    - docker run ${IMAGE_NAME} Rscript -e 'packageVersion("tidyverse")'
+    - docker push ${IMAGE_NAME}
+
+pkgdev:
+  stage: build-others
+  dependencies:
+    - r-release
+  variables:
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/${CI_BUILD_NAME}
+  script:
+    - docker build --pull --cache-from ${IMAGE_NAME} -t ${IMAGE_NAME} ${CI_BUILD_NAME}
+    - docker run ${IMAGE_NAME} Rscript -e 'packageVersion("devtools")'
+    - docker push ${IMAGE_NAME}
+
+shiny-server:
+  stage: build-others
+  dependencies:
+    - r-release
+  allow_failure: true
+  variables:
+    IMAGE_NAME: ${CI_REGISTRY_IMAGE}/${CI_BUILD_NAME}
+  script:
+    - docker build --pull --cache-from ${IMAGE_NAME} -t ${IMAGE_NAME} ${CI_BUILD_NAME}
+    - docker run ${IMAGE_NAME} /usr/bin/shiny-server --version
+    - docker push ${IMAGE_NAME}
+

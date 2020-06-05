@@ -1,0 +1,11 @@
+image: "python:2.7-slim"
+
+before_script:
+  - python --version
+
+test:
+  script:
+  - pip install nose==1.3.7 coverage==4.2
+  - pip install -r requirements.txt
+  - nosetests --with-coverage --cover-package=mcmweb --cover-xml
+

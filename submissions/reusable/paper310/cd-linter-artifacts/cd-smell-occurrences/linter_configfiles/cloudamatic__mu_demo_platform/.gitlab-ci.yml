@@ -1,0 +1,62 @@
+image: chef/chefdk:latest
+
+stages:
+  - Lint
+  - Test
+  - Smoke Test
+
+variables:
+  CHEF_LICENSE: "accept"
+
+Rubocop:
+  stage: Lint
+  script:
+    - rubocop utils/
+
+Cookstyle:
+  stage: Lint
+  script:
+    - cookstyle cookbooks/
+  
+Foodcritic:
+  stage: Lint
+  script:
+    - foodcritic cookbooks/
+
+Foodcritic Deprecations:
+  stage: Lint
+  script:
+    - foodcritic cookbooks/ -t deprecated -t chef13 -t chef14 -t chef15
+
+New_Berks:
+  stage: Test
+  script:
+    - apt-get -qq update
+    - apt-get -qq install git -y
+    - for d in ./cookbooks/*/ ; do (cd "$d" && berks install); done
+    - for d in ./cookbooks/*/ ; do (cd "$d" && berks verify); done
+    - for d in ./cookbooks/*/ ; do (cd "$d" && berks outdated); done
+  
+Berks:
+  stage: Test
+  script:
+    - apt-get -qq update
+    - apt-get -qq install git -y
+    - rm -rf Berksfile.lock
+    - berks install
+    - berks verify
+    - berks outdated
+
+ChefSpec:
+  stage: Test
+  script:
+    - chef gem install docker-api --version '= 1.34.0'
+    - for d in ./cookbooks/*/ ; do (echo "${bold}Testing $d$\n{normal}" && cd "$d" && chef exec rspec --force-color -fd); done
+
+.BoK Dry Run:
+  stage: Smoke Test
+  script:
+    - for bok in applications/*.y*l ; do (echo "${bold}Testing $bok$\n{normal}" && mu-deploy -d $bok); done
+  tags: 
+    - mu-master
+

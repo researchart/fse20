@@ -1,0 +1,28 @@
+stages:
+  - build
+
+variables:
+
+before_script:
+  - env
+  - pwd
+  - ls -la
+
+build_project:
+  stage: build
+  script:
+    # - if [ -f "$HOME/.bashrc" ]; then . "$HOME/.bashrc" fi
+    - pod update
+    - xcodebuild clean -workspace converse.xcworkspace -scheme converse | xcpretty -s
+    - xcodebuild clean -workspace converse.xcworkspace -scheme converseApp | xcpretty -s
+    - xcodebuild test -workspace converse.xcworkspace -scheme converse -destination 'platform=iOS Simulator,name=iPhone 11 Pro Max,OS=13.3' -enableCodeCoverage YES | xcpretty -s
+    # Uncomment line if wanted to execute UTests and UITests for the converseApp target
+    #- xcodebuild test -workspace converse.xcworkspace -scheme converseApp -destination 'platform=iOS Simulator,name=iPhone 11 Pro Max,OS=13.3' -enableCodeCoverage YES | xcpretty -s
+  after_script:
+    - slather coverage -s
+  only:
+    - master
+  tags:
+    - ios
+    - converse
+

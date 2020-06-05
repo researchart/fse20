@@ -1,0 +1,46 @@
+image: ruby:2.5
+
+variables:
+  JEKYLL_ENV: production
+  LC_ALL: C.UTF-8
+
+before_script:
+  - bundle install --without dependabot
+
+test:
+  stage: test
+  script:
+    - bundle exec jekyll build -d test
+  artifacts:
+    paths:
+      - test
+  except:
+    - schedules
+
+pages:
+  stage: deploy
+  script:
+    - bundle exec jekyll build -d public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+  except:
+    - schedules
+
+dependabot:
+  stage: build
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+    PROJECT_PATH: $CI_PROJECT_PATH
+    PACKAGE_MANAGER: bundler
+    GITLAB_HOST_NAME: gitlab.com
+    GITLAB_AUTO_MERGE: "true"
+  before_script:
+    - bundle install
+  script:
+    - ruby bin/dependabot.rb
+  only:
+    - schedules
+

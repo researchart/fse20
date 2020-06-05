@@ -1,0 +1,11 @@
+image: maven:3-jdk-8
+
+before_script:
+  - apt-get update
+  - apt-get install lib32z1 lib32ncurses5 -y --force-yes
+
+build:
+  script: "mvn clean compile package"
+  artifacts:
+    untracked: true
+

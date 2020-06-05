@@ -1,0 +1,64 @@
+image: docker:git
+services:
+  - docker:dind
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  - docker login -u gbraad -p $DOCKER_PASSWORD
+
+stages:
+  - build
+  - sync
+
+build_fedora:
+  stage: build
+  script:
+    - docker build -t registry.gitlab.com/gbraad/c9ide:f27 ./fedora
+    - docker push registry.gitlab.com/gbraad/c9ide:f27
+
+clone_fedora:
+  stage: sync
+  script:
+    - docker pull registry.gitlab.com/gbraad/c9ide:f27
+    - docker tag registry.gitlab.com/gbraad/c9ide:f27 gbraad/c9ide:f27
+    - docker push gbraad/c9ide:f26
+
+build_fedora_devenv:
+  stage: build
+  script:
+    - docker build -t registry.gitlab.com/gbraad/c9ide:f26-devenv ./fedora-devenv
+    - docker push registry.gitlab.com/gbraad/c9ide:f26-devenv
+
+build_centos:
+  stage: build
+  script:
+    - docker build -t registry.gitlab.com/gbraad/c9ide:c7 ./centos
+    - docker push registry.gitlab.com/gbraad/c9ide:c7
+
+clone_centos:
+  stage: sync
+  script:
+    - docker pull registry.gitlab.com/gbraad/c9ide:c7
+    - docker tag registry.gitlab.com/gbraad/c9ide:c7 gbraad/c9ide:c7
+    - docker push gbraad/c9ide:c7
+
+build_centos_devenv:
+  stage: build
+  script:
+    - docker build -t registry.gitlab.com/gbraad/c9ide:c7-devenv ./centos-devenv
+    - docker push registry.gitlab.com/gbraad/c9ide:c7-devenv
+
+build_ubuntu:
+  stage: build
+  script:
+    - docker build -t registry.gitlab.com/gbraad/c9ide:u1604 ./ubuntu
+    - docker push registry.gitlab.com/gbraad/c9ide:u1604
+
+clone_ubuntu:
+  stage: sync
+  script:
+    - docker pull registry.gitlab.com/gbraad/c9ide:u1604
+    - docker tag registry.gitlab.com/gbraad/c9ide:u1604 gbraad/c9ide:u1604
+    - docker push gbraad/c9ide:u1604
+
+

@@ -1,0 +1,33 @@
+stages:
+  - test
+
+variables:
+  NAME: lighter
+  DOCK_NS: inbitcoin
+  GIT_DEPTH: "3"
+  APP_DIR: /srv/app
+  ENV_DIR: /srv/env
+
+image: docker:stable
+
+services:
+  - docker:stable-dind
+
+before_script:
+  - apk add --update bash py3-virtualenv
+
+test:
+  stage: test
+  variables:
+    VERSION: latest
+    PYTEST: $ENV_DIR/bin/pytest
+  only:
+  - master
+  - develop
+  - /^merge\/.*$/
+  script:
+    - ./unix_make.sh create_dockerfiles $VERSION amd64
+    - docker build -f docker/Dockerfile.amd64 -t $DOCK_NS/$NAME:$VERSION .
+    - docker build -f docker/Dockerfile.ci -t $DOCK_NS/$NAME-ci:$VERSION .
+    - docker run --rm --entrypoint $PYTEST $DOCK_NS/$NAME-ci -v --cov=$NAME --cov-report=term-missing
+

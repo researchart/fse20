@@ -1,0 +1,12 @@
+build:msi:
+  stage: build
+  image: harbottle/wix:latest
+  script:
+    - cd example
+    - x86_64-w64-mingw32-gcc ./example.c -o ./example.exe
+    - candle example.wxs
+    - light -sval example.wixobj
+  artifacts:
+    paths:
+    - 'example/*.msi'
+

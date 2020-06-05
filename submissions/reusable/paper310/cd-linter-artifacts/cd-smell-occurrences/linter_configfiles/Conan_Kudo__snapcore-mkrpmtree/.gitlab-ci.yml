@@ -1,0 +1,41 @@
+image: fedora:latest
+
+cache:
+  paths:
+  - /var/cache/snapcraft/dnf
+
+before_script:
+   - mkdir -p /var/log/snapcraft/dnf
+#   - dnf --assumeyes install python3 dnf distribution-gpg-keys squashfs-tools
+
+build_fedora:
+  image: fedora:latest
+  stage: build
+  script:
+    - dnf --assumeyes install python3 dnf distribution-gpg-keys tree
+    - source /etc/os-release; ./mkrpmtree -d $ID -r $VERSION_ID
+    - tree /tmp/snapcraft/root
+  tags:
+    - shared
+
+build_mageia:
+  image: mageia:latest
+  stage: build
+  script:
+    - dnf --assumeyes install python3 dnf distribution-gpg-keys tree
+    - source /etc/os-release; ./mkrpmtree -d $ID -r $VERSION_ID
+    - tree /tmp/snapcraft/root
+  tags:
+    - shared
+
+build_opensuse:
+  image: opensuse:tumbleweed
+  stage: build
+  script:
+    - zypper refresh
+    - zypper --non-interactive install python3 dnf tree python3-six
+    - ./mkrpmtree -d opensuse -r 42.3
+    - tree /tmp/snapcraft/root
+  tags:
+    - shared
+

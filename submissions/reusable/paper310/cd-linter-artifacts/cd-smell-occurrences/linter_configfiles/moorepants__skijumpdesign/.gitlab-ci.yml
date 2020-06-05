@@ -1,0 +1,49 @@
+image: continuumio/miniconda3:latest
+
+stages:
+  - install
+  - test
+  - docs
+  - test_dev
+  - test_dev_optional
+
+before_script:
+  - apt-get update -q -y
+  - apt install -y libgl1-mesa-glx build-essential
+  - conda config --set always_yes yes
+  - conda update -q conda
+  - conda env create -f environment.yml
+  - conda env create -f environment-dev.yml
+  - conda env create -f environment-dev-optional.yml
+  - conda info
+
+install:
+  script:
+    - source activate skijumpdesign
+    - python setup.py install
+    - which skijumpdesign
+
+test:
+  script:
+    - source activate skijumpdesign
+    - conda list
+    - python -c "import skijumpdesign"
+
+test_dev:
+  script:
+    - source activate skijumpdesign-dev
+    - conda list
+    - py.test --cov=skijumpdesign
+
+test_dev_optional:
+  script:
+    - source activate skijumpdesign-dev-optional
+    - conda list
+    - py.test --cov=skijumpdesign
+
+docs:
+  script:
+    - source activate skijumpdesign-dev
+    - cd docs/
+    - make html
+

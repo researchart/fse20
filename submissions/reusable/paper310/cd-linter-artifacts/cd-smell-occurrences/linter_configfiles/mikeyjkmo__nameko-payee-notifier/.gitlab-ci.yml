@@ -1,0 +1,11 @@
+test:
+  image: ubuntu:latest
+  services:
+  - name: rabbitmq:3.6-management
+    alias: rmq
+  script:
+    - apt-get update -qy
+    - apt-get install -y python3-dev python3-pip
+    - pip3 install .[dev]
+    - pytest test --rabbit-api-uri http://guest:guest@rmq:15672 --rabbit-amqp-uri pyamqp://guest:guest@rmq:5672/ -v
+

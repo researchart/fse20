@@ -1,0 +1,18 @@
+stages:
+  - test
+  - release
+
+playbook:
+  stage: test
+  tags:
+    - opx
+  script:
+    - ansible-playbook deploy.yml --diff --check --skip-tags check-skip
+
+release_staging:
+  stage: release
+  tags:
+    - opx
+  script:
+    - ansible-playbook deploy.yml --diff
+

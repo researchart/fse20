@@ -1,0 +1,90 @@
+image: julrich/docker_qt:latest
+
+variables:
+  TARGET_ID: "linux64_gcc-6_qt-5.7"
+  BUILD_DIR: "build_${TARGET_ID}"
+  ARTIFACTS_DIR: "artifacts"
+
+
+build:
+  stage: build
+  script:
+    - g++ --version
+    - qmake --version
+    - mkdir -p "${BUILD_DIR}"
+    - cd "${BUILD_DIR}"
+    - cmake -DCMAKE_BUILD_TYPE=Release ..
+    - make qt5promise
+    - make docs
+    - cd "${CI_PROJECT_DIR}"
+    - mkdir -p "${ARTIFACTS_DIR}/docs"
+    - cp -r "${BUILD_DIR}/doc/html"/* "${ARTIFACTS_DIR}/docs/"
+    - mkdir -p "${ARTIFACTS_DIR}/bin"
+    - cp "${BUILD_DIR}/src/libqt5promise.a" "${ARTIFACTS_DIR}/bin/"
+    - mkdir -p "${ARTIFACTS_DIR}/include"
+    - cp "src"/*.h "${ARTIFACTS_DIR}/include/"
+  artifacts:
+    paths:
+      - "${ARTIFACTS_DIR}"
+    expire_in: 16 days
+
+
+test:
+  stage: test
+  script:
+    - mkdir -p "${BUILD_DIR}"
+    - cd "${BUILD_DIR}"
+    - cmake -DCMAKE_BUILD_TYPE=Coverage ..
+    - cd tests
+    - make # Build the tests
+    - cd ..
+    - ctest --output-on-failure # Run the tests
+    - cd "${CI_PROJECT_DIR}"
+    - mkdir -p "${ARTIFACTS_DIR}/coverage"
+    - gcovr -r . -e ".*\.moc$" -e ".*moc_.*" -e ".*tests/.*" --print-summary --html --html-details -o "${ARTIFACTS_DIR}/coverage/coverage.html"
+    - mv "${ARTIFACTS_DIR}/coverage/coverage.html" "${ARTIFACTS_DIR}/coverage/index.html"
+  artifacts:
+    paths:
+      - "${ARTIFACTS_DIR}"
+    expire_in: 16 days
+
+
+archive_tags:
+  stage: deploy
+  dependencies:
+    - build
+    - test
+  script:
+    - echo "Archiving artifacts of tag ${CI_COMMIT_TAG}"
+    - mv "${ARTIFACTS_DIR}/bin" "bin"
+    - mv "${ARTIFACTS_DIR}/docs" "docs"
+    - mv "${ARTIFACTS_DIR}/include" "include"
+    - mv "${ARTIFACTS_DIR}/coverage" "coverage"
+  artifacts:
+    name: "${CI_COMMIT_TAG}_${TARGET_ID}"
+    paths:
+      - "bin"
+      - "docs"
+      - "include"
+      - "coverage"
+  only:
+    - tags
+
+
+pages:
+  stage: deploy
+  dependencies:
+    - build
+    - test
+  script:
+    - mkdir -p "public/docs"
+    - cp -r "${ARTIFACTS_DIR}/docs"/* "public/docs/"
+    - mkdir -p "public/coverage"
+    - cp -r "${ARTIFACTS_DIR}/coverage"/* "public/coverage/"
+  artifacts:
+    paths:
+      - "public"
+  only:
+    - master
+    
+

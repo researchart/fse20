@@ -1,0 +1,51 @@
+image: adoptopenjdk/maven-openjdk11:latest
+
+variables:
+  # This will supress any download for dependencies and plugins or upload messages which would clutter the console log.
+  # `showDateTime` will show the passed time in milliseconds. You need to specify `--batch-mode` to make this work.
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --show-version -DinstallAtEnd=true -DdeployAtEnd=false"
+  GIT_SUBMODULE_STRATEGY: recursive
+
+# Cache downloaded dependencies and plugins between builds.
+cache:
+  paths:
+    - .m2/repository
+
+stages:
+  - manual
+  - build
+  - test
+
+# Manual Job to setup manual execution of the CI
+start:
+  stage: manual
+  when: manual
+  allow_failure: false
+  script: echo "Starting to validate and verify"
+  except:
+    - master
+
+# This will only validate and compile stuff and run e.g. maven-enforcer-plugin.
+# Because some enforcer rules might check dependency convergence and class duplications
+# we use `test-compile` here instead of `validate`, so the correct classpath is picked up.
+.validate: &validate
+  stage: build
+  script:
+    - 'mvn $MAVEN_CLI_OPTS test-compile -f pom.xml'
+
+.verify: &verify
+  stage: test
+  script:
+    - 'mvn $MAVEN_CLI_OPTS verify -f pom.xml'
+
+# Validate merge requests using JDK 11
+validate:jdk11:
+  <<: *validate
+  image: maven:3.6.1-jdk-11-slim
+
+# Verify merge requests using JDK 11
+verify:jdk11:
+  <<: *verify
+  image: maven:3.6.1-jdk-11-slim
+

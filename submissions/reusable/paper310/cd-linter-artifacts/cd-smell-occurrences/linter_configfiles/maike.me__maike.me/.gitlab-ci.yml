@@ -1,0 +1,17 @@
+image: monachus/hugo
+
+test:
+  script:
+  - hugo
+  except:
+  - master
+
+pages:
+  script:
+  - hugo
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

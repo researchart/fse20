@@ -1,0 +1,9 @@
+Build JSciC project:
+  script:
+  - mvn clean package
+  only:
+  - develop
+  - master
+  except:
+  - tags
+

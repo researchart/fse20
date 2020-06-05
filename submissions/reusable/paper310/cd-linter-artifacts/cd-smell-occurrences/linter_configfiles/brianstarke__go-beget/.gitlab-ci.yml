@@ -1,0 +1,14 @@
+stages:
+  - test
+
+test-go-1.6:
+  image: golang:1.6
+  stage: test
+  script:
+    - mkdir -p /go/src/gitlab.com/brianstarke
+    - cp -r . /go/src/gitlab.com/brianstarke/go-beget
+    - go get github.com/tools/godep
+    - go get github.com/stretchr/testify
+    - cd /go/src/gitlab.com/brianstarke/go-beget
+    - godep go test ./... -v
+

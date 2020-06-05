@@ -1,0 +1,34 @@
+# GitLab CI configuration
+# target: hacklabcormano.it web site, via hugo SSG
+
+# TODO: periodically watch for an official hugo docker image
+# see https://discourse.gohugo.io/t/docker-official-repo-for-hugo/144/5
+# **or** fork a docker image and create an official HackLab Cormano one
+image: debian:testing-slim
+
+# WARNING: image **must** have git installed, submodules are useful (and used here)
+before_script:
+- apt-get update && apt-get install -y hugo git-core
+- git submodule init
+- git submodule update --force
+
+# WARNING: pages **must** be deployed to /public to be served by GitLab Pages
+# see https://docs.gitlab.com/ee/ci/yaml/README.html#pages
+pages:
+  script:
+  - hugo -s web/hacklabcormano/
+  - mkdir public
+  - cp -r web/hacklabcormano/public/* public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+# run tests for all branches except master
+test:
+  script:
+  - hugo -s web/hacklabcormano/
+  except:
+  - master
+

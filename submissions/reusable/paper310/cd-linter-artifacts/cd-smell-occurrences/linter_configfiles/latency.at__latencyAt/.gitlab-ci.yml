@@ -1,0 +1,43 @@
+image: docker:latest
+
+variables:
+    DOCKER_DRIVER: overlay
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - docker-image
+  - test
+
+before_script:
+  - apk add --update make git
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+
+build:
+  stage: build
+  script:
+    - make latencyAt-rootfs.tar
+    - make docker-builder-push
+  artifacts:
+    paths:
+      - latencyAt-rootfs.tar
+
+docker-image:
+  stage: docker-image
+  script:
+    - make docker-push
+
+unit-tests:
+  stage: test
+  script:
+    - docker run -d --name postgres postgres
+    - while ! docker run --rm --link postgres:pg postgres:9.5 pg_isready -U postgres -h pg; do sleep 1; done
+    - docker exec postgres psql -U postgres -c 'CREATE EXTENSION IF NOT EXISTS citext;' postgres
+    - docker run
+        -e DB_URL=postgres://postgres@postgres/postgres?sslmode=disable
+        -e STRIPE_KEY=$STRIPE_KEY
+        --link postgres:postgres --cap-add IPC_LOCK --cap-add SYS_RESOURCE
+        $CI_REGISTRY_IMAGE:$(echo $CI_COMMIT_SHA | cut -c1-8)-builder make test
+

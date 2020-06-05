@@ -1,0 +1,14 @@
+image: monachus/hugo
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+pages:
+  script:
+  - hugo --baseURL "https://maxwellbridges.gitlab.io/styleguide/"
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,35 @@
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+
+.test_common: &test_common
+  script:
+  - mkdir target || echo "target already existed"
+  - mkdir cargo || echo "cargo already existed"
+  - du -hs target && du -hs cargo
+  - rustc --version && cargo --version
+  - time cargo test --verbose --jobs 1 --release
+  cache:
+    paths:
+      - target/
+      - cargo/
+
+test:1.24.1:
+  <<: *test_common
+  image: "rust:1.24.1"
+
+test:latest:
+  <<: *test_common
+  image: "rust:latest"
+
+pages:
+  stage: deploy
+  image: "rust:latest"
+  script:
+  - cargo doc
+  - mkdir -p public && cp -r target/doc public/doc && cp -r site/* public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,35 @@
+stages:
+  - install-environment
+
+install-go:
+  stage: install-environment
+  script:
+    - export GO_VERSION=1.6.2
+    - export PROJECT=hnbot
+    - rm -rf $HOME/golang
+    - rm -rf $(pwd)/src
+    - mkdir -p $HOME/golang # for GOROOT (contains the Go binary & core packages)
+    - mkdir -p $HOME/gopath/src/gitlab.com/chubbssolutions/${PROJECT} # for GOPATH (contains code and external packages)
+    - curl http://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz 2>/dev/null > go${GO_VERSION}.linux-amd64.tar.gz
+    - tar -C $HOME/golang -xzf go${GO_VERSION}.linux-amd64.tar.gz
+    - export GOROOT=$HOME/golang/go
+    - export GOPATH=$HOME/gopath
+    - export PATH=$PATH:$GOROOT/bin
+    - export PATH=$PATH:$GOPATH/bin
+    - (if [[ "$(go version)" == *"go version go${GO_VERSION}"* ]]; then echo "✓ Go binary installed!"; else echo "Go binary not installed"; exit -1; fi);
+    - cp -r /builds/chubbssolutions/${PROJECT} ${GOPATH}/src/gitlab.com/chubbssolutions/.
+    - cd ${GOPATH}/src/gitlab.com/chubbssolutions/${PROJECT}
+    - go get
+#
+#	Test
+#
+    - go test
+#
+#	Build
+#
+    - pwd
+    - go build
+
+  only:
+    - master
+

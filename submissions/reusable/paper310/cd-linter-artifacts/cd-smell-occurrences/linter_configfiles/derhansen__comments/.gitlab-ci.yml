@@ -1,0 +1,109 @@
+# Define Cache dir
+cache:
+  paths:
+  - .composer/
+
+# Define variables (will be set using "export")
+variables:
+  COMPOSER_CACHE_DIR: ".composer"
+  MYSQL_DATABASE: root
+  MYSQL_ROOT_PASSWORD: password
+
+# Define stages
+stages:
+  - code-analysis
+  - tests
+  - deploy
+
+.composer_job: &composer_job
+  before_script:
+    - composer require typo3/cms="^8.7" phpunit/phpunit="5.7.5"
+    # Restore composer.json
+    - git checkout composer.json
+    - export TYPO3_PATH_WEB=$PWD/.Build/Web
+
+# PHPCS tests job
+phpcs:
+  <<: *composer_job
+  stage: code-analysis
+  tags:
+    - composer
+    - php7.0
+
+  script:
+    - .Build/bin/php-cs-fixer fix --config=Build/.php_cs -v --dry-run --using-cache=no
+
+# PHP lint tests job
+phplint:
+  <<: *composer_job
+  stage: code-analysis
+  tags:
+    - composer
+    - php7.0
+
+  script:
+    - php .Build/bin/phplint ./ --exclude=.Build
+
+# Unit tests job
+unit:
+  <<: *composer_job
+  stage: tests
+  tags:
+    - composer
+    - php7.0
+
+  script:
+    - .Build/bin/phpunit --colors -c .Build/vendor/nimut/testing-framework/res/Configuration/UnitTests.xml Tests/Unit/
+
+# Functional tests job
+functional:
+  <<: *composer_job
+  stage: tests
+  tags:
+    - composer
+    - php7.0
+  services:
+    - mysql:5.7
+
+  script:
+    - export typo3DatabaseName="typo3";
+    - export typo3DatabaseHost="mysql";
+    - export typo3DatabaseUsername="root";
+    - export typo3DatabasePassword="password";
+    - .Build/bin/phpunit --colors -c .Build/vendor/nimut/testing-framework/res/Configuration/FunctionalTests.xml Tests/Functional
+
+# Acceptance tests job
+acceptance:
+  stage: tests
+  tags:
+    - typo3
+    - acceptance
+    - composer
+    - php7.0
+  services:
+    - mysql:5.7
+    - selenium/standalone-chrome:latest
+  before_script:
+    - composer require typo3/cms="^8.7" phpunit/phpunit="5.7.5"
+    # Restore composer.json
+    - git checkout composer.json
+    - export TYPO3_PATH_WEB=$PWD/.Build/Web
+    - php -S 0.0.0.0:8888 -t .Build/Web >/dev/null 2>&1 &
+  script:
+    - .Build/bin/typo3cms install:setup --non-interactive --database-user-name="root" --database-user-password="password" --database-host-name="mysql" --database-port="3306" --database-name="typo3" --site-setup-type="site" --admin-user-name="admin" --admin-password="password";
+    - .Build/bin/typo3cms database:import < ./Build/Database/dump.sql
+    - .Build/bin/typo3cms extension:activate "tstemplate,fluid_styled_content,comments";
+    # Disable trustedHostsPattern check
+    - .Build/bin/typo3cms configuration:set SYS/trustedHostsPattern ".*"
+    - export APP_IP=`ip addr show eth0 | grep -Po 'inet \K[\d.]+'`
+    - sed -i -e "s/comments-ci.typo3.local/$APP_IP:8888/" Tests/Acceptance.suite.yml
+    - .Build/bin/codecept run Acceptance -c Build/AcceptanceTests.yml
+
+# Deployment job
+deployment:
+  stage: deploy
+  tags:
+    - php7.0
+    - composer
+  script: echo "Deploy extension with e.g. TYPO3 Surf, Capistrano, Deployer, whatever you like"
+

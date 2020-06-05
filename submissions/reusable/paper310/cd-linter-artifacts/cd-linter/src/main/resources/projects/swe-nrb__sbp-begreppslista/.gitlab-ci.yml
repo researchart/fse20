@@ -1,0 +1,41 @@
+stages:
+  - pre-build
+  - build
+  - deploy
+download_deps_npm:
+  stage: pre-build
+  tags:
+    - npm
+  script:
+    - npm install
+  artifacts:
+    paths:
+      - node_modules/
+
+run_infopack:
+  stage: build
+  dependencies:
+    - download_deps_npm
+  tags:
+    - npm
+  script:
+    - npm start
+  artifacts:
+    name: output_files
+    paths:
+      - output_files/
+
+pages:
+  stage: deploy
+  dependencies:
+    - download_deps_npm
+  tags:
+    - npm
+  script:
+    - npm start
+  artifacts:
+    paths:
+    - public
+  only:
+    - tags
+

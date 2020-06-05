@@ -1,0 +1,49 @@
+stages:
+  - docker
+  - kernel
+
+docker-debian:
+  stage: docker
+  image: docker:latest
+  services:
+    - docker:dind
+  only:
+    changes:
+      - Dockerfile
+  except:
+    variables:
+      - $NO_DOCKER_BUILD
+  tags:
+    - docker
+  variables:
+    IMAGE_TAG: $CI_REGISTRY_IMAGE:debian_$CI_COMMIT_REF_NAME
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $IMAGE_TAG debian
+    - docker push $IMAGE_TAG
+
+kernel-debian:
+  stage: kernel
+  image: $CI_REGISTRY_IMAGE:debian_$CI_COMMIT_REF_NAME
+  only:
+    changes:
+      - debian/Dockerfile
+      - debian/kernel.mk
+      - debian/kernel_settings.mk
+      - "debian/.config"
+    
+  tags:
+    - docker
+  dependencies:
+    - build-docker
+  script:
+    - cd debian
+    - make -f kernel.mk all
+  artifacts:
+    when: always
+    paths:
+      - "debian/*.log"
+      - "debian/*.deb"
+    name: "$CI_COMMIT_REF_SLUG"
+

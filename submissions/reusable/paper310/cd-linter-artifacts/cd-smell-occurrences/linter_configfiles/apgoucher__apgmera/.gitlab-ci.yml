@@ -1,0 +1,32 @@
+stages:
+    - test
+    - mingw
+    - staging
+
+before_script:
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+    - apt-get update -qy
+    - apt-get install -y python-dev python-pip python3-dev python3-pip python-numpy python3-numpy g++ make
+
+test:
+    stage: test
+    script:
+        - bash recompile.sh --symmetry 'gitlab_stdin_test'
+        - cat test/minstrels.rle | ./apgluxe -L 1 -t 1 -s 'test_seed'
+        - cat *.test_seed.txt | tr ' ' '\n' | grep xq6 | sort | uniq > sortedships.txt
+        - sha256sum sortedships.txt | grep b0a11c658
+
+mingw:
+    stage: mingw
+    script:
+        - apt-get install -y mingw-w64 mingw-w64-x86-64-dev
+        - bash recompile.sh --mingw
+
+staging:
+    stage: staging
+    script:
+        - bash recompile.sh --profile
+        - getconf _NPROCESSORS_ONLN
+        - ./apgluxe -v 50 -k '#gitlab' -i 1 -n 5000000
+

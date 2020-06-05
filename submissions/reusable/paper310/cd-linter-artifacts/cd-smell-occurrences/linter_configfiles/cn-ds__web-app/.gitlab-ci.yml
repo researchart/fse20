@@ -1,0 +1,26 @@
+image: node:8
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+pages:
+    stage: deploy
+    script:
+    - cd /builds/cn-ds/web-app
+    - npm install
+    - npm run build
+    - mkdir www
+    - mv public/* www/
+    - rm -R public
+    - mkdir public
+    - mv dist/* public/
+    artifacts:
+        paths:
+        - public
+    only:
+    - master
+
+

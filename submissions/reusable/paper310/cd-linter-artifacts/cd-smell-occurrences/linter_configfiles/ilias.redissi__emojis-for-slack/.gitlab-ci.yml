@@ -1,0 +1,15 @@
+image: node:8.9.4
+
+cache:
+  paths:
+  - extension/node_modules/
+
+stages:
+  - build
+
+build_firefox:
+    stage: build
+    script:
+        - cd extension
+        - npm install
+

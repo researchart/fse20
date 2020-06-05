@@ -1,0 +1,43 @@
+image: python:3.6-alpine3.6
+
+variables:
+    PYPI_USER: SECURE
+    PYPI_PASSWORD: SECURE
+
+stages:
+  - test
+  - deploy
+
+
+.tox: &tox
+  stage: test
+  script:
+    - pip --no-cache-dir install tox
+    - export SETUPTOOLS_SCM_PRETEND_VERSION=0.0.1
+    - export TOX_ENV=$(tox -l | grep "${TOX_PY}-" | tr '\n' ',')
+    - tox -e $TOX_ENV
+
+python36:
+  <<: *tox
+  variables:
+    TOX_PY: py36
+
+flake8:
+  stage: test
+  script:
+    - pip --no-cache-dir install flake8
+    - flake8
+
+deploy_pypi:
+  stage: deploy
+  script:
+    - apk --no-cache add git
+    - printf '%s\n' "[server-login]" >> ~/.pypirc
+    - printf '%s\n' "username=${PYPI_USER}" >> ~/.pypirc
+    - printf '%s\n' "password=${PYPI_PASSWORD}" >> ~/.pypirc
+    - python setup.py check sdist bdist_wheel upload
+  only:
+    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+  except:
+    - branches
+

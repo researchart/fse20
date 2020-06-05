@@ -1,0 +1,14 @@
+image: golang:1.13-alpine
+
+variables:
+  CGO_ENABLED: "0"
+  GO111MODULE: "on"
+  PROJECT_PATH: "/go/src/gitlab.com/zerok/container-inventory"
+
+test:
+  script:
+    - "mkdir -p ${PROJECT_PATH}"
+    - "cp -R * ${PROJECT_PATH}"
+    - "cd ${PROJECT_PATH} && go test ./... -cover"
+
+

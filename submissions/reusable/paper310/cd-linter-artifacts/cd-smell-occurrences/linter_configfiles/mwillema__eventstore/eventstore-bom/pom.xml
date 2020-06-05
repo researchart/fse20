@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.marcowillemart.eventstore</groupId>
+    <artifactId>eventstore-bom</artifactId>
+    <version>1.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>EventStore (Bill of Materials)</name>
+    <description>EventStore (Bill of Materials)</description>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- EventStore API -->
+            <dependency>
+                <groupId>com.marcowillemart.eventstore</groupId>
+                <artifactId>eventstore-api</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- EventStore Client -->
+            <dependency>
+                <groupId>com.marcowillemart.eventstore</groupId>
+                <artifactId>eventstore-client</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- EventStore Client Embedded -->
+            <dependency>
+                <groupId>com.marcowillemart.eventstore</groupId>
+                <artifactId>eventstore-client-embedded</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- EventStore Engine -->
+            <dependency>
+                <groupId>com.marcowillemart.eventstore</groupId>
+                <artifactId>eventstore-engine</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- EventStore Server -->
+            <dependency>
+                <groupId>com.marcowillemart.eventstore</groupId>
+                <artifactId>eventstore-server</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+
+            <!-- EventStore Starter -->
+            <dependency>
+                <groupId>com.marcowillemart.eventstore</groupId>
+                <artifactId>eventstore-starter</artifactId>
+                <version>1.1.0-SNAPSHOT</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
+</project>
+

@@ -1,0 +1,14 @@
+image: python:3.5
+
+before_script:
+  - python --version
+  - pip install pylint
+  - pip install -U -r requirements.txt
+
+checks:
+  script:
+    - python setup.py check
+    - pylint hyphanbot
+  only:
+    - master
+

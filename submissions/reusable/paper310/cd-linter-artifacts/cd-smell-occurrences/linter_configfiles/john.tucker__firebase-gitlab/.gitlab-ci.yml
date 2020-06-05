@@ -1,0 +1,84 @@
+image: node:6.11.3
+
+cache:
+  key: cache_yarn
+  paths:
+  - .cache_yarn
+
+stages:
+  - install
+  - build
+  - test
+  - deploy
+
+install_functions:
+  stage: install
+  script:
+    - cd ./functions && yarn install --cache-folder ../.cache_yarn
+  only:
+    - staging
+    - production
+  artifacts:
+    paths:
+    - functions/node_modules
+
+install_client:
+  stage: install
+  script:
+    - cd ./client && yarn install --cache-folder ../.cache_yarn
+  only:
+    - staging
+    - production
+  artifacts:
+    paths:
+    - client/node_modules
+
+build_client:
+  stage: build
+  script:
+    - cd ./client && yarn build
+  only:
+    - staging
+    - production
+  dependencies:
+    - install_client
+  artifacts:
+    paths:
+    - client/build
+
+test_client:
+  stage: test
+  script:
+    - cd ./client && yarn test
+  only:
+    - staging
+    - production
+  dependencies:
+    - install_client
+
+deploy_all_staging:
+  stage: deploy
+  script:
+    - yarn global add firebase-tools --cache-folder ../.cache_yarn
+    - firebase deploy --token $FIREBASE_DEPLOY_KEY_STAGING --project staging
+  only:
+    - staging
+  environment:
+    name: staging
+  dependencies:
+    - install_functions
+    - build_client
+
+deploy_all_production:
+  stage: deploy
+  script:
+    - yarn global add firebase-tools --cache-folder ../.cache_yarn
+    - firebase deploy --token $FIREBASE_DEPLOY_KEY_PRODUCTION --project production
+  only:
+    - production
+  environment:
+    name: production
+  dependencies:
+    - install_functions
+    - build_client
+

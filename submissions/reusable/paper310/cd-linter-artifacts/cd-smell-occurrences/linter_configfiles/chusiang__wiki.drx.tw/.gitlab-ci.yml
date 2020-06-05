@@ -1,0 +1,17 @@
+stages:
+  - deploy
+
+pages:
+  image: alpine
+  stage: deploy
+  script:
+    - apk add --update --no-cache make
+    - make deploy_to_pages
+  artifacts:
+    paths:
+    - public
+    expire_in: 2 month
+  only:
+    - master@chusiang/wiki.drx.tw
+    - tags@chusiang/wiki.drx.tw
+

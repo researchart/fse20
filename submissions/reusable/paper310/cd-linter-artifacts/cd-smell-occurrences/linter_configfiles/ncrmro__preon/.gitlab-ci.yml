@@ -1,0 +1,14 @@
+variables:
+  DOCKER_DRIVER: overlay2
+  PROJECT_TITLE: Aeon
+
+stages:
+  - test
+
+test:
+  stage: test
+  image: node:carbon
+  script:
+    - echo hello world
+#    - bash test.sh
+

@@ -1,0 +1,52 @@
+image: microsoft/dotnet:latest
+
+# variables:
+#   MYSQL_DATABASE: DrivenDbTest
+#   MYSQL_ROOT_PASSWORD: tester
+
+# services:
+#   - docker:dind
+#   - mysql:8.0.11
+        
+stages:
+  - test
+  - build
+  - release
+
+test:branch:
+  stage: test
+  except:
+    - /master/
+    - /develop/  
+  script:
+    - ./build.sh
+      build-debug
+      run-tests
+
+build:develop:
+ stage: build
+ only: 
+   - /develop/
+ script:
+   - ./build.sh 
+     build-debug 
+     run-tests
+ artifacts:
+   paths:
+     - ./src/DrivenDb.Standard/bin/Debug/netstandard2.0/*.*
+
+release:master:
+  stage: release
+  only: 
+    - /master/
+  script:
+    - ./build.sh 
+      download-semrel
+      download-ezrep
+      build-debug 
+      run-tests 
+      build-release 
+      package-release
+      publish-release
+      tag-release
+

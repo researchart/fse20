@@ -1,0 +1,32 @@
+image: "gitlab/gitlab-dns:0.9.4"
+
+variables:
+  AWS_ACCESS_KEY_ID: ""
+  AWS_SECRET_ACCESS_KEY: ""
+  DYN_CUSTOMER: ""
+  DYN_USERNAME: ""
+  DYN_PASSWORD: ""
+
+stages:
+  - planning
+  - deploy
+
+production:
+  stage: planning
+  script:
+    - octodns-sync --config-file ./gitlab-domains.yaml
+    - octodns-sync --config-file ./gitlab-etc.yaml
+  except:
+    - master
+
+deploy_production:
+  stage: deploy
+  script:
+    - octodns-sync --config-file ./gitlab-domains.yaml --doit
+    - octodns-sync --config-file ./gitlab-etc.yaml --doit
+  environment:
+    name: production
+    url: https://gitlab.com
+  only:
+    - master
+

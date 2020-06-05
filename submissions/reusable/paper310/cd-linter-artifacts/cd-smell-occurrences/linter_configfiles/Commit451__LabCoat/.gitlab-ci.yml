@@ -1,0 +1,42 @@
+image: commit451/android-sdk-installer:latest
+
+before_script:
+  - android-sdk-installer
+
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  script:
+    - ./gradlew assembleDebug
+
+test:
+  stage: test
+  script:
+    - ./gradlew testDebug
+  artifacts:
+    when: always
+    paths:
+      - app/build/reports/tests/testDebugUnitTest
+    expire_in: 15 days
+
+pages:
+  stage: deploy
+  dependencies:
+    - test
+  allow_failure: true
+  before_script:
+  - echo "Overide global before_script and don't do anything."
+  script:
+    - mkdir -p public/tests
+    - cp -r app/build/reports/tests/testDebugUnitTest/ public/tests
+  artifacts:
+    paths:
+      - public
+  when: always
+  only:
+    - develop
+

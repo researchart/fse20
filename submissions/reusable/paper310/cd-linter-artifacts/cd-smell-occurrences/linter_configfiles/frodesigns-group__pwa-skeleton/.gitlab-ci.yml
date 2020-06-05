@@ -1,0 +1,50 @@
+image: node:latest
+
+stages:
+  - setup
+  - build
+  - deploy
+
+setup:
+  stage: setup
+  only:
+    - master
+  script:
+    - npm install
+  artifacts:
+    paths:
+      - node_modules/
+
+build:
+  stage: build
+  only:
+    - master
+  when: on_success
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+  dependencies:
+    - setup
+
+deploy:
+  stage: deploy
+  only:
+    - master
+  when: on_success
+  environment:
+    name: Demo
+  before_script:
+    - apt-get update -y
+    - apt-get install rsync openssh-client -y
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    - rsync -hrvz --delete --exclude=_ -e 'ssh -i id_rsa' dist/ fro@frodesigns.com:/home/fro/pwa-skeleton/
+  dependencies:
+    - setup
+    - build
+

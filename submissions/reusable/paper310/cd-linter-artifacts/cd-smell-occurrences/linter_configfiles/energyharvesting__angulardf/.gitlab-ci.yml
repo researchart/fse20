@@ -1,0 +1,11 @@
+pages:
+  stage: deploy
+  script:
+    - "make -C vendor"
+    - "mkdir public"
+    - "cp -a vendor modules *.css public"
+    - "cp -a angulator-demo.html public/index.html"
+  artifacts:
+    paths:
+      - public
+

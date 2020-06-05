@@ -1,0 +1,10 @@
+image: clojure:lein
+
+stages:
+  - test
+
+lein-test:
+  stage: test
+  script:
+    - lein test
+

@@ -1,0 +1,15 @@
+image: node:6.2.0
+
+before_script:
+  - npm i
+  - npm i -g gulp
+  - npm i -g gulp-cli
+
+eslint:
+  stage: test
+  script:
+    - gulp eslint
+
+cache:
+    untracked: true
+

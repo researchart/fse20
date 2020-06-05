@@ -1,0 +1,19 @@
+image: registry.gitlab.com/haboustak/glartifacts/build-env:1.0
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - python3 setup.py sdist bdist_wheel
+  artifacts:
+    paths:
+      - dist
+
+test:
+  stage: test
+  script:
+    - pylint glartifacts --ignore proto -j 8
+    - su -c "python -m unittest -v" postgres
+

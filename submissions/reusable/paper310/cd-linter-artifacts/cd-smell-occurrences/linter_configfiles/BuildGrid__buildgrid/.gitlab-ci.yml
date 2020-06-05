@@ -1,0 +1,146 @@
+# Debian Buster base image with python 3.6:
+#
+image: python:3.6-buster
+
+stages:
+  - test
+  - post
+  - deploy
+
+
+# Templates and global variables.
+#
+variables:
+  BGD: "${CI_PROJECT_DIR}/env/bin/bgd"
+  PYTHON: "${CI_PROJECT_DIR}/env/bin/python"
+  TOOLS: "${CI_PROJECT_DIR}/env/bin"
+
+.venv-template:
+  before_script: &install-base
+    - python3 -m venv env  # Creates a virtual environment
+  cache:
+    paths:
+      - .pip
+
+
+# Test stage, build and test the code.
+#
+unit-tests:
+  stage: test
+  extends: .venv-template
+  script:
+    - ${PYTHON} -m pip --cache-dir=.pip install --editable ".[auth,tests]"
+    - ${PYTHON} setup.py test
+  after_script:
+    - mkdir -p coverage/
+    - cp .coverage coverage/coverage."${CI_JOB_NAME}"
+  variables:
+    PYTEST_ADDOPTS: "--color=yes"
+  artifacts:
+    paths:
+      - coverage/
+
+# Test with multiple interpreters on master or tagged release.
+#
+unit-tests-multiple-interpreters:
+  # This image contains multiple versions of python and unoffically maintained by redhat quay.
+  # The base image is Ubuntu 18.04, and runs as a restricted user (no apt-get allowed).
+  # https://gitlab.com/python-devs/ci-images
+  image: quay.io/python-devs/ci-image:master
+  stage: test
+  script:
+    - tox
+  only:
+    - master
+    - tags
+
+type-check:
+  stage: test
+  extends: .venv-template
+  script:
+    - ${PYTHON} -m pip install mypy sqlalchemy-stubs grpc-stubs boto3-stubs
+    - ${PYTHON} -m mypy buildgrid/
+
+dummy-tests:
+  stage: test
+  extends: .venv-template
+  script:
+    - ${PYTHON} -m pip --cache-dir=.pip install --editable "."
+    - export LC_ALL=C.UTF-8
+    - export LANG=C.UTF-8
+    - ${BGD} server start data/config/default.conf &
+    - sleep 5  # Allows server to boot
+    - ${BGD} bot dummy &
+    - ${BGD} cas upload-dummy
+    - ${BGD} execute request-dummy --wait-for-completion
+
+e2e-tests:
+  stage: test
+  image: registry.gitlab.com/buildgrid/buildbox/buildbox-e2e:latest
+  script:
+    - BUILDGRID_SOURCE_ROOT=`pwd` end-to-end-test.sh
+
+
+# Post-build stage, documentation, coverage report...
+#
+documentation:
+  stage: test
+  interruptible: true
+  extends: .venv-template
+  script:
+    - ${PYTHON} -m pip --cache-dir=.pip install --editable ".[docs]"
+    - apt-get update  && apt-get install -y graphviz
+    - PATH="${PATH}:${TOOLS}" make -C docs html
+  after_script:
+    - mkdir -p documentation/
+    - cp -a docs/build/html/. documentation/
+  artifacts:
+    paths:
+      - documentation/
+
+coverage:
+  stage: post
+  extends: .venv-template
+  dependencies:
+    - unit-tests
+  coverage: '/TOTAL +\d+ +\d+ +(\d+\.\d+)%/'
+  script:
+    - ${PYTHON} -m pip --cache-dir=.pip install coverage
+    - cd coverage/ && ls -l .
+    - ${PYTHON} -m coverage combine --rcfile=../.coveragerc --append coverage.*
+    - ${PYTHON} -m coverage html --rcfile=../.coveragerc --directory .
+    - ${PYTHON} -m coverage report --rcfile=../.coveragerc --show-missing
+  artifacts:
+    paths:
+      - coverage/
+
+# Deployement stage, only for merges which land on master branch.
+#
+pages:
+  stage: deploy
+  dependencies:
+    - coverage
+    - documentation
+  script:
+    - mkdir -p public/coverage/
+    - cp -a coverage/* public/coverage/
+    - ls -la public/coverage/
+    - cp -a documentation/* public/
+    - ls -la public/
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master
+
+triggers:
+  stage: deploy
+  before_script:
+    - apt-get update && apt-get install -y curl
+  script:
+    - curl --request POST --form "token=$CI_JOB_TOKEN" --form ref=master https://gitlab.com/api/v4/projects/buildgrid%2Fbuildbox%2Fbuildbox-e2e/trigger/pipeline
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - master
+

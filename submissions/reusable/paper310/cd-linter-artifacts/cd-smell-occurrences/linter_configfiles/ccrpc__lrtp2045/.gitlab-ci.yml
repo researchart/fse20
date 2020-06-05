@@ -1,0 +1,18 @@
+# All available Hugo versions are listed here: https://gitlab.com/pages/hugo/container_registry
+image: registry.gitlab.com/ccrpc/plandocument:0.1.4
+
+test:
+  script:
+  - hugo --themesDir /themes
+  except:
+  - master
+
+pages:
+  script:
+  - hugo --themesDir /themes
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

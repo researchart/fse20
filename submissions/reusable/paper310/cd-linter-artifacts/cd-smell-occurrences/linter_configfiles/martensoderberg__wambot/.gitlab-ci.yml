@@ -1,0 +1,65 @@
+stages:
+  - test
+  - destroy
+  - clean
+  - deploy
+
+test_wambot:
+  stage: test
+  script:
+    - python3 test_wambot.py $OWM_API_KEY
+  tags:
+    - wambot
+
+check_db_integrity:
+  stage: test
+  script:
+    - cd ~/wambot
+    - test -f wambot.db
+  tags:
+    - wambot
+
+check_dependencies:
+  stage: test
+  script:
+    - tools/check_dependencies.sh
+  tags:
+    - wambot
+
+check_pep-8:
+  stage: test
+  script:
+    - pycodestyle .
+  tags:
+    - wambot
+  allow_failure: true
+
+destroy:
+  stage: destroy
+  script:
+    - cd ~/wambot
+    - test -f pid && ps aux | grep $(cat pid) | grep run.py > /dev/null && kill $(cat pid)
+  tags:
+    - wambot
+  allow_failure: true
+
+clean:
+  stage: clean
+  script:
+    - cd ~/wambot
+    - shopt -s extglob
+    - rm -r -v !("wambot.db")
+  tags:
+    - wambot
+
+deploy:
+  stage: deploy
+  script:
+    - rsync -ax --exclude .git/ . ~/wambot
+    - cd ~/wambot
+    - setsid python3 run.py $TELEGRAM_TOKEN $ADMIN_CHAT_ID $OWM_API_KEY >wambot.log 2>&1 < /dev/null &
+    - echo $! > pid
+  tags:
+    - wambot
+
+

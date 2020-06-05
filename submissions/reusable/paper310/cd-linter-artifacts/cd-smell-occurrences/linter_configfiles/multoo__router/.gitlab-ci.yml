@@ -1,0 +1,16 @@
+cache:
+  untracked: true
+  paths:
+  - vendor/
+Phing:
+  script:
+  - "composer install"
+  - "./phing build-ci"
+  tags:
+  - php7x
+  - composer
+  artifacts:
+    paths:
+      - build/phpunit-coverage/
+      - build/pdepend/
+

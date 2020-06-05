@@ -1,0 +1,103 @@
+---
+image: starefossen/ruby-node:2-8
+
+services:
+  - postgres:latest
+
+variables:
+  POSTGRES_DB: elcms_ci
+  POSTGRES_USER: runner
+  POSTGRES_PASSWORD: ""
+
+before_script:
+  # The ruby image set this, and we want the bundle config to be in .bundle/
+  - unset BUNDLE_APP_CONFIG
+
+stages:
+  - prepare
+  - code-lint
+  - test
+  - dependencies-check
+
+bundle:
+  stage: prepare
+  script:
+   - yarn install
+   - bundle install --deployment
+   - cp spec/dummy/config/database.ci.yml spec/dummy/config/database.yml
+   - bundle exec rails db:migrate
+   - cd spec/dummy && yarn install
+  artifacts:
+    untracked: true
+    expire_in: 1 hour
+    paths:
+      - 'vendor/'
+  cache:
+    untracked: true
+    paths:
+      - 'vendor/'
+
+rubocop:
+  stage: code-lint
+  script: bundle exec rubocop
+  dependencies:
+    - bundle
+
+sass_lint:
+  stage: code-lint
+  script: yarn run lint:sass
+  dependencies:
+    - bundle
+
+es_lint:
+  stage: code-lint
+  script: yarn run lint:js
+  dependencies:
+    - bundle
+
+haml_lint:
+  stage: code-lint
+  script: bundle exec haml-lint app/views
+  dependencies:
+    - bundle
+
+factory_bot_lint:
+  stage: code-lint
+  script:
+    - bundle exec rails db:drop
+    - bundle exec rails db:create
+    - bundle exec rails db:migrate
+    - bundle exec rake app:factory_bot:lint
+  dependencies:
+    - bundle
+
+rspec:
+  stage: test
+  script:
+    - bundle exec rails spec
+  dependencies:
+    - bundle
+
+cucumber:
+  stage: test
+  script:
+    - RAILS_ENV=test bundle exec rails db:migrate
+    - bundle exec cucumber
+  dependencies:
+    - bundle
+
+brakeman:
+  stage: test
+  script:
+    - bundle exec brakeman
+  dependencies:
+    - bundle
+
+bundle/outdated:
+  stage: dependencies-check
+  allow_failure: true
+  script:
+  - rm -rf .bundle
+  - bundle install
+  - bundle outdated --strict
+

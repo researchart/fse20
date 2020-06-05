@@ -1,0 +1,37 @@
+image: node:latest
+sudo: required
+
+# cache:
+#  paths:
+#  - node_modules/
+
+stages:
+  - build
+  - test
+
+env:
+  - TRAVIS_HOST=127.0.0.1 TRAVIS_PORT=4001
+
+services:
+  - docker
+
+before_install:
+  - docker pull rqlite/rqlite
+  - docker run -d -p 127.0.0.1:4001:4001 -p 127.0.0.1:4002:4002 rqlite/rqlite
+  - docker ps -a
+
+install_dependencies:
+  stage: build
+  script:
+    - npm install
+  artifacts:
+    paths:
+      - node_modules/
+
+test_with_lab:
+  stage: test
+  script: npm test
+
+# after_script:
+#  - npm run coveralls
+

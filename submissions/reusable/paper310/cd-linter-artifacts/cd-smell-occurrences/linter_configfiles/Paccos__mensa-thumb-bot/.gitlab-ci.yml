@@ -1,0 +1,38 @@
+stages:
+  - lint
+  - test
+  - deploy
+
+linting:
+  stage: lint
+  script:
+    - apt-get update -qy
+    - apt-get install -y python3-dev python3-pip
+    - pip3 install -r requirements.txt
+    - pycodestyle *.py --ignore=E501
+    - bash tests/custom-linting.sh
+  tags:
+    - gitlab-org
+
+run_tests:
+  stage: test
+  script:
+    - apt-get update -qy
+    - apt-get install -y python3-dev python3-pip
+    - pip3 install -r requirements.txt
+    - python3 -m pytest tests -v
+  tags:
+    - gitlab-org
+
+staging:
+  stage: deploy
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=mensa-thumb-bot --api-key=$HEROKU_STAGING_API_KEY
+  tags:
+    - gitlab-org
+  only:
+    - master
+

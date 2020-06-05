@@ -1,0 +1,66 @@
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided this notice is
+# preserved.  This file is offered as-is, without any warranty.
+# Names of contributors must not be used to endorse or promote products
+# derived from this file without specific prior written permission.
+
+
+# See YAML format https://en.wikipedia.org/wiki/YAML
+# See GitLab CI (Continuous Integration) https://docs.gitlab.com/ce/ci/
+
+
+before_script:
+  - apt-get update -qy
+  - apt-get install -y build-essential
+  - apt-get install -y cmake
+  - apt-get install -y cppcheck
+  - apt-get install -y kwstyle
+  - apt-get install -y vera++
+  - apt-get install -y splint
+  - apt-get install -y ckport
+  - apt-get install -y check
+  - apt-get install -y valgrind
+  - apt-get install -y gcc
+  - apt-get install -y clang
+  - apt-get install -y doxygen
+  - apt-get install -y graphviz
+  - apt-get install -y texlive-latex-extra
+  - apt-get install -y texlive-fonts-recommended
+  - apt-get install -y tar
+  - apt-get install -y xz-utils
+  - apt-get install -y zip
+  - apt-get install -y p7zip-full
+  - apt-get install -y devscripts
+  - apt-get install -y rpm
+  - apt-get install -y git
+
+stages:
+  - build
+  - tests
+
+build:
+  stage: build
+  script:
+    - make bin-release
+
+build:
+  stage: tests
+  script:
+    - make tests
+    - make clean
+    - make doc
+    - make archives
+    - make dist
+    - make tar-xz
+    - make tar-bz2
+    - make tar-gz
+    - make zip
+    - make 7z
+    - make packages
+    - make clean
+    - make static-libs
+    - make static-libs
+    - make static-tools
+    - make static-tools
+    - make clean
+

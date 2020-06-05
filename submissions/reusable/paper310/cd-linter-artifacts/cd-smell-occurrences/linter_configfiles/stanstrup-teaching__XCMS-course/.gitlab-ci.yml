@@ -1,0 +1,23 @@
+image: rocker/verse:3.6.0
+
+
+before_script: 
+  - apt-get update && apt-get -y install default-jdk curl netcdf-bin libnetcdf-dev libxml2-dev libssl-dev
+  - mkdir public
+  - cp -r _images public/
+  - cp custom.css public/
+  - mkdir -p "/builds/stanstrup-teaching/XCMS-course/packrat/lib/x86_64-pc-linux-gnu/3.6.0"
+  - R -e "install.packages('BiocManager')"
+  - R -e "BiocManager::install('packrat', lib='/builds/stanstrup-teaching/XCMS-course/packrat/lib/x86_64-pc-linux-gnu/3.6.0')"
+  - R -e "packrat::restore()"
+
+pages:
+  stage: deploy
+  script:
+    - R -e 'source("build.R")'
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

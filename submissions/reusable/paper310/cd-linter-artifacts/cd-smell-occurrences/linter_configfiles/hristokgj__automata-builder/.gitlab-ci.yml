@@ -1,0 +1,21 @@
+image: python:3.6-stretch
+
+
+.template_install_dependencies: &dependency_install
+  variables:
+    DEBIAN_FRONTEND: "noninteractive"
+
+  before_script:
+    - apt-get update && apt-get --yes install graphviz
+    - cd $CI_PROJECT_DIR
+    - pip3 install pipenv
+    - pipenv sync
+
+
+run_tests:
+  stage: test
+  when: always
+  <<: *dependency_install
+  script:
+    - pipenv run pytest -vv ./tests
+

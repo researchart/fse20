@@ -1,0 +1,41 @@
+stages:
+  - test
+  - release
+
+test-build:
+  stage: test
+  image: nikolauska/armake:latest
+  script:
+    - make
+
+test-filepatching:
+  stage: test
+  image: nikolauska/armake:latest
+  script:
+    - make filepatching
+
+test-release:
+  stage: test
+  image: nikolauska/armake:latest
+  script:
+    - make release
+
+sqf-validator:
+  stage: test
+  image: python:3.5
+  script:
+    - python tools/sqf_validator.py
+
+build-release:
+  stage: release
+  image: nikolauska/armake:latest
+  tags:
+    - docker
+  script:
+    - make release
+  only:
+    - branches@osasto-kuikka/kge
+  artifacts:
+    paths:
+      - ./@kge
+

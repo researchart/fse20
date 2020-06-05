@@ -1,0 +1,53 @@
+image: maven:latest
+
+stages:
+  - build
+  - test
+  - package
+  - deploy
+  - run
+
+variables:
+  MAVEN_CLI_OPTS: "--batch-mode"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS clean compile
+
+test:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS test
+
+package:
+  stage: package
+  script:
+    - mvn $MAVEN_CLI_OPTS package
+  artifacts:
+    paths: [target/demo-app-1.0-jar-with-dependencies.jar]
+
+deploy:
+  image: docker:latest
+  stage: deploy
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE
+
+run:
+  image: $CI_REGISTRY_IMAGE
+  stage: run
+  script:
+    - java -jar /app/demo-app/demo-app-1.0-jar-with-dependencies.jar
+

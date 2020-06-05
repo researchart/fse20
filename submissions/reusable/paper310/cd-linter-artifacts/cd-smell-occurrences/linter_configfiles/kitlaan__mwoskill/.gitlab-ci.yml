@@ -1,0 +1,17 @@
+# This file is a template, and might need editing before it works on your project.
+# Full project: https://gitlab.com/pages/plain-html
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - sed "s/##ANALYTICS_ID##/$ANALYTICS_ID/g" -i index.html
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,18 @@
+image: node:latest
+
+stages:
+  - production
+
+production:
+  type: deploy
+  stage: production
+  image: ruby:latest
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev make
+    - ruby --version
+    - gem install dpl
+    - make dpl HEROKU_API_KEY=$HEROKU_API_KEY -s
+  only:
+    - master
+

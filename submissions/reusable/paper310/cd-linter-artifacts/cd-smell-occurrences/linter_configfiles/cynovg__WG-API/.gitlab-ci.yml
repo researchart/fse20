@@ -1,0 +1,19 @@
+image: perl
+
+stages:
+  - test
+
+test:
+    stage: test
+    before_script:
+      - perl -v
+      - curl -sL --compressed https://git.io/cpm > cpm
+      - chmod +x cpm
+      - ./cpm install -g
+      - ./cpm install Devel::Cover -g
+      - ./cpm install Minilla -g
+    script:
+      - minil test
+    except:
+      - master
+

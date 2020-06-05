@@ -1,0 +1,33 @@
+stages:
+  - build
+  - deploy
+
+build_game:
+  stage: build
+  image: remram/rust-cargo-web
+  script:
+    - cargo build
+    - cargo test
+    - (cd client-piston && cargo web deploy --release)
+    - cp -r target/deploy output
+  artifacts:
+    paths:
+      - output
+  cache:
+    paths:
+      - /root/.cargo/registry
+      - target
+  tags:
+    - docker
+
+pages:
+  stage: deploy
+  script:
+    - mkdir public
+    - cp output/* public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

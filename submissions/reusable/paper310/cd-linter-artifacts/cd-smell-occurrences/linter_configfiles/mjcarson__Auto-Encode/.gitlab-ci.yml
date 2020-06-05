@@ -1,0 +1,143 @@
+image: archlinux/base
+stages:
+    - version
+    - deploy
+variables:
+  DOCKER_DRIVER: overlay
+services:
+  - docker:dind
+before_script:
+  - export VERSION="unknown"
+  - export VERSION=$(cat ./version)
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY 
+
+semver:
+  stage: version
+  image: python:3.7-stretch
+  tags:
+    - x86_64
+  only:
+    - master
+    - /dev(.)*|DEV(.)*/
+    - /rc(.)*|RC(.)*/
+  variables:
+    SEMVER_REPO: https://gitlab.com/mjcarson/semver.git
+  artifacts:
+    paths:
+      - version
+  before_script:
+    # add private key
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts && chmod 644 ~/.ssh/known_hosts
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$DEP_KEY")
+    # clone semver_repo
+    - git clone -q --depth 1 $SEMVER_REPO /tmp/semver
+  script:
+    - pip install semver
+    - python3 /tmp/semver/gensemver.py > version
+    - echo $(cat version)
+
+encode_gate-amd64:
+  stage: deploy
+  image: docker:latest
+  tags:
+    - x86_64
+  only:
+    - master
+    - /dev(.)*|DEV(.)*/
+    - /rc(.)*|RC(.)*/
+  dependencies:
+    - semver
+  script:
+    # tag master branch as stable
+    - if [ "$CI_COMMIT_REF_NAME" = "master" ]; then export CI_COMMIT_REF_NAME="Stable"; fi
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/encode_gate:$VERSION-$CI_COMMIT_REF_NAME-amd64" -f Dockerfiles/encode_gate .
+    - docker push "$CI_REGISTRY_IMAGE/encode_gate:$VERSION-$CI_COMMIT_REF_NAME-amd64"
+
+encode_gate-arm:
+  stage: deploy
+  image: docker:latest
+  tags:
+    - ARM
+  only:
+    - master
+    - /dev(.)*|DEV(.)*/
+    - /rc(.)*|RC(.)*/
+  dependencies:
+    - semver
+  script:
+    # tag master branch as stable
+    - if [ "$CI_COMMIT_REF_NAME" = "master" ]; then export CI_COMMIT_REF_NAME="Stable"; fi
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/encode_gate:$VERSION-$CI_COMMIT_REF_NAME-arm" -f Dockerfiles/encode_gate .
+    - docker push "$CI_REGISTRY_IMAGE/encode_gate:$VERSION-$CI_COMMIT_REF_NAME-arm"
+
+
+encode_gui-amd64:
+  stage: deploy
+  image: docker:latest
+  tags:
+    - x86_64
+  only:
+    - master
+    - /dev(.)*|DEV(.)*/
+    - /rc(.)*|RC(.)*/
+  dependencies:
+    - semver
+  script:
+    # tag master branch as stable
+    - if [ "$CI_COMMIT_REF_NAME" = "master" ]; then export CI_COMMIT_REF_NAME="Stable"; fi
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/encode_gui:$VERSION-$CI_COMMIT_REF_NAME-amd64" -f Dockerfiles/encode_gui .
+    - docker push "$CI_REGISTRY_IMAGE/encode_gui:$VERSION-$CI_COMMIT_REF_NAME-amd64"
+
+encode_gui-arm:
+  stage: deploy
+  image: docker:latest
+  tags:
+    - ARM
+  only:
+    - master
+    - /dev(.)*|DEV(.)*/
+    - /rc(.)*|RC(.)*/
+  dependencies:
+    - semver
+  script:
+    # tag master branch as stable
+    - if [ "$CI_COMMIT_REF_NAME" = "master" ]; then export CI_COMMIT_REF_NAME="Stable"; fi
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/encode_gui:$VERSION-$CI_COMMIT_REF_NAME-arm" -f Dockerfiles/encode_gui .
+    - docker push "$CI_REGISTRY_IMAGE/encode_gui:$VERSION-$CI_COMMIT_REF_NAME-arm"
+
+loader-amd64:
+  stage: deploy
+  image: docker:latest
+  tags:
+    - x86_64
+  only:
+    - master
+    - /dev(.)*|DEV(.)*/
+    - /rc(.)*|RC(.)*/
+  dependencies:
+    - semver
+  script:
+    # tag master branch as stable
+    - if [ "$CI_COMMIT_REF_NAME" = "master" ]; then export CI_COMMIT_REF_NAME="Stable"; fi
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/loader:$VERSION-$CI_COMMIT_REF_NAME-amd64" -f Dockerfiles/loader .
+    - docker push "$CI_REGISTRY_IMAGE/loader:$VERSION-$CI_COMMIT_REF_NAME-amd64"
+
+encoder-amd64:
+  stage: deploy
+  image: docker:latest
+  tags:
+    - x86_64
+  only:
+    - master
+    - /dev(.)*|DEV(.)*/
+    - /rc(.)*|RC(.)*/
+  dependencies:
+    - semver
+  script:
+    # tag master branch as stable
+    - if [ "$CI_COMMIT_REF_NAME" = "master" ]; then export CI_COMMIT_REF_NAME="Stable"; fi
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/encoder:$VERSION-$CI_COMMIT_REF_NAME-amd64" -f Dockerfiles/encoder .
+    - docker push "$CI_REGISTRY_IMAGE/encoder:$VERSION-$CI_COMMIT_REF_NAME-amd64"
+

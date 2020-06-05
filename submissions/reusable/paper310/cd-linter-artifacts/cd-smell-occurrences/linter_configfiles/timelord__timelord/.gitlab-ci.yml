@@ -1,0 +1,18 @@
+image: continuumio/anaconda3 #dont use miniconda. The installation of the required libraries takes too long.
+
+before_script:
+  - python -V
+  
+run:
+  script:
+  #- conda install numpy pandas scikit-learn statsmodels
+  - pip install redis
+  - python setup.py bdist_wheel
+  - pip install dist/*
+  - pip list
+  - pytest
+
+  artifacts:
+    paths:
+    - dist/*.whl
+

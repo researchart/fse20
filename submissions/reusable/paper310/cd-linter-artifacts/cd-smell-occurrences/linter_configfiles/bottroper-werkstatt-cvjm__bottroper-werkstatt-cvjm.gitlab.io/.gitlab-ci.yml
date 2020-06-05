@@ -1,0 +1,23 @@
+image: registry.gitlab.com/thkoch/hakyll-docker-image/hakyll-docker-image-compile-lts-12.22:latest
+
+variables:
+  STACK_RESOLVER: "lts-12.22"
+
+before_script:
+  - stack --resolver $STACK_RESOLVER build
+
+build:
+  script:
+    - stack --resolver $STACK_RESOLVER exec -- site build
+  except:
+    - master
+
+pages:
+  script:
+    - stack --resolver $STACK_RESOLVER exec -- site build
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

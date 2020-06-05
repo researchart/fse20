@@ -1,0 +1,24 @@
+---
+before_script:
+  - apt-get update -y
+  - apt-get install -y build-essential cmake libbz2-dev libpng12-dev libjpeg-dev libxxf86vm-dev libgl1-mesa-dev libogg-dev libvorbis-dev libopenal-dev libfreetype6-dev libgmp-dev libpq-dev
+  - echo "deb http://ftp.debian.org/debian/ stretch main" >> /etc/apt/sources.list
+  - apt-get update -y
+  - apt-get install -y g++-5 gcc-5 clang
+
+gcc5:
+  stage: build
+  script:
+    - mkdir -p build
+    - cd build
+    - cmake -DCMAKE_CXX_COMPILER=g++-5 -DCMAKE_C_COMPILER=gcc-5 ..
+    - make -j4
+
+clang:
+  stage: build
+  script:
+    - mkdir -p build
+    - cd build
+    - cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang ..
+    - make -j4
+

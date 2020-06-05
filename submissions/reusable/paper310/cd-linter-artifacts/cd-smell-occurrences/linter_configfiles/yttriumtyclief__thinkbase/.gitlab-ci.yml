@@ -1,0 +1,40 @@
+# This file is a template, and might need editing before it works on your project.
+# Template project: https://gitlab.com/pages/jekyll
+# Docs: https://docs.gitlab.com/ce/pages/
+image: ruby:2.3
+
+variables:
+  JEKYLL_ENV: production
+
+before_script:
+- bundle install
+
+test:
+  stage: test
+  script:
+  - chmod +x "./create_models.sh"
+  - chmod +x "./create_redirects.sh"
+  - "./create_models.sh"
+  - "./create_redirects.sh"
+  - bundle exec jekyll build -d test
+  artifacts:
+    paths:
+    - test
+  except:
+  - master
+
+pages:
+  stage: deploy
+  script:
+  - chmod +x "./create_models.sh"
+  - chmod +x "./create_redirects.sh"
+  - "./create_models.sh"
+  - "./create_redirects.sh"
+  - bundle exec jekyll build -d public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+

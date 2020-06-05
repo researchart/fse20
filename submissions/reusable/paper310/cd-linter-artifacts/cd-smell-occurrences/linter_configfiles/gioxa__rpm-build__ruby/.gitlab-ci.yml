@@ -1,0 +1,96 @@
+stages:
+  - build
+  - deploy
+
+# variables:
+variables:
+  #
+  # Default Upstream Version
+  version: 2.5.3
+  # upstream .spec project url
+  url: https://github.com/jgm/pandoc
+  #
+  raw_url: https://raw.githubusercontent.com/feedforce/ruby-rpm
+  #
+  # Repository to deploy to here e.g:
+  DEPLOY_REPO_URL: "https://repo.deployctl.com"
+  #
+  # deploy repository deployctl
+  DEPLOY_REPO_PATH: "/"
+
+# START WORKING
+# ************************************
+# download & extract upstream spec
+#  and according ruby source tar
+# ************************************
+build:
+  stage: build
+  image: gioxa/ruby-rpm-build-centos
+  variables:
+    GIT_CACHE_STRATEGY: push-pull
+    ODAGRUN_POD_SIZE: large
+  script:
+    - mkdir -pv rpm
+    - export spec=ruby.spec
+    - export tar=ruby-${version}.tar.gz
+    - >
+       copy
+       --if_value=$CI_COMMIT_TAG
+       --from_text="${CI_COMMIT_TAG}"
+       --to_var=version
+    - export dl_url="${raw_url}/${version}/ruby.spec"
+    - echo $dl_url
+    - echo $version
+    - |
+        # just in case
+        if [ -f "$spec" ] ; then
+          rm -f $spec
+        fi
+    - |
+           STATUSCODE=$(curl -L --silent --output $spec --write-out "%{http_code}" $dl_url);
+           if [[ "${STATUSCODE}" -ne "200" ]]; then
+              echo "http error=$STATUSCODE";
+              rm -f $spec;
+              [[ 1 -eq 0 ]] ;
+           else
+               ls -la $spec;
+           fi;
+    - mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+    - cp ruby.spec ~/rpmbuild/SPECS/
+    - cd ~/rpmbuild/SOURCES
+    - export src_url="https://cache.ruby-lang.org/pub/ruby/ruby-${version}.tar.gz"
+    - echo $src_url
+    - |
+         STATUSCODE=$(curl -L -o $tar --silent --write-out "%{http_code}" $src_url);
+         if [[ "${STATUSCODE}" -ne "200" ]]; then
+            echo "http error=$STATUSCODE";
+            rm -f $tar;
+            [[ 1 -eq 0 ]] ;
+         else
+             ls -la $tar;
+         fi;
+    - rpmbuild --quiet -bb ../SPECS/$spec
+    - cp ../RPMS/x86_64/* ${CI_PROJECT_DIR}/rpm
+  artifacts:
+    paths:
+      - rpm/
+      - "*.spec"
+  tags:
+    - odagrun
+
+# ***************************************
+# Deploy with deployctl to repo
+# ***************************************
+deploy:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - deployctl repo_add
+  tags:
+    # specific runner tag of the deployctl server!!!
+    - deployctl-gioxapp.com
+  environment:
+    name: production
+    url: https://repo.deployctl.com
+

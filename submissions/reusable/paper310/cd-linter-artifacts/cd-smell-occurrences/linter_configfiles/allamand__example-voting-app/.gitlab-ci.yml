@@ -1,0 +1,113 @@
+# When using dind, it's wise to use the overlayfs driver for
+# improved performance.
+variables:
+  DOCKER_DRIVER: overlay
+  REGISTRY_SLASH: "$CI_REGISTRY_IMAGE/"
+  COLON_TAG: ":1.0.0"
+  
+image: registry.gitlab.com/build-images/docker:latest
+
+services:
+  - docker:dind
+ 
+stages:
+  - check
+  - build
+  - test
+  - deploy
+  - stop
+#  - doc
+
+variables:
+  dockerfile_dir: "$CI_PROJECT_DIR"
+
+Check PWD:
+  stage: check
+  script:
+    - export DOCKER_HOST=$DOCKER_HOST_VAR
+    - echo using DOCKER_HOST=$DOCKER_HOST
+    - docker info
+
+Build & Push to Registry:
+  stage: build
+  variables:
+    REGISTRY_SLASH: "$CI_REGISTRY_IMAGE/"
+    COLON_TAG: ":1.0.0"    
+  script:
+    - echo "Using gitlab registry $REGISTRY_SLASH and $COLON_TAG"
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $REGISTRY_SLASH        
+    #At this time gitlab.com shared runner segfault when building the .Net application
+    #(maybe not enough memory.) so I don't build it here..
+    - docker-compose -f docker-compose-gitlab.yml build
+    - docker-compose -f docker-compose-gitlab.yml push    
+  except:
+    - tags
+
+#Rajouter les tests ;)
+Pull & deploy & test locally:
+  stage: test
+  variables:
+    REGISTRY_SLASH: "$CI_REGISTRY_IMAGE/"
+    COLON_TAG: ":1.0.0"      
+  script:
+    - echo "Using gitlab registry $REGISTRY_SLASH and $COLON_TAG"
+    - docker version
+    - docker swarm init || true # if already a swarm
+    - docker ps -a
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $REGISTRY_SLASH    
+#    - docker-compose -f docker-compose-gitlab-injob.yml pull
+#    - docker stack deploy vote -c docker-compose-gitlab-injob.yml
+    - docker swarm init --advertise-addr eth0 || true
+    - docker stack deploy -c traefik.yml traefik
+    - docker-compose -f docker-stack-traefik.yml pull
+    - docker stack deploy vote -c docker-stack-traefik.yml
+    #    - sleep 5
+    #YOU CAN MAKE YOUR TESTS HERE
+    #    - docker-compose -p test-vote -f docker-compose-tests.yml run newman
+    #    - docker-compose -p test-vote -f docker-compose-tests.yml down
+    - docker stack rm vote
+#  artifacts:
+#    paths:
+#      - tests/newman
+  except:
+    - tags
+
+Deploy to Swarm:
+  stage: deploy
+  variables:
+    REGISTRY_SLASH: "$CI_REGISTRY_IMAGE/"
+    COLON_TAG: ":1.0.0"        
+  before_script:
+    - export SHELL=/bin/bash
+    - echo "Creation of Docker Swarm on PWD"
+    #You need to set-up DOCKER_HOST_VAR in the Settings of your Gitlab Pipeline in secret variable
+    #- echo using $PWD_URL
+    - export DOCKER_HOST=$DOCKER_HOST_VAR
+    - echo using DOCKER_HOST=$DOCKER_HOST
+    #- docker-machine create -d pwd node1
+    #- eval `docker-machine env node1 --shell bash`
+    - docker swarm init --advertise-addr eth0 || true
+    - docker stack deploy -c traefik.yml traefik
+    - docker stack ls
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $REGISTRY_SLASH        
+#    - docker-compose -f docker-compose-gitlab.yml pull
+    - docker stack deploy vote --with-registry-auth -c docker-stack-traefik.yml
+    #YOU CAN EXECUTE POST INSTALL TESTS HERE 
+
+##Page section for the doc tutorial
+
+#pages:
+#  stage: doc
+#  image: registry.gitlab.com/build-images/mkdocs
+#  before_script: []
+#  script:
+#    - cp README.md docs/index.md
+#    - ls -laR docs
+#    - mkdocs build -d public
+#  artifacts:
+#    paths:
+#      - public    
+
+
+

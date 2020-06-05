@@ -1,0 +1,124 @@
+stages:
+  - ci
+  - validation
+  - package
+  - prepublish
+  - publish
+
+variables:
+  GRADLE_USER_HOME: "${CI_PROJECT_DIR}/.gradle-home"
+
+ci:create:
+  stage: ci
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  script: |
+      cd docker
+      if [ "false" = $(./update-required.sh) ]; then
+        echo "Skipping docker build..."
+        exit 0
+      else
+        echo "New build required with hash..."
+        cat .previous-hash
+      fi
+      docker build -t registry.gitlab.com/devlife-apps/connect2sql/ci .
+      docker push registry.gitlab.com/devlife-apps/connect2sql/ci
+  cache:
+    key: "${CI_JOB_NAME}-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - "docker/.previous-hash"
+
+validation:lint:
+  stage: validation
+  dependencies:
+    - ci:create
+  image: registry.gitlab.com/devlife-apps/connect2sql/ci
+  script:
+    - ./gradlew --no-daemon --stacktrace :app:lint :app:detektCheck
+  artifacts:
+    name: "validation-lint-reports"
+    paths:
+      - app/build/reports/
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+      - "${GRADLE_USER_HOME}/caches/"
+      - "${GRADLE_USER_HOME}/wrapper/"
+
+package:debug:
+  stage: package
+  dependencies:
+    - ci:create
+  image: registry.gitlab.com/devlife-apps/connect2sql/ci
+  script:
+    - ./gradlew --no-daemon --stacktrace :app:assembleDebug
+  artifacts:
+    name: "${CI_COMMIT_SHA}-debug"
+    paths:
+      - app/build/outputs/apk/debug/app-debug.apk
+    expire_in: 1 week
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+      - "${GRADLE_USER_HOME}/caches/"
+      - "${GRADLE_USER_HOME}/wrapper/"
+
+package:release:
+  stage: package
+  dependencies:
+    - ci:create
+  image: registry.gitlab.com/devlife-apps/connect2sql/ci
+  script:
+    - echo "apiSecret=${FABRIC_API_SECRET}" > app/fabric.properties
+    - ./gradlew --no-daemon --stacktrace :app:assembleRelease
+  artifacts:
+    name: "${CI_COMMIT_SHA}-release"
+    paths:
+      - app/build/outputs/apk/release/app-release.apk
+  cache:
+      key: "${CI_COMMIT_REF_SLUG}"
+      paths:
+        - "${GRADLE_USER_HOME}/caches/"
+        - "${GRADLE_USER_HOME}/wrapper/"
+
+prepublish:tag:
+  stage: prepublish
+  dependencies:
+    - package:release
+  image: registry.gitlab.com/devlife-apps/connect2sql/ci
+  before_script:
+    - bundle install --path fastlane/bundle
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$GIT_SSH_PRIV_KEY")
+    - git config --global user.email "$GIT_USER_EMAIL"
+    - git config --global user.name "$GIT_USER_NAME"
+    - git remote set-url origin "git@gitlab.com:${CI_PROJECT_PATH}.git"
+    - mkdir -p ~/.ssh
+    - ssh-keyscan -t rsa gitlab.com >> ~/.ssh/known_hosts
+    - git checkout $CI_COMMIT_REF_NAME
+  script:
+    - echo "${GPS_KEY}" > app/gps-key.json
+    - bundle exec fastlane prep_release
+  when: manual
+  only:
+    - master
+  except:
+    refs:
+      - tags
+
+publish:beta:
+  stage: publish
+  dependencies:
+    - package:release
+  image: registry.gitlab.com/devlife-apps/connect2sql/ci
+  before_script:
+    - bundle install --path fastlane/bundle
+  script:
+    - echo "${GPS_KEY}" > app/gps-key.json
+    - bundle exec fastlane publish_beta gps_key_path:'app/gps-key.json' apk_path:'app/build/outputs/apk/release/app-release.apk'
+  only:
+    - tags
+

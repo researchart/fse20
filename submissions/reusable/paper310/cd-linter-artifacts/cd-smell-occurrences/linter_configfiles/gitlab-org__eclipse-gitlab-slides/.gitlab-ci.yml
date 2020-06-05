@@ -1,0 +1,32 @@
+image: "node:latest"
+
+stages:
+- build
+- pages
+
+build:
+  stage: build
+  script:
+  - npm install --only=dev
+  - npm install --global grunt-cli
+  - grunt
+  - mkdir public
+  - mv {content,css,js,lib,plugin}/ index.html pdf.css public/
+  artifacts:
+    name: public
+    expire_in: 31d
+    paths:
+    - public/
+
+pages:
+  stage: pages
+  dependencies:
+    - build
+  script:
+  - echo "Building pages ..."
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master
+

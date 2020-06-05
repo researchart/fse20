@@ -1,0 +1,20 @@
+image: node
+
+pages:
+  script:
+  - npm install -g tiddlywiki
+  - cp -r * /usr/local/lib/node_modules/tiddlywiki/
+  - tiddlywiki ./editions/collection --build
+  - tiddlywiki ./editions/i18n --build
+  - tiddlywiki ./editions/feather-icons --build
+  - tiddlywiki ./editions/g-analytics --build
+  - gzip --recursive --keep ./editions/collection/output
+  - mv ./editions/collection/output public
+  - gzip --recursive --keep ./files
+  - cp -r ./files/* public
+  artifacts:
+    paths:
+    - public
+  only:
+  - release
+

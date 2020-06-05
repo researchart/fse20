@@ -1,0 +1,91 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.sila-standard.sila_java</groupId>
+        <artifactId>library</artifactId>
+        <version>0.0.3-SNAPSHOT</version>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.sila-standard.sila_java.library</groupId>
+    <artifactId>server_base</artifactId>
+    <version>0.0.3-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <gson.version>2.8.5</gson.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+
+        <!-- SiLA Dependencies -->
+        <dependency>
+            <groupId>org.sila-standard.sila_java.library</groupId>
+            <artifactId>core</artifactId>
+            <version>0.0.3-SNAPSHOT</version>
+        </dependency>
+
+        <!-- JSON Serialization -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>${gson.version}</version>
+        </dependency>
+
+        <!-- H2 database -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>1.4.197</version>
+        </dependency>
+
+        <!-- Map with expiring entry -->
+        <dependency>
+            <groupId>net.jodah</groupId>
+            <artifactId>expiringmap</artifactId>
+            <version>0.5.9</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.sila-standard.sila_java.library</groupId>
+                <artifactId>maven_plugin</artifactId>
+                <version>0.0.3-SNAPSHOT</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <protobufVersion>${protobuf.version}</protobufVersion>
+                            <grpcVersion>${grpc.version}</grpcVersion>
+                            <features>
+                                <param>${project.parent.parent.basedir}/${sila_base.path}/feature_definitions/org/silastandard/core/SiLAService.sila.xml</param>
+                                <param>${project.parent.parent.basedir}/${sila_base.path}/feature_definitions/org/silastandard/core/commands/ParameterConstraintsProvider.sila.xml</param>
+                                <param>${project.parent.parent.basedir}/${sila_base.path}/feature_definitions/org/silastandard/core/SimulationController.sila.xml</param>
+                            </features>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+

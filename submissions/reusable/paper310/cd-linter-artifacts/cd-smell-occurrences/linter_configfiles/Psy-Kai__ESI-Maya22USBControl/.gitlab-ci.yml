@@ -1,0 +1,61 @@
+stages:
+  - buildImage
+  - build
+  - test
+
+variables:
+  REGISTRY: registry.gitlab.com/psy-kai/esi-maya22usbcontrol
+
+build:image:linux:
+  stage: buildImage
+  only:
+    refs:
+      - web
+      - schedules
+      - master
+    variables:
+      - $BUILD_IMAGES
+  tags: 
+    - docker
+  image: docker:stable
+  services:
+    - docker:dind
+  variables:
+    TAG: ${REGISTRY}/linux
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t ${TAG} dockerfiles/Linux
+    - docker push ${TAG}
+
+build:linux:
+  stage: build
+  except:
+    variables:
+      - $BUILD_IMAGES
+  tags: 
+    - docker
+  image: ${REGISTRY}/linux
+  before_script:
+    - setup-qbs.sh
+  script:
+    - qbs build 
+        "products.GoogleMock.googletestDir:${GOOGLETEST_DIR}"
+
+test:linux:
+  stage: test
+  except:
+    variables:
+      - $BUILD_IMAGES
+  tags: 
+    - docker
+  image: ${REGISTRY}/linux
+  before_script:
+    - setup-qbs.sh
+  script:
+    - qbs build -p "autotest-runner"
+        "products.autotest-runner.arguments:['-o','report.xml,xunitxml']"
+        "products.GoogleMock.googletestDir:${GOOGLETEST_DIR}"
+  artifacts:
+    reports:
+      junit: [default/*/report.xml]
+

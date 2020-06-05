@@ -1,0 +1,11 @@
+
+pages:
+  script:
+    - npm run build
+    - npm run create:public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

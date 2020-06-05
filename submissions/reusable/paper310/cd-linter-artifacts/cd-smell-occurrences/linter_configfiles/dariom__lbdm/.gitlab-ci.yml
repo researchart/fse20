@@ -1,0 +1,344 @@
+stages:
+  - PreInfo
+  - 1minTests
+  - 10minTests
+  - LongTests
+  - Finalize
+
+machine:
+  stage: PreInfo
+
+  script: 
+  - uname -a
+  - whoami
+  - hostname
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "monthly-schedule"
+
+git:
+  stage: PreInfo
+
+  script: 
+  - git branch
+  - git remote show origin
+  - git status -uno
+  - echo $CI_COMMIT_MESSAGE
+  - echo $CI_COMMIT_MESSAGE
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "monthly-schedule"
+
+test000:
+  stage: 1minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/000_po2d/ && ./test000_po2d.x
+  - cd .. && ./check-test.x 000_po2d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+test001:
+  stage: 1minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/001_scps3d/ && ./test001_scps3d.x
+  - cd .. && ./check-test.x 001_scps3d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+test002:
+  stage: 10minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/002_youlap3d/ && ./test002_youlap3d.x
+  - cd .. && ./check-test.x 002_youlap3d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "monthly-schedule"
+
+test003:
+  stage: 1minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/003_rndmom3d/ && ./test003_rndmom3d.x
+  - cd .. && ./check-test.x 003_rndmom3d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+test004:
+  stage: 1minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/004_fslip3d/ && ./test004_fslip3d.x
+  - cd .. && ./check-test.x 004_fslip3d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+test005:
+  stage: 10minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/005_washb3d/ && ./test005_washb3d.x
+  - cd .. && ./check-test.x 005_washb3d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "monthly-schedule"
+
+test006:
+  stage: LongTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/006_settl3d/ && ./test006_settl3d.x
+  - cd .. && ./check-test.x 006_settl3d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "monthly-schedule"
+
+test007:
+  stage: 10minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/007_thyoulap3d/ && ./test007_thyoulap3d.x
+  - cd .. && ./check-test.x 007_thyoulap3d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "monthly-schedule"
+
+test009:
+  stage: 1minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/009_bcs2d/ && ./test009_bcs2d.x
+  - cd .. && ./check-test.x 009_bcs2d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+test010:
+  stage: 1minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/010_trans2d/ && ./test010_trans2d.x
+  - cd .. && ./check-test.x 010_trans2d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+test011:
+  stage: 10minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/011_entropy1d/ && ./test011_entropy1d.x
+  - cd .. && ./check-test.x 011_entropy1d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "monthly-schedule"
+
+test012:
+  stage: 1minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/012_sca2d/ && ./test012_sca2d.x
+  - cd .. && ./check-test.x 012_sca2d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+test013:
+  stage: 10minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/013_react2d/ && ./test013_react2d.x
+  - cd .. && ./check-test.x 013_react2d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "monthly-schedule"
+
+test014:
+  stage: 1minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/014_thpo2d/ && ./test014_thpo2d.x
+  - cd .. && ./check-test.x 014_thpo2d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+test015:
+  stage: 1minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/015_jakob1d/ && ./test015_jakob1d.x
+  - cd .. && ./check-test.x 015_jakob1d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+test016:
+  stage: 1minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/016_rebirth2d/ && ./test016_rebirth2d.x
+  - cd .. && ./check-test.x 016_rebirth2d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+test017:
+  stage: 1minTests
+
+  script: 
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/017_nnew2d/ && ./test017_nnew2d.x
+  - cd .. && ./check-test.x 017_nnew2d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+test018:
+  stage: 1minTests
+
+  script:
+  - export PATH=/home/dariom/mod/hdf5/bin:$PATH
+  - export PATH=/home/dariom/mod/openmpi/bin:$PATH
+  - cd src/test/018_po2p2d/ && ./test018_po2p2d.x
+  - cd .. && ./check-test.x 018_po2p2d/
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+
+clean-test:
+  stage: Finalize
+
+  script: 
+  - cd src/test/
+  - ./clean-test.x all
+  tags:
+  - chalmac
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "develop"
+    - $CI_COMMIT_REF_NAME =~ /^merge-.*/
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "weekly-schedule"
+    - $PIPELINE_SCHEDULE_IDENTIFIER == "monthly-schedule"
+

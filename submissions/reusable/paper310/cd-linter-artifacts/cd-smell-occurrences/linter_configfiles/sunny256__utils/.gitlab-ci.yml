@@ -1,0 +1,33 @@
+# utils.git/.gitlab-ci.yml
+# File ID: be09508c-8383-11e9-bed5-4f45262dc9b5
+
+image: gcc
+
+utils:linux:
+  stage: test
+  before_script:
+    - test "$CI_COMMIT_REF_NAME" = "synced/master" && exit 0 || true
+    - apt-get update -qq
+    - apt-get install -y
+        groff
+        texlive-base
+        sqlite3
+        exiftool
+        libnumber-bytes-human-perl
+        git-annex
+        bc
+        cmark
+        libxml2-utils
+    - git config --global user.name "Firstname Lastname"
+    - git config --global user.email "ci@example.com"
+    - git clone https://gitlab.com/sunny256/suuid.git
+    - cd suuid
+    - script -e -q -c "make test install"
+    - cd ..
+    - rm -rf suuid
+  script:
+    - export PATH=$(pwd):$PATH
+    - make
+    - make test
+    - make test-clean
+

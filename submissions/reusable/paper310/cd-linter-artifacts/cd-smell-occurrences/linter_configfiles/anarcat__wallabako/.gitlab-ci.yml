@@ -1,0 +1,32 @@
+image: golang:stretch
+
+# The problem is that to be able to use go get, one needs to put
+# the repository in the $GOPATH. So for example if your gitlab domain
+# is mydomainperso.com, and that your repository is repos/projectname, and
+# the default GOPATH being /go, then you'd need to have your
+# repository in /go/src/mydomainperso.com/repos/projectname 
+# Thus, making a symbolic link corrects this.
+before_script:
+    - mkdir -p /go/src
+    - ln -s /builds /go/src/gitlab.com
+    - cd /go/src/gitlab.com/$CI_PROJECT_PATH
+    - go get github.com/golang/dep/cmd/dep
+    - apt-get update
+    - apt-get install -y -q gcc-arm-linux-gnueabihf golint
+
+stages:
+    - build
+
+compile:
+    stage: build
+    script:
+        - dep ensure
+        - go get
+        - make lint
+        - make build
+        - make tarball
+    artifacts:
+        paths:
+        - build/
+        when: always
+

@@ -1,0 +1,68 @@
+image: ubuntu:18.10
+
+stages:
+  - prepare
+  - build
+  - test
+
+setup_env:
+  stage: prepare
+  script:
+    - apt update -qq
+    - apt install -y clang-format python3-pip
+    - pip3 install keras tensorflow
+    - python3 make_tests.py
+  artifacts:
+    paths:
+      - include/test/
+      - models/
+    expire_in: 1 hour
+
+build:debug:
+  stage: build
+  script:
+    - apt update -qq
+    - apt install -y cmake clang
+    - mkdir build_debug
+    - cd build_debug
+    - cmake .. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug
+    - cmake --build .
+  dependencies:
+    - setup_env
+  artifacts:
+    paths:
+      - build_debug/kerasify
+    expire_in: 1 hour
+
+build:release:
+  stage: build
+  script:
+    - apt update -qq
+    - apt install -y cmake clang
+    - mkdir build_release
+    - cd build_release
+    - cmake .. -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Release
+    - cmake --build .
+  dependencies:
+    - setup_env
+  artifacts:
+    paths:
+      - build_release/kerasify
+    expire_in: 1 hour
+
+test:debug:
+  stage: test
+  script:
+    - ./build_debug/kerasify
+  dependencies:
+    - setup_env
+    - build:debug
+
+test:release:
+  stage: test
+  script:
+    - ./build_release/kerasify
+  dependencies:
+    - setup_env
+    - build:release
+

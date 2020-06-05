@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <properties>
+        <project.build.sourceEncoding>ISO-8859-15</project.build.sourceEncoding>
+        <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
+    </properties>
+    <parent>
+        <groupId>org.fudaa.soft.fudaa-prepro</groupId>
+        <artifactId>fudaa-prepro</artifactId>
+        <version>1.5.0-SNAPSHOT</version>
+    </parent>
+    <groupId>org.fudaa.soft.fudaa-prepro</groupId>
+    <artifactId>prepro-ui</artifactId>
+    <name>prepro-ui</name>
+    <dependencies>
+        <dependency>
+            <groupId>commons-collections</groupId>
+            <artifactId>commons-collections</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>java3d</groupId>
+            <artifactId>j3d-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>java3d</groupId>
+            <artifactId>j3d-core-utils</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.soft.fudaa-mesh</groupId>
+            <artifactId>fudaa-mesh</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.jidesoft</groupId>
+            <artifactId>jide-oss</artifactId>
+            <version>3.4.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.framework.ebli</groupId>
+            <artifactId>ebli-3d</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.framework.fudaa.fudaa-dico</groupId>
+            <artifactId>dico-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.framework.ebli</groupId>
+            <artifactId>ebli-visuallibrary</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>${dodicoGroupId}</groupId>
+            <artifactId>dodico-common</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>${ctuluGroupId}</groupId>
+            <artifactId>ctulu-gis</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.business.fudaa-ef</groupId>
+            <artifactId>ef-core</artifactId>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <configuration>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <version>${project.version}</version>
+                            <date>${maven.build.timestamp}</date>
+                            <fullVersion>${project.version} [${maven.build.timestamp}]</fullVersion>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+    <profiles>
+        <profile>
+            <id>assemble</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <configuration>
+                            <archive>
+                                <manifest>
+                                    <mainClass>org.fudaa.fudaa.tr.Tr</mainClass>
+                                </manifest>
+                                <manifestEntries>
+                                    <version>${project.version}</version>
+                                    <date>${maven.build.timestamp}</date>
+                                    <fullVersion>${project.version} [${maven.build.timestamp}]</fullVersion>
+                                </manifestEntries>
+                            </archive>
+                            <descriptors>
+                                <!--permet de générer le jar contenant toutes les classes-->
+                                <descriptor>src/assemble/prepro.xml</descriptor>
+                                <!--permet de générer le zip contenant le jar ci-dessus avec les lanceurs bat et zip-->
+                                <descriptor>src/assemble/distribution.xml</descriptor>
+                            </descriptors>
+                            <finalName>Fudaa-Prepro-${project.version}</finalName>
+                            <appendAssemblyId>false</appendAssemblyId>
+                        </configuration>
+                        <executions>
+                            <!--pour etre utiliser dans le build normal-->
+                            <execution>
+                                <id>make-assembly</id> <!-- this is used for inheritance merges -->
+                                <phase>package</phase> <!-- bind to the packaging phase -->
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>
+

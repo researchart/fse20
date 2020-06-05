@@ -1,0 +1,32 @@
+image: maven:latest
+
+cache:
+  paths:
+    - .m2/repository
+    - target/
+    - reports/
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+
+stages:
+  - build
+  - test
+  - coverage
+
+build:
+  stage: build
+  script:
+    - 'mvn dependency:go-offline'
+
+test:
+  stage: test
+  script:
+    - 'mvn org.jacoco:jacoco-maven-plugin:prepare-agent install -Pcoverage-per-test'
+
+coverage:
+  stage: coverage
+  script:
+    - 'mvn sonar:sonar -Dsonar.host.url=$SONAR_HOST -Dsonar.organization=$SONAR_ORG -Dsonar.login=$SONAR_KEY'
+    
+

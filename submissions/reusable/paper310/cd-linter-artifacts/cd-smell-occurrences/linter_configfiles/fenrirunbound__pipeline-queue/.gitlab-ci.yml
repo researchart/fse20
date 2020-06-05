@@ -1,0 +1,41 @@
+image: docker:stable
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+
+services:
+- docker:dind
+
+stages:
+- build
+- publish
+
+build_binary:
+  image: golang:1.10
+  stage: build
+  script:
+  - make gitlab-init
+  - cd /go/src/gitlab.com/fenrirunbound/pipeline-queue && make install vendor build
+  - make gitlab-archive
+  artifacts:
+    paths:
+    - artifacts
+
+build_image:
+  stage: build
+  before_script:
+  - docker info
+  - apk add make
+  script:
+  - make docker
+
+publish_image:
+  stage: publish
+  before_script:
+  - apk add make
+  script:
+  - make docker-publish
+  only:
+    refs:
+    - master@fenrirunbound/pipeline-queue
+

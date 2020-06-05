@@ -1,0 +1,16 @@
+image: node:8.9.4
+
+pages:
+  stage: deploy
+  script:
+  - npm install
+  - npm test
+  - CI=false npm run build
+  - rm -rf public
+  - mv build public
+  artifacts:
+    paths:
+    - public # mandatory, other folder won't work
+  only:
+  - master # or dev, the branch you want to publish
+

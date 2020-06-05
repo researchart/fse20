@@ -1,0 +1,23 @@
+image: alpine:latest
+
+before_script:
+  - apk add --update curl unzip git openssh
+  - curl -O https://releases.hashicorp.com/terraform/0.9.8/terraform_0.9.8_linux_amd64.zip
+  - unzip terraform_0.9.8_linux_amd64.zip
+  
+plan:
+  stage: "test"
+  script:
+    - export PATH=$PATH:$(pwd)
+    - ./terraform init
+    - ./terraform plan
+
+apply:
+  stage: "deploy"
+  when: "manual"
+  only: ["master"]
+  script:
+    - export PATH=$PATH:$(pwd)
+    - ./terraform init
+    - ./terraform apply
+

@@ -1,0 +1,56 @@
+image: openjdk:8-jdk
+
+before_script:
+  - apt-get update
+  - apt-get -y install graphviz
+
+build:html:
+ stage: build
+ script:
+ - ./gradlew -PsiteHost=https://groovy-lang.gitlab.io bake
+ artifacts:
+   paths:
+   - build/jbake
+ only:
+   - master
+
+build:pdf:
+ stage: build
+ script:
+ - ./gradlew -PsiteHost=https://groovy-lang.gitlab.io asciidoctorPdf
+ allow_failure: true
+ artifacts:
+   paths:
+   - build/docs/asciidocPdf
+ only:
+   - master
+
+build:epub:
+ stage: build
+ script:
+ - ./gradlew -PsiteHost=https://groovy-lang.gitlab.io asciidoctorEpub
+ allow_failure: true
+ artifacts:
+   paths:
+   - build/docs/asciidocEpub
+ only:
+   - master
+
+pages:
+ stage: deploy
+ script:
+ - mkdir public
+ - echo html && [ -d "build/jbake" ] && cp -R build/jbake/* public
+ - echo epub && [ -d "build/docs/asciidocPdf" ] && cp -R build/docs/asciidocPdf/* public
+ - echo pdf  && [ -d "build/docs/asciidocPdf" ] && cp -R build/docs/asciidocPdf/* public
+ artifacts:
+   paths:
+    - public
+ dependencies:
+  - build:html
+  - build:pdf
+  - build:epub
+ when: manual
+ only:
+   - master
+

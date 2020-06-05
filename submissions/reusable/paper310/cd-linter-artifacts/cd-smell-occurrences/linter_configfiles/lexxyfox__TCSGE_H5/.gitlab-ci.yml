@@ -1,0 +1,14 @@
+image: node
+
+cache:
+  paths:
+  - node_modules
+
+pages:
+  script:
+  - npm install 
+  - npm run brunch b
+  artifacts:
+    paths:
+    - public
+

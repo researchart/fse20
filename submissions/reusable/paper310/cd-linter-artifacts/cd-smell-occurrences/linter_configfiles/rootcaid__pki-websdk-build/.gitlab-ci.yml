@@ -1,0 +1,20 @@
+image: nodejs
+
+before_script:
+
+stages:
+ - test
+
+trigger:
+  stage: test
+
+  script:
+    - "curl -X POST -F token=30dc778384e638b43e0f105cda758d https://gitlab.com/ci/api/v1/projects/7264/refs/pdf-verification/trigger"
+
+    - export DISPLAY=:1.0
+    - export PATH=$PATH:/home/gitlab-runner/.nvm/v0.10.40/bin
+
+    - npm install
+
+    - npm run test
+

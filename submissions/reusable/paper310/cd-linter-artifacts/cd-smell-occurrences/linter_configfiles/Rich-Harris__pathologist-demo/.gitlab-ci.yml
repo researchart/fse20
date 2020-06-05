@@ -1,0 +1,9 @@
+image: node:latest
+
+before_script:
+  - npm install
+
+deploy:
+  script:
+  - npm run deploy
+

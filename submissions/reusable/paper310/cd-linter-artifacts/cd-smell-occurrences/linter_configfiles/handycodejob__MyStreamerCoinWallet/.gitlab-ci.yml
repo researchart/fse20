@@ -1,0 +1,28 @@
+# requiring the environment of NodeJS 8
+image: node:8.9.3
+
+# add 'node_modules' to cache for speeding up builds
+cache:
+  paths: 
+    - node_modules/ # Node modules and dependencies
+
+before_script:
+  - npm install # Install packages
+
+variables:
+  DISABLE_NOTIFIER: "true"  # ci can't handle notify-send
+
+# the 'pages' job will 'deploy' and build your site to the 'public' path
+pages:
+  stage: deploy
+  script:
+    - ./node_modules/gulp/bin/gulp.js prep  # generate the static site
+    - mkdir -p public/.well-known/acme-challenge/
+    - mv dist/* public/ # I know it is stupid, but it makes it work :/
+    - mv .well-known/acme-challenge/mWzN6xprVBDTWT7nrHN0TpHwTySjNQ25fOkMGGto5cw public/.well-known/acme-challenge/mWzN6xprVBDTWT7nrHN0TpHwTySjNQ25fOkMGGto5cw
+  artifacts:
+    paths:
+      - public
+  only:
+    - master # this job will affect only the 'master' branch
+

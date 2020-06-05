@@ -1,0 +1,86 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - release
+  - latest
+
+variables:
+  GIT_STRATEGY: none
+
+before_script:    
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - export VERSION=$([[ $(echo $CI_COMMIT_REF_NAME | cut -d'-' -f1) == release ]] && echo $CI_COMMIT_REF_NAME | cut -d'-' -f2 || echo $CI_COMMIT_REF_NAME)
+  - echo "running with version '$VERSION'"
+
+after_script: 
+  - docker logout
+  - docker logout quay.io
+  - docker logout $CI_REGISTRY
+  
+Build:
+  stage: build
+  variables:
+    GIT_STRATEGY: clone
+  script:
+    - docker build --pull -t $CI_REGISTRY_IMAGE:$VERSION .
+    - docker push $CI_REGISTRY_IMAGE:$VERSION
+
+DockerHubRelease:
+  stage: release
+  script:
+    - export DOCKER_HUB_IMAGE="epicsoft/bloonix_server"
+    - docker login -u="$DOCKER_HUB_USER" -p="$DOCKER_HUB_PASS"
+    - docker pull $CI_REGISTRY_IMAGE:$VERSION 
+    - docker tag $CI_REGISTRY_IMAGE:$VERSION $DOCKER_HUB_IMAGE:$VERSION
+    - docker push $DOCKER_HUB_IMAGE:$VERSION
+  only:
+    - /^release-.*$/
+
+QuayIORelease:
+  stage: release
+  script:
+    - export QUAY_IO_IMAGE="quay.io/epicsoft/bloonix_server"
+    - docker login -u="$QUAY_IO_USER" -p="$QUAY_IO_PASS" quay.io
+    - docker pull $CI_REGISTRY_IMAGE:$VERSION 
+    - docker tag $CI_REGISTRY_IMAGE:$VERSION $QUAY_IO_IMAGE:$VERSION
+    - docker push $QUAY_IO_IMAGE:$VERSION
+  only:
+    - /^release-.*$/
+    #### Publish test on quay.io for security check
+    - test
+
+GitLabLatest:
+  stage: latest
+  script:
+    - docker pull $CI_REGISTRY_IMAGE:$VERSION
+    - docker tag $CI_REGISTRY_IMAGE:$VERSION $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - /^release-.*$/
+
+DockerHubLatest:
+  stage: latest
+  script:
+    - export DOCKER_HUB_IMAGE="epicsoft/bloonix_server"
+    - docker login -u="$DOCKER_HUB_USER" -p="$DOCKER_HUB_PASS"
+    - docker pull $CI_REGISTRY_IMAGE:$VERSION
+    - docker tag $CI_REGISTRY_IMAGE:$VERSION $DOCKER_HUB_IMAGE:latest
+    - docker push $DOCKER_HUB_IMAGE:latest
+  only:
+    - /^release-.*$/
+
+QuayIOLatest:
+  stage: latest
+  script:
+    - export QUAY_IO_IMAGE="quay.io/epicsoft/bloonix_server"
+    - docker login -u="$QUAY_IO_USER" -p="$QUAY_IO_PASS" quay.io
+    - docker pull $CI_REGISTRY_IMAGE:$VERSION 
+    - docker tag $CI_REGISTRY_IMAGE:$VERSION $QUAY_IO_IMAGE:latest
+    - docker push $QUAY_IO_IMAGE:latest
+  only:
+    - /^release-.*$/
+

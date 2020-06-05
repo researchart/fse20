@@ -1,0 +1,87 @@
+image: python:3.5
+
+stages:
+  - prepare
+  - test
+  - package
+  - documentation
+
+variables:
+  APP: catascope
+  PIP_CACHE: pip_cache
+
+before_script:
+  - mkdir -p ${PIP_CACHE}
+
+lint:
+  stage: test
+  script:
+    - pip3 --cache-dir=${PIP_CACHE} install flake8 bandit
+    - flake8
+    - bandit -r .
+
+pages:
+  stage: documentation
+  script:
+  - apt-get update
+  - apt-get install -y libldap2-dev libsasl2-dev xmlsec1
+  - pip3 --cache-dir=${PIP_CACHE} install -r dev-requirements.txt .
+  - cp ${APP}/settings.ini.example ${APP}/settings.ini
+  - cd docs
+  - make html
+  - mv _build/html/ ../public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+  cache:
+    paths:
+      - ${PIP_CACHE}
+
+.runtests_template: &runtests_template
+  stage: test
+  script:
+  - apt-get update
+  - apt-get install -y libldap2-dev libsasl2-dev xmlsec1 sqlite3
+  - pip3 --cache-dir=${PIP_CACHE} install -r dev-requirements.txt
+  - cat ci/settings.test-base.ini ci/settings.test-${DB_CONFIG}.ini > ${APP}/settings.ini
+  - python3 ./manage.py makemigrations --check
+  - python3 -m pytest
+  cache:
+    paths:
+      - ${PIP_CACHE}
+
+runtests:postgres:
+  <<: *runtests_template
+  services:
+  - postgres:latest
+  variables:
+    POSTGRES_DB: catascope
+    POSTGRES_USER: runner
+    POSTGRES_PASSWORD: ""
+    DB_CONFIG: postgres
+
+runtests:sqlite:
+  <<: *runtests_template
+  variables:
+    DB_CONFIG: sqlite
+
+buildwheels:
+  stage: package
+  cache:
+    paths:
+    - ${PIP_CACHE}
+  variables:
+    WHEELHOUSE: wheelhouse
+  script:
+    - apt-get update
+    - apt-get install -y libldap2-dev libsasl2-dev
+    # Install extra build dependencies, if there are any
+    - if [ -d build-requirements.txt ] ; then pip3 --cache-dir=${PIP_CACHE} install -r build-requirements.txt; fi
+    # Build wheels of the app and our dependencies
+    - pip3 wheel --wheel-dir=${WHEELHOUSE} -r requirements.txt .
+  artifacts:
+    paths:
+    - ${WHEELHOUSE}
+

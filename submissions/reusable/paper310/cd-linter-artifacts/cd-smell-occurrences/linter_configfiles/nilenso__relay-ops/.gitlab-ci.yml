@@ -1,0 +1,111 @@
+variables:
+  STANDALONE_LOGO: assets/logo.png
+  ASSETS_DIR: ${CI_PROJECT_DIR}/assets
+  VAULT_DIR: ${CI_PROJECT_DIR}/relay-vault
+  SECRETS_DIR: ${CI_PROJECT_DIR}/secrets
+  MM_WEBAPP_DIR: ${CI_PROJECT_DIR}/mattermost-webapp
+  MM_DESKTOP_DIR: ${CI_PROJECT_DIR}/desktop
+  MM_MOBILE_DIR: ${CI_PROJECT_DIR}/mattermost-mobile
+  MM_SERVER_DIR: ${CI_PROJECT_DIR}/mattermost-server
+  MM_VERSION: "4.7.2"
+  ANDROID_RELEASE: "alpha"
+  S3_BUCKET_NAME: "assets.relay"
+
+before_script:
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo "$SSH_PRIVATE_KEY")
+  - mkdir -p ~/.ssh
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+stages:
+  - build_client
+  - build_server
+  - push_to_s3
+
+# build_mobile_apps:
+#   image: registry.gitlab.com/nilenso/relay-ops/relay-android:latest
+#   stage: build_client
+#   script:
+#     # get secrets, mobile repo
+#     - git clone git@gitlab.com:nilenso/relay-vault.git ${VAULT_DIR}
+#     - mv ${VAULT_DIR}/ops-secrets ${SECRETS_DIR}
+#     - git clone --branch release-1.5 https://github.com/mattermost/mattermost-mobile.git
+#     # rebrand and build
+#     - bin/rebrand-mobile
+#     - bin/build-android
+#   artifacts:
+#     paths:
+#       - ${MM_MOBILE_DIR}/android/app/build/outputs/apk
+#   only:
+#     - master
+
+build_webapp:
+  image: kkarczmarczyk/node-yarn
+  stage: build_client
+  script:
+    - git clone --branch v${MM_VERSION} https://github.com/mattermost/mattermost-webapp.git
+    - bin/rebrand-webapp
+    - cd $MM_WEBAPP_DIR
+    - make clean
+    - make build > /dev/null 2>&1
+  cache:
+    paths:
+      - node_modules
+  artifacts:
+    paths:
+    - $MM_WEBAPP_DIR
+  only:
+    - master
+
+build_desktop_app:
+  image: electronuserland/builder:wine-mono
+  stage: build_client
+  script:
+    - apt-get update
+    - apt-get install -y icnsutils graphicsmagick
+    - git clone https://github.com/mattermost/desktop.git
+    - bin/rebrand-desktop-app
+    - cd $MM_DESKTOP_DIR
+    - yarn
+    - CSC_IDENTITY_AUTO_DISCOVERY=false npm run build
+    - CSC_IDENTITY_AUTO_DISCOVERY=false npm run package:all
+  cache:
+    paths:
+      - node_modules
+  artifacts:
+    paths:
+    - $MM_DESKTOP_DIR/release
+  only:
+    - master
+
+build_server:
+  image: golang:1.9
+  stage: build_server
+  script:
+    - echo $MM_ARCHIVE_FILE
+    - wget https://releases.mattermost.com/$MM_VERSION/mattermost-team-$MM_VERSION-linux-amd64.tar.gz
+    - tar -xzvf mattermost-team-$MM_VERSION-linux-amd64.tar.gz
+    - MM_SERVER_DIR=mattermost bin/rebrand-server
+    - cp -R $MM_WEBAPP_DIR/dist/** mattermost/client
+    - cp -R mattermost-email-templates/*.html mattermost/templates/
+  dependencies:
+    - build_webapp
+  artifacts:
+    paths:
+    - mattermost
+  only:
+    - master
+
+push_to_s3:
+  image: python:latest
+  stage: push_to_s3
+  script:
+    - pip install awscli
+    - tar -zcvf mattermost-${CI_COMMIT_SHA:0:8}.tar.gz ./mattermost
+    - aws s3 cp mattermost-${CI_COMMIT_SHA:0:8}.tar.gz s3://${S3_BUCKET_NAME}
+  dependencies:
+    - build_server
+  only:
+    - master
+

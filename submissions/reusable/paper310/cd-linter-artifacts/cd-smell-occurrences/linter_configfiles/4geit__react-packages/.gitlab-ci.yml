@@ -1,0 +1,175 @@
+variables:
+  S3CMD: s3cmd --access_key=${AWS_ACCESS_KEY} --secret_key=${AWS_SECRET_KEY} --region=eu-west-1 --quiet
+  AWS_POLICY: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": "*",
+          "Action": "s3:GetObject",
+          "Resource": "arn:aws:s3:::${AWS_BUCKET_NAME}/*"
+        }
+      ]
+    }
+  NODE_ENV: development
+  NPMRC: |
+    //registry.npmjs.org/:_authToken=${NPM_TOKEN}
+  USEREMAIL: 4geit.gitlab.releaser@gmail.com
+  USERNAME: 4geit.gitlab.releaser
+stages:
+  - test
+  - release
+  - build
+  - deploy
+test:
+  stage: test
+  image: registry.gitlab.com/4geit/docker/lerna
+  # when: manual
+  before_script:
+    # install dependencies
+    - yarn
+  script:
+    - yarn lint && yarn jest:ci
+  only:
+    - branches@4geit/react-s
+  except:
+    - master@4geit/react-packages
+    - production@4geit/react-packages
+release:
+  stage: release
+  image: registry.gitlab.com/4geit/docker/lerna
+  before_script:
+    # check if version already released
+    - >
+      if [ "$(git log --pretty=%an -1)" = "$USERNAME" ]; then
+        echo 'This version has been already released!'
+        exit
+      fi
+    # install deps
+    - yarn
+    # build packages
+    - yarn build
+    # go to the master branch
+    - git checkout master
+    # override the git URL with the GITLAB_PERSONAL_ACCESS_TOKEN
+    - git remote set-url origin https://git:${GITLAB_PERSONAL_ACCESS_TOKEN}@gitlab.com/${CI_PROJECT_PATH}.git
+    # add releaser info
+    - git config --global user.email "$USEREMAIL"
+    - git config --global user.name "$USERNAME"
+    # add .npmrc file to each package
+    - >
+      for package in ./packages/*; do
+        echo $NPMRC | envsubst > $package/.npmrc
+      done
+    # add .npmrc file to each util
+    - >
+      for util in ./utils/*; do
+        echo $NPMRC | envsubst > $util/.npmrc
+      done
+  script:
+    # publish
+    - lerna publish --conventional-commits --yes
+  only:
+    - master@4geit/react-packages
+review:build:
+  stage: build
+  image: registry.gitlab.com/4geit/docker/lerna
+  variables:
+    STORYBOOK_API_URL: http://swagger-packages-mock.vc1s.4ge.it/v1
+  when: manual
+  artifacts:
+    paths:
+      - storybook-static
+  before_script:
+    # install deps
+    - yarn
+  script:
+    # build storybook
+    - yarn build-storybook
+  only:
+    - branches@4geit/react-packages
+  except:
+    - master@4geit/react-packages
+review:deploy:
+  stage: deploy
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: http://$CI_ENVIRONMENT_SLUG.react-packages.ws3.4ge.it
+    on_stop: stop_review
+  variables:
+    AWS_BUCKET_NAME: $CI_ENVIRONMENT_SLUG.react-packages.ws3.4ge.it
+  when: manual
+  image: registry.gitlab.com/4geit/docker/aws
+  before_script:
+    # remove old bucket
+    - ${S3CMD} rb -rf s3://$AWS_BUCKET_NAME
+    # create new bucket
+    - ${S3CMD} mb s3://$AWS_BUCKET_NAME
+    # setup policy
+    - echo $AWS_POLICY | envsubst > /tmp/policy.txt && ${S3CMD} setpolicy /tmp/policy.txt s3://$AWS_BUCKET_NAME
+    # enable web server
+    - ${S3CMD} ws-create --ws-index=index.html --ws-error=index.html s3://$AWS_BUCKET_NAME
+  script:
+    # upload recusively all the files to the bucket
+    - ${S3CMD} put -r storybook-static/ s3://$AWS_BUCKET_NAME
+  only:
+    - branches@4geit/react-packages
+  except:
+    - master@4geit/react-packages
+stop_review:
+  stage: deploy
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+  image: registry.gitlab.com/4geit/docker/aws
+  variables:
+    GIT_STRATEGY: none
+    AWS_BUCKET_NAME: $CI_ENVIRONMENT_SLUG.react-packages.ws3.4ge.it
+  when: manual
+  script:
+    # remove old bucket
+    - ${S3CMD} rb -rf s3://$AWS_BUCKET_NAME
+  only:
+    - branches@4geit/react-packages
+  except:
+    - master@4geit/react-packages
+staging:build:
+  stage: build
+  image: registry.gitlab.com/4geit/docker/lerna
+  variables:
+    STORYBOOK_API_URL: http://swagger-packages-mock.vc1s.4ge.it/v1
+  artifacts:
+    paths:
+      - storybook-static
+  before_script:
+    # install deps
+    - yarn
+  script:
+    # build storybook
+    - yarn build-storybook
+  only:
+    - tags@4geit/react-packages
+staging:deploy:
+  stage: deploy
+  environment:
+    name: staging
+    url: http://$AWS_BUCKET_NAME
+  variables:
+    AWS_BUCKET_NAME: react-packages.ws3.4ge.it
+  image: registry.gitlab.com/4geit/docker/aws
+  before_script:
+    # remove old bucket
+    - ${S3CMD} rb -rf s3://$AWS_BUCKET_NAME
+    # create new bucket
+    - ${S3CMD} mb s3://$AWS_BUCKET_NAME
+    # setup policy
+    - echo $AWS_POLICY | envsubst > /tmp/policy.txt && ${S3CMD} setpolicy /tmp/policy.txt s3://$AWS_BUCKET_NAME
+    # enable web server
+    - ${S3CMD} ws-create --ws-index=index.html --ws-error=index.html s3://$AWS_BUCKET_NAME
+  script:
+    # upload recusively all the files to the bucket
+    - ${S3CMD} put -r storybook-static/ s3://$AWS_BUCKET_NAME
+  only:
+    - tags@4geit/react-packages
+

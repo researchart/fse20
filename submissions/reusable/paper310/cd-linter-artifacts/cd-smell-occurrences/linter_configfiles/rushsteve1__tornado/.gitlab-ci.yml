@@ -1,0 +1,86 @@
+# Start with Rust base image
+# https://hub.docker.com/r/library/rust/tags/
+image: "rust:latest"
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - web/node_modules/
+  - target/
+  - ~/.cargo
+
+# Install NodeJS
+before_script:
+  - curl -sL https://deb.nodesource.com/setup_10.x | bash -
+  - apt-get update -qq
+  - apt-get install -y -qq nodejs
+  - apt-get install -yqq --no-install-recommends build-essential clang libcurl4-openssl-dev libevent-dev libclang-dev libssl-dev cmake
+
+stages:
+  - web
+  - rust
+  - docker
+
+web-build:
+  stage: web
+  script:
+    - cd web
+    - npm install
+    - npm run build
+
+# Tests not configured yet
+#test_web:
+#  stage: web
+#  script:
+#    - cd web
+#    - npm install
+#    - npm run test
+
+rust-test:
+  stage: rust
+  script:
+    - cargo test
+
+rust-release:
+  stage: rust
+  script:
+    - cargo build --release
+    - cp target/release/tornado .
+  artifacts:
+    name: "tornado-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - tornado
+  only:
+    - master
+
+docker-debian:
+  stage: docker
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker pull "$CI_REGISTRY_IMAGE:dev-debian" || true
+    - docker build --cache-from "$CI_REGISTRY_IMAGE:dev-debian" -t "$CI_REGISTRY_IMAGE:dev-debian" -t "$CI_REGISTRY_IMAGE:dev" --rm -f "docker/debian.dockerfile" .
+    - docker push "$CI_REGISTRY_IMAGE:dev-debian"
+    - docker push "$CI_REGISTRY_IMAGE:dev" 
+  only:
+    - master
+
+# Rust is outdated in Alpine so don't build it
+# docker-alpine:
+#   stage: docker
+#   image: docker:latest
+#   services:
+#     - docker:dind
+#   before_script:
+#     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+#   script:
+#     - docker pull "$CI_REGISTRY_IMAGE:dev-alpine" || true
+#     - docker build --cache-from "$CI_REGISTRY_IMAGE:dev-alpine" -t "$CI_REGISTRY_IMAGE:dev-alpine" -t "$CI_REGISTRY_IMAGE:dev" --rm -f "docker/alpine.dockerfile" .
+#     - docker push "$CI_REGISTRY_IMAGE:dev-alpine"
+#   only:
+#     - master
+

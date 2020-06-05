@@ -1,0 +1,11 @@
+image: docker:git
+
+services:
+  - docker:dind
+
+deploy:
+  script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  - docker build -t registry.gitlab.com/mtnygard/m2m.router .
+  - docker push registry.gitlab.com/mtnygard/m2m.router
+

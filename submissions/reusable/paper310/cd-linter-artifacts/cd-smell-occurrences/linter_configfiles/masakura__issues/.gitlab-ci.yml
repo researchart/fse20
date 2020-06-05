@@ -1,0 +1,200 @@
+variables:
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+
+.build: &build
+  stage: build
+  services:
+    - docker:dind
+  image: docker
+  script:
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    - docker build -t "${IMAGE_TAG}" --build-arg VERSION_SUFFIX=${APP_VERSION_SUFFIX} .
+    - docker push "${IMAGE_TAG}"
+
+build:branch:
+  <<: *build
+  variables:
+    APP_VERSION_SUFFIX: ${CI_COMMIT_REF_NAME}-${CI_JOB_ID}
+  only:
+    - branches
+
+build:tag:
+  <<: *build
+  variables:
+    APP_VERSION_SUFFIX: ""
+  only:
+    - tags
+
+.unittest: &unittest
+  stage: build
+  image: microsoft/dotnet
+  script:
+    - cd src
+    - |-
+      for project in IntegrationTest *.Test; do
+        dotnet test ${project}/*.csproj --configuration Release  --logger=trx --results-directory "../../unittest/${project}"
+      done
+  artifacts:
+    paths:
+      - unittest
+
+unittest:branches:
+  <<: *unittest
+  only:
+    - branches
+
+unittest:release:
+  <<: *unittest
+  artifacts:
+    expire_in: '47 yrs'
+    paths:
+      - unittest
+  except:
+    - branches
+
+inspect:
+  stage: build
+  script:
+    - dotnet restore
+    - InspectCode.exe issues.sln -o=reports.xml
+  tags:
+    - windows
+  artifacts:
+    paths:
+      - reports.xml
+
+inspect:report:
+  stage: test
+  script:
+    - cat reports.xml | ./scripts/inspects/format-report | tee results.txt
+    - if cat results.txt | grep -e 'ERROR\|WARNING'; then false; fi
+  dependencies:
+    - inspect
+  artifacts:
+    when: always
+    paths:
+      - reports.xml
+      - results.txt
+
+.acceptance: &acceptance
+  stage: test
+  services:
+    - docker:dind
+  image: microsoft/dotnet
+  script:
+    - mkdir -p bin
+    - export PATH=$PATH:$PWD/bin
+    - |-
+      if [ ! -x "bin/docker-compose" ]; then
+        curl -L https://github.com/docker/compose/releases/download/1.17.0/docker-compose-`uname -s`-`uname -m` -o bin/docker-compose
+        chmod +x bin/docker-compose
+      fi
+    - cd src/AcceptanceTest
+    - DOCKER_HOST=tcp://docker:2375 docker-compose up -d
+    - SELENIUM_HUB_URL=http://docker:4444/wd/hub TARGET_URL=http://webapp dotnet test --logger=trx --results-directory "../../${SELENIUM_BROWSER_NAME}"
+  dependencies: []
+  artifacts:
+    name: acceptance-report
+    when: always
+    expire_in: '47 yrs'
+    paths:
+      - chrome/
+      - firefox/
+  cache:
+    key: acceptance
+    paths:
+      - bin
+
+.chrome: &chrome
+  variables:
+    SELENIUM_BROWSER_NAME: chrome
+
+.firefox: &firefox
+  variables:
+    SELENIUM_BROWSER_NAME: firefox
+
+.release: &release
+  except:
+    - branches
+
+.master: &master
+  only:
+    - master
+
+.branches: &branches
+  allow_failure: true
+  only:
+    - branches
+  except:
+    - master
+
+chrome:release:
+  <<: *acceptance
+  <<: *chrome
+  <<: *release
+    
+firefox:release:
+  <<: *acceptance
+  <<: *firefox
+  <<: *release
+
+chrome:master:
+  <<: *acceptance
+  <<: *chrome
+  <<: *master
+
+firefox:master:
+  <<: *acceptance
+  <<: *firefox
+  <<: *master
+
+chrome:branches:
+  <<: *acceptance
+  <<: *chrome
+  <<: *branches
+
+firefox:branches:
+  <<: *acceptance
+  <<: *firefox
+  <<: *branches
+
+.deploy: &deploy
+  stage: deploy
+  image: azuresdk/azure-cli-python
+  script:
+    - az login --service-principal -u "${AZURE_APP_ID}" --password "${AZURE_API_PASSWORD}" --tenant "${AZURE_AD_TENANT}"
+    - az webapp config container set --resource-group "${AZURE_RESOURCE_GROUP}" --name "${AZURE_APP_NAME}" --docker-custom-image-name "${IMAGE_TAG}"
+  dependencies: []
+  only:
+    - tags
+    - /^v.*/
+
+deploy:master:
+  stage: deploy
+  script:
+    - 'curl -X POST --data "{}" --header "Content-Type: application/json" "https://%24issues-app-master:${AZURE_WEBAPP_MASTER_PASSWORD}@issues-app-master.scm.azurewebsites.net/docker/hook"'
+  only:
+    - master
+  environment:
+    name: master
+    url: https://issues-app-master.azurewebsites.net
+
+deploy:staging:
+  <<: *deploy
+  variables:
+    AZURE_RESOURCE_GROUP: issues-development
+    AZURE_APP_NAME: issues-app-staging
+  environment:
+    name: staging
+    url: https://staging.issues-app.riding.jp/
+
+deploy:production:
+  <<: *deploy
+  variables:
+    AZURE_RESOURCE_GROUP: issues-production
+    AZURE_APP_NAME: issues-app
+  when: manual
+  environment:
+    name: production
+    url: https://issues-app.riding.jp/
+

@@ -1,0 +1,13 @@
+before_script:
+  - apt-get update -qq
+  - apt-get install -qq --no-install-recommends python-dev python-pip python-setuptools
+  - cd playbooks/ && pip install -r requirements.txt
+
+stages:
+  - ansible-lint
+
+ansible-lint:
+  stage: ansible-lint
+  script:
+    - ansible-lint site.yml
+

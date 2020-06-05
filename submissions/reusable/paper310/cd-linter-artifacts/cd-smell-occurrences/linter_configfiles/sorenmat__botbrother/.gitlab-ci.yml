@@ -1,0 +1,47 @@
+before_script:
+  - mkdir deps
+  - export GOPATH=$(pwd)/deps
+
+stages:
+  - build
+  - test
+
+format:
+  image: golang:1.5
+  stage: build
+  script:
+    - go get golang.org/x/tools/cmd/goimports
+    # If formatted is different than committed
+    - (if [ "$(bin/goimports -d .)" == "" ]; then echo "Good format"; else echo "Bad format"; exit 33; fi);
+    # goimports -w src/*.go
+    - (if [ "$(bin/goimports -d *.go)" == "" ]; then echo "Good format"; else echo "Bad format"; exit 33; fi);
+
+vet:
+  image: golang:1.5
+  stage: build
+  script:
+    # Vet dir src/smarpshare, dont care about unkeyed composites
+    - go tool vet -composites=false .
+    # Vet files in src/, dont care about unkeyed composites
+    - go tool vet -composites=false -shadow=true *.go
+  artifacts:
+    untracked: true
+    paths:
+     - botbrother
+     - ./botbrother
+     
+compile-go-1.5:
+  image: golang:1.5
+  stage: build
+  script:
+    - go get -v -d
+    - go build
+
+test-go-1.5:
+  image: golang:1.5
+  stage: test
+  script:
+    - go get -v -d
+    - go test -race -p 1  -cover .
+  allow_failure: false
+

@@ -1,0 +1,145 @@
+include:
+    # Python black and PEP8 code style check
+    - "https://gitlab.com/nobodyinperson/ci-templates/raw/master/python-black-pep8.yml"
+    # PyPI upload
+    - "https://gitlab.com/nobodyinperson/ci-templates/raw/master/pypi-upload.yml"
+
+image: python:latest
+
+variables:
+    SPHINX_DOC_DIR: sphinx-doc
+    COVERAGE_STATIC_DIR: coverage-report
+    PAGES_DIR: public
+    APPNAME: python3-sensemapi
+    PYPIRC: ~/.pypirc
+    GECKODRIVER_URL: https://github.com/mozilla/geckodriver/releases/download/v0.23.0/geckodriver-v0.23.0-linux64.tar.gz
+    GECKODRIVER_TGZ: geckodriver.tgz
+
+stages:
+    - test
+    - package
+    - deploy
+
+cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+
+coverage:
+    stage: test
+    script:
+        - pip3 install coveralls
+        - "PACKAGE_NAME=`python3 -c 'from setuptools import find_packages;print(find_packages(exclude=[\"tests\"])[0])'`"
+        - coverage run --source=$PACKAGE_NAME setup.py test
+        - coverage html
+        - coverage report
+        - mv htmlcov/ $COVERAGE_STATIC_DIR
+    coverage: '/TOTAL.*\s+(\d+\%)/'
+    artifacts:
+        paths:
+            - $COVERAGE_STATIC_DIR
+        expire_in: 1 week
+
+python-black-pep8:
+    stage: test
+
+dist:
+    stage: package
+    dependencies: [] # no other artifacts needed
+    script:
+        - ./setup.py sdist
+    artifacts:
+        paths:
+            - dist/*
+        expire_in: 1 week
+
+rpm-sfos:
+    image: python:3.7
+    stage: package
+    dependencies: [] # no other artifacts needed
+    before_script:
+        - "apt update -qq"
+        - "apt install -y -qq rpm >/dev/null"
+    script:
+        - make rpm-sfos
+        - "mv dist/*.rpm ."
+    artifacts:
+        paths:
+            - "*.rpm"
+        expire_in: 1 week
+
+sphinx:
+    image: ubuntu
+    stage: package
+    dependencies: [] # no other artifacts needed
+    script:
+        - "apt-get -qq update 2>&1 >/dev/null"
+        - "apt-get -y -qq install pandoc python3-pip git >/dev/null"
+        - pip3 install --user .
+        - pip3 install sphinx sphinx_rtd_theme jupyter ipython==6.5
+        - make docs
+        - mv docs/_build/html $SPHINX_DOC_DIR
+    artifacts:
+        paths:
+            - $SPHINX_DOC_DIR
+        expire_in: 1 week
+
+pypi-upload:
+    stage: deploy
+    environment:
+        name: Python Package Index
+        url: https://pypi.org/project/sensemapi/
+    dependencies:
+        - dist
+    only:
+        - master
+    only:
+        - tags
+
+openrepos-upload:
+    image: ubuntu
+    stage: deploy
+    variables:
+        GIT_STRATEGY: none
+    environment:
+        name: OpenRepos
+        url: https://openrepos.net/content/nobodyinperson/python3-sensemapi
+    script:
+        - "apt-get -qq update"
+        - "apt-get -y -qq install git firefox xvfb python3-pip wget >/dev/null"
+        - "git clone https://gitlab.com/nobodyinperson/sailfish-devel-tools"
+        - "pip3 install selenium"
+        - "wget -O $GECKODRIVER_TGZ $GECKODRIVER_URL"
+        - "tar -xvzf $GECKODRIVER_TGZ"
+        - "mv geckodriver /usr/bin"
+        - 'DISPLAY=:1 xvfb-run sailfish-devel-tools/openrepos-deploy.py -r *.noarch.rpm -n "$APPNAME"'
+    dependencies:
+        - rpm-sfos
+    only:
+        - master
+    only:
+        - tags
+
+pages:
+    image: alpine
+    variables:
+        GIT_STRATEGY: none
+    before_script: [] # no need to install anything for deployment
+    stage: deploy
+    environment:
+        name: GitLab Pages
+        url: https://tue-umphy.gitlab.io/co2mofetten/python3-sensemapi
+    dependencies:
+        - sphinx
+        - coverage
+    script:
+        - rm -rf $PAGES_DIR/ # make sure there is not pages dir
+        - mv $SPHINX_DOC_DIR $PAGES_DIR/ # sphinx doc is index page
+        - mv $COVERAGE_STATIC_DIR $PAGES_DIR/ # put coverage report inside
+    artifacts:
+        paths:
+            - $PAGES_DIR/
+    only:
+        - master
+    only:
+        - tags
+
+

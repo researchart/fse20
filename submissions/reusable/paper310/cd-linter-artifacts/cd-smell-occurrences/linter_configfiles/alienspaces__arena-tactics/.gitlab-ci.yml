@@ -1,0 +1,25 @@
+variables:
+  DOCKER_DRIVER: overlay
+
+stages:
+  - test
+
+test:
+  image: docker:19.03
+  stage: test
+  services:
+    - docker:19.03-dind
+  before_script:
+    - apk update
+    - apk add gcc
+    - apk add bash
+    - apk add musl-dev
+    - apk add libffi-dev
+    - apk add openssl-dev
+    - apk add make
+    - apk add python-dev
+    - apk add --no-cache py-pip
+    - pip install docker-compose
+  script:
+    - cd server && ./dev-bin/compose-test
+

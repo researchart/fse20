@@ -1,0 +1,113 @@
+image: docker:latest
+services:
+  - docker:dind
+  
+stages:
+  - prepare
+  - test
+  - build
+  - publish
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+  BUILDER_IMAGE: $CI_REGISTRY_IMAGE/builder:v1
+
+prepare:
+  stage: prepare
+  only:
+    changes:
+      - .gitlab-ci.yml
+      - Dockerfile
+      - package.json
+      - package-lock.json
+  script:
+    - prepare_builder
+  
+test:
+  stage: test
+  allow_failure: true
+  script:
+    - builder npm run test
+
+build:
+  stage: build
+  artifacts:
+    paths:
+      - dist
+    name: "$CI_BUILD_REF"
+    when: on_success
+  script:
+    - builder npm run build
+    
+publish:
+  stage: publish
+  image: node:10
+  dependencies:
+    - build
+  only:
+    - tags
+  script:
+    - echo //registry.npmjs.org/:_authToken=$NPM_TOKEN > ~/.npmrc
+    - npm publish
+    
+pages:
+  stage: deploy
+  only:
+    - master
+    - /^9-/
+    - /refactor-docs-site/
+  script:
+    - builder npm run generate
+    - cp -r dist public/
+  artifacts:
+    paths:
+      - public
+
+.functions: &functions |
+  function prep_host_pwd() {
+  # Find the mounting point for PWD in the owner host - this means we can do DIND using the socket thing *AND* build outside, *AND* it should work on shared runners:
+    set +e
+    CONTAINER=$(docker ps | grep $HOSTNAME | awk '{ print $1 }')
+    OUTER_PWD=$(docker inspect $CONTAINER | grep $HOSTNAME | grep $(dirname $PWD) | grep -o -e '\".*:' | tr '"' ' ' | tr ':' ' ' | awk '{$1=$1};1')
+    set -e
+    if [ ! "$OUTER_PWD" ]; then
+      export HOST_PWD=$PWD
+    else
+      export HOST_PWD="$OUTER_PWD""/"$(basename $PWD)
+    fi
+  }
+
+  function prepare_builder() {
+    if docker pull $BUILDER_IMAGE ; then
+      docker create --name=test-$CI_BUILD_REF   $BUILDER_IMAGE
+      docker cp test-$CI_BUILD_REF:/application/package.json ./builder-package.json
+      docker rm test-$CI_BUILD_REF
+
+      if  cmp builder-package.json package.json ; then
+          rm builder-package.json
+          return 0
+      fi
+
+      rm builder-package.json
+    fi
+
+    docker build -t $BUILDER_IMAGE -f Dockerfile .
+    docker push $BUILDER_IMAGE
+  }
+
+  function builder() {
+    docker run --rm -u=$UID:$(id -g $USER) -e SENTRY_DSN=$SENTRY_DSN -e VERSION=$VERSION -e NODE_ENV=production -v $HOST_PWD:/application -v /application/node_modules $BUILDER_IMAGE $*
+  }
+
+  
+before_script:
+  - echo before $DOCKER_HOST
+  - export DOCKER_HOST=${DOCKER_HOST:=unix:///var/run/docker.sock}
+  - echo after $DOCKER_HOST
+  - export VERSION=${CI_BUILD_TAG:=0.0.0-$CI_BUILD_REF}
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  - sed -i 's|0.0.0-VERSION|'"$VERSION"'|' package.json
+  - *functions
+  - prep_host_pwd
+

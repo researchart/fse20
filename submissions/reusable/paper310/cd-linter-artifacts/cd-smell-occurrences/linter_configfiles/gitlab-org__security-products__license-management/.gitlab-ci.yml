@@ -1,0 +1,80 @@
+# When using dind, it's wise to use the overlayfs driver for
+# improved performance.
+variables:
+  DOCKER_DRIVER: overlay2
+  MAJOR: 1
+  TMP_IMAGE: $CI_REGISTRY_IMAGE/tmp:$CI_COMMIT_SHA
+
+include:
+  - template: Container-Scanning.gitlab-ci.yml
+  - template: Jobs/Code-Quality.gitlab-ci.yml
+  - local: .gitlab/test.yml
+  - local: .gitlab/qa.yml
+  - local: .gitlab/release.yml
+
+services:
+  - docker:stable-dind
+
+stages:
+  - build
+  - test
+  - tag
+  - release
+
+build commit:
+  image: docker:stable
+  stage: build
+  script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $TMP_IMAGE .
+    - docker push $TMP_IMAGE
+
+container_scanning:
+  variables:
+    CI_APPLICATION_REPOSITORY: $CI_REGISTRY_IMAGE/tmp # only predefined variables are parameter-expanded (no $TMP_IMAGE)
+
+.docker_tag:
+  image: docker:stable
+  stage: tag
+  script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - export SOURCE_IMAGE=$TMP_IMAGE
+    - export TARGET_IMAGE=$CI_REGISTRY_IMAGE:${IMAGE_TAG:-$CI_JOB_NAME}
+    - |
+      if [ -z "$DOTENV" ]; then
+        docker pull $SOURCE_IMAGE
+        docker tag $SOURCE_IMAGE $TARGET_IMAGE
+      else
+        ./bin/docker-dotenv
+      fi
+    - docker push $TARGET_IMAGE
+
+branch:
+  extends: .docker_tag
+  variables:
+    IMAGE_TAG: $CI_COMMIT_REF_SLUG
+  only:
+    - branches
+  except:
+    - master
+
+edge:
+  extends: .docker_tag
+  variables:
+    IMAGE_TAG: edge
+  only:
+    - master
+
+version:
+  extends: .docker_tag
+  before_script:
+    - export IMAGE_TAG=${CI_COMMIT_TAG/v/}
+    - echo "Checking that $CI_COMMIT_TAG is last in the changelog"
+    - test "$(grep '^## v' CHANGELOG.md |head -n 1)" = "## $CI_COMMIT_TAG"
+  only:
+    - tags
+  when: manual
+  allow_failure: false
+

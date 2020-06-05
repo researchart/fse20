@@ -1,0 +1,57 @@
+stages:
+  - lint
+  - test
+
+cache:
+  key: ${CI_JOB_NAME}
+  paths:
+    - vendor/bundle
+
+before_script:
+  - bundle --path=vendor/bundle
+
+rubocop:
+  image: ruby:2.5
+  stage: lint
+  script:
+    bundle exec rake lint:rubocop
+
+doc_coverage:
+  image: ruby:2.5
+  stage: lint
+  artifacts:
+    paths:
+      - doc/
+    expire_in: 1 week
+  script:
+    bundle exec rake lint:doc_coverage
+
+.rspec: &rspec
+  variables:
+    CHECK_COVERAGE: 'true'
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - coverage/
+  stage: test
+  script:
+    bundle exec rake test:rspec
+
+rspec-rack-1:
+  <<: *rspec
+  variables:
+    RACK_VERSION: '<2'
+  image: ruby:2.3
+
+rspec-ruby-2.3:
+  <<: *rspec
+  image: ruby:2.3
+
+rspec-ruby-2.4:
+  <<: *rspec
+  image: ruby:2.4
+
+rspec-ruby-2.5:
+  <<: *rspec
+  image: ruby:2.5
+

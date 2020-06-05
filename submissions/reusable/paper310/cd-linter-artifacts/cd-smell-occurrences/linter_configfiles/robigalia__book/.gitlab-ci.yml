@@ -1,0 +1,29 @@
+pages:
+  image: asciidoctor/docker-asciidoctor
+  script:
+  - asciidoctor -d book -b html5 -a toc rosme.adoc
+  - asciidoctor -r asciidoctor-pdf -d book -b pdf -a pdf-fontsdir=fonts -a pdf-style=rosme-theme.yml rosme.adoc
+  - asciidoctor -d book -b docbook5 rosme.adoc
+  - mkdir public
+  - cp -r images public
+  - cp rosme.html public
+  - cp rosme.xml public
+  - cp rosme.pdf public/rosme-adoc.pdf
+  - fopub rosme.xml
+  - cp rosme.pdf public/rosme-fopub.pdf
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+verify_signatures:
+    image: ubuntu:17.04
+    script:
+        - apt update
+        - apt install --assume-yes python-pexpect gnupg2 git
+        - git clone --depth=1 https://gitlab.com/robigalia/meta
+        - gpg2 --list-keys # to force it to create GNUPGHOME instead of racing in the pipe below
+        - (gpg2 --export --no-default-keyring --keyring ./meta/.gnupg/pubring.kbx || true) | gpg2 --import
+        - gpg2 --list-keys --fingerprint --fingerprint --verbose
+        - ./meta/verify-signatures.py HEAD ./meta/.mailmap
+

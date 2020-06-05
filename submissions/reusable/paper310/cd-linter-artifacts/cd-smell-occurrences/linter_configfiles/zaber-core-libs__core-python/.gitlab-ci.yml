@@ -1,0 +1,135 @@
+# Global variables for all configurations.
+variables:
+  PROJECT_NAME: "core_python"
+  GIT_SERVER: "https://gitlab.izaber.com"
+
+# CI is only used for testing changes in this project.
+# Deployment must be done manually.
+stages:
+  - test
+  - deploy
+
+
+before_script:
+  # Print out some properties of this run for sanity checking.
+  - echo "Starting CI Build of $PROJECT_NAME ($CI_BUILD_REPO branch $CI_BUILD_REF_NAME)"
+
+
+# Template script for Linux runners
+.test_template1: &linux_test_def
+  script:
+  - echo "===== Running tests with Python 2"
+  - python2 -m pytest
+  - echo "===== Running tests with Python 3"
+  - python3 -m pytest
+
+
+# Template script for Windows runners
+.test_template1: &win_test_def
+  script:
+  - echo "===== Running tests with Python 2"
+  - py -2 -m pytest
+  - echo "===== Running tests with Python 3"
+  - py -3 -m pytest
+
+
+test_win10_64:
+  stage: test
+  <<: *win_test_def
+  tags:
+  - windows10-64
+  - bash
+  - py2
+  - py3
+
+
+test_win10_32:
+  stage: test
+  <<: *win_test_def
+  tags:
+  - windows10-32
+  - bash
+  - py2
+  - py3
+
+
+test_win7_64:
+  stage: test
+  <<: *win_test_def
+  tags:
+  - windows7-64
+  - bash
+  - py2
+  - py3
+
+
+test_win7_32:
+  stage: test
+  <<: *win_test_def
+  tags:
+  - windows7-32
+  - bash
+  - py2
+  - py3
+
+
+test_linux_64:
+  stage: test
+  <<: *linux_test_def
+  tags:
+  - linux-64
+  - bash
+  - py2
+  - py3
+
+
+test_linux_32:
+  stage: test
+  <<: *linux_test_def
+  tags:
+  - linux-32
+  - bash
+  - py2
+  - py3
+
+
+test_osx_64:
+  stage: test
+  <<: *linux_test_def
+  tags:
+  - osx-64
+  - py2
+  - py3
+
+
+lint:
+  stage: test
+  script:
+  - echo "===== Running linters"
+  - python2 -m pycodestyle
+  - python2 -m pylint zaber
+  tags:
+  - host-soft-ci-runner # Requires pycodestyle and pylint
+
+
+publish:
+  stage: deploy
+  when: manual
+  only:
+    refs:
+    - master
+    variables:
+    - $PUBLISH_PYTHON_CORE_VERSION
+  script:
+  - echo "===== PUBLISHING RELEASE"
+  - echo "Fetching publication tools..."
+  - cd ..
+  - if [ -d "build_automation" ]; then rm -rf build_automation; fi
+  - git clone --depth 1 --branch master $GIT_SERVER/software-internal/build_automation.git
+  - cd build_automation/publication
+  - ./publish_python_core_library.py $CI_PROJECT_DIR $PUBLISH_PYTHON_CORE_VERSION --live
+  tags:
+  - linux-64
+  - bash
+  - py3
+

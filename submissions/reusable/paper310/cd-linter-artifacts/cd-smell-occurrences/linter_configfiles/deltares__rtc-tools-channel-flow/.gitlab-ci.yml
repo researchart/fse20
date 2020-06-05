@@ -1,0 +1,34 @@
+image: python:3.6
+
+stages:
+  - build
+  - deploy
+
+# build
+build:
+  stage: build
+  script:
+    - python setup.py sdist bdist_wheel
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+  tags:
+    - docker
+
+# deploy
+deploy:
+  stage: deploy
+  dependencies:
+    - build
+  script:
+    - pip install twine
+    - twine upload -u $PYPI_USER -p $PYPI_PASSWORD dist/*
+  only:
+    - tags
+  except:
+    # Do not deploy tags that do not start with 2.
+    - /^(?!1\.).*$
+  tags:
+    - docker
+

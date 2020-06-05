@@ -1,0 +1,59 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+variables:
+  REPO_NAME: gitlab.com/monetha/ico-reputation-analyzer
+  APP_NAME: ico-reputation-analyzer
+
+stages:
+  - build
+  - deploy_live
+
+build and test:
+  stage: build
+  script:
+    - apk --no-cache add bash
+    - bash -x ./build/linux-build.sh
+  artifacts:
+    paths:
+    - ./artifacts/ico-reputation-analyzer
+    - ./artifacts/VERSION
+    expire_in: 1 month
+
+deploy to mthlive:
+  stage: deploy_live
+  script:
+    - apk add --no-cache bash jq curl git openssh-client python sudo
+    - export AWS_ACCESS_KEY_ID=$CI_AWS_ACCESS_KEY_ID
+    - export AWS_SECRET_ACCESS_KEY=$CI_AWS_SECRET_ACCESS_KEY
+    - export AWS_DEFAULT_REGION=$CI_AWS_DEFAULT_REGION
+    - export GITHUB_OAUTH_TOKEN=$CI_GITHUB_OAUTH_TOKEN
+    - export ROOT_PATH=$PWD
+    - export PATH=$ROOT_PATH:$PATH
+    - eval $(ssh-agent -s)
+    - echo "$MTHOPS_GL_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - echo "$MTHOPS_GH_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+    - ssh-keyscan github.com >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - curl -sSkO  https://releases.hashicorp.com/terraform/0.11.14/terraform_0.11.14_linux_amd64.zip && unzip ./terraform_0.11.14_linux_amd64.zip && chmod +x terraform
+    - curl -Ls https://raw.githubusercontent.com/gruntwork-io/gruntwork-installer/master/bootstrap-gruntwork-installer.sh | bash /dev/stdin --version v0.0.21
+    - gruntwork-install --binary-name 'gruntkms' --repo 'https://github.com/monetha-lab/gruntwork-io-gruntkms' --tag 'v0.0.8'
+    - gruntwork-install --binary-name 'terragrunt' --repo 'https://github.com/monetha-lab/gruntwork-io-terragrunt' --tag 'v0.18.6'
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/monetha/ops/infrastructure-live.git
+    - cd infrastructure-live/mth${CI_ENVIRONMENT_NAME}/${AWS_DEFAULT_REGION}/_global/lambda/ico-analyzer
+    - export TERRAGRUNT_IAM_ROLE=$CI_AWS_IAM_ROLE
+    - source $ROOT_PATH/artifacts/VERSION
+    - export TF_VAR_lambda_version=$VERSION
+    - export TF_VAR_source_path=$ROOT_PATH/artifacts
+    - terragrunt plan
+    - terragrunt apply -auto-approve
+  environment:
+    name: live
+  only:
+    - master
+

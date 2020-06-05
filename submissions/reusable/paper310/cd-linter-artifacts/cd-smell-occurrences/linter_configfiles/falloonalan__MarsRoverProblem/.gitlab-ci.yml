@@ -1,0 +1,21 @@
+test_node:
+  image: node:alpine
+  script:
+    - node --version
+    - npm --version
+    - npm install
+    - npm test
+
+test_ubuntu:
+  image: ubuntu
+  script:
+    - apt-get update
+    - apt-get install curl -qq
+    - curl -sL https://deb.nodesource.com/setup_8.x | bash -
+    - apt-get install nodejs -qq
+    - node --version
+    - npm --version
+    - npm install
+    - npm test
+    
+

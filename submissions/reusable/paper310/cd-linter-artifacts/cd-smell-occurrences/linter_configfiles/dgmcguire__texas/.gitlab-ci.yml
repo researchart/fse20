@@ -1,0 +1,25 @@
+image: elixir:latest
+
+services:
+  - name: selenium/standalone-chrome:latest
+    alias: selenium
+
+before_script:
+  - export CONTAINER_IP="$(cat /etc/hosts | grep -Eo "^([0-9\.]*)\s+runner-[0-9a-f]*-project-[0-9a-f]+-concurrent-[0-9]+" | cut -f1)"
+  - mix local.rebar --force
+  - mix local.hex --force
+  - mix deps.get
+
+mix:
+  script:
+    # this is useful for debugging CI pipeline to make sure we have the selenium containers IP
+    - echo $CONTAINER_IP
+    - mix test
+
+
+cache:
+    key: ${CI_BUILD_REF_NAME}
+    paths:
+      - deps/
+      - _build/
+

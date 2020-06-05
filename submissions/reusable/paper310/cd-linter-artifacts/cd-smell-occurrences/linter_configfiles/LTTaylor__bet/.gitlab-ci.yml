@@ -1,0 +1,25 @@
+image: node:6.10.0
+
+variables:
+    PUBLIC_URL: "/bet"
+
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  - yarn install
+  - yarn build-css
+
+pages:
+  stage: deploy
+  script:
+    - CI=true yarn build
+    - rm -rf public
+    - mv build public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

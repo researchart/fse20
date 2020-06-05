@@ -1,0 +1,45 @@
+variables:
+  GIT_CLONE_PATH: $CI_BUILDS_DIR/$CI_PROJECT_NAME/$CI_CONCURRENT_ID
+
+stages:
+  - build
+  - test
+
+setup environment:
+  stage: build
+  script:
+    - python3 -m venv venv-$CI_PIPELINE_ID
+    - source venv-$CI_PIPELINE_ID/bin/activate
+    - pip3 install -r requirements.txt
+  artifacts:
+    paths:
+      - venv-$CI_PIPELINE_ID
+    expire_in: 24h
+
+help message:
+  stage: test
+  script:
+    - venv-$CI_PIPELINE_ID/bin/python3 zdownload.py -h
+  dependencies:
+    - setup environment
+
+single case:
+  stage: test
+  script:
+    - venv-$CI_PIPELINE_ID/bin/python3 zdownload.py -c 4889 --config /home/gitlab-runner/.zendesk.yml > $GIT_CLONE_PATH/$CI_JOB_ID.log 2>&1
+    - if [ `find ./zendesk/4889_HomeWorker -name "cl_support*" -type d | wc -l` -ne 1 ]; then exit 1; fi
+    - if [ `find ./zendesk/4889_HomeWorker -name "*.gz" | wc -l` -ne 0 ]; then exit 1; fi
+    - chmod -R +w ./zendesk/
+    - rm -rf ./zendesk/
+  dependencies:
+    - setup environment
+
+recent cases:
+  stage: test
+  script:
+    - venv-$CI_PIPELINE_ID/bin/python3 zdownload.py -r 1 --config /home/gitlab-runner/.zendesk.yml > $GIT_CLONE_PATH/$CI_JOB_ID.log 2>&1
+    - chmod -R +w ./zendesk/
+    - rm -rf ./zendesk/
+  dependencies:
+    - setup environment
+

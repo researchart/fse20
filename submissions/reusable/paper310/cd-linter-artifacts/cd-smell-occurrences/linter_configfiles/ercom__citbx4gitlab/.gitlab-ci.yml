@@ -1,0 +1,90 @@
+
+##################################################
+#             ### PACKAGE BUILD ###              #
+##################################################
+
+.build-package-template: &build-package-template
+  image: registry.gitlab.com/ercom/docker-images/fpm:1.10.0-ubuntu-16.04
+  stage: build
+  variables:
+    CITBX_JOB_FILE_NAME: build-package.sh
+  tags:
+    - docker
+  script:
+    - ci-scripts/run-job-script.sh
+
+.package-channel-dev: &package-channel-dev
+  except:
+    - tags
+    - master
+    - experimental
+
+.package-channel-rel: &package-channel-rel
+  only:
+    - tags
+    - master
+    - experimental
+
+.build-package-dev: &build-package-dev
+  <<: *build-package-template
+  <<: *package-channel-dev
+  artifacts:
+    paths:
+    - artifacts/
+    expire_in: 7d
+
+.build-package-rel: &build-package-rel
+  <<: *build-package-template
+  <<: *package-channel-rel
+  artifacts:
+    paths:
+    - artifacts/
+
+build-package-dev-deb: *build-package-dev
+build-package-dev-rpm: *build-package-dev
+build-package-rel-deb: *build-package-rel
+build-package-rel-rpm: *build-package-rel
+
+##################################################
+#          ### PACKAGE TESTSUITES ###            #
+##################################################
+
+.test-package-template: &test-package-template
+  stage: test
+  variables:
+    CITBX_JOB_FILE_NAME: test-package.sh
+  tags: ["docker"]
+  script: ["ci-scripts/run-job-script.sh"]
+
+test-package-deb-dev-ubuntu-18.04:
+  image: ubuntu:18.04
+  dependencies: ["build-package-dev-deb"]
+  <<: *test-package-template
+  <<: *package-channel-dev
+test-package-deb-dev-ubuntu-16.04:
+  image: ubuntu:16.04
+  dependencies: ["build-package-dev-deb"]
+  <<: *test-package-template
+  <<: *package-channel-dev
+test-package-rpm-dev-fedora-27:
+  image: fedora:27
+  dependencies: ["build-package-dev-rpm"]
+  <<: *test-package-template
+  <<: *package-channel-dev
+
+test-package-deb-rel-ubuntu-18.04:
+  image: ubuntu:18.04
+  dependencies: ["build-package-rel-deb"]
+  <<: *test-package-template
+  <<: *package-channel-rel
+test-package-deb-rel-ubuntu-16.04:
+  image: ubuntu:16.04
+  dependencies: ["build-package-rel-deb"]
+  <<: *test-package-template
+  <<: *package-channel-rel
+test-package-rpm-rel-fedora-27:
+  image: fedora:27
+  dependencies: ["build-package-rel-rpm"]
+  <<: *test-package-template
+  <<: *package-channel-rel
+

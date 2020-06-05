@@ -1,0 +1,24 @@
+variables:
+  GIT_DEPTH: 1
+
+stages:
+  - repoman
+  - shellcheck
+
+repoman:
+  image:
+    name: chaoslab/repoman:latest
+    entrypoint: ["/bin/bash", "-c"]
+  stage: repoman
+  script:
+    - repoman --version
+    - repoman -xiIdv
+
+shellcheck:
+  stage: shellcheck
+  image: koalaman/shellcheck-alpine:latest
+  script:
+    - shellcheck --version
+    - shellcheck -s bash -e SC2034 */*/*.ebuild
+    - shellcheck -s sh -e SC2034,SC1008 */*/*/*.initd*
+

@@ -1,0 +1,28 @@
+# "Implied" dependencies: python3 and python3-numpy
+before_script:
+  - LANG=en_US.UTF-8
+  - apt-get update -qq && apt-get install -y python3-pip python3-pandas python3-openpyxl python3-pyqt5
+  - python3 --version
+  - which python3
+  - cd tests
+
+data_check:
+  script:
+    - python3 data_tests.py
+
+abs_vol_check:
+  script:
+    - python3 scripts_tests.py
+
+dvh_textfile_check:
+  script:
+    - python3 utils_tests.py
+
+# plot_utils_check:
+#   script:
+#     - "export DISPLAY=:99.0"
+#     - "sh -e /etc/init.d/xvfb start"
+#     - sleep 3
+#     - pip3 install matplotlib==2.2.3
+#     - python3 test_plot_utils.py
+

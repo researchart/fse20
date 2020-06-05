@@ -1,0 +1,90 @@
+image: docker:latest
+
+services:
+    - docker:dind
+    - python:alpine
+    - postgres:latest
+    
+before_script:
+    - apk --no-cache add curl
+    - apk add --no-cache py-pip 
+    - pip install docker-compose
+    - docker-compose --version
+
+stages:
+    - build
+    - test
+    - release
+    - deploy
+  
+variables:
+    POSTGRES_DB: postgres 
+    POSTGRES_USER: postgres
+    CONTAINER_IMAGE: registry.gitlab.com/banzyme2/django-cloud9-dokcer
+    CONTAINER_TEST_IMAGE: $CONTAINER_IMAGE:$CI_BUILD_REF_NAME
+    
+# connect:
+#   image: postgres:latest
+#   script:
+#   # official way to provide password to psql: http://www.postgresql.org/docs/9.3/static/libpq-envars.html
+#   # - export PGPASSWORD=$POSTGRES_PASSWORD
+#   - psql -h "db" -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+
+    
+build:
+  stage: build
+  tags:
+    - docker
+  script:
+    #- export DATABASE_URL=postgres://bocfmfirkwjxgk:672ed20c4a00f87e3f2f09bcf9f3bef3d2dccda79271600def18372841626aab@ec2-23-23-216-40.compute-1.amazonaws.com:5432/d53sba1j98cgj3
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com 
+    - docker build -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+    
+test:
+  stage: test
+  tags:
+    - docker
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker pull $CONTAINER_TEST_IMAGE
+    # - docker-compose -f ./docker-compose.ci.yml -p ci up --abort-on-container-exit
+    - docker-compose run web python3 manage.py test
+  coverage: '/TOTAL.*?(\d{1,2}.\d+%)/'
+  
+release_stg:
+  stage: release
+  tags:
+    - docker
+  only:
+    - master
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_IMAGE:staging
+    - docker push $CONTAINER_IMAGE:staging
+    
+deploy_stg:
+  stage: deploy
+  tags:
+    - docker
+  only:
+    - master
+  script:
+    - docker login --username=_ --password=$HEROKU_API_KEY registry.heroku.com
+    - docker pull $CONTAINER_IMAGE:staging
+    - docker tag $CONTAINER_IMAGE:staging registry.heroku.com/django-cloud/web
+    - docker push registry.heroku.com/django-cloud/web
+    - docker run --rm -e HEROKU_API_KEY=$HEROKU_API_KEY wingrunr21/alpine-heroku-cli container:release web --app django-cloud
+    
+# deploy_stage:
+#   stage: deploy
+#   script:
+#   - apt-get update -yq
+#   - apt-get install -y ruby-dev
+#   - gem install dpl
+#   - dpl --provider=heroku --app=$CONTAINER_IMAGE:staging --api-key=$HEROKU_API_KEY
+#   only:
+#   - master
+    
+

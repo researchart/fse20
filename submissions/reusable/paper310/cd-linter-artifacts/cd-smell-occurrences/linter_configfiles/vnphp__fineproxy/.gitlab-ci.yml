@@ -1,0 +1,33 @@
+image: php
+
+before_script:
+    - apt-get -qq update 
+    - apt-get -y -qq install  git unzip
+    - curl -Lo /usr/local/bin/composer https://getcomposer.org/composer.phar
+    - chmod +x /usr/local/bin/composer
+    - composer install --prefer-dist -n -q
+
+phpcs:
+    allow_failure: true
+    script:
+        - curl -OL https://squizlabs.github.io/PHP_CodeSniffer/phpcs.phar
+        - php phpcs.phar --standard=psr2 src/
+
+test:latest:
+    script:
+        - ./vendor/bin/phpunit
+
+test:5:
+    image: php:5
+    script:
+        - ./vendor/bin/phpunit
+
+packagist:
+    image: tutum/curl
+    before_script:
+      - echo
+    only: ["tags"]
+    stage: 'deploy'
+    script:
+      - curl -XPOST -H'content-type:application/json' "https://packagist.org/api/update-package?username=b17&apiToken=$PACKAGIST_API_TOKEN" -d'{"repository":{"url":"https://gitlab.com/vnphp/fineproxy"}}'
+

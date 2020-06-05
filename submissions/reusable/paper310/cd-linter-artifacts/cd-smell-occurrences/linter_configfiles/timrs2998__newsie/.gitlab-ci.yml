@@ -1,0 +1,31 @@
+cache:
+  paths:
+    - node_modules/
+    - ${HOME}/.cache/yarn
+
+stages:
+  - build
+  - release
+
+.node_8: &node_8
+  image: library/node:8.9.4-alpine
+  before_script:
+    - apk add --no-cache git
+    - yarn install --frozen-lockfile
+
+build:
+  <<: [*node_8]
+  stage: build
+  script:
+  - yarn ci
+
+release:
+  <<: [*node_8]
+  stage: release
+  only:
+    - master@timrs2998/newsie
+  script:
+    - yarn build
+    - $(yarn bin)/semantic-release
+
+

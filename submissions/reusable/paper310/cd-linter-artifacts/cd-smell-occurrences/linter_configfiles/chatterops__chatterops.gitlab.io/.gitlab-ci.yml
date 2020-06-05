@@ -1,0 +1,35 @@
+image: alpine
+
+variables:
+  HUGO_VERSION: '0.40.3'
+  HUGO_SHA: 'a3913a5aca407b8badaba30dec764c2615fc59dd0e73129ddaf5cca0e75a475f'
+  THEME_VERSION: '0.9.1'
+
+before_script:
+  - apk update && apk add openssl ca-certificates unzip
+  - wget -O ${HUGO_VERSION}.tar.gz https://github.com/spf13/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_Linux-64bit.tar.gz
+  - echo "${HUGO_SHA}  ${HUGO_VERSION}.tar.gz" | sha256sum -c
+  - tar xf ${HUGO_VERSION}.tar.gz && mv hugo* /usr/bin/hugo
+  - hugo version
+  - mkdir -p themes/castanet
+  - wget -O castanet.zip https://github.com/mattstratton/castanet/releases/download/${THEME_VERSION}/castanet-${THEME_VERSION}.zip
+  - unzip castanet.zip -d themes/castanet
+
+test:
+  script:
+  - hugo
+  artifacts:
+    paths:
+    - public
+  except:
+  - master
+
+pages:
+  script:
+  - hugo
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,21 @@
+image: node:9
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+- test
+
+test:
+  stage: test
+  script:
+    - npm install
+    - npm run test
+
+lint:
+  stage: test
+  script:
+    - npm install
+    - npm run lint
+

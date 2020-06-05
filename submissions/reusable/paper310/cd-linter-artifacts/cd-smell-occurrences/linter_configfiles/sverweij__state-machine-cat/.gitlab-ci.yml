@@ -1,0 +1,55 @@
+cache:
+  key: "$CI_JOB_NAME"
+  untracked: true
+  paths:
+    - node_modules
+
+test_async_node_latest:
+  image: node:latest
+  script:
+    - npm install
+    - npm run depcruise
+    - npm run lint
+    - npm run test:cover
+  except:
+    - tags
+
+test_async_node_12:
+  image: node:12
+  script:
+    - npm install
+    - npm run test:cover
+  except:
+    - tags
+    - web
+
+test_async_node_10:
+  image: node:10
+  script:
+    - npm install
+    - npm run test:cover
+  except:
+    - tags
+    - web
+
+test_async_node_8:
+  image: node:8
+  script:
+    - npm install
+    - npm run test:cover
+  except:
+    - tags
+    - web
+
+pages:
+  image: node:latest
+  script:
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - public
+  only:
+    - tags
+    - web
+

@@ -1,0 +1,33 @@
+pages:
+  stage: deploy
+  before_script:
+  - apt-get update && apt-get -y install rsync
+  - export DOCS="public/"
+  - wget https://kristaps.bsd.lv/lowdown/snapshots/lowdown.tar.gz
+  - tar xvf lowdown.tar.gz
+  - rm lowdown.tar.gz
+  - mv lowdown* lowdown
+  - export PATH="lowdown/:$PATH"
+  - cd lowdown
+  - ./configure
+  - make
+  - cd ..
+  - wget http://romanzolotarev.com/bin/ssg -O ssg
+  - chmod +x ssg
+  script:
+  - export WEBSITE_TITLE='Jack'
+  - export SERVER_NAME='www.example.com'
+  - export SERVER_PROTO='https'
+  - export RSS_AUTHOR='jack@example.com (Jack)'
+  - export RSS_DESCRIPTION='Personal website'
+  - export COPYRIGHT_YEAR='2016'
+  - ./ssg build
+  after_script:
+  - cd public
+  - rm -rf lowdown ssg placeHolder
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

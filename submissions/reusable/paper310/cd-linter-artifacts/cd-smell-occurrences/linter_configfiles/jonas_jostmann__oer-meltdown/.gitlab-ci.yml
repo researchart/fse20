@@ -1,0 +1,16 @@
+image: registry.gitlab.com/oer/docker/debian-emacs-tex-org:v1.0
+
+pages:
+  stage: deploy
+  before_script:
+  - git submodule sync --recursive
+  - git submodule update --init --recursive
+  script:
+  - emacs --batch --load elisp/publish.el --funcall org-publish-all
+  artifacts:
+    paths:
+    - public
+    expire_in: 4 weeks
+  only:
+  - master
+

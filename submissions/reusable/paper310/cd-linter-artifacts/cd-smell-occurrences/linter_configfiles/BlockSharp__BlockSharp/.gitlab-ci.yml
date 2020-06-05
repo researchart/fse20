@@ -1,0 +1,45 @@
+image: microsoft/dotnet
+
+stages:
+    - build
+    - deploy
+    
+build:
+    stage: build
+    script:
+        - git submodule init
+    
+        - dotnet build
+
+deploy:
+    stage: deploy
+    script:
+        - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )'
+
+        - git submodule init
+
+        - dotnet publish -c Release --self-contained --runtime linux-x64
+        - dotnet publish -c Release --self-contained --runtime win-x86
+        - dotnet publish -c Release --self-contained --runtime win-x64
+        - dotnet publish -c Release --self-contained --runtime osx-x64
+
+        - eval $(ssh-agent -s)
+        - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+
+        - mkdir -p ~/.ssh
+        - chmod 700 ~/.ssh
+
+        - ssh-keyscan $DEPLOYMENT_SERVER_IP >> ~/.ssh/known_hosts
+        - chmod 644 ~/.ssh/known_hosts
+
+        - ssh webmaster@$DEPLOYMENT_SERVER_IP "mkdir -p /var/www/html/BlockCSharp/$CI_COMMIT_SHA/linux-x64"
+        - ssh webmaster@$DEPLOYMENT_SERVER_IP "mkdir -p /var/www/html/BlockCSharp/$CI_COMMIT_SHA/win-x86"
+        - ssh webmaster@$DEPLOYMENT_SERVER_IP "mkdir -p /var/www/html/BlockCSharp/$CI_COMMIT_SHA/win-x64"
+        - ssh webmaster@$DEPLOYMENT_SERVER_IP "mkdir -p /var/www/html/BlockCSharp/$CI_COMMIT_SHA/osx-x64"
+
+        - scp /builds/Magic_RB/BlockCSharp/bin/Release/netcoreapp2.0/linux-x64/publish/BlockCSharp webmaster@$DEPLOYMENT_SERVER_IP:/var/www/html/BlockCSharp/$CI_COMMIT_SHA/linux-x64/BlockCSharp
+        - scp /builds/Magic_RB/BlockCSharp/bin/Release/netcoreapp2.0/win-x86/publish/BlockCSharp.exe webmaster@$DEPLOYMENT_SERVER_IP:/var/www/html/BlockCSharp/$CI_COMMIT_SHA/win-x86/BlockCSharp.exe
+        - scp /builds/Magic_RB/BlockCSharp/bin/Release/netcoreapp2.0/win-x64/publish/BlockCSharp.exe webmaster@$DEPLOYMENT_SERVER_IP:/var/www/html/BlockCSharp/$CI_COMMIT_SHA/win-x64/BlockCSharp.exe
+        - scp /builds/Magic_RB/BlockCSharp/bin/Release/netcoreapp2.0/osx-x64/publish/BlockCSharp webmaster@$DEPLOYMENT_SERVER_IP:/var/www/html/BlockCSharp/$CI_COMMIT_SHA/osx-x64/BlockCSharp
+
+

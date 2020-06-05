@@ -1,0 +1,29 @@
+stages:
+    - build
+    - deploy
+
+build:
+  image: python:3.5
+  stage: build
+  script:
+    # Install pandoc
+    - apt-get update && apt-get install -y pandoc
+    # Install latex and dvipng (for sphinx.ext.imgmath)
+    - apt-get install -y texlive-latex-base texlive-latex-extra dvipng
+    # Install Sphinx
+    - pip install sphinx
+    - pip install sphinx_rtd_theme
+    # Build the website
+    - make html
+  artifacts:
+    paths:
+      - .sphinx-forge
+
+pages:
+  stage: deploy
+  script:
+    - mv .sphinx-forge/_build/html public
+  artifacts:
+    paths:
+      - public
+

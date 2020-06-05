@@ -1,0 +1,69 @@
+image: alpine:latest
+
+build:
+  stage: build
+  before_script: 
+    - apk update && apk add --no-cache make cmake g++ git autoconf gcovr sdl2-dev linux-headers
+  script: 
+    - mkdir build
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE=Debug ..
+    - cmake --build . --config Debug --target all -- -j 12
+    - cd ..    
+  artifacts:
+    paths:
+    - build/
+    expire_in: 2 hrs
+  tags:
+    - linux
+test:
+  stage: test
+  before_script: 
+    - apk update && apk add --no-cache make cmake g++ git autoconf gcovr sdl2-dev linux-headers valgrind
+  script:
+    - cd build
+    - ctest -j12
+#    - valgrind --tool=memcheck --leak-check=full ./unit_test
+    - gcovr -r .. -e /builds/bitingbytes/onion-engine/build* -e /builds/bitingbytes/onion-engine/test* -e /builds/bitingbytes/onion-engine/include/subsystem/configuration/json.h
+    - gcovr -r .. --html --html-details -o index.html -e /builds/bitingbytes/onion-engine/build* -e /builds/bitingbytes/onion-engine/test* -e /builds/bitingbytes/onion-engine/include/subsystem/configuration/json.h
+    - cd ../
+  artifacts:
+    paths:
+    - build/
+    expire_in: 2 hrs
+  tags:
+    - linux
+
+deploy:
+  stage: deploy
+  before_script: 
+    - apk update && apk add --no-cache make cmake g++ git autoconf gcovr sdl2-dev linux-headers valgrind
+  script:
+    - cd /builds/bitingbytes/onion-engine/build
+    - cpack
+    - ls -la
+  dependencies:
+    - build
+  artifacts:
+    paths:
+    - onionengine-*.deb
+    expire_in: 1 month
+  tags:
+    - linux
+  only:
+  - master
+
+pages:
+  script:
+  - apk update && apk add --no-cache doxygen
+  - mkdir docs
+  - doxygen Doxyfile
+  - mv docs/html/ public/
+  artifacts:
+    paths:
+    - public
+  tags:
+    - linux
+  only:
+  - master
+

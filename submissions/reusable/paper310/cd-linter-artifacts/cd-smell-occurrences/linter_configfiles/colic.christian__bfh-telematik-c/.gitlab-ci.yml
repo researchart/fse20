@@ -1,0 +1,17 @@
+image: gcc
+
+# build the program
+build:
+  stage: build
+  script: 
+    - make
+  artifacts:
+    paths:
+      - socket
+
+# run tests using the binary built before
+#test:
+#  stage: test
+#  script:
+#    - ./test.sh
+

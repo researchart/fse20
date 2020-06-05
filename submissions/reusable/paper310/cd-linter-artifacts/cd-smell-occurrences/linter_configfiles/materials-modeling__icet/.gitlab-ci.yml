@@ -1,0 +1,144 @@
+image: registry.gitlab.com/materials-modeling/icet:latest
+
+
+before_script:
+  - INSTDIR=$PWD/opt/lib/python
+  - export PYTHONPATH=$INSTDIR:$PYTHONPATH
+
+
+build_linux:
+  stage: build
+  tags:
+    - linux
+  script:
+    - mkdir -p $INSTDIR
+    - python3 ./setup.py install --home=$PWD/opt
+  artifacts:
+    expire_in: 14 days
+    paths:
+      - opt/
+
+
+tests:
+  stage: test
+  tags:
+    - linux
+  dependencies:
+    - build_linux
+  script:
+    - xdoctest icet
+    - xdoctest mchammer
+    - coverage run tests/main.py
+    - coverage report -m
+    - coverage html
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+  artifacts:
+    expire_in: 14 days
+    paths:
+      - htmlcov/
+
+
+test_benchmarks_examples:
+  stage: test
+  only:
+    - schedules
+  tags:
+    - linux
+  dependencies:
+    - build_linux
+  script:
+    - for f in benchmark/*.py; do python3 "$f"; done
+    - for f in $(ls examples/*/*.py | grep -v __ | grep -v parallel_monte_carlo); do echo $f ; cd `dirname $f` ; python3 `basename $f` ; cd ../../ ; done
+
+
+style_check:
+  stage: test
+  tags:
+    - linux
+  script:
+    - flake8 icet/ mchammer/ tests/ benchmark/ doc/ examples/
+
+
+test_documentation:
+  stage: test
+  dependencies:
+    - build_linux
+  script:
+    - mkdir public
+    # C++ documentation (doxygen)
+    - cd doc/apidoc/
+    - doxygen Doxyfile
+    - cd ../..
+    - mv doc/apidoc/html/ public/apidoc/
+    # check examples in documentation via doctest
+    - sphinx-build -b doctest -W doc/userguide/source/ public/
+    # user guide (sphinx)
+    - sphinx-build -W doc/userguide/source/ public/
+  except:
+   - master
+  artifacts:
+    expire_in: 1 days
+    paths:
+      - public
+
+
+pages:
+  stage: deploy
+  dependencies:
+    - build_linux
+    - tests
+  script:
+    # prepare homepage
+    - mkdir -p public/dev
+    # code coverage report (actually for the master master (=development version)
+    # but that is the sensible one to show anyways)
+    - mv htmlcov/ public/
+    # --------------------------
+    # STABLE VERSION
+    - tag=$(git tag | tail -1)
+    - echo "tag= $tag"
+    - git checkout $tag
+    # C++ documentation (doxygen)
+    - cd doc/apidoc/
+    - doxygen Doxyfile
+    - cd ../..
+    - mv doc/apidoc/html/ public/apidoc/
+    # user guide (sphinx)
+    - sphinx-build -W doc/userguide/source/ public/
+    # make tests and examples downloadable
+    - cd examples
+    - find tutorial/ -print | zip ../public/tutorial.zip -@
+    - find advanced_topics/ -print | zip ../public/advanced_topics.zip -@
+    - cd ..
+    - find tests/ -print | zip public/tests.zip tests/structure_databases/*.db -@
+    # --------------------------
+    # DEVELOPMENT VERSION
+    - git checkout master
+    - tag=$(git describe | tail -1)
+    - echo "tag= $tag"
+    # C++ documentation (doxygen)
+    - cd doc/apidoc/
+    - doxygen Doxyfile
+    - cd ../..
+    - mv doc/apidoc/html/ public/dev/apidoc/
+    # build user guide
+    - sed -i "s/version = ''/version = '$tag'/" doc/userguide/source/conf.py
+    - grep version doc/userguide/source/conf.py
+    - sphinx-build -W doc/userguide/source/ public/dev/
+    # make tests and examples downloadable
+    - cd examples
+    - find tutorial/ -print | zip ../public/dev/tutorial.zip -@
+    - find advanced_topics/ -print | zip ../public/dev/advanced_topics.zip -@
+    - cd ..
+    - find tests/ -print | zip public/dev/tests.zip tests/structure_databases/*.db -@
+    # --------------------------
+    # clean up
+    - ls -l public/
+    - chmod go-rwX -R public/
+  artifacts:
+    expire_in: 30 days
+    paths:
+      - public
+  only:
+    - master
+

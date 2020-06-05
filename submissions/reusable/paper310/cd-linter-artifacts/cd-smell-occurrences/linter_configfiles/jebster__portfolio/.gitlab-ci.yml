@@ -1,0 +1,27 @@
+stages:
+  - build
+  - deploy
+
+before_script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY 
+
+build:
+  image: docker:stable
+  stage: build
+  services:
+    - docker:dind
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:latest" .
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+  only:
+    - master
+
+deploy:
+  image: docker:stable
+  stage: deploy
+  when: manual
+  services:
+    - docker:dind
+  script:
+    - docker run --rm -v $(pwd)/docker-compose.yml:/stack.yml -e NAME=portfolio registry.gitlab.com/jebster/devops/deploy:1.1
+

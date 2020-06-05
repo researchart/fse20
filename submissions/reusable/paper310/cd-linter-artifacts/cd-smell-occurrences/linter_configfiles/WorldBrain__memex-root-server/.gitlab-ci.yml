@@ -1,0 +1,88 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - build
+  # - test
+  - pre-deploy-hooks
+  - deploy
+  - post-deploy-hooks
+
+build:
+  stage: build
+  image: node:8
+  script:
+    - npm install
+    - npm run prepare
+  artifacts:
+    paths:
+      - build/
+      - node_modules/
+
+# test:
+#   stage: test
+#   image: node:8
+#   script:
+#     - npm run test:mocha
+#   only:
+#     - staging
+#     - production
+
+pre-deploy-hooks:
+  stage: pre-deploy-hooks
+  image: sequenceiq/alpine-dev
+  environment:
+    name: "${CI_COMMIT_REF_NAME}"
+  script:
+    - >
+      curl -v
+      "https://staging.memex.cloud/admin/hooks/pre-deploy?tier=${CI_ENVIRONMENT_NAME}"
+      --data "code=${ADMIN_ACCESS_CODE}"
+      --cookie "mirgrationAccessCode=${ADMIN_ACCESS_CODE}"
+  only:
+    - staging
+    - production
+
+deploy:
+  stage: deploy
+  image: obezuk/gitlab-ci-cloudflare:latest
+  environment:
+    name: "${CI_COMMIT_REF_NAME}"
+  script:
+    - echo "Deploying to ${CI_ENVIRONMENT_NAME}"
+    - >
+      if [ "${NEEDS_SET_ENV}" = "true" ]; then eb setenv
+        TIER=${CI_ENVIRONMENT_NAME}
+        COOKIE_SECRET=${COOKIE_SECRET}
+        GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+        GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+        WOOCOMMERCE_CLIENT_ID=${WOOCOMMERCE_CLIENT_ID}
+        WOOCOMMERCE_CLIENT_SECRET=${WOOCOMMERCE_CLIENT_SECRET}        
+        WORLDBRAIN_WP_CLIENT_ID=${WORLDBRAIN_WP_CLIENT_ID}
+        WORLDBRAIN_WP_CLIENT_SECRET=${WORLDBRAIN_WP_CLIENT_SECRET}
+        ADMIN_ACCESS_CODE=${ADMIN_ACCESS_CODE}
+        AWS_SES_KEY=${AWS_SES_KEY}
+        AWS_SES_SECRET=${AWS_SES_SECRET}
+        RDS_USERNAME=${RDS_USERNAME}
+        RDS_PASSWORD=${RDS_PASSWORD};
+      fi
+    - eb deploy memex-root-service-${CI_ENVIRONMENT_NAME}
+  only:
+    - staging
+    - production
+
+post-deploy-hooks:
+  stage: post-deploy-hooks
+  image: sequenceiq/alpine-dev
+  environment:
+    name: "${CI_COMMIT_REF_NAME}"
+  script:
+    - >
+      curl -v
+      "https://staging.memex.cloud/admin/hooks/post-deploy?tier=${CI_ENVIRONMENT_NAME}"
+      --data "code=${ADMIN_ACCESS_CODE}"
+      --cookie "mirgrationAccessCode=${ADMIN_ACCESS_CODE}"
+  only:
+    - staging
+    - production
+

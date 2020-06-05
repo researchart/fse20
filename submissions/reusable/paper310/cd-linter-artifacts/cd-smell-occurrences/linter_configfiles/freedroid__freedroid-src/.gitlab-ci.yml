@@ -1,0 +1,47 @@
+stages:
+  - externalbuild
+  - externalpostbuild
+  
+variables:
+  GIT_STRATEGY: none
+  
+buildbot/build_debian:
+  stage:
+    externalbuild
+  only:
+    - external
+  script:
+    - /bin/true
+
+buildbot/build_fedora:
+  stage:
+    externalbuild
+  only:
+    - external
+  script:
+    - /bin/true
+
+buildbot/build_macosx:
+  stage:
+    externalbuild
+  only:
+    - external
+  script:
+    - /bin/true
+
+buildbot/build_mingw32:
+  stage:
+    externalbuild
+  only:
+    - external
+  script:
+    - /bin/true
+
+buildbot/post_build:
+  stage:
+    externalpostbuild
+  only:
+    - external
+  script:
+    - /bin/true
+

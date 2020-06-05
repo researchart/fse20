@@ -1,0 +1,46 @@
+image: python:latest
+
+stages:
+- test
+- deploy
+
+unittesting:
+  stage: test
+  script:
+  - pip install -r requirements.txt
+  - pip install -r dev-requirements.txt
+  - coverage run setup.py test
+  - coverage html
+  - coverage report
+  artifacts:
+    paths:
+    - coverage_html_report/
+
+pypi:
+  stage: deploy
+  only:
+  - tags
+  script:
+  - python -V
+  - apt update && apt -y install pandoc
+  - pip install pypandoc pandoc
+  - printf "[distutils]\nindex-servers =\n    pypi\n\n" >> ~/.pypirc
+  - printf "[pypi]\n""repository:"" https://upload.pypi.org/legacy/\n" >> ~/.pypirc
+  - printf "username= ${PYPI_USER}\n" >> ~/.pypirc
+  - printf "password= ${PYPI_PASSWORD}\n" >> ~/.pypirc
+  - python setup.py check sdist upload -r pypi
+  - echo "" > ~/.pypirc && rm ~/.pypirc
+
+pages:
+  stage: deploy
+  only:
+  - tags
+  script:
+  - python -V
+  - pip install mkdocs mkdocs-material
+  - mkdocs build
+  - mv coverage_html_report/ public/
+  artifacts:
+    paths:
+    - public
+

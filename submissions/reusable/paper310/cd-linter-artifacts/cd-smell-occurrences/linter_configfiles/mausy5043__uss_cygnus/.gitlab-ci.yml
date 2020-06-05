@@ -1,0 +1,50 @@
+image: debian:latest
+
+stages:
+  - lint
+  - test
+
+before_script:
+  - echo "vvv BEFORE vvv"
+  - date
+  - apt-get update  -qqy >/dev/null
+  - apt-get upgrade -qqy >/dev/null
+  - apt-get install -qqy apt-utils >/dev/null
+  - apt-get install -qqy tree procps psmisc rsyslog wget git >/dev/null
+  - apt-get install -qqy python3 build-essential python3-dev python3-pip >/dev/null
+  # - pip3 install -r requirements.txt
+  - service rsyslog start
+  - ps aux
+
+test_new:
+  stage: test
+  script:
+    - echo "*** NEW TEST START ***"
+    - ./vincent2.sh -t
+    - echo "*** NEW TEST COMPLETE ***"
+  artifacts:
+    paths:
+      - sungyc.out
+    expire_in: 1 week
+
+lint_python:
+  stage: lint
+  script:
+    - pip3 install pylama pylint pycodestyle pydocstyle
+    - pylama --skip="build/*" --ignore=C901,E111,E114,E221,E501
+    - pycodestyle --ignore=C901,E111,E114,E121,E123,E126,E133,E221,E226,E241,E242,E501,E704,W503,W504,W505 .
+    - pylint --rcfile=.pylintrc *.py
+    - pydocstyle --ignore=D100,D107,D203,D212,D213,D214,D215,D404,D405,D406,D407,D408,D409,D410,D411 *
+
+lint_shellcheck-root:
+  stage: lint
+  script:
+    - apt-get install -qqy shellcheck >/dev/null
+    - LC_ALL=C.UTF-8 shellcheck --format=gcc --external-sources *.sh
+
+lint_shellcheck-bin:
+  stage: lint
+  script:
+    - apt-get install -qqy shellcheck >/dev/null
+    - LC_ALL=C.UTF-8 shellcheck --format=gcc --external-sources bin/*
+

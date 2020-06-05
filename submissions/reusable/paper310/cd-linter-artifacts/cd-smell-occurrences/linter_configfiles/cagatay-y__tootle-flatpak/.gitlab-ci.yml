@@ -1,0 +1,12 @@
+flatpak_bundle:
+    image: registry.gitlab.gnome.org/gnome/gnome-runtime-images/gnome:3.30
+    script:
+        - flatpak-builder --repo=repo app com.github.bleakgrey.tootle.json
+        - flatpak build-bundle repo tootle.flatpak --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo com.github.bleakgrey.tootle master
+    artifacts:
+        paths:
+            - tootle.flatpak
+    cache:
+        paths:
+            - .flatpak-builder/cache
+

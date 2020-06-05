@@ -1,0 +1,48 @@
+image: node:9
+
+stages: 
+  - test
+  - client_build
+  - deploy
+
+before_script: 
+  - node -v
+  - npm -v
+  - cd client && npm install && cd ..
+
+client_lint:
+  script:
+    - cd client
+    - npm run lint
+  stage: test
+
+client_build:
+  script:
+    - cd client
+    - npm run build
+  stage: client_build
+  artifacts: 
+    paths:
+      - client/dist
+    expire_in: 2 weeks
+
+server_deploy:
+  stage: deploy
+  script:
+    - cp -r client/dist server/static
+    - cd server
+    - git init
+    - git config user.name "Gitlab CI"
+    - git config user.email "mui.kaien@dhs.sg"
+    - git add . && git commit -m "deploy from gitlab"
+    - git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/sccl-dictionary.git
+    - git push heroku master -f
+  artifacts:
+    paths:
+      - server
+    expire_in: 2 weeks
+  only:
+    - master
+    - web
+
+

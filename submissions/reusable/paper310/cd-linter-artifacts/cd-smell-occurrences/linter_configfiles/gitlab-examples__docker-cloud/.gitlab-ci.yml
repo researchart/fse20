@@ -1,0 +1,51 @@
+image: docker:latest
+services:
+- docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay
+
+stages:
+- test
+- build
+- deploy
+
+before_script:
+- source ci/prepare
+
+rspec:
+  stage: test
+  image: ruby:alpine
+  services: []
+  cache:
+    key: "$CI_BUILD_STAGE"
+    paths:
+        - vendor/ruby
+  script:
+  - bundle install --path vendor
+  - bundle exec rspec
+
+build:
+  stage: build
+  script:
+  - docker info
+  - docker_build_push $CI_BUILD_SHA
+
+staging:
+  stage: deploy
+  script:
+  - docker_tag_push $CI_BUILD_SHA staging
+  - docker_cloud service redeploy --sync staging.deployment-demo
+  except:
+  - master
+  environment: staging
+
+production:
+  stage: deploy
+  script:
+  - docker_tag_push $CI_BUILD_SHA production
+  - docker_cloud service redeploy --sync production.deployment-demo
+  only:
+  - master
+  environment: production
+

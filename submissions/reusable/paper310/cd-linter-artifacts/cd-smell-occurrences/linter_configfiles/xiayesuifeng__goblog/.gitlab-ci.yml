@@ -1,0 +1,27 @@
+image: archlinux/base
+
+before_script:
+  - pacman -Sy --noconfirm base-devel go git
+
+stages:
+  - build
+  - test
+
+build-goblog:
+  stage: build
+  script:
+    - go build
+    - mkdir -p $CI_PROJECT_DIR/build
+    - cp goblog $CI_PROJECT_DIR/build
+
+  only:
+      - tags
+
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/build/goblog
+
+test:
+  script:
+    - go build
+

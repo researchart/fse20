@@ -1,0 +1,46 @@
+# Using the official Python Docker image as default
+image: python
+
+# Columns of the pipeline
+stages:
+  - static analysis
+  - build
+  - test
+
+# Static code analysis job via Pylint
+static analysis:
+  stage: static analysis
+  before_script:
+    - pip install pylint
+  script:
+    - pylint calculator.py
+  allow_failure: true
+
+# Compilation job
+build:
+  stage: build
+  script:
+    - python -m compileall calculator.py
+
+# Unit testing via PyTest
+unit tests:
+  stage: test
+  before_script:
+    - pip install pytest
+  script:
+    - py.test unit_tests.py
+
+# Module testing and code coverage reporting
+module tests:
+  stage: test
+  before_script:
+    - pip install coverage
+  script:
+    - COVRUN="coverage run -a"
+    - test $($COVRUN calculator.py 1 + 1) = 2
+    - test $($COVRUN calculator.py 100 - 10) = 90
+    - test $($COVRUN calculator.py 25 \* 5) = 125
+    - (! $COVRUN calculator.py 30 / 5) # Should fail as division is unsupported
+    - coverage report
+  coverage: /\d+\%\s*$/
+

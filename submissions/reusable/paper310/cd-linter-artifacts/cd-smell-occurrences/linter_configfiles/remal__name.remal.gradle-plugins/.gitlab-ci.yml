@@ -1,0 +1,139 @@
+image: anapsix/alpine-java:8_jdk_unlimited
+
+before_script:
+- java -version || true
+- export GRADLE_OPTS="-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.warning.mode=all -Dsun.net.client.defaultConnectTimeout=15000 -Dsun.net.client.defaultReadTimeout=600000 -Dsun.io.useCanonCaches=false -Djava.awt.headless=true"
+- export GRADLE_USER_HOME=`pwd`/.gradle-cache
+- mkdir -p "$GRADLE_USER_HOME"; cp -arv "$HOME/.gradle/." "$GRADLE_USER_HOME" || true
+- sed -i 's/-all\.zip/-bin.zip/' gradle/wrapper/gradle-wrapper.properties
+- ./gradlew --quiet --stop &> /dev/null || true
+
+after_script:
+- ./gradlew --quiet --stop &> /dev/null || true
+
+stages:
+- build
+- cross-gradle-versions-check
+- create-auto-vcs-version-tag
+- publish
+- pages
+
+
+.default-cache-params: &default-cache-params
+  key: $CI_PIPELINE_ID
+  untracked: true
+  paths:
+  - .gradle/
+  - .gradle-cache/
+
+.pull-push-cache: &pull-push-cache
+  cache:
+    <<: *default-cache-params
+
+.push-cache: &push-cache
+  cache:
+    <<: *default-cache-params
+    policy: push
+
+.pull-cache: &pull-cache
+  cache:
+    <<: *default-cache-params
+    policy: pull
+
+
+build:
+  only:
+  - master
+  stage: build
+  <<: *push-cache
+  interruptible: true
+  script:
+  - ./retry ./gradlew clean
+  - ./retry ./gradlew downloadDependencies
+  - ./gradlew writeAutoVcsVersionInFile
+  - ./gradlew failIfProjectVersionTagExists
+  - ./gradlew runAllTests build processDocs generateDocsInclude
+  - ./gradlew checkDependencyUpdates
+
+cross-gradle-versions-check:
+  only:
+  - master
+  stage: cross-gradle-versions-check
+  <<: *pull-cache
+  interruptible: true
+  parallel: 15
+  script:
+  - ./gradlew tasks -Pgradle.cross-versions.number=$CI_NODE_INDEX -Pgradle.cross-versions.total=$CI_NODE_TOTAL
+  - ./gradlew crossGradleVersionsCheck -Pgradle.cross-versions.number=$CI_NODE_INDEX -Pgradle.cross-versions.total=$CI_NODE_TOTAL -Pdisable-compilation=true -Pdisable-static-analysis=true -x test -x testSimpleAutoPluginTests
+
+create-auto-vcs-version-tag:
+  only:
+  - master
+  stage: create-auto-vcs-version-tag
+  <<: *pull-push-cache
+  interruptible: false
+  script:
+  - 'if [ ! -z "$SKIP_PUBLISHING" ]; then >&2 echo "!!! SKIP PUBLISHING !!!"; exit 1; fi'
+  - ./retry ./gradlew createAutoVcsVersionTag
+
+publish-to-bintray:
+  only:
+  - master
+  stage: publish
+  <<: *pull-cache
+  interruptible: false
+  script:
+  - ./retry ./gradlew publishToBintray -Pdisable-tests=true -Pdisable-compilation=true
+
+publish-to-ossrh:
+  only:
+  - master
+  stage: publish
+  <<: *pull-cache
+  interruptible: false
+  retry: 2
+  script:
+  - ./retry ./gradlew publishToOssrh -Pdisable-tests=true -Pdisable-compilation=true
+  - ./gradlew releaseNexusRepositories
+
+publish-to-gradle-plugin-portal:
+  only:
+  - master
+  stage: publish
+  <<: *pull-cache
+  interruptible: false
+  script:
+  - ./gradlew publishToGradlePluginPortal -Pdisable-tests=true -Pdisable-compilation=true
+
+
+process-docs:
+  only:
+  - docs
+  stage: build
+  <<: *push-cache
+  interruptible: true
+  script:
+  - ./retry ./gradlew clean
+  - ./retry ./gradlew downloadDependencies
+  - ./gradlew build processDocs generateDocsInclude -Pdisable-tests=true
+
+pages:
+  only:
+  - master
+  - docs
+  stage: pages
+  artifacts:
+    paths:
+    - public
+    expire_in: 1 week
+  <<: *pull-cache
+  interruptible: true
+  image: python:alpine
+  script:
+  #- 'if ! [ -d "docs-generated" ]; then echo "Creating docs-generated" && mkdir -p docs-generated && echo "" > docs-generated/plugins-index.md; fi'
+  #- 'if ! [ -d "docs" ]; then echo "Creating docs" && cp -r docs-src docs; fi'
+  - pip install mkdocs mkdocs-material markdown-headdown pymdown-extensions pyembed-markdown mdx_include markdown-iconfonts
+  - mkdocs build --clean --verbose
+  - mv site public
+  - 'if [ -f "build/dependencies-changed.tag-not-created" ]; then echo "Skip publishing pages" && rm -rf public; fi'
+

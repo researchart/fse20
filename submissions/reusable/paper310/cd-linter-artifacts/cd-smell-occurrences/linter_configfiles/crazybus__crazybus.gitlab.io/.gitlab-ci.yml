@@ -1,0 +1,29 @@
+image: alpine:3.5
+
+variables:
+  HUGO_RELEASE: 'v0.19'
+  HUGO_VERSION: 'hugo_0.19_Linux-64bit'
+  HUGO_MD5: '3fc43b23a35dfe5290196bd0fc01f13f'
+
+before_script:
+  - apk update && apk add openssl
+  - wget https://github.com/spf13/hugo/releases/download/${HUGO_RELEASE}/${HUGO_VERSION}.tar.gz
+  - echo "${HUGO_MD5}  ${HUGO_VERSION}.tar.gz" | md5sum -c
+  - tar xf ${HUGO_VERSION}.tar.gz --strip-components=1 -C /usr/bin/ && mv /usr/bin/hugo* /usr/bin/hugo
+  - hugo version
+
+test:
+  script:
+  - hugo
+  except:
+  - master
+
+pages:
+  script:
+  - hugo
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

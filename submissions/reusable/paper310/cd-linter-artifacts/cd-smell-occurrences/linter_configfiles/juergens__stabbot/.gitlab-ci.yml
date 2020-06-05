@@ -1,0 +1,44 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+variables:
+  CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+
+build-master:
+  stage: build
+  tags:
+    - privileged
+  script:
+    - docker pull $CONTAINER_IMAGE:latest || true
+    - docker build --build-arg BUILD_DATE=$(date +'%Y_%m_%d') --cache-from $CONTAINER_IMAGE:latest --tag $CONTAINER_IMAGE:$CI_BUILD_REF --tag $CONTAINER_IMAGE:latest .
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE:latest
+  only:
+    - master
+
+
+build-crop:
+  stage: build
+  tags:
+    - privileged
+  script:
+    - docker pull $CONTAINER_IMAGE:crop || true
+    - docker build --build-arg BUILD_DATE=$(date +'%Y_%m_%d') --cache-from $CONTAINER_IMAGE:crop --tag $CONTAINER_IMAGE:crop .
+    - docker push $CONTAINER_IMAGE:crop
+  only:
+    - crop
+
+deploy:
+  stage: deploy
+  tags:
+    - privileged
+  script:
+    - docker run --rm byrnedo/alpine-curl -X POST wotanii.de:8555/$DEPLOY_TOKEN
+

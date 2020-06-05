@@ -1,0 +1,28 @@
+image: ruby:2.2.2
+
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  image: ruby:2.2.2
+  script: 
+    - apt-get update
+    - apt-get install -qy nodejs npm
+    - curl -sL https://deb.nodesource.com/setup_10.x | bash -
+    - apt-get install -qy nodejs
+    - ln -s "$(which nodejs)" /usr/local/bin/node
+    - npm install
+    - npm test
+    
+staging:
+  stage: deploy
+  image: ruby:2.2.2
+  script:
+    - gem install dpl
+    - dpl --provider=heroku --app=intense-mountain-79221 --api-key=e2fbb215-565e-4274-8f2b-73f7670afa9f
+  only:
+    - master
+

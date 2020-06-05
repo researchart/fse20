@@ -1,0 +1,250 @@
+---
+
+image: "${CI_REGISTRY_IMAGE}:builder"
+
+stages:
+  - build
+  - test
+  - before-mr
+  - at-mr
+  - deploy
+  - release_to_pypi
+  - release_to_docker
+  - notify
+
+.in_dev_branch: &in_dev_branch
+  except:
+    refs:
+      - master
+      - triggers
+      - schedules
+
+.in_prod_branch: &in_prod_branch
+  only:
+    refs:
+      - master
+  except:
+    refs:
+      - triggers
+      - schedules
+
+.with_nix: &with_nix
+  tags: [autoscaling]
+  image: fluidattacks/nix
+  script:
+    - ./build.sh
+  interruptible: true
+
+.test_template: &test_template
+  <<: *with_nix
+  <<: *in_dev_branch
+  before_script:
+    - ./build/scripts/odbc/set.sh
+  stage: test
+
+build_fluidasserts_release:
+  <<: *with_nix
+  <<: *in_dev_branch
+  artifacts:
+    paths: [result.build_fluidasserts_release/]
+  stage: test
+
+demo_fluidasserts_output:
+  <<: *with_nix
+  <<: *in_dev_branch
+  stage: test
+
+lint_fluidasserts_code:
+  <<: *with_nix
+  <<: *in_dev_branch
+  stage: test
+
+lint_fluidasserts_test_code:
+  <<: *with_nix
+  <<: *in_dev_branch
+  stage: test
+
+lint_nix_code:
+  <<: *with_nix
+  <<: *in_dev_branch
+  stage: test
+
+lint_shell_code:
+  <<: *with_nix
+  <<: *in_dev_branch
+  stage: test
+
+lint_with_bandit:
+  <<: *with_nix
+  <<: *in_dev_branch
+  stage: test
+
+pages:
+  <<: *with_nix
+  <<: *in_prod_branch
+  stage: deploy
+  artifacts:
+    paths: [public/]
+
+populate_caches:
+  <<: *with_nix
+  <<: *in_prod_branch
+  stage: deploy
+
+release_to_pypi:
+  <<: *with_nix
+  <<: *in_prod_branch
+  stage: release_to_pypi
+
+release_to_docker_hub:
+  <<: *with_nix
+  <<: *in_prod_branch
+  stage: release_to_docker
+
+send_new_version_mail:
+  <<: *with_nix
+  <<: *in_prod_branch
+  stage: notify
+
+test_commit_message:
+  <<: *with_nix
+  <<: *in_dev_branch
+  stage: test
+
+# For some reason our innovation account is empty!
+#   disabling until we recreate it or found how to revert changes
+.test_api_cloud_aws_api:
+  <<: *test_template
+
+test_api_cloud_aws_cloudformation:
+  <<: *test_template
+
+test_api_cloud_aws_terraform:
+  <<: *test_template
+
+test_api_cloud_azure:
+  <<: *test_template
+
+test_api_cloud_gcp:
+  <<: *test_template
+
+test_api_cloud_kubernetes:
+  <<: *test_template
+
+test_api_db_mssql:
+  <<: *test_template
+
+test_api_db_mysql:
+  <<: *test_template
+
+test_api_db_postgres:
+  <<: *test_template
+
+test_api_format:
+  <<: *test_template
+  tags: [autoscaling-large]
+
+test_api_helper:
+  <<: *test_template
+
+test_api_iot:
+  <<: *test_template
+
+test_api_lang_core:
+  <<: *test_template
+
+test_api_lang_csharp:
+  <<: *test_template
+
+test_api_lang_docker:
+  <<: *test_template
+
+test_api_lang_dotnetconfig:
+  <<: *test_template
+
+test_api_lang_html:
+  <<: *test_template
+
+test_api_lang_java:
+  <<: *test_template
+
+test_api_lang_javascript:
+  <<: *test_template
+
+test_api_lang_php:
+  <<: *test_template
+
+test_api_lang_python:
+  <<: *test_template
+
+test_api_lang_rpgle:
+  <<: *test_template
+
+test_api_lang_times:
+  <<: *test_template
+
+test_api_ot:
+  <<: *test_template
+
+test_api_proto_dns:
+  <<: *test_template
+
+test_api_proto_ftp:
+  <<: *test_template
+
+test_api_proto_git:
+  <<: *test_template
+
+test_api_proto_graphql:
+  <<: *test_template
+
+test_api_proto_http:
+  <<: *test_template
+
+test_api_proto_ldap:
+  <<: *test_template
+
+test_api_proto_rest:
+  <<: *test_template
+
+test_api_proto_smb:
+  <<: *test_template
+
+test_api_proto_smtp:
+  <<: *test_template
+
+test_api_proto_ssh:
+  <<: *test_template
+
+test_api_proto_ssl:
+  <<: *test_template
+
+test_api_proto_tcp:
+  <<: *test_template
+
+test_api_sca:
+  <<: *test_template
+
+test_api_syst:
+  <<: *test_template
+
+test_api_utils:
+  <<: *test_template
+
+danger:
+  image: fluidattacks/danger-ruby
+  stage: at-mr
+  tags: [autoscaling]
+  only:
+    - merge_requests
+  variables:
+    DANGER_GITLAB_API_TOKEN: $DANGER_TOKEN
+  before_script:
+    - export CI_MERGE_REQUEST_ID=$(git ls-remote -q origin merge-requests\*\head
+      | grep ${CI_COMMIT_SHA}
+      | sed 's/.*refs\/merge-requests\/\([0-9]*\)\/head/\1/g')
+    - ./ci-scripts/commitlint-conf.sh
+    - npm install --unsafe-perm
+  script:
+    - danger --verbose --fail-on-errors=true
+

@@ -1,0 +1,99 @@
+stages:
+  - lint
+  - unit_test
+  - combine_coverage_unit
+  - integration_test
+  - combine_coverage_integration
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+  TWINE_REPOSITORY: testpypi
+  TWINE_REPOSITORY_URL: https://testpypi.python.org/pypi
+
+cache:
+  paths:
+    - "$PIP_CACHE_DIR"
+  key: "$CI_PROJECT_ID"
+
+before_script:
+  - pip install --upgrade pip setuptools
+  - pip install tox
+
+pep8:
+  image: python:3.4
+  stage: lint
+  script:
+    - tox -e pep8
+
+test_py34_unit:
+  image: python:3.4
+  stage: unit_test
+  before_script:
+    - pip install --upgrade pip setuptools
+    - pip install tox codecov
+  script:
+    - tox -e py34 -- -m unit
+    - codecov -F unittests
+
+test_py27_unit:
+  stage: unit_test
+  image: python:2.7
+  before_script:
+    - pip install --upgrade pip setuptools
+    - pip install tox codecov
+  script:
+    - tox -e py27 -- -m unit
+    - codecov -F unittests
+
+test_py34_integration:
+  image: python:3.4
+  stage: integration_test
+  before_script:
+    - pip install --upgrade pip setuptools
+    - pip install tox codecov
+  script:
+    - tox -e py34 -- -m integration
+    - codecov -F integrationtests
+
+test_py27_integration:
+  stage: integration_test
+  image: python:2.7
+  before_script:
+    - pip install --upgrade pip setuptools
+    - pip install tox codecov
+  script:
+    - tox -e py27 -- -m integration
+    - codecov -F integrationtests
+
+
+upload_pypi2:
+  stage: deploy
+  image: python:2.7
+  before_script:
+    - pip install twine
+  script:
+    - python setup.py sdist
+    - python setup.py bdist_wheel --universal
+    - twine register dist/soko-$(python setup.py --version dummy).tar.gz
+    - twine register dist/soko-$(python setup.py --version dummy)-py2.py3-none-any.whl
+    - twine upload dist/*
+  only:
+    - tags
+
+pages:
+  stage: deploy
+  environment: production
+  image: python:3.4
+  before_script:
+    - pip install --upgrade pip setuptools
+    - pip install tox
+  script:
+    - tox -e build-docs
+    - mv docs/_build/html/ public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

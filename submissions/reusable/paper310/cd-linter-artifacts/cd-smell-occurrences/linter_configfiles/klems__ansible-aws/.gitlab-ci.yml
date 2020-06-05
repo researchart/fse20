@@ -1,0 +1,10 @@
+syntax_check:
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby
+    - gem install yamllint
+    - export YAML_FILES=`find . -name "*.yml"`
+    - for file in $YAML_FILES; do echo "checking $file"; yamllint $file; done
+
+
+

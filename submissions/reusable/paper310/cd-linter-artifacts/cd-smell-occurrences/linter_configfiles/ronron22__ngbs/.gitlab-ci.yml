@@ -1,0 +1,14 @@
+stages:
+  - unit
+
+before_script:
+   - apt-get update -qq && apt-get install -y -qq bash expect
+
+build:
+  stage: unit
+  image: ruby:2.4.4
+  script:
+    - bash shitsumon.sh examples/input
+  only:
+  - master
+

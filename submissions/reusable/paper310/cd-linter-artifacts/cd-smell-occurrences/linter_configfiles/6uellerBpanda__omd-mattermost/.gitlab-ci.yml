@@ -1,0 +1,14 @@
+---
+before_script:
+  - gem install rubocop
+
+image: ruby:2.1.10-alpine
+
+stages:
+  - test
+
+rubocop:
+  stage: test
+  script:
+    - "rubocop"
+

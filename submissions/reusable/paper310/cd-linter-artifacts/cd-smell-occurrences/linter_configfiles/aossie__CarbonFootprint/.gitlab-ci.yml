@@ -1,0 +1,19 @@
+image: aayushdutt/carbonfootprint
+
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+    - yarn
+
+eetest:
+  script:
+    - npm run groupChrome
+    - export environment=CI
+    - xvfb-run --server-args="-screen 0, 1024x768x24" npm run eetest
+
+test:
+  script:
+    - npm test
+

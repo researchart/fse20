@@ -1,0 +1,11 @@
+image: publysher/hugo
+
+pages:
+  script:
+  - hugo --verbose --buildDrafts
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

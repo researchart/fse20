@@ -1,0 +1,229 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.sila-standard.sila_java</groupId>
+        <artifactId>library</artifactId>
+        <version>0.0.3-SNAPSHOT</version>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.sila-standard.sila_java.library</groupId>
+    <artifactId>core</artifactId>
+    <packaging>jar</packaging>
+    <version>0.0.3-SNAPSHOT</version>
+
+    <dependencies>
+        <!-- Common Dependencies -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+
+        <!-- General -->
+        <dependency>
+            <groupId>org.jmdns</groupId>
+            <artifactId>jmdns</artifactId>
+            <version>3.5.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-configuration2</artifactId>
+            <version>2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fazecast</groupId>
+            <artifactId>jSerialComm</artifactId>
+            <version>2.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.8.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
+            <version>3.5.1</version>
+        </dependency>
+
+        <!-- Beanutils needed dynamically by configuration -->
+        <dependency>
+            <groupId>commons-beanutils</groupId>
+            <artifactId>commons-beanutils</artifactId>
+            <version>1.9.3</version>
+        </dependency>
+
+        <!-- jaxb dependencies -->
+        <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>2.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jaxb</groupId>
+            <artifactId>jaxb-runtime</artifactId>
+            <version>2.3.2</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.sun.activation</groupId>
+            <artifactId>jakarta.activation</artifactId>
+            <version>1.2.1</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- SiLA Dependencies -->
+        <dependency>
+            <groupId>org.sila-standard.sila_java.library</groupId>
+            <artifactId>sila_base</artifactId>
+            <version>0.0.3-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Windows Registry Dependency -->
+        <dependency>
+            <groupId>com.github.sarxos</groupId>
+            <artifactId>windows-registry-util</artifactId>
+            <version>0.3</version>
+        </dependency>
+
+        <!-- jProcesses utils -->
+        <dependency>
+            <groupId>org.jprocesses</groupId>
+            <artifactId>jProcesses</artifactId>
+            <version>1.6.4</version>
+        </dependency>
+
+        <!-- Encryption -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+            <version>1.60</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk15on</artifactId>
+            <version>1.60</version>
+        </dependency>
+
+        <!-- This version has to be updated according to: https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-tcnative-boringssl-static</artifactId>
+            <version>2.0.22.Final</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>1.8</version>
+                <executions>
+                    <!-- We first have to copy the schema and binding into the same folder -->
+                    <execution>
+                        <id>copy-schema</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <echo>Copying Schema Files</echo>
+                                <copy file="${project.basedir}/../../${sila_base.path}/schema/FeatureDefinition.xsd" tofile="${project.basedir}/target/output/FeatureDefinition.xsd"/>
+                                <copy file="${project.basedir}/../../${sila_base.path}/schema/DataTypes.xsd" tofile="${project.basedir}/target/output/DataTypes.xsd"/>
+                                <copy file="${project.basedir}/../../${sila_base.path}/schema/Constraints.xsd" tofile="${project.basedir}/target/output/Constraints.xsd"/>
+                                <copy file="${project.basedir}/src/main/resources/jxb_binding.xml" tofile="${project.basedir}/target/output/jxb_binding.xml"/>
+                            </target>
+                        </configuration>
+                    </execution>
+
+                    <!-- The Unmarshalling only works if we globally delete the namespace annotations -->
+                    <execution>
+                        <id>delete-info</id>
+                        <phase>process-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <delete file="${project.build.directory}/generated-sources/sila_java/library/core/models/package-info.java" />
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Using bindings for cleaner code and generating into models for traceability -->
+            <plugin>
+                <groupId>org.apache.cxf</groupId>
+                <artifactId>cxf-xjc-plugin</artifactId>
+                <version>3.3.0</version>
+                <dependencies>
+                    <!--
+                    Simplify Plugin for easier to use choice properties, refer to:
+                    [https://github.com/highsource/jaxb2-basics/wiki/JAXB2-Simplify-Plugin]
+                    -->
+                    <dependency>
+                        <groupId>org.jvnet.jaxb2_commons</groupId>
+                        <artifactId>jaxb2-basics</artifactId>
+                        <version>0.6.4</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>xjc</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>xsdtojava</goal>
+                        </goals>
+                        <configuration>
+                            <sourceRoot>${project.build.directory}/generated-sources</sourceRoot>
+                            <xsdOptions>
+                                <xsdOption>
+                                    <xsd>${project.basedir}/target/output/FeatureDefinition.xsd</xsd>
+                                    <extension>true</extension>
+                                    <bindingFile>${project.basedir}/target/output/jxb_binding.xml</bindingFile>
+                                    <extensionArgs>
+                                        <extensionArg>-Xsimplify</extensionArg>
+                                    </extensionArgs>
+                                </xsdOption>
+                            </xsdOptions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Using the generated Java Classes which can then be referenced in e.g. Angular -->
+            <plugin>
+                <groupId>cz.habarta.typescript-generator</groupId>
+                <artifactId>typescript-generator-maven-plugin</artifactId>
+                <version>2.5.423</version>
+                <executions>
+                    <execution>
+                        <id>generate</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <phase>process-classes</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <jsonLibrary>jackson2</jsonLibrary>
+                    <classes>
+                        <class>sila_java.library.core.models.Feature</class>
+                    </classes>
+                    <outputKind>module</outputKind>
+                    <outputFileType>declarationFile</outputFileType>
+                    <outputFile>${project.build.directory}/generated-sources/typescript/feature.d.ts</outputFile>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+

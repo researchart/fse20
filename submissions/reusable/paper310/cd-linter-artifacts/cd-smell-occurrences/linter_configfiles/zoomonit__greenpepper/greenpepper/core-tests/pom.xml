@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>greenpepper</artifactId>
+        <groupId>com.github.strator-dev.greenpepper</groupId>
+        <version>4.2.5-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>greenpepper-core-tests</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.github.strator-dev.greenpepper</groupId>
+            <artifactId>greenpepper-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.strator-dev.greenpepper</groupId>
+            <artifactId>greenpepper-core</artifactId>
+            <version>${project.version}</version>
+            <classifier>tests</classifier>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.github.strator-dev.greenpepper</groupId>
+                <artifactId>greenpepper-maven-plugin</artifactId>
+                <version>${project.version}</version>
+                <configuration>
+                    <locale>en</locale>
+                    <debug>true</debug>
+                    <redirectOutputToFile>true</redirectOutputToFile>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                    <fixtureSourceDirectory>src/fixture/java</fixtureSourceDirectory>
+                    <fixtureOutputDirectory>target/test-classes</fixtureOutputDirectory>
+                    <systemUnderDevelopment>com.greenpepper.systemunderdevelopment.GreenPepperSystemUnderDevelopment</systemUnderDevelopment>
+
+                    <!-- Sample repositories configuration -->
+
+                    <repositories>
+                        <repository>
+                            <type>com.greenpepper.repository.FileSystemRepository</type>
+                            <root>${basedir}/src/specs/greenpepper</root>
+                            <name>GreenPepper-specifications</name>
+                        </repository>
+                    </repositories>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>makeall</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+

@@ -1,0 +1,64 @@
+# Created by Christopher Eaton in 2016
+# https://gitlab.com/chriseaton
+# License: Unlicense, see http://unlicense.org/
+###############################################
+
+# Setup CI environment.
+before_script:
+  - export GOPATH=$(pwd)
+  - export DEPLOY_PATH=$(readlink -f $(pwd)/../deploy)
+
+stages:
+  - build
+  - test
+  - deploy
+
+# Vet all *.go files in the current and sub-directories.
+vet:
+  image: golang:1.5
+  stage: build
+  script:
+  - for f in $(find ./ -name '*.go'); do go tool vet -composites=false -unusedresult=false $f; done
+
+# Attempt build on go v1.5
+# You can copy this entire section and then replace the version number with the version you want to
+# build. For example, you could have three copies of this section to test versions 1.4, 1.5, and 1.6.
+go-build-1.5:
+  image: golang:1.5
+  stage: build
+  script:
+    ## Go get any projects needed to compile
+    ##- go get gitlab.com/somecool/project
+    # Ensure the source is current with required submodules
+    - git submodule update --init
+    # Attempt build in the current directory.
+    - go build
+    ## Attempt build of each go file in the specified directory (useful for "example" directories).
+    ## - mkdir -p src/gitlab.com/{username}/
+    ## - ln -s $(pwd) src/gitlab.com/{username}/{project}
+    ##- (for f in ./examples/*.go; do echo "> building $f"; go build $f; if [ $? -ne 0 ]; then exit 1; fi; done);
+
+# Run the tests (if there are any)
+# Like the go-build section above, you can duplicate this section and change out the version number
+# for additional go version tests.
+go-test-1.5:
+  image: golang:1.5
+  stage: test
+  script:
+    - go test
+    
+# Deploy your application to the DEPLOY_PATH directory.
+go-build-1.5:
+  image: golang:1.5
+  stage: deploy
+  script:
+    # Install rsync for copy
+    - apt-get update
+    - apt-get -q -y install rsync
+    # Remove all files from deploy directory.
+    - if [ -d "$DEPLOY_PATH" ]; then rm -r $DEPLOY_PATH/*; fi
+    # Ensure the deploy directory exists.
+    - mkdir -p $DEPLOY_PATH
+    # Copy all files to the deploy location, excluding non-deployment directories and files (like .git)
+    - rsync -av --exclude='.git/' --exclude='.gitignore' --exclude='.gitlab-ci.yml' ./ $DEPLOY_PATH
+

@@ -1,0 +1,36 @@
+image: ubuntu:latest
+
+services:
+    - mariadb:latest
+
+variables:
+    MYSQL_DATABASE: filmlogdev
+    MYSQL_ROOT_PASSWORD: filmlogdevtestrunnerpassword
+
+cache:
+    paths:
+        - node_modules/
+        - venv/
+
+before_script:
+    - apt-get update -y
+    - apt-get install -y python-pip python-dev build-essential mariadb-client libmariadbclient-dev-compat virtualenv nodejs npm
+    - virtualenv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+    - pip install pylint==1.9.2
+    - pip install pylint-flask
+    - npm install
+
+python_lint:
+    script: "tests/python-lint.sh"
+
+js_lint:
+    script: "tests/javascript-lint.sh"
+
+css_lint:
+    script: "tests/css-lint.sh"
+
+import_database:
+    script: "tests/import_database.sh $MYSQL_DATABASE mariadb root $MYSQL_ROOT_PASSWORD"
+

@@ -1,0 +1,15 @@
+image: alpine:latest
+
+stages:
+- deploy
+
+pages:
+  stage: deploy
+  script:
+  - echo 'ding'
+  artifacts:
+    paths:
+    - public/
+  only:
+  - master
+

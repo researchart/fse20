@@ -1,0 +1,30 @@
+stages:
+  - build
+  - test
+
+build_container:
+  stage: build
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE/sitespeed-gitlab:$CI_COMMIT_REF_NAME .
+    - docker push $CI_REGISTRY_IMAGE/sitespeed-gitlab:$CI_COMMIT_REF_NAME
+
+test_image:
+  stage: test
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+    - docker:dind
+  script:
+    - docker pull $CI_REGISTRY_IMAGE/sitespeed-gitlab:$CI_COMMIT_REF_NAME
+    - docker run --shm-size=1g --rm -v "$(pwd)":/sitespeed.io $CI_REGISTRY_IMAGE/sitespeed-gitlab:$CI_COMMIT_REF_NAME --plugins.add /gitlab-exporter --outputFolder . https://gitlab.com/gitlab-org/gitlab-ce/issues/1 https://gitlab.com/gitlab-org/gitlab-ee/merge_requests/3507
+    - mv data/performance.json performance.json
+  artifacts:
+    untracked: true
+

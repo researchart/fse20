@@ -1,0 +1,78 @@
+# source:
+# - https://gitlab.com/CSUI-AdvProg-2017/lab-exercises/blob/master/.gitlab-ci.yml
+# - https://gitlab.com/greysonp/gitlab-ci-android/issues/2
+# - https://gist.github.com/daicham/5ac8461b8b49385244aa0977638c3420
+
+image: java:8-jdk
+
+variables:
+  ANDROID_COMPILE_SDK: "25"
+  ANDROID_BUILD_TOOLS: "25.0.23"
+  ANDROID_SDK_TOOLS: "25.2.5" # from SDK Manager window (SDK Tool)
+  ANDROID_EMULATOR_SDK: "24"
+  ANDROID_EMULATOR_ABI: "armeabi-v7a"
+  ANDROID_EMULATOR_PLATFORM: "arm"
+
+before_script:
+  - apt-get --quiet update --yes
+  - apt-get --quiet install --yes wget tar unzip lib32stdc++6 lib32z1
+  - export ANDROID_SDK_HOME=$PWD/__ci
+  - export ANDROID_HOME=$ANDROID_SDK_HOME/android-sdk-linux
+  - export GRADLE_USER_HOME=$ANDROID_SDK_HOME
+  - mkdir -p $ANDROID_HOME
+  - wget --quiet --output-document=$ANDROID_SDK_HOME/android-sdk-tools.zip https://dl.google.com/android/repository/tools_r${ANDROID_SDK_TOOLS}-linux.zip
+  - unzip $ANDROID_SDK_HOME/android-sdk-tools.zip -d $ANDROID_HOME
+  - echo y | $ANDROID_HOME/tools/android --silent update sdk --no-ui --all --filter android-${ANDROID_COMPILE_SDK}
+  - echo y | $ANDROID_HOME/tools/android --silent update sdk --no-ui --all --filter platform-tools
+  - echo y | $ANDROID_HOME/tools/android --silent update sdk --no-ui --all --filter build-tools-${ANDROID_BUILD_TOOLS}
+  - echo y | $ANDROID_HOME/tools/android --silent update sdk --no-ui --all --filter extra-android-m2repository
+  - echo y | $ANDROID_HOME/tools/android --silent update sdk --no-ui --all --filter extra-google-google_play_services
+  - echo y | $ANDROID_HOME/tools/android --silent update sdk --no-ui --all --filter extra-google-m2repository
+  - export PATH=$PATH:$ANDROID_HOME/platform-tools/
+  - export LD_LIBRARY_PATH=${ANDROID_HOME}/tools/lib64
+  - chmod +x ./gradlew
+  # configure system gradle
+  - mkdir -p $GRADLE_USER_HOME/.gradle/
+  - echo "org.gradle.jvmargs=-Xmx2048M" > $GRADLE_USER_HOME/.gradle/gradle.properties
+  # auto accept licenses
+  - mkdir "$ANDROID_HOME/licenses" || true
+  - echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
+  - echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+
+stages:
+  - build
+  - test
+  - test_coverage
+
+cache:
+  paths:
+    - .gradle/wrapper
+    - .gradle/caches
+
+build:
+  stage: build
+  script:
+    - ./gradlew assemble
+  artifacts:
+    paths:
+      - app/build/outputs/apk/*.apk
+  allow_failure: false
+
+test:
+  stage: test
+  script:
+    - ./gradlew check
+  allow_failure: false
+
+test_coverage:
+  stage: test_coverage
+  script:
+    - ./gradlew clean jacocoTestReport
+    - echo y | apt-get install libxml2-utils
+    - "COVERAGE=$(xmllint --html --xpath '//table[@id=\"coveragetable\"]/tfoot//td[@class=\"ctr2\"][1]/text()' app/build/reports/jacoco/index.html)"
+    - 'echo "Coverage: $COVERAGE"'
+  allow_failure: false
+
+after_script:
+  - echo "End CI"
+

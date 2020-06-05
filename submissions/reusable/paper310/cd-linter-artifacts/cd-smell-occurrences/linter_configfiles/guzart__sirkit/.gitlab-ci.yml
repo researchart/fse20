@@ -1,0 +1,27 @@
+image: node:10-alpine
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - deploy
+
+# test_async:
+#   script:
+#    - npm install
+#    - node ./specs/start.js ./specs/async.spec.js
+
+deploy_prod:
+  stage: deploy
+  only:
+    - master
+  script:
+    - yarn install
+    - yarn run setup
+    - yarn run build
+    - firebase use sirkit-app --token $FIREBASE_TOKEN
+    - firebase deploy --only hosting -m "Pipe $CI_PIPELINE_ID Build $CI_BUILD_ID" --token $FIREBASE_TOKEN
+

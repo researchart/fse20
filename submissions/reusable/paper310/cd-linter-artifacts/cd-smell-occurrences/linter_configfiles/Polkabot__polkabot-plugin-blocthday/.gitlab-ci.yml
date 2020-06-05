@@ -1,0 +1,81 @@
+image: node:11
+
+before_script:
+  # install ssh-agent
+  # - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  # # run ssh-agent
+  # - eval $(ssh-agent -s)
+  # # add ssh key stored in SSH_PRIVATE_KEY variable to the agent store
+  # - ssh-add <(echo "$SSH_PRIVATE_KEY" | base64 -d)
+  # # disable host key checking (NOTE: makes you susceptible to man-in-the-middle attacks)
+  # # WARNING: use only in docker container, if you use it with shell you will overwrite your user's ssh config
+  # - mkdir -p ~/.ssh
+  # - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  - npm install -g yarn
+  - yarn
+
+stages:
+  - lint
+  # - test
+  - build
+
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+    - node_modules/
+
+lint:
+  stage: lint
+  script:
+    - yarn lint
+
+# Supported node versions can be found here:
+# https://github.com/nodejs/LTS#lts_schedule
+# test:node:7:
+#   image: node:7
+#   script:
+#     - yarn build
+#     - npm test
+#   only: 
+#     - $NIGHLTY
+
+# test:node:8:
+#   image: node:8
+#   script:
+#     - yarn build
+#     - npm test
+
+# test:node:9:
+#   image: node:9
+#   script:
+#     - yarn build
+#     - npm test
+#   only: 
+#     - $NIGHLTY
+
+# test:node:10:
+#   image: node:10
+#   script:
+#     - yarn build
+#     - npm test
+#   only: 
+#     - $NIGHLTY
+
+build:
+  stage: build
+  script: yarn build
+
+# build:doc:
+#   stage: build
+#   script: yarn build:doc
+
+# build:docker:
+#   image: docker:git
+#   services:
+#     - docker:dind
+#   stage: build
+#   before_script:
+#     - echo "Skipping before_script"
+#   script:
+#     - docker build -t chevdor/polkabot .
+

@@ -1,0 +1,108 @@
+image: docker:latest
+
+variables:
+  # When using dind service we need to instruct docker, to talk with the
+  # daemon started inside of the service. The daemon is available with
+  # a network connection instead of the default /var/run/docker.sock socket.
+  #
+  # The 'docker' hostname is the alias of the service container as described at
+  # https://docs.gitlab.com/ee/ci/docker/using_docker_images.html#accessing-the-services
+  #
+  # Note that if you're using Kubernetes executor, the variable should be set to
+  # tcp://localhost:2375 because of how Kubernetes executor connects services
+  # to the job container
+  DOCKER_HOST: tcp://docker:2375/
+  # When using dind, it's wise to use the overlayfs driver for
+  # improved performance.
+  DOCKER_DRIVER: overlay2
+
+services:
+- docker:dind
+
+stages:
+  - build
+  - test
+  - build images
+  - deploy
+
+cache:
+  paths:
+    - frontend/osmybiz/node_modules/
+
+backend-test:
+  image: python:3.6
+  stage: test
+  script:
+    - cd backend/api
+    - pip install -r requirements.txt
+    - flake8
+    - pytest
+
+client-build:
+  image: node:8.4
+  stage: build
+  script:
+    - cd frontend/osmybiz
+    - npm install
+    - npm run build
+
+client-unit:
+  image: node:8.4
+  stage: test
+  script:
+    - cd frontend/osmybiz
+    - npm install
+    - npm run unit
+
+client-lint:
+  image: node:8.4
+  stage: test
+  script:
+    - cd frontend/osmybiz
+    - npm install
+    - npm run lint
+
+build staging images:
+  image: geometalab/docker-builder
+  stage: build images
+  script:
+  - cd scripts
+  - export BUILD_VERSION=staging
+  - docker login -u $DOCKERHUB_LOGIN_USERNAME -p $DOCKERHUB_LOGIN_PASSWORD
+  - python3 build_and_push.py
+  only:
+  - develop
+
+deploy to staging:
+  image: geometalab/docker-builder
+  stage: deploy
+  script:
+  - pip install --upgrade httpie
+  - http POST https://portainer.sifs0003.infs.ch/api/webhooks/4e1d0ac1-cb83-489b-9225-37ca33c08d97
+  - http POST https://portainer.sifs0003.infs.ch/api/webhooks/9f7b3e66-059a-4c72-8316-cc1e23159f1d
+  - http POST https://portainer.sifs0003.infs.ch/api/webhooks/fbe48238-332f-4c16-a06f-c79621ccc681
+  only:
+  - develop
+
+build production images:
+  image: geometalab/docker-builder
+  stage: build images
+  script:
+  - cd scripts
+  - export BUILD_VERSION=production
+  - docker login -u $DOCKERHUB_LOGIN_USERNAME -p $DOCKERHUB_LOGIN_PASSWORD
+  - python3 build_and_push.py
+  only:
+  - master
+
+deploy to production:
+  image: geometalab/docker-builder
+  stage: deploy
+  script:
+  - pip install --upgrade httpie
+  - http POST https://portainer.sifs0003.infs.ch/api/webhooks/529dd464-a134-4b3f-973e-7dd118095b74
+  - http POST https://portainer.sifs0003.infs.ch/api/webhooks/2a118e41-766c-452e-861c-fefd1a5a0ea2
+  - http POST https://portainer.sifs0003.infs.ch/api/webhooks/2d839778-ab8c-49cd-8b2d-78fc7cbf9720
+  only:
+  - master
+

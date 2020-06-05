@@ -1,0 +1,21 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+build:
+  stage: build
+  before_script:
+    - docker login -u $DOCKER_HUB_USER -p $DOCKER_HUB_PASSWORD
+  script:
+    - docker image build -t landerson61/$CI_PROJECT_NAME:$CI_COMMIT_TAG .
+    - docker image tag landerson61/$CI_PROJECT_NAME:$CI_COMMIT_TAG landerson61/$CI_PROJECT_NAME:latest
+    - docker image push landerson61/$CI_PROJECT_NAME:$CI_COMMIT_TAG
+    - docker image push landerson61/$CI_PROJECT_NAME:latest
+  only:
+    - tags
+
+

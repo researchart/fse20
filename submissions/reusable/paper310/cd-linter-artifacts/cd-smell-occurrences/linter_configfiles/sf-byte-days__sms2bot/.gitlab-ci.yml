@@ -1,0 +1,14 @@
+image: maven:3-jdk-8
+
+stages:
+- build
+- cleanup_build
+- test
+- deploy
+- cleanup
+
+upload_test_report_job:
+    stage: test
+    script:
+    - mvn -X clean test ; bash <(curl -s https://codecov.io/bash) -v -t 9ef4c80f-e7a7-4522-92a4-c7b94d17e2fa
+

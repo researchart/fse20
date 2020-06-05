@@ -1,0 +1,29 @@
+image: docker:latest
+
+stages:
+  - build
+  - release
+
+services:
+  - docker:dind
+
+docker image:
+  stage: build
+  script:
+    - docker info
+    # map master branch to docker :latest
+    - export IMAGE_TAG=$(echo "$CI_COMMIT_REF_NAME" | sed "s/master/latest/")
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:$IMAGE_TAG .
+    - docker push $CI_REGISTRY_IMAGE:$IMAGE_TAG
+
+dist:
+  stage: release
+  script:
+    - export IMAGE_TAG=$(echo "$CI_COMMIT_REF_NAME" | sed "s/master/latest/")
+    - sed -i "s/latest/$IMAGE_TAG/g" example/Makefile
+  artifacts:
+    name: "$CI_PROJECT_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - example
+

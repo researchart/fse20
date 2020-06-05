@@ -1,0 +1,95 @@
+before_script:
+  - whoami
+  - ls
+
+stages:
+  - prepare
+  - build
+  - deploy
+  - doc
+
+prepare-default:
+  stage: prepare
+  script:
+    - mkdir build-default
+    - cd build-default
+    - cmake .. -DCMAKE_BUILD_TYPE=Default -DDOXYGEN_ENABLE=true -DENABLE_TEST=true
+  artifacts:
+    name: cmake-default
+    paths:
+      - build-default/
+  
+build-default:
+  stage: build
+  dependencies: [prepare-default]
+  script:
+    - cd build-default
+    - cmake ..
+    - make -j4 VERBOSE=1
+  artifacts:
+    name: build-default
+    paths:
+      - build-default/sphinx
+      - build-default/conf.ini
+      - build-default/tests/
+
+test-default:
+  stage: deploy
+  dependencies: [build-default]
+  script:
+    - cd build-default/tests
+    - ctest --output-on-failure --output-log test.log
+  artifacts:
+    name: test
+    paths:
+      - build-default/tests/test.log
+      
+build-doc:
+  stage: doc
+  dependencies: [prepare-default]
+  script:
+    - cd build-default
+    - make doc
+    - lftp -e "set ssl:verify-certificate no; mirror -R doc filippoleonardi.ch/sphinx/doc && exit" -u $U_TOKEN,$P_TOKEN $H_TOKEN
+  artifacts:
+    name: doc
+    paths:
+      - build-default/doc/
+      - build-default/doc.html
+
+prepare-cuda-default:
+  stage: prepare
+  script:
+    - mkdir build-cuda-default
+    - cd build-cuda-default
+    - cmake .. -DCMAKE_BUILD_TYPE=Default -DDOXYGEN_ENABLE=true -DENABLE_TEST=true -DCMAKE_CXX_COMPILER=g++-5 -DCMAKE_C_COMPILER=gcc-5 -DNDIMS=2 -DRNG_ENGINE=well
+  artifacts:
+    name: cmake-cuda-default
+    paths:
+      - build-cuda-default/
+
+build-cuda-default:
+  stage: build
+  dependencies: [prepare-cuda-default]
+  script:
+    - cd build-cuda-default
+    - cmake ..
+    - make -j4 VERBOSE=1
+  artifacts:
+    name: build-cuda-default
+    paths:
+      - build-cuda-default/sphinx
+      - build-cuda-default/conf.ini
+      - build-cuda-default/tests/
+
+test-cuda-default:
+  stage: deploy
+  dependencies: [build-cuda-default]
+  script:
+    - cd build-cuda-default/tests
+    - ctest --output-on-failure --output-log test.log
+  artifacts:
+    name: test
+    paths:
+      - build-cuda-default/tests/test.log
+

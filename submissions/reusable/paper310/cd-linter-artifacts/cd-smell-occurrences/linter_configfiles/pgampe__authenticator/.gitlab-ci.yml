@@ -1,0 +1,102 @@
+cache:
+  key: "$CI_COMMIT_REF_NAME-$CI_JOB_STAGE"
+  paths:
+    - cache/
+
+before_script:
+  - apk add git --update
+
+stages:
+  - test
+  - release
+
+.test: &testing
+  stage: test
+  image: php:$DOCKER_TAG
+  only:
+    - branches
+  variables:
+    TYPO3_PATH_WEB: "$PWD/.Build/Web"
+    TYPO3_PATH_ROOT: "$PWD/.Build/Web"
+    COMPOSER_CACHE_DIR: "cache/composer"
+  before_script:
+    - apk add git --update
+    - php -r "copy('https://getcomposer.org/composer.phar', 'composer.phar');"
+    - php composer.phar config cache-files-dir /cache/composer
+    - php composer.phar config minimum-stability ${COMPOSER_STABILITY}
+    - php composer.phar require ${TYPO3_VERSION} --update-with-dependencies
+#    - php composer.phar require --dev nimut/testing-framework:${NIMUT_TESTFRAMEWORK_VERSION} --update-with-dependencies
+    - php composer.phar require --dev squizlabs/php_codesniffer
+  script:
+#    - .Build/bin/phpunit -c Configuration/.Build/Tests/UnitTests.xml
+    - .Build/bin/phpcs --standard=PSR2 --ignore="Resources/Private/Php/*,public/*,.Build/*" --exclude="Generic.Files.LineLength" --extensions=php *
+
+
+# Build in PHP 7.0 and TYPO3 8 (latest stable release)
+test:php70:typo3_8:
+  <<: *testing
+  variables:
+    DOCKER_TAG: 7.0-alpine
+    TYPO3_VERSION: typo3/cms-core:^8
+    NIMUT_TESTFRAMEWORK_VERSION: ^2
+    COMPOSER_STABILITY: stable
+
+# Build in PHP 7.1 and TYPO3 8 (latest stable release)
+test:php71:typo3_8:
+  <<: *testing
+  variables:
+    DOCKER_TAG: 7.1-alpine
+    TYPO3_VERSION: typo3/cms-core:^8
+    NIMUT_TESTFRAMEWORK_VERSION: ^2
+    COMPOSER_STABILITY: stable
+
+# Build in PHP 7.2 and TYPO3 8 (latest stable release)
+test:php72:typo3_8:
+  <<: *testing
+  variables:
+    DOCKER_TAG: 7.2-alpine
+    TYPO3_VERSION: typo3/cms-core:^8
+    NIMUT_TESTFRAMEWORK_VERSION: ^3
+    COMPOSER_STABILITY: stable
+
+# Build in PHP 7.2 and TYPO3 (9.x)
+test:php72:typo3_9:
+  <<: *testing
+  variables:
+    DOCKER_TAG: 7.2-alpine3.7
+    TYPO3_VERSION: typo3/minimal
+    NIMUT_TESTFRAMEWORK_VERSION: ^3
+    COMPOSER_STABILITY: stable
+
+# Build in PHP 7.2 and TYPO3 (current master)
+test:php72:typo3_master:
+  <<: *testing
+  variables:
+    DOCKER_TAG: 7.2-alpine3.7
+    TYPO3_VERSION: typo3/minimal:dev-master
+    NIMUT_TESTFRAMEWORK_VERSION: ^3
+    COMPOSER_STABILITY: dev
+
+# TER Upload when tagging in master branch
+# The variables T3O_USERNAME and T3O_PASSWORD should be set in GitLab
+ter-upload:
+  image: webdevops/php
+  stage: release
+  only:
+    - tags
+  before_script:
+    - php -r "copy('https://getcomposer.org/composer.phar', 'composer.phar');"
+    - export COMPOSER_CACHE_DIR=.cache/composer
+  script:
+    - php composer.phar require namelesscoder/typo3-repository-client
+    - >
+      if [ -n "$CI_COMMIT_TAG" ] && [ -n "$T3O_USERNAME" ] && [ -n "$T3O_PASSWORD" ]; then
+        echo -e "Preparing upload of release ${CI_COMMIT_TAG} to TER\n"
+        # Cleanup before we upload
+        git reset --hard HEAD && git clean -fx
+        # Upload
+        TAG_MESSAGE=`git tag -n10 -l $CI_COMMIT_TAG | sed 's/^[0-9.]*[ ]*//g'`
+        echo "Uploading release ${CI_COMMIT_TAG} to TER"
+        .Build/bin/upload . "$T3O_USERNAME" "$T3O_PASSWORD" "$TAG_MESSAGE"
+      fi;
+

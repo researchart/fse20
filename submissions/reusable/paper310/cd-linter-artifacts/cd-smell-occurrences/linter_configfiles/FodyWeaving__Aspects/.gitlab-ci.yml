@@ -1,0 +1,89 @@
+image: mono
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+
+stages:
+  - build
+  - test
+  - publish
+  - clean
+
+variables: 
+    NUGET_PACKAGE_VERSION: 2.0.1
+    
+Build: 
+    stage: build
+    script: 
+        - nuget restore Aspects.sln
+        - MONO_IOMAP=case msbuild /t:Build /p:Configuration="Release" /p:Platform="Any CPU" Aspects.sln
+        
+        - nuget pack Aspects.nuspec -IncludeReferencedProjects -Build -Properties Configuration=Release -Version $NUGET_PACKAGE_VERSION-Alpha
+        - nuget pack Aspects.Counters.nuspec -IncludeReferencedProjects -Build -Properties Configuration=Release -Version $NUGET_PACKAGE_VERSION-Alpha
+        - nuget pack Aspects.Logging.nuspec -IncludeReferencedProjects -Build -Properties Configuration=Release -Version $NUGET_PACKAGE_VERSION-Alpha
+        
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.$NUGET_PACKAGE_VERSION-Alpha.nupkg $MYGET_API_KEY -Source $MYGET_SOURCE
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.Logging.$NUGET_PACKAGE_VERSION-Alpha.nupkg $MYGET_API_KEY -Source $MYGET_SOURCE
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.Counters.$NUGET_PACKAGE_VERSION-Alpha.nupkg $MYGET_API_KEY -Source $MYGET_SOURCE
+
+    only:
+        - master
+
+Tests:
+    stage: test
+    script:
+        - nuget restore ./Tests/Tests.sln -source $MYGET_V1_SOURCE
+
+        - MONO_IOMAP=case msbuild /t:Build /p:Configuration="Debug" /p:Platform="Any CPU" ./Tests/Tests.sln
+        - mono /builds/FodyWeaving/Aspects/Tests/packages/NUnit.ConsoleRunner.3.10.0/tools/nunit3-console.exe /builds/FodyWeaving/Aspects/Tests/WeavedAssemblyTest/bin/Debug/WeavedAssemblyTest.dll
+        #- mono /builds/FodyWeaving/Aspects/Tests/packages/NUnit.ConsoleRunner.3.10.0/tools/nunit3-console.exe /builds/FodyWeaving/Aspects/Tests/LoggingTests/bin/Debug/LoggingTests.dll
+    only:
+        - master
+       
+Publish:
+    stage: publish
+    script:
+        - nuget restore Aspects.sln
+        - MONO_IOMAP=case msbuild /t:Build /p:Configuration="Release" /p:Platform="Any CPU" Aspects.sln
+
+        - nuget pack Aspects.nuspec -IncludeReferencedProjects -Build -Properties Configuration=Release -Version $NUGET_PACKAGE_VERSION
+        - nuget pack Aspects.Counters.nuspec -IncludeReferencedProjects -Build -Properties Configuration=Release -Version $NUGET_PACKAGE_VERSION
+        - nuget pack Aspects.Logging.nuspec -IncludeReferencedProjects -Build -Properties Configuration=Release -Version $NUGET_PACKAGE_VERSION
+        
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.$NUGET_PACKAGE_VERSION.nupkg $MYGET_API_KEY -Source $MYGET_SOURCE
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.Logging.$NUGET_PACKAGE_VERSION.nupkg $MYGET_API_KEY -Source $MYGET_SOURCE
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.Counters.$NUGET_PACKAGE_VERSION.nupkg $MYGET_API_KEY -Source $MYGET_SOURCE
+        
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.$NUGET_PACKAGE_VERSION.nupkg $NUGET_API_KEY -Source $NUGET_SOURCE
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.Logging.$NUGET_PACKAGE_VERSION.nupkg $NUGET_API_KEY -Source $NUGET_SOURCE
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.Counters.$NUGET_PACKAGE_VERSION.nupkg $NUGET_API_KEY -Source $NUGET_SOURCE
+
+    only:
+        - master
+
+Publish-Pre:
+    stage: publish
+    script:
+        - nuget restore Aspects.sln
+        - MONO_IOMAP=case msbuild /t:Build /p:Configuration="Debug" /p:Platform="Any CPU" Aspects.sln
+        
+        - nuget pack Aspects.nuspec -IncludeReferencedProjects -Build -Properties Configuration=Debug -Version $NUGET_PACKAGE_VERSION-Pre$CI_JOB_ID
+        - nuget pack Aspects.Counters.nuspec -IncludeReferencedProjects -Build -Properties Configuration=Debug -Version $NUGET_PACKAGE_VERSION-Pre$CI_JOB_ID
+        - nuget pack Aspects.Logging.nuspec -IncludeReferencedProjects -Build -Properties Configuration=Debug -Version $NUGET_PACKAGE_VERSION-Pre$CI_JOB_ID
+
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.$NUGET_PACKAGE_VERSION-Pre$CI_JOB_ID.nupkg $MYGET_API_KEY -Source $MYGET_SOURCE
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.Logging.$NUGET_PACKAGE_VERSION-Pre$CI_JOB_ID.nupkg $MYGET_API_KEY -Source $MYGET_SOURCE
+        - nuget push /builds/FodyWeaving/Aspects/Weaving.Aspects.Counters.$NUGET_PACKAGE_VERSION-Pre$CI_JOB_ID.nupkg $MYGET_API_KEY -Source $MYGET_SOURCE
+        
+    except:
+        - master
+
+Clean: 
+    stage: clean
+    script: 
+        - nuget delete Weaving.Aspects $NUGET_PACKAGE_VERSION-Alpha -Source $MYGET_SOURCE -ApiKey $MYGET_API_KEY -NonInteractive
+        - nuget delete Weaving.Aspects.Counters $NUGET_PACKAGE_VERSION-Alpha -Source $MYGET_SOURCE -ApiKey $MYGET_API_KEY -NonInteractive
+        - nuget delete Weaving.Aspects.Logging $NUGET_PACKAGE_VERSION-Alpha -Source $MYGET_SOURCE -ApiKey $MYGET_API_KEY -NonInteractive
+    only:
+        - master
+

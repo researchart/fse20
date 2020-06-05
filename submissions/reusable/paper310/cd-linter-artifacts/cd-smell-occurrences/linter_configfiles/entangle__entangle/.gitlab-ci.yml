@@ -1,0 +1,17 @@
+jobfedora29:
+  image: quay.io/entangle/cibuild-fedora29
+  script:
+    - meson --prefix="`pwd`/vroot" -Denable-gtk-doc=true build
+    - ninja -C build install
+    - make syntax-check
+    - build-aux/make-dist
+    - rpmbuild --nodeps --define "_sourcedir `pwd`" -ta --clean entangle*.tar.xz
+
+jobubuntu1804:
+  image: quay.io/entangle/cibuild-ubuntu1804
+  script:
+    - meson --prefix="`pwd`/vroot" -Denable-gtk-doc=true build
+    - ninja -C build install
+    - make syntax-check
+    - build-aux/make-dist
+

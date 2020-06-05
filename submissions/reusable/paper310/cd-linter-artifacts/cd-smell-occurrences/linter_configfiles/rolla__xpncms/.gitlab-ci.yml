@@ -1,0 +1,96 @@
+# Add a `.` in front of a job to make it hidden.
+# Add a `&reference` to make it a reusable template.
+# Note that we don't have dashes anymore.
+.init_ssh: &init_ssh |
+  which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )
+  eval $(ssh-agent -s)
+  ssh-add <(echo "$SSH_PRIVATE_KEY")
+  mkdir -p ~/.ssh
+  [[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+
+stages:
+  - build
+  - test
+  - deploy
+
+# Variables
+variables:
+  TEMPLATE: gradio-material
+
+# Speed up builds
+# cache:
+#   key: $CI_BUILD_REF_NAME # changed to $CI_COMMIT_REF_NAME in Gitlab 9.x
+#   paths:
+#     - vendor
+#     - node_modules
+#     - public
+#     - .yarn
+
+
+composer:
+  stage: build
+  image: gradio/image:gradioapi
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-composer
+    paths:
+      - vendor
+  script:
+    - composer install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts
+    - cp config/conf.sample.php config/conf.php
+    - rm -rf cache/templates_c/*.php public/cache/sacy/*.{js,css}
+    # - echo "OK"
+  allow_failure: true
+  artifacts:
+    expire_in: 1 month
+    paths:
+      - config
+
+yarn:
+  stage: build
+  image: gradio/image:gradiofrontend
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-npm
+    paths:
+      - node_modules
+      - .yarn
+      - .cache
+  script:
+    - mkdir -p public/assets
+    # - mkdir -p .cache/yarn
+    # - yarn config set cache-folder .cache/yarn
+    - yarn install --pure-lockfile
+    - yarn devbuild
+    # - echo "OK"
+  allow_failure: true
+  artifacts:
+    expire_in: 1 month
+    paths:
+      - public
+
+staging:
+  stage: deploy
+  script:
+    - *init_ssh
+
+    - ssh -v deployer@utils.gradio.lv -p 9539 bash gradio_gradio/deployStaging.sh $CI_COMMIT_SHA
+  environment:
+    name: staging
+    url: https://dev.gradio.lv
+  when: manual
+  # only:
+  #  - master
+
+production:
+  stage: deploy
+  script:
+    # Reuse a template by calling `*reference`
+    - *init_ssh
+
+    - ssh -v deployer@utils.gradio.lv -p 9539 bash gradio_gradio/deployProduction.sh $CI_COMMIT_SHA
+  environment:
+    name: production
+    url: https://gradio.lv
+  when: on_success
+  only:
+    - master
+

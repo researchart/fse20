@@ -1,0 +1,6 @@
+image: julia:0.6
+
+default:
+  script: 
+    - julia -e "Pkg.update();Pkg.clone(\"https://gitlab.com/jpsamaroo/Tasklets.jl\");Pkg.checkout(\"Tasklets\", \"\$(ENV[\"CI_COMMIT_REF_NAME\"])\");Pkg.test(\"Tasklets\")"
+

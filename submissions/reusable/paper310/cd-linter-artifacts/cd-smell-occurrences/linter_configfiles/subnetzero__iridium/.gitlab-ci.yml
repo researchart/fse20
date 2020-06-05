@@ -1,0 +1,50 @@
+image: "rust:latest"
+
+stages:
+  - test
+  - benchmark
+  - build
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+  APT_CACHE_DIR: $CI_PROJECT_DIR/apt
+
+before_script:
+  - apt-get update -yqq
+  - apt-get install -yqq --no-install-recommends build-essential libsodium-dev
+
+# Use cargo to test the project
+cargo test:
+  allow_failure: true
+  stage: test
+  script:
+    - rustc --version && cargo --version      # Print version info for debugging
+    - cargo test --all --verbose
+
+cargo bench:
+  stage: benchmark
+  script:
+    - rustc --version && cargo --version
+    - cargo bench
+  artifacts:
+    name: benchmark_results
+    paths:
+      - target/criterion
+
+cargo build:
+  stage: test
+  script:
+    - rustc --version && cargo --version      # Print version info for debugging
+    - cargo build --release
+    - strip target/release/iridium
+  artifacts:
+    name: iridium
+    paths:
+      - target/release/iridium
+
+cache:
+  paths:
+    - apt/
+    - cargo/
+    - target/
+

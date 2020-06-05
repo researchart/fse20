@@ -1,0 +1,36 @@
+image: python:3.7.0-alpine
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+  - /root/nltk_data/
+
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+
+before_script:
+  - pwd
+  - pip install -r requirements.txt
+  - python -m nltk.downloader all
+
+stages:
+  - qa
+  - deploy
+
+linting:
+  stage: qa
+  script:
+   - pycodestyle -v --benchmark sentiment.py
+
+
+dummydeploy:
+  stage: deploy
+  script:
+  - echo "dummy deploy"
+
+smoketest:
+  stage: deploy
+  script:
+  - python sentiment.py
+

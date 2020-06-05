@@ -1,0 +1,26 @@
+# Dependencies are managed in the Dockerfile in the inkscape-ci-docker
+# Git repository. Recycle the one for the master Inkscape branch for now
+image: registry.gitlab.com/inkscape/inkscape-ci-docker/master
+
+variables:
+  GIT_DEPTH: "10"
+  GIT_SUBMODULE_STRATEGY: recursive
+
+
+2geom:
+  stage: build
+  before_script:
+    - mkdir -p ccache
+    - export CCACHE_BASEDIR=${PWD}
+    - export CCACHE_DIR=${PWD}/ccache
+  script:
+    - cmake . -DCMAKE_C_COMPILER_LAUNCHER=ccache
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+              -D2GEOM_BOOST_PYTHON=ON
+    - make -j3
+    - make -j3 test
+    - make -j3 perf
+  cache:
+    paths:
+      - ccache/
+

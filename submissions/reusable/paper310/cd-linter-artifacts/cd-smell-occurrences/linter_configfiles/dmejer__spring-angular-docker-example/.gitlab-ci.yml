@@ -1,0 +1,129 @@
+image: docker:latest
+services:
+  - docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay2
+  SPRING_PROFILES_ACTIVE: gitlab-ci
+  MAVEN_OPTS: -Dmaven.repo.local=${CI_PROJECT_DIR}/.m2
+  DIMG_BACKEND: registry.gitlab.com/dmejer/spring-angular-docker-example/news-rest
+  DIMG_FRONTEND: registry.gitlab.com/dmejer/spring-angular-docker-example/news-frontend
+
+stages:
+  - build
+  - test
+  - docker-build
+  - docker-test
+  - docker-release
+
+maven-build:
+  image: maven:3-jdk-8-alpine
+  stage: build
+  cache:
+    key: rest-mvn
+    paths:
+      - .m2/
+  script: "mvn package -B -Dnews-api.apikey=$NEWS_APIKEY"
+  artifacts:
+    paths:
+      - news-rest/target/*.jar
+
+news-frontend-build:
+  image: node:8-alpine
+  stage: build
+  cache:
+    key: news-frontend
+    paths:
+      - news-frontend/node_modules
+  script:
+    - cd news-frontend
+    - npm install
+    - ./node_modules/@angular/cli/bin/ng build
+  artifacts:
+    paths:
+      - news-frontend/dist/news-frontend/
+
+maven-test:
+  image: maven:3-jdk-8-alpine
+  stage: test
+  cache:
+    key: rest-mvn
+  script: "mvn integration-test -B -Dnews-api.apikey=$NEWS_APIKEY"
+
+news-frontend-test:
+  image: registry.gitlab.com/dmejer/node-chrome-docker-img:master
+  stage: test
+  cache:
+    key: news-frontend
+  before_script:
+    # Launch Xvfb
+    - Xvfb :0 -ac -screen 0 1024x768x24 &
+    # Export display for Chrome
+    - export DISPLAY=:99
+  script:
+    - cd news-frontend
+    - rm package-lock.json
+    - npm install
+    - ./node_modules/@angular/cli/bin/ng test --watch=false --browsers ChromeHeadless
+
+# docker-build - push latest
+news-rest-docker-build:
+  stage: docker-build
+  cache:
+    key: rest-mvn
+  before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+  - docker build -t $DIMG_BACKEND:latest news-rest/
+  - docker push $DIMG_BACKEND:latest
+
+news-frontend-docker-build:
+  stage: docker-build
+  dependencies:
+    - news-frontend-build
+  before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+  - docker build -t $DIMG_FRONTEND:latest news-frontend/
+  - docker push $DIMG_FRONTEND:latest
+
+# docker-test
+news-rest-docker-test:
+  stage: docker-test
+  script:
+  - docker pull $DIMG_BACKEND:latest
+  - docker run -p 8080:8080 -e news-api.apikey="$NEWS_APIKEY" -d $DIMG_BACKEND:latest
+
+news-frontend-docker-test:
+  stage: docker-test
+  script:
+  - docker pull $DIMG_FRONTEND:latest
+  - docker run -e NEWS_API_URL="http://localhost:8080" -d $DIMG_FRONTEND:latest
+
+# docker-release
+news-rest-docker-release:
+  stage: docker-release
+  only:
+    - master
+  cache:
+    key: rest-mvn
+  before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+  - docker pull $DIMG_BACKEND:latest
+  - docker tag $DIMG_BACKEND:latest $DIMG_BACKEND:$CI_COMMIT_REF_SLUG
+  - docker push $DIMG_BACKEND:$CI_COMMIT_REF_SLUG
+
+news-frontend-docker-release:
+  stage: docker-release
+  only:
+    - master
+  dependencies:
+    - news-frontend-build
+  before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+  - docker pull $DIMG_FRONTEND:latest
+  - docker tag $DIMG_FRONTEND:latest $DIMG_FRONTEND:$CI_COMMIT_REF_SLUG
+  - docker push $DIMG_FRONTEND:$CI_COMMIT_REF_SLUG
+

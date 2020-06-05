@@ -1,0 +1,394 @@
+# GitLab CI configuration for ffsend builds, tests and releases
+#
+# To add a new release:
+# - configure a new 'build-*' job with the proper target
+# - export a build artifact from the new job
+# - manually upload artifact to GitHub in the 'github-release' job
+
+image: "rust:slim"
+
+stages:
+  - check
+  - build
+  - test
+  - release
+  - package
+
+# Variable defaults
+variables:
+  RUST_VERSION: stable
+  RUST_TARGET: x86_64-unknown-linux-gnu
+
+# Cache rust/cargo/build artifacts
+cache:
+  key: "$CI_PIPELINE_ID-$RUST_VERSION"
+  paths:
+    - /usr/local/cargo/registry/
+    - /usr/local/rustup/toolchains/
+    - /usr/local/rustup/update-hashes/
+    - target/
+
+# Install compiler and OpenSSL dependencies
+before_script:
+  - apt-get update
+  - apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev
+  - |
+    rustup install $RUST_VERSION
+    rustup default $RUST_VERSION
+  - |
+    rustc --version
+    cargo --version
+
+# Check on stable, beta and nightly 
+.check-base: &check-base
+  stage: check
+  script:
+    - cargo check --verbose
+    - cargo check --no-default-features --features send2 --verbose
+    - cargo check --no-default-features --features send3 --verbose
+    - cargo check --no-default-features --features send2,send3 --verbose
+    - cargo check --no-default-features --features send2,send3,archive --verbose
+    - cargo check --no-default-features --features send2,send3,history --verbose
+    - cargo check --no-default-features --features send2,send3,qrcode --verbose
+    - cargo check --no-default-features --features send2,send3,urlshorten --verbose
+    - cargo check --no-default-features --features send2,send3,infer-command --verbose
+    - cargo check --features no-color --verbose
+check-stable:
+  <<: *check-base
+check-beta:
+  <<: *check-base
+  variables:
+    RUST_VERSION: beta
+check-nightly:
+  <<: *check-base
+  variables:
+    RUST_VERSION: nightly
+check-old:
+  <<: *check-base
+  variables:
+    RUST_VERSION: "1.39.0"
+
+# Build using Rust stable
+build-x86_64-linux-gnu:
+  stage: build
+  needs:
+    - check-stable
+  script:
+    - cargo build --target=$RUST_TARGET --release --verbose
+    - mv target/$RUST_TARGET/release/ffsend ./ffsend-$RUST_TARGET
+    - strip -g ./ffsend-$RUST_TARGET
+  artifacts:
+    name: ffsend-x86_64-linux-gnu
+    paths:
+      - ffsend-$RUST_TARGET
+    expire_in: 1 month
+
+# Build a static version
+build-x86_64-linux-musl:
+  stage: build
+  needs:
+    - check-stable
+  variables:
+    RUST_TARGET: x86_64-unknown-linux-musl
+  script:
+    # Install the static target
+    - rustup target add $RUST_TARGET
+
+    # Build OpenSSL statically
+    - apt-get install -y build-essential wget musl-tools
+    - wget https://www.openssl.org/source/openssl-1.0.2o.tar.gz
+    - tar xzvf openssl-1.0.2o.tar.gz
+    - cd openssl-1.0.2o
+    - ./config -fPIC --openssldir=/usr/local/ssl --prefix=/usr/local
+    - make
+    - make install
+    - cd ..
+
+    # Statically build ffsend
+    - export OPENSSL_STATIC=1
+    - export OPENSSL_LIB_DIR=/usr/local/lib
+    - export OPENSSL_INCLUDE_DIR=/usr/local/include
+    - cargo build --target=$RUST_TARGET --release --verbose
+
+    # Prepare the release artifact, strip it
+    - find . -name ffsend -exec ls -lah {} \;
+    - mv target/$RUST_TARGET/release/ffsend ./ffsend-$RUST_TARGET
+    - strip -g ./ffsend-$RUST_TARGET
+  artifacts:
+    name: ffsend-x86_64-linux-musl
+    paths:
+      - ffsend-$RUST_TARGET
+    expire_in: 1 month
+
+# Run the unit tests through Cargo
+test-cargo:
+  stage: test
+  needs:
+    - check-stable
+  dependencies: []
+  script:
+    - cargo test --verbose
+
+# Run integration test with the public Send service
+test-public:
+  image: alpine:latest
+  stage: test
+  dependencies:
+    - build-x86_64-linux-musl
+  variables:
+    GIT_STRATEGY: none
+    RUST_TARGET: x86_64-unknown-linux-musl
+  before_script: []
+  script:
+    # Prepare ffsend binary, create random file
+    - mv ./ffsend-$RUST_TARGET ./ffsend
+    - chmod a+x ./ffsend
+    - head -c1m </dev/urandom >test.txt
+
+    # Generate random file, upload/download and assert equality
+    - ./ffsend upload test.txt -I
+    - ./ffsend download $(./ffsend history -q) -I -o=download.txt
+    - "cmp -s ./test.txt ./download.txt || (echo ERROR: Downloaded file is different than original; exit 1)"
+    - rm ./download.txt
+
+# Cargo crate release
+release-crate:
+  stage: release
+  dependencies: []
+  only:
+    - /^v(\d+\.)*\d+$/
+  script:
+    - echo "Creating release crate to publish on crates.io..."
+    - echo $CARGO_TOKEN | cargo login
+    - echo "Publishing crate to crates.io..."
+    - cargo publish --verbose --allow-dirty
+
+# Snap release
+release-snap:
+  image: snapcore/snapcraft:stable
+  stage: release
+  dependencies: []
+  only:
+    - /^v(\d+\.)*\d+$/
+  before_script: []
+  script:
+    # Prepare the environment
+    - apt-get update -y
+    - apt-get install python3 -yqq
+    - cd pkg/snap
+
+    # Update version number in snapcraft.yaml
+    - VERSION=$(echo $CI_COMMIT_REF_NAME | cut -c 2-)
+    - echo "Determined binary version number 'v$VERSION', updating snapcraft.yaml..."
+    - 'sed "s/^version:.*\$/version: $VERSION/" -i snapcraft.yaml'
+    - 'sed "s/^pkgver=.*\$/pkgver=$VERSION/" -i snapcraft.yaml'
+
+    # Build the package
+    - echo "Building snap package..."
+    - snapcraft
+
+    # Publish snap package
+    - echo "Publishing snap package..."
+    - echo "$SNAPCRAFT_LOGIN" | base64 -d > snapcraft.login
+    - snapcraft login --with snapcraft.login
+    - snapcraft push --release=stable ffsend_*_amd64.snap
+  artifacts:
+    name: ffsend-snap-x86_64
+    paths:
+      - pkg/snap/ffsend_*_amd64.snap
+    expire_in: 1 month
+
+# Publish release binaries to as GitHub release
+release-github:
+  stage: release
+  only:
+    - /^v(\d+\.)*\d+$/
+  dependencies:
+    - build-x86_64-linux-gnu
+    - build-x86_64-linux-musl
+  before_script: []
+  script:
+    # Install dependencies
+    - apt-get update
+    - apt-get install -y curl wget gzip netbase
+
+    # Download github-release binary
+    - wget $(curl -s https://api.github.com/repos/tfausak/github-release/releases/latest | grep 'browser_' | cut -d\" -f4 | grep 'linux') -O github-release.gz
+    - gunzip github-release.gz
+    - chmod a+x ./github-release
+
+    # Create the release, upload binaries
+    - ./github-release release --token "$GITHUB_TOKEN" --owner timvisee --repo ffsend --tag "$CI_COMMIT_REF_NAME"  --title "ffsend $CI_COMMIT_REF_NAME"
+    - ./github-release upload --token "$GITHUB_TOKEN" --owner timvisee --repo ffsend --tag "$CI_COMMIT_REF_NAME" --file ./ffsend-x86_64-unknown-linux-gnu --name ffsend-$CI_COMMIT_REF_NAME-linux-x64
+    - ./github-release upload --token "$GITHUB_TOKEN" --owner timvisee --repo ffsend --tag "$CI_COMMIT_REF_NAME" --file ./ffsend-x86_64-unknown-linux-musl --name ffsend-$CI_COMMIT_REF_NAME-linux-x64-static
+
+# Publish a Docker image
+release-docker:
+  image: docker:git
+  stage: release
+  only:
+    - /^v(\d+\.)*\d+$/
+  dependencies:
+    - build-x86_64-linux-musl
+  services:
+    - docker:dind
+  variables:
+    RUST_TARGET: x86_64-unknown-linux-musl
+    DOCKER_HOST: tcp://docker:2375
+    # DOCKER_DRIVER: overlay2
+  before_script: []
+  script:
+    # Place binary in Docker directory, change to it
+    - mv ./ffsend-$RUST_TARGET ./pkg/docker/ffsend
+    - cd ./pkg/docker
+
+    # Build the Docker image, run it once to test
+    - docker build -t timvisee/ffsend:latest ./
+    - docker run --rm timvisee/ffsend:latest -V
+
+    # Retag version
+    - VERSION=$(echo $CI_COMMIT_REF_NAME | cut -c 2-)
+    - echo "Determined Docker image version number 'v$VERSION', retagging image..."
+    - docker tag timvisee/ffsend:latest timvisee/ffsend:$VERSION
+
+    # Authenticate and push the Docker images
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+    - docker push timvisee/ffsend:$VERSION
+    - docker push timvisee/ffsend:latest
+
+# AUR packages release
+package-aur:
+  image: archlinux/base
+  stage: package
+  needs:
+    - release-github
+  dependencies: []
+  only:
+    - /^v(\d+\.)*\d+$/
+  before_script: []
+  script:
+    - cd ./pkg/aur
+
+    # Determine the version number we're releasing for
+    - VERSION=$(echo $CI_COMMIT_REF_NAME | cut -c 2-)
+    - echo "Determined binary version number 'v$VERSION'"
+
+    # Determine remote URLs and SHA checksums
+    - echo "Determining SHA checksums for remote files..."
+    - URL_BIN=https://github.com/timvisee/ffsend/releases/download/v$VERSION/ffsend-v$VERSION-linux-x64-static
+    - URL_SOURCE=https://gitlab.com/timvisee/ffsend/-/archive/v$VERSION/ffsend-v$VERSION.tar.gz
+    - URL_BASH_COMPLETION=https://gitlab.com/timvisee/ffsend/raw/v$VERSION/contrib/completions/ffsend.bash
+    - URL_ZSH_COMPLETION=https://gitlab.com/timvisee/ffsend/raw/v$VERSION/contrib/completions/_ffsend
+    - URL_FISH_COMPLETION=https://gitlab.com/timvisee/ffsend/raw/v$VERSION/contrib/completions/ffsend.fish
+    - URL_LICENSE=https://gitlab.com/timvisee/ffsend/raw/v$VERSION/LICENSE
+    - 'echo "Selected binary URL: $URL_BIN"'
+    - 'echo "Selected source URL: $URL_SOURCE"'
+    - echo "Determining sha256sum for remote binary..."
+    - 'SHA_BIN=$(curl -sSL "$URL_BIN" | sha256sum | cut -d" " -f1)'
+    - 'echo "Got sha256sum: $SHA_BIN"'
+    - 'SHA_BASH_COMPLETION=$(curl -sSL "$URL_BASH_COMPLETION" | sha256sum | cut -d" " -f1)'
+    - 'echo "Got sha256sums of bash completion: $SHA_BASH_COMPLETION"'
+    - 'SHA_ZSH_COMPLETION=$(curl -sSL "$URL_ZSH_COMPLETION" | sha256sum | cut -d" " -f1)'
+    - 'echo "Got sha256sums of ZSH completion: $SHA_ZSH_COMPLETION"'
+    - 'SHA_FISH_COMPLETION=$(curl -sSL "$URL_FISH_COMPLETION" | sha256sum | cut -d" " -f1)'
+    - 'echo "Got sha256sums of fish completion: $SHA_FISH_COMPLETION"'
+    - 'SHA_LICENSE=$(curl -sSL "$URL_LICENSE" | sha256sum | cut -d" " -f1)'
+    - 'echo "Got sha256sums of LICENSE: $SHA_LICENSE"'
+    - echo "Determining sha256sum for remote source..."
+    - 'SHA_SOURCE=$(curl -sSL "$URL_SOURCE" | sha256sum | cut -d" " -f1)'
+    - 'echo "Got sha256sum: $SHA_SOURCE"'
+
+    # Update PKGBUILD parameters: version, source URL and SHA sum
+    - echo "Updating PKGBUILDS with release information..."
+    - sed "s/^pkgver=.*\$/pkgver=$VERSION/" -i ffsend/PKGBUILD
+    - sed "s/^pkgver=.*\$/pkgver=$VERSION/" -i ffsend-bin/PKGBUILD
+    - sed "s/^pkgver=.*\$/pkgver=$VERSION.$CI_COMMIT_SHORT_SHA/" -i ffsend-git/PKGBUILD
+    - sed "s/^source=(\"\(.*\)::.*\").*\$/source=(\"\1::$(echo $URL_SOURCE | sed 's/\//\\\//g')\")/" -i ffsend/PKGBUILD
+    - sed "s/\(\"ffsend-v\$pkgver::\).*\"/\1$(echo $URL_BIN | sed 's/\//\\\//g')\"/" -i ffsend-bin/PKGBUILD
+    - sed "s/\(\"ffsend-v\$pkgver.bash::\).*\"/\1$(echo $URL_BASH_COMPLETION | sed 's/\//\\\//g')\"/" -i ffsend-bin/PKGBUILD
+    - sed "s/\(\"ffsend-v\$pkgver.zsh::\).*\"/\1$(echo $URL_ZSH_COMPLETION | sed 's/\//\\\//g')\"/" -i ffsend-bin/PKGBUILD
+    - sed "s/\(\"ffsend-v\$pkgver.fish::\).*\"/\1$(echo $URL_FISH_COMPLETION | sed 's/\//\\\//g')\"/" -i ffsend-bin/PKGBUILD
+    - sed "s/\(\"LICENSE-v\$pkgver::\).*\"/\1$(echo $URL_LICENSE | sed 's/\//\\\//g')\"/" -i ffsend-bin/PKGBUILD
+    - sed "s/^sha256sums=.*\$/sha256sums=('$SHA_SOURCE')/" -i ffsend/PKGBUILD
+    - sed "s/^sha256sums=.*\$/sha256sums=('$SHA_BIN' '$SHA_BASH_COMPLETION' '$SHA_ZSH_COMPLETION' '$SHA_FISH_COMPLETION' '$SHA_LICENSE')/" -i ffsend-bin/PKGBUILD
+
+    # Get SHA hash for local and remote file w/o version, update if it has changed
+    - 'SHA_STRIP_LOCAL=$(cat ffsend-git/PKGBUILD | sed /^pkgver=.\*/d | sha256sum | cut -d" " -f1)'
+    - 'SHA_STRIP_REMOTE=$(curl -sSL "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=ffsend-git" | sed /^pkgver=.\*/d | sha256sum | cut -d" " -f1)'
+
+    # Install dependencies
+    - echo "Installing required build packages..."
+    - pacman -Syu --noconfirm sudo base-devel binutils openssh rust cargo cmake git openssl
+
+    # Make AUR package
+    - mkdir -p /.cargo
+    - chmod -R 777 /.cargo
+    - cd ffsend-bin/
+    - echo "Making binary package..."
+    - sudo -u nobody makepkg -c
+    - sudo -u nobody makepkg --printsrcinfo > .SRCINFO
+    - cd ../ffsend
+    - echo "Making main source package..."
+    - sudo -u nobody makepkg -c
+    - sudo -u nobody makepkg --printsrcinfo > .SRCINFO
+    # Make git package if different than the remote
+    - |
+      if [ ! "$SHA_STRIP_LOCAL" == "$SHA_STRIP_REMOTE" ]; then
+        cd ../ffsend-git
+        echo "Making git source package..."
+        sudo -u nobody makepkg -c
+        sudo -u nobody makepkg --printsrcinfo > .SRCINFO
+      else
+        echo "Not making git source package, it has not changed"
+      fi
+    - cd ..
+
+    # Set up SSH for publishing
+    - mkdir -p /root/.ssh
+    - cp ./aur.pub /root/.ssh/id_rsa.pub
+    - echo "$AUR_SSH_PRIVATE" > /root/.ssh/id_rsa
+    - echo "Host aur.archlinux.org" >> /root/.ssh/config
+    - echo "  IdentityFile /root/.ssh/aur" >> /root/.ssh/config
+    - echo "  User aur" >> /root/.ssh/config
+    - chmod 600 /root/.ssh/{id_rsa*,config}
+    - eval `ssh-agent -s`
+    - ssh-add /root/.ssh/id_rsa
+    - ssh-keyscan -H aur.archlinux.org >> /root/.ssh/known_hosts
+    - git config --global user.name "timvisee"
+    - git config --global user.email "tim@visee.me"
+
+    # Publish main package: clone AUR repo, commit update and push
+    - git clone ssh://aur@aur.archlinux.org/ffsend.git aur-ffsend
+    - cd aur-ffsend
+    - cp ../ffsend/{PKGBUILD,.SRCINFO} ./
+    - git add PKGBUILD .SRCINFO
+    - git commit -m "Release v$VERSION"
+    - git push
+    - cd ..
+
+    # Publish binary package: clone AUR repo, commit update and push
+    - git clone ssh://aur@aur.archlinux.org/ffsend-bin.git aur-ffsend-bin
+    - cd aur-ffsend-bin
+    - cp ../ffsend-bin/{PKGBUILD,.SRCINFO} ./
+    - git add PKGBUILD .SRCINFO
+    - git commit -m "Release v$VERSION"
+    - git push
+    - cd ..
+
+    # Publish git package: clone AUR repo, commit update and push
+    # Only publish it if it is different than the remote
+    - |
+      if [ ! "$SHA_STRIP_LOCAL" == "$SHA_STRIP_REMOTE" ]; then
+        git clone ssh://aur@aur.archlinux.org/ffsend-git.git aur-ffsend-git
+        cd aur-ffsend-git
+        cp ../ffsend-git/{PKGBUILD,.SRCINFO} ./
+        git add PKGBUILD .SRCINFO
+        git commit -m "Update PKGBUILD for release v$VERSION"
+        git push
+        cd ..
+      else
+        echo "Not pushing git package, it has not changed"
+      fi
+
+# TODO: add job to test ffsend{-git} AUR packages
+

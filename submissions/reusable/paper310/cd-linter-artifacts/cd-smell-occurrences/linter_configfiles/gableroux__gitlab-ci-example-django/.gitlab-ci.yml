@@ -1,0 +1,22 @@
+image: python:latest
+
+services:
+  - postgres:latest
+
+variables:
+  POSTGRES_DB: ci
+
+cache:
+  paths:
+  - ~/.cache/pip/
+
+before_script:
+  - python -V
+  - pip install -r requirements.txt
+
+test:
+  variables:
+    DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/$POSTGRES_DB"
+  script:
+  - python manage.py test --settings gitlab_ci_example_django.settings.ci
+

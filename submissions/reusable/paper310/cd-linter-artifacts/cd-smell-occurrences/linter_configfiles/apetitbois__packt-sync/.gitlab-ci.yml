@@ -1,0 +1,30 @@
+stages:
+  - test
+  - build
+
+variables:
+  RELEASE_VERSION:  "1.0.1"
+  GO_VERSION:       "1.8"
+  PACKAGE_NAME:     "packt-sync"
+
+before_script:
+    - cd ~
+    - mkdir -p ${GOPATH}/src/gitlab.com/apetitbois/
+    - ln -s ${CI_PROJECT_DIR} ${GOPATH}/src/gitlab.com/apetitbois/${PACKAGE_NAME}
+    - cd ${GOPATH}/src/gitlab.com/apetitbois/${PACKAGE_NAME}
+test:
+  image: golang:${GO_VERSION}
+  stage: test
+  script:
+    - go test -v $(go list ./... | grep -v /vendor/) -cover
+
+build:
+  image: golang:${GO_VERSION}
+  stage: build
+  script:
+    - export HASH=`git rev-parse --short HEAD`
+    - go get github.com/mitchellh/gox
+    - gox -ldflags "-X main.version=${RELEASE_VERSION}-${HASH}" -osarch "darwin/amd64 linux/amd64 windows/amd64" -output "{{.OS}}/{{.Arch}}/${PACKAGE_NAME}" -parallel 3
+  artifacts:
+    untracked: true
+

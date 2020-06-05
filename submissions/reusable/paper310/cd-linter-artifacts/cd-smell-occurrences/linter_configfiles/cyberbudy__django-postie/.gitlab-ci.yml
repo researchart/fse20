@@ -1,0 +1,57 @@
+image: python
+
+stages:
+  - test
+  - build
+  - publish
+
+before_script:
+  - pip install pipenv
+  - pip install -r requirements.txt
+  - pip install tox
+
+python36:
+  image: python:3.6
+  stage: test
+  script: tox -epy36-django20
+
+coverage:
+  stage: test
+  script:
+    - pip install coverage
+    - coverage run --source='.' manage.py test
+    - tox -e py36-django20
+    - coverage html
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+  artifacts:
+    paths:
+      - htmlcov
+    expire_in: 1 day
+
+docs:
+  stage: build
+  script:
+    - cd docs/
+    - pip install -r requirements.txt
+    - rm -rf build/
+    - make html
+  artifacts:
+    paths:
+      - docs/build/html/
+    expire_in: 1 day
+
+pages:
+  stage: publish
+  script:
+    - mkdir -p public/coverage
+    - cp -fr docs/build/html/* public/
+    - cp -fr htmlcov/* public/coverage/
+  dependencies:
+    - coverage
+    - docs
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

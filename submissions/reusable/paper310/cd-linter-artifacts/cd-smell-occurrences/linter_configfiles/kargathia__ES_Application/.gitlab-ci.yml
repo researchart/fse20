@@ -1,0 +1,29 @@
+# defines what docker image is used
+image: gcc
+
+# defines a job for the CI runner. Name here is free, with exception of reserved keywords
+build:
+  # defines what stage this job is executed: build, test or deploy
+  stage: build
+  # before the main script in this job, the following code is run
+  before_script: 
+    - apt-get -qq update 1>/dev/null
+    - apt-get -qq install make autoconf libgtest-dev cmake libusb-1.0-0-dev libgoogle-glog-dev 1>/dev/null
+    - cd /usr/src/gtest && cmake . && make && mv libg* /usr/lib/ && cd -
+    # - git clone https://github.com/DaveGamble/cJSON.git
+    # - cd cJSON && mkdir build && cd build && cmake .. -DENABLE_CJSON_UTILS=On -DENABLE_CJSON_TESTS=Off -DCMAKE_INSTALL_PREFIX=/usr && make install && cd ../..
+    # - ./cgi_install.sh 1>/dev/null
+  script: 
+    - make test
+
+# Lint all files
+lint:
+  stage: build
+  before_script: 
+    - apt-get -qq update 1>/dev/null
+    - apt-get -qq upgrade 1>/dev/null
+    - apt-get -qq install python-pip 1>/dev/null
+    - pip -q install cpplint
+  script:
+    - cpplint --quiet --counting=detailed $( find . -name *.h -or -name *.cpp | grep -vE '^./build/' )
+

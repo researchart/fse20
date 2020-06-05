@@ -1,0 +1,19 @@
+image: gcc
+before_script:
+   - apt-get update --yes
+   - apt-get install --yes cmake
+
+stages:
+  - build
+
+trigger_build:
+  stage: build
+  script:
+    - "rm -rf build && mkdir build && cd build && cmake .."
+    - "make -j4"
+    - "./hello" 
+ 
+
+
+
+

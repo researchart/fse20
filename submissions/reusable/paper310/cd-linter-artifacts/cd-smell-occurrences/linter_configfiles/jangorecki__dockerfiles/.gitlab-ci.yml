@@ -1,0 +1,54 @@
+stages:
+  - deploy-base
+  - deploy-child
+
+.docker-template: &docker
+  tags:
+    - linux
+  image: docker
+  services:
+  - docker:dind
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME" -f $IMAGE_NAME/Dockerfile .
+    - docker push "$CI_REGISTRY_IMAGE/$IMAGE_NAME"
+
+docker-r-base-dev:
+  stage: deploy-base
+  variables:
+    IMAGE_NAME: "r-base-dev"
+  <<: *docker
+
+.docker-r-devel: # job in CI scheduler
+  stage: deploy-base
+  variables:
+    IMAGE_NAME: "r-devel"
+  <<: *docker
+
+.docker-r-3.1.0: # no need to re-build
+  stage: deploy-base
+  variables:
+    IMAGE_NAME: "r-3.1.0"
+  <<: *docker
+
+.docker-r-3.4.4: # no need to re-build
+  stage: deploy-base
+  variables:
+    IMAGE_NAME: "r-3.4.4"
+  <<: *docker
+
+.docker-r-3.5.0: # no need to re-build
+  stage: deploy-base
+  variables:
+    IMAGE_NAME: "r-3.5.0"
+  <<: *docker
+
+docker-r-builder:
+  stage: deploy-child
+  dependencies:
+  - docker-r-base-dev
+  variables:
+    IMAGE_NAME: "r-builder"
+  <<: *docker
+

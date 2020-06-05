@@ -1,0 +1,28 @@
+
+image: debian:latest
+
+before_script:
+  - apt update
+  - apt install luarocks -y
+  - luarocks install moonscript
+
+checkmods:
+  stage: build
+  script:
+    - cd actioncounter
+    - rm -rf lua
+    - mkdir lua
+    - moonc -t lua moon/*
+    - cd ../tf2buildables
+    - rm -rf lua
+    - mkdir lua
+    - moonc -t lua moon/*
+    - cd ../scpinsanity
+    - rm -rf lua
+    - mkdir lua
+    - moonc -t lua moon/*
+    - cd ../dmaps
+    - rm -rf lua
+    - mkdir lua
+    - moonc -t lua moon/*
+

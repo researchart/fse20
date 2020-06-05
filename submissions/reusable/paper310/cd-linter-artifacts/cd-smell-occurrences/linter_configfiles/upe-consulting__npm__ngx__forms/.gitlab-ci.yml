@@ -1,0 +1,72 @@
+image: node:carbon-alpine
+
+cache:
+  key: "$CI_JOB_ID"
+  paths:
+  - node_modules
+
+before_script:
+  - yarn install
+
+stages:
+  - test
+  - build
+  - publish
+
+test:
+  stage: test
+  image: geekykaran/headless-chrome-node-docker
+  coverage: '/Functions\s+:\s(\d+(?:\.\d+)?%)/'
+  script:
+    - yarn run test:ci
+  artifacts:
+      expire_in: 30 min
+      paths:
+        - coverage
+
+build:
+  stage: build
+  script:
+    - yarn run build
+  artifacts:
+    expire_in: 30 min
+    paths:
+      - dist
+
+build:documentation:
+  stage: build
+  script:
+    - yarn run compodoc
+  only:
+    - /^v\d\.\d\.\d$/
+  artifacts:
+    expire_in: 30 min
+    paths:
+      - documentation
+
+pages:
+  stage: publish
+  script:
+    - mkdir public
+    - cp -r documentation/* public/
+  artifacts:
+    paths:
+      - public
+  dependencies:
+    - build
+    - build:documentation
+    - test
+  only:
+    - /^v\d\.\d\.\d$/
+
+publish:
+  stage: publish
+  script:
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}'>.npmrc
+    - npm run publish:lib
+  only:
+    - /^v\d\.\d\.\d$/
+  dependencies:
+    - build
+    - build:documentation
+

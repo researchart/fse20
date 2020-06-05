@@ -1,0 +1,31 @@
+# This file is a template, and might need editing before it works on your project.
+image:
+  name: hashicorp/packer:1.4.2
+  entrypoint:
+    - '/usr/bin/env'
+    - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
+stages:
+  - validate
+  - build
+  - test
+  - deploy
+
+validate:
+  script:
+    - packer validate tests/packer.json
+  stage: validate
+
+build:
+  artifacts:
+    paths:
+      - "/builds/${CI_PROJECT_PATH}/*.log"
+    when: always
+  script:
+    - cat /proc/cpuinfo
+    - apk add --update qemu-system-x86_64 qemu-img
+    - packer build -timestamp-ui tests/packer.json
+  stage: build
+  variables:
+    PACKER_LOG: 1
+

@@ -1,0 +1,14 @@
+image: node
+
+deploy:
+  stage: deploy
+  before_script:
+  - npm install -g firebase-tools --silent
+  script:
+  - firebase deploy --token "$FIREBASE_TOKEN" --project "project-3088336015730889357"
+  artifacts:
+    paths:
+    - app
+  only:
+  - master
+

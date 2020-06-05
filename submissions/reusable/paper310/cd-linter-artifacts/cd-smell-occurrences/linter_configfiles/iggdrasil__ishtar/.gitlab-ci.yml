@@ -1,0 +1,97 @@
+before_script:
+  - apt-get update
+  - apt-get install -q -y git sed python3-pip libpq-dev python3-dev libjpeg-dev zlib1g-dev libxml2-dev libxslt1-dev libgeos-dev python3-cairocffi tidy libtidy-dev binutils libproj-dev gdal-bin libpangocairo-1.0-0 pandoc graphviz
+  - apt-get install -q -y locales
+  - echo "fr_FR.UTF-8 UTF-8" >> /etc/locale.gen
+  - dpkg-reconfigure --frontend=noninteractive locales && update-locale LANG=$LANG
+  - pip3 install -r requirements.txt
+  - cp Makefile.example Makefile
+  - cp example_project/local_settings.py.gitlab-ci example_project/local_settings.py
+
+variables:
+  POSTGRES_DB: gis
+  POSTGRES_USER: gis
+  POSTGRES_PASSWORD: "gis"
+
+build-v2:
+  stage: "build"
+  script: "make build_gitlab"
+  services:
+    - mdillon/postgis
+  tags:
+    - stretch
+  only:
+    - master
+    - develop
+    - v2.0
+    - stretch
+
+build-v3:
+  stage: "build"
+  script: "make build_gitlab"
+  services:
+    - mdillon/postgis
+  tags:
+    - stretch
+  only:
+    - WIP/python3
+
+test-v2:
+  stage: "test"
+  script: "make test_gitlab"
+  services:
+    - mdillon/postgis
+  tags:
+    - stretch
+  only:
+    - master
+    - develop
+    - v2.0
+    - stretch
+
+test-v3:
+  stage: "test"
+  script: "make test_gitlab"
+  services:
+    - mdillon/postgis
+  tags:
+    - stretch
+  only:
+    - WIP/python3
+
+debian:
+  stage: "test"
+  script:
+    - apt-get install -q -y devscripts build-essential lintian wget
+    - make deb
+    - wget -O /etc/apt/sources.list.d/iggdrasil.list http://deb.iggdrasil.net/dists/wheezy/iggdrasil.list
+    - wget -O - http://deb.iggdrasil.net/contact@iggdrasil.net.gpg.key | apt-key add -
+    - apt-get update
+    - apt-get install -q -y --force-yes python-django-ishtar locales-all
+    - INSTANCE=my_ishtar URL=localhost ishtar-prepare-instance
+    - dpkg -i python-django-ishtar_*.deb
+  services:
+    - iggdrasil/postgis-1.5
+  tags:
+    - wheezy
+  only:
+    - wheezy
+
+debian-v2:
+  stage: "test"
+  script:
+    - apt-get install -q -y devscripts build-essential lintian wget
+    - make deb
+    - wget -O /etc/apt/sources.list.d/iggdrasil.list http://deb.iggdrasil.net/dists/wheezy/iggdrasil.list
+    - wget -O - http://deb.iggdrasil.net/contact@iggdrasil.net.gpg.key | apt-key add -
+    - apt-get update
+    - apt-get install -q -y --force-yes python-django-ishtar locales-all
+    - INSTANCE=my_ishtar URL=localhost ishtar-prepare-instance
+    - dpkg -i python-django-ishtar_*.deb
+  services:
+    - mdillon/postgis
+  tags:
+    - stretch
+  only:
+    - stretch
+

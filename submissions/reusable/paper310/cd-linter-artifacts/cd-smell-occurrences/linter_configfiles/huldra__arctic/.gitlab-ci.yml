@@ -1,0 +1,88 @@
+image: gcc
+
+stages:
+  - build
+  - test
+
+build_wizard:
+  stage: build
+  before_script:
+    - apt-get update --yes
+    - apt-get install --yes cmake clang libasound2-dev libglu1-mesa-dev freeglut3-dev libglfw3-dev libgles2-mesa-dev
+  script:
+    - cd wizard
+    - cmake .
+    - make all
+    - cmake -DCMAKE_BUILD_TYPE=Debug .
+    - make all
+    - cd ..
+
+build_ap:
+  stage: build
+  before_script:
+    - apt-get update --yes
+    - apt-get install --yes cmake clang libasound2-dev libglu1-mesa-dev freeglut3-dev libglfw3-dev libgles2-mesa-dev
+  script:
+    - cd antarctica_pyramids
+    - cmake .
+    - make all
+    - cmake -DCMAKE_BUILD_TYPE=Debug .
+    - make all
+    - cd ..
+
+build_filetest:
+  stage: build
+  before_script:
+    - apt-get update --yes
+    - apt-get install --yes cmake clang libasound2-dev libglu1-mesa-dev freeglut3-dev libglfw3-dev libgles2-mesa-dev
+  script:
+    - cd filetest
+    - cmake .
+    - make all
+    - cmake -DCMAKE_BUILD_TYPE=Debug .
+    - make all
+    - cd ..
+
+build_tests:
+  stage: build
+  before_script:
+    - apt-get update --yes
+    - apt-get install --yes cmake clang libasound2-dev libglu1-mesa-dev freeglut3-dev libglfw3-dev libgles2-mesa-dev
+  script:
+    - cd tests
+    - cmake .
+    - make all
+    - cmake -DCMAKE_BUILD_TYPE=Debug .
+    - make all
+    - cd ..
+
+run_tests:
+  stage: test
+  before_script:
+    - apt-get update --yes
+    - apt-get install --yes cmake clang libasound2-dev libglu1-mesa-dev freeglut3-dev libglfw3-dev libgles2-mesa-dev xvfb
+  script:
+    - cd tests
+    - cmake .
+    - make all
+    - xvfb-run ./tests
+    - cmake -DCMAKE_BUILD_TYPE=Debug .
+    - make all
+    - xvfb-run ./tests
+    - cd ..
+
+create_project:
+  stage: test
+  before_script:
+    - apt-get update --yes
+    - apt-get install --yes cmake clang libasound2-dev libglu1-mesa-dev freeglut3-dev libglfw3-dev libgles2-mesa-dev xvfb
+  script:
+    - cd wizard
+    - cmake .
+    - make all
+    - xvfb-run ./wizard create test_project
+    - cd ../../test_project
+    - cmake .
+    - make all
+    - cd ..
+

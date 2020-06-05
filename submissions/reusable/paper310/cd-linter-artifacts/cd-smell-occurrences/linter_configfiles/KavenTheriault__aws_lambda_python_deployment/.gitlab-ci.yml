@@ -1,0 +1,7 @@
+image: node:latest
+
+deploy:
+  script:
+   - npm install -g serverless
+   - sls deploy
+

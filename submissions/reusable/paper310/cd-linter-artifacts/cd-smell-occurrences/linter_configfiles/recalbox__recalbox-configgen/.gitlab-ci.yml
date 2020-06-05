@@ -1,0 +1,17 @@
+image: python:2.7-slim
+      
+stages:
+  - build
+
+build:
+  stage: build
+  script: 
+    - echo "Installing dependencies"
+    - pip install pygame
+    - echo "Running unittests" 
+    - export PYTHONPATH=$PYTHONPATH:$(pwd)/configgen && python -m runtest discover -v -p "*test*"
+    - echo "Building configgen" 
+    - python setup.py install
+  tags:
+    - cgbuild
+

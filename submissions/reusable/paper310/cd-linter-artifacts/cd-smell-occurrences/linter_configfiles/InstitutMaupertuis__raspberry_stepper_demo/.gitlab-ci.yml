@@ -1,0 +1,24 @@
+image: rikorose/gcc-cmake
+
+before_script:
+  - apt update &>/dev/null
+  - apt install -qq -y sudo qttools5-dev qt5-default >/dev/null
+  - ./.wiringPi.bash >/dev/null
+
+cmake_build:
+  stage: build
+  script: 
+    - mkdir -p build
+    - cd build
+    - cmake ..
+    - make -j2
+
+cmake_install:
+  stage: deploy
+  script: 
+    - mkdir -p build
+    - cd build
+    - cmake ..
+    - make -j2 install
+    - ls $HOME/.local/share/applications
+

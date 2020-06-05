@@ -1,0 +1,19 @@
+image: registry.gitlab.com/nestal/spaghetti
+
+stages:
+  - build
+
+build_spag:
+  stage: build
+  script:
+    - mkdir build/
+    - cd build
+    - cmake -DCMAKE_BUILD_TYPE=Release ..
+    - make all
+    - ./unittest
+    - make package
+  artifacts:
+    name: "${CI_BUILD_NAME}_${CI_BUILD_REF_NAME}"
+    paths:
+      - build/*.rpm
+

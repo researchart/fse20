@@ -1,0 +1,74 @@
+image: node:8
+
+stages:
+  - build
+  - deploy
+
+.preview_job: &preview_job
+  only:
+    - master
+
+.production_job: &production_job
+  only:
+    - /^release-.*$/
+
+.build_template: &build_template
+  stage: build
+  dependencies: []
+  artifacts:
+    paths:
+      - build/
+  script:
+    - yarn gulp build
+    - rm -r build/__discard__
+    - gzip -k -6 $(find build/ -type f)
+
+.deploy_template: &deploy_template
+  stage: deploy
+  script:
+    - yarn firebase use --token $FIREBASE_DEPLOY_KEY default
+    - yarn firebase deploy --only hosting:$DEPLOY_ENV -m "Pipeline $CI_PIPELINE_ID, Build $CI_BUILD_ID" --non-interactive --token $FIREBASE_DEPLOY_KEY
+
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+  - yarn install
+
+build-preview:
+  <<: *build_template
+  <<: *preview_job
+  variables:
+    DEPLOY_ENV: preview
+    GA_PROP: $PREVIEW_GA_PROPERTY
+
+build-production:
+  <<: *build_template
+  <<: *production_job
+  variables:
+    DEPLOY_ENV: production
+    GA_PROP: $PROD_GA_PROPERTY
+
+deploy-preview:
+  <<: *deploy_template
+  <<: *preview_job
+  dependencies:
+    - build-preview
+  environment:
+    name: preview
+    url: https://preview.regexper.com
+  variables:
+    DEPLOY_ENV: preview
+
+deploy-production:
+  <<: *deploy_template
+  <<: *production_job
+  dependencies:
+    - build-production
+  environment:
+    name: production
+    url: https://regexper.com
+  variables:
+    DEPLOY_ENV: production
+

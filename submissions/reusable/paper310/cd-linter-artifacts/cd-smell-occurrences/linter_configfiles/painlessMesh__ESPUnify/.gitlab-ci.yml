@@ -1,0 +1,9 @@
+before_script:
+  - apt-get update -qq && apt-get install -y -qq python-pip
+  - pip install platformio
+  
+linux:
+  script:
+    - platformio ci --lib="." --board=nodemcuv2 examples/basic/basic.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror"
+    - platformio ci --lib="." --board=esp32dev examples/basic/basic.ino -O "build_flags = -Wall -Wextra -Wno-unused-parameter -Werror -std=c++14"
+

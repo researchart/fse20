@@ -1,0 +1,18 @@
+image: mizux/android:latest
+
+stages:
+  - build
+  - test
+
+build:linux:
+  stage: build
+  script:
+    - android create project --name Plop --target android-19 --package net.mizux.plop --activity MainActivity --gradle -v 2.1.3 -p .
+    - cp -r updated-gradle/* .
+    - ./gradlew
+
+test:linux:
+  stage: test
+  script:
+    - echo "TEST COMING SOON..."
+

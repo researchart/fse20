@@ -1,0 +1,15 @@
+image: centos:latest
+
+before_script:
+    - curl -sSfLk https://github.com/Keats/gutenberg/releases/download/v0.3.4/gutenberg-v0.3.4-x86_64-unknown-linux-gnu.tar.gz | tar xz
+
+pages:
+    stage: deploy
+    script:
+        - ./gutenberg build
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+

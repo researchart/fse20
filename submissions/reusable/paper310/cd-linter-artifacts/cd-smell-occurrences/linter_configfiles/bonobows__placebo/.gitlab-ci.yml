@@ -1,0 +1,54 @@
+
+stages:
+  - build
+  - test
+
+variables:
+  CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  
+build:
+  stage: build
+  except:
+    - master
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker build --no-cache -t $CONTAINER_IMAGE/web ./php/ --tag $CONTAINER_IMAGE/web:$CI_BUILD_REF --tag $CONTAINER_IMAGE/web:latest
+    - docker build --no-cache -t $CONTAINER_IMAGE/db ./sql/ --tag $CONTAINER_IMAGE/db:$CI_BUILD_REF --tag $CONTAINER_IMAGE/db:latest
+    - docker push $CONTAINER_IMAGE/web:$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE/web:latest
+    - docker push $CONTAINER_IMAGE/db:$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE/db:latest
+
+build-stable:
+  stage: build
+  only:
+    - master
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker build --no-cache -t $CONTAINER_IMAGE/web ./php/ --tag $CONTAINER_IMAGE/web:$CI_BUILD_REF --tag $CONTAINER_IMAGE/web:latest --tag $CONTAINER_IMAGE/web:stable
+    - docker build --no-cache -t $CONTAINER_IMAGE/db ./sql/ --tag $CONTAINER_IMAGE/db:$CI_BUILD_REF --tag $CONTAINER_IMAGE/db:latest --tag $CONTAINER_IMAGE/db:stable
+    - docker push $CONTAINER_IMAGE/web:$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE/web:latest
+    - docker push $CONTAINER_IMAGE/web:stable
+    - docker push $CONTAINER_IMAGE/db:$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE/db:latest
+    - docker push $CONTAINER_IMAGE/db:stable
+
+a11y:
+  stage: test
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker run -d --name db  $CONTAINER_IMAGE/db:$CI_BUILD_REF
+    - docker run -p 80:80 -d --link db:db --name web  $CONTAINER_IMAGE/web:$CI_BUILD_REF
+    - docker run --rm -v $(pwd)/pa11y:/home/node/app --link web:web civicactions/docker-pa11y pa11y-ci --config ci.json
+  coverage: '/"passes":\d+,"errors":\d+,/'
+

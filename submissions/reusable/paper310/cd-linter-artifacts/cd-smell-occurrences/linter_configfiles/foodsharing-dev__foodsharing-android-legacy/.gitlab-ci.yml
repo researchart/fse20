@@ -1,0 +1,23 @@
+stages:
+  - build
+
+build:
+  image: karrot/android-build:api-27-node8-alpha
+  stage: build
+  tags:
+    - non-shared
+  script:
+    - cordova platform add android
+    - >
+        cordova build
+          --release
+          --
+          --keystore=foodsharing.dev.pfx
+          --alias=foodsharing.dev
+          --storePassword=foodsharing.dev
+          --password=foodsharing.dev
+    - mv platforms/android/build/outputs/apk/release/android-release.apk foodsharing.dev.release.apk
+  artifacts:
+    paths:
+      - foodsharing.dev.release.apk
+

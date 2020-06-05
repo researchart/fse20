@@ -1,0 +1,137 @@
+# Build OS = Ubuntu LTS (latest)
+image: mxklb/docker-qt5-deb
+
+stages:
+- tests
+- build
+- deploy
+- release
+
+before_script:
+- chmod +x gitlab.sh && ./gitlab.sh
+
+## 1 Debug builds (++ test)
+.debug_compile: &debug_compile
+  script:
+    - qmake cuteproject.pro -r CONFIG+=debug
+    - make
+
+.debug_build_with_tests:
+  stage: tests
+  <<: *debug_compile
+  except:
+    - tags
+
+# Debug build (++ test coverage)
+debug_tests_coverage:
+  extends: .debug_build_with_tests
+  after_script:
+    - gcovr -r . -e '.*extern.*' -e '.*moc_.*'
+    - chmod +x lcov.sh && ./lcov.sh
+    - mv coverage/*.pdf .
+    - mv coverage/*.tar.gz .
+  artifacts:
+    paths:
+      - coverage.pdf
+      - coverage.tar.gz
+    name: "test_coverage"
+
+# Test latest Ubuntu (rolling)
+debug_tests_rolling:
+  extends: .debug_build_with_tests
+  image: mxklb/docker-qt5-deb:rolling
+  allow_failure: true
+
+# Test bleeding Ubuntu (devel)
+debug_tests_devel:
+  extends: .debug_build_with_tests
+  image: mxklb/docker-qt5-deb:devel
+  allow_failure: true
+
+## 2 Release build (++ tests)
+.release_compile: &release_compile
+  script:
+    - qmake cuteproject.pro -r CONFIG+=release
+    - make
+
+release_tests:
+  stage: tests
+  <<: *release_compile
+
+## 3 Release build (no tests)
+release_build:
+  stage: build
+  <<: *release_compile
+  before_script:
+    - chmod +x gitlab.sh && ./gitlab.sh
+    - echo "catchTests=false" > globals.pri
+
+## 4 Build & Deploy debian packages
+.build_debian_pkg:
+  stage: deploy
+  script:
+    - chmod +x pkgs/version.sh
+    - chmod +x pkgs/debian.sh && pkgs/debian.sh
+    - mv pkgs/deb/cuteproject-*.deb .
+  artifacts:
+    paths:
+      - cuteproject-*.deb
+
+# Continuous deployments
+debian_xenial_latest:
+  extends: .build_debian_pkg
+  image: mxklb/docker-qt5-deb:xenial
+  artifacts:
+    name: "cuteproject-xenial_amd64"
+
+debian_trusty_latest:
+  extends: .build_debian_pkg
+  image: mxklb/docker-qt5-deb:trusty
+  before_script:
+    - chmod +x gitlab.sh && ./gitlab.sh
+    - export USER=$GITLAB_USER_LOGIN
+  artifacts:
+    name: "cuteproject-trusty_amd64"
+
+# Release deployments
+.release_deployment: &release_deployment
+  stage: release
+  only:
+    - tags
+  except:
+    - /^(?!master).+@/
+
+debian_xenial_stable:
+  extends: debian_xenial_latest
+  <<: *release_deployment
+
+debian_trusty_stable:
+  extends: debian_trusty_latest
+  <<: *release_deployment
+
+## 5 Build & Deploy .AppImage's
+.build_appimage:
+  stage: deploy
+  image: mxklb/docker-qt5-deb:trusty
+  <<: *release_compile
+  before_script:
+    - chmod +x gitlab.sh && ./gitlab.sh
+    - echo "catchTests=false" > globals.pri
+  after_script:
+    - chmod +x pkgs/version.sh
+    - chmod +x pkgs/appimage.sh && pkgs/appimage.sh
+    - mv pkgs/cuteproject-* .
+  artifacts:
+    paths:
+      - cuteproject-*
+    name: "cuteproject-x86_64"
+
+# Continuous deployment
+appimage_latest:
+  extends: .build_appimage
+
+# Release deployment
+appimage_stable:
+  extends: .build_appimage
+  <<: *release_deployment
+

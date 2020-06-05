@@ -1,0 +1,147 @@
+stages:
+  - build
+  - test_setup
+  - test
+  - test_teardown
+  - report
+  - docs
+  - deploy
+
+variables:
+  REGISTRY_BASE: registry.gitlab.com/engineering-projekt/examibur
+  JEKYLL_IMAGE: $REGISTRY_BASE:jekyll-$CI_COMMIT_REF_NAME
+  EXAMIBUR_IMAGE: $REGISTRY_BASE:examibur-$CI_COMMIT_REF_NAME
+
+cache:
+  paths:
+    - examibur/build/
+    - examibur/.gradle/
+
+build_images:
+  stage: build
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY_BASE
+    - docker build -t $JEKYLL_IMAGE -f docker/Dockerfile.jekyll .
+    - docker push $JEKYLL_IMAGE
+
+build:
+  image: java:8-jdk
+  stage: build
+  script:
+    - cd examibur/
+    - ./gradlew assemble
+  artifacts:
+    paths:
+      - examibur/build/libs/
+
+before_test:
+  image: tmaier/docker-compose
+  stage: test_setup
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  script:
+    - docker-compose rm -f tomcat postgres
+    - docker-compose up -d --build tomcat postgres
+    - sleep 15
+
+test:
+  image: java:8-jdk
+  stage: test
+  variables:
+    UI_TEST_URL: http://tomcat:8080/
+    DB_HOST: postgres
+    DB_USER: examibur
+    DB_PASSWORD: "m4U6ctWpEZE801T"
+    LOG_LEVEL: INFO
+    LOG_FILE: examibur.log
+  script:
+    - cd examibur && ./gradlew clean test integrationTest
+  artifacts:
+    when: always
+    paths:
+      - examibur/screenshots/
+      - examibur/jacoco/jacoco*.exec
+
+after_test:
+  image: tmaier/docker-compose
+  stage: test_teardown
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  script:
+    - docker-compose stop tomcat postgres
+    - docker cp examibur_tomcat_1:/var/jacoco/jacocoTomcat.exec examibur/jacoco/jacocoTomcat.exec
+    - docker-compose kill tomcat postgres
+    - docker-compose rm -f tomcat postgres
+  when: always
+  artifacts:
+    paths:
+      - examibur/jacoco/jacocoTomcat.exec
+
+jacoco:
+  image: java:8-jdk
+  stage: report
+  script:
+    - cd examibur && ls -la jacoco/ && ./gradlew jacocoTestReport
+  artifacts:
+    paths:
+      - examibur/build/reports/jacoco/
+
+report_sonar:
+  image: java:8-jdk
+  stage: report
+  script:
+    - cd examibur/
+    - ./gradlew sonarqube -Dsonar.login=$SONARQUBE_TOKEN
+  artifacts:
+    paths:
+      - examibur/build/reports/
+  only:
+    - master
+
+generate_pages:
+  stage: docs
+  image: $JEKYLL_IMAGE
+  script:
+    - cd docs/
+    - jekyll build -d public
+  artifacts:
+    paths:
+    - docs/public/
+
+examibur_image:
+  stage: deploy
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY_BASE
+    - docker build -t $EXAMIBUR_IMAGE -f docker/Dockerfile.examibur .
+    - docker push $EXAMIBUR_IMAGE
+
+deploy_staging:
+  stage: deploy
+  image: cwt114/alpine-ssh
+  script:
+    - mkdir -p ~/.ssh/
+    - eval `ssh-agent -s`
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - echo "$SSH_SERVER_HOSTKEYS" > ~/.ssh/known_hosts
+    - ssh deploy@sinv-56077.edu.hsr.ch
+  environment:
+    name: staging
+    url: https://examibur-demo.raphael.li/
+  only:
+    - master
+
+

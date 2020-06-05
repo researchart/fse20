@@ -1,0 +1,55 @@
+# Use Rust docker image, see: https://hub.docker.com/_/rust/
+image: rust:latest
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+  DEPLOY_TARGET: /home/gitlab-runner/deploy/mailin/mailin
+ 
+cache:
+  key: "$CI_JOB_NAME"
+  untracked: true
+  paths:
+    - cargo/
+    - target/
+
+# Defines stages which are to be executed
+stages:
+  - build
+  - release
+  - deploy
+
+# Run `cargo test` for the project with stable Rust
+run-build:
+  stage: build
+  image: rust:latest
+  script:
+    - rustc --version && cargo --version
+    - cargo test
+
+ 
+release-build:
+  stage: release
+  image: rust:latest
+  script:
+    - cargo build --release
+  artifacts:
+    paths:
+      - target/release/mailin-server
+  only:
+    - master
+
+deploy-master:
+  stage: deploy
+  tags:
+    - coward
+  dependencies:
+    - release-build
+  script:
+    - rm -f $DEPLOY_TARGET
+    - cp target/release/mailin-server $DEPLOY_TARGET
+    - sudo systemctl restart mailin
+  environment:
+    name: coward
+  only:
+    - master
+

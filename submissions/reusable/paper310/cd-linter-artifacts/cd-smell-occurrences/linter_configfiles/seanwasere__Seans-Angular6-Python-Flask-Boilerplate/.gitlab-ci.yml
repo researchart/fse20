@@ -1,0 +1,31 @@
+image: docker
+
+services:
+  - docker:dind
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  only:
+    - develop
+    - production
+  script:
+    - echo run tests in this section
+
+step-deploy-prod:
+  stage: deploy
+  only:
+    - production
+  script:
+    - sudo apt-get install -y python-pip
+    - pip install docker-compose
+    - sudo docker image prune -f
+    - sudo docker-compose build --no-cache
+    - sudo docker-compose up -d
+  environment: production
+  when: manual
+  
+

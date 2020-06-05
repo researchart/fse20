@@ -1,0 +1,15 @@
+image: node:8.5.0
+cache:
+  key: "$CI_BUILD_REF_NAME"
+  paths:
+  - node_modules/
+services:
+  - mongo
+variables:
+  MONGO_URI: "mongodb://mongo/ornix"
+  NODE_ENV: "ci"
+all_tests:
+  script:
+  - npm install && npm install --only=dev
+  - npm run test:ci
+

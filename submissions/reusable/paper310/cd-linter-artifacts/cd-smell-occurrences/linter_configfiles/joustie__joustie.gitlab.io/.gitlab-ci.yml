@@ -1,0 +1,23 @@
+image: node:6
+
+pages:
+  cache:
+    paths:
+    - node_modules/
+
+  script:
+  - npm install hexo-cli -g
+  - npm install -g hexo
+  - npm install hexo
+  - npm install hexo-generator-feed
+  - npm install
+  - hexo generate
+  - hexo deploy
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+  tags:
+  - gitlab-org
+

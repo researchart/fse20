@@ -1,0 +1,10 @@
+pages:
+  stage: deploy
+  script:
+    - pwd
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

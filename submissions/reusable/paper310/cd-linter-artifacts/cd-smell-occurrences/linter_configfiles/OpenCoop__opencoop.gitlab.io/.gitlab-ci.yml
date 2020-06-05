@@ -1,0 +1,38 @@
+# All available Hugo versions are listed here: https://gitlab.com/pages/hugo/container_registry
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+test:
+  stage: test
+  image: registry.gitlab.com/pages/hugo:latest
+  script:
+  - hugo
+  except:
+  - master
+
+pages:
+  stage: deploy
+  image: registry.gitlab.com/pages/hugo:latest
+  script:
+  - hugo
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+cert-renew:
+  image: alpine:3.7
+  only:
+    - schedules
+  variables:
+    CERTBOT_RENEWAL_PIPELINE_GIT_TOKEN: $CERTBOT_RENEWAL_PIPELINE_GIT_TOKEN # must set this variable in the GitLab Pipeline Schedule, with value being a personal access token granting access to the GitLab API, since we need this to push the challenge files and update pages domain certificates: https://docs.gitlab.com/ee/api/README.html#personal-access-tokens
+  script:
+    - chmod +x letsencrypt/*
+    - apk upgrade && apk add --virtual=run-deps certbot bash git openssl curl
+    - export PATH=$PATH:$CI_PROJECT_DIR:$CI_PROJECT_DIR/letsencrypt
+    - git config --global user.name $GITLAB_USER_LOGIN
+    - git config --global user.email $GITLAB_USER_EMAIL
+    - renew.sh
+

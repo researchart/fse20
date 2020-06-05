@@ -1,0 +1,14 @@
+# Lua linter check
+
+before_script:
+  - echo "Downloading GLua Lexer"
+  - curl -o glualint.zip -L https://github.com/FPtje/GLuaFixer/releases/download/1.11.2/glualint-1.11.2-linux.zip
+  - echo "Unzipping GLua Lexer"
+  - unzip glualint.zip
+
+test:
+  stage: test
+  script:
+    - echo "Running GLua Lexer"
+    - ./glualint magic_carpets/lua
+

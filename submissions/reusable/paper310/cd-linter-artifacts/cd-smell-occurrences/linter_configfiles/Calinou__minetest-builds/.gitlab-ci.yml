@@ -1,0 +1,39 @@
+# The GitHub repository is mirrored to GitLab.com, where continuous builds
+# are performed and can be downloaded.
+#
+# https://gitlab.com/Calinou/minetest-builds
+#
+# This build script is licensed under CC0 1.0 Universal:
+# https://creativecommons.org/publicdomain/zero/1.0/
+
+# Use only one stage for simplicity's sake
+stages:
+  - build
+
+variables:
+  # The number of CPU threads to use for compiling Minetest
+  BUILD_THREADS: 3
+  # The Minetest Git clone directory
+  MINETEST_DIR: $CI_PROJECT_DIR/minetest
+
+before_script:
+  - "$CI_PROJECT_DIR/scripts/before_script.sh"
+  - cd "$MINETEST_DIR"
+
+after_script:
+  - "$CI_PROJECT_DIR/scripts/after_script.sh"
+
+# Build on Ubuntu 14.04 so that binaries run on old distributions as well
+
+build:linux_client:
+  stage: build
+  image: ubuntu:trusty
+  script:
+    - "$CI_PROJECT_DIR/scripts/build/linux_client.sh"
+
+build:linux_server:
+  stage: build
+  image: ubuntu:trusty
+  script:
+    - "$CI_PROJECT_DIR/scripts/build/linux_server.sh"
+

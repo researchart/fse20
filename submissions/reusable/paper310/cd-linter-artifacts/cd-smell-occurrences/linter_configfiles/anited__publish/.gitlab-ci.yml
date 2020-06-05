@@ -1,0 +1,20 @@
+include:
+  template: Dependency-Scanning.gitlab-ci.yml
+
+.shared_before_script: &shared_before_script
+  before_script:
+  - python --version
+  - pip install tox
+
+test:python36:
+  <<: *shared_before_script
+  image: python:3.6
+  script:
+  - tox -e py36
+
+test:python37:
+  <<: *shared_before_script
+  image: python:3.7
+  script:
+  - tox -e py37
+

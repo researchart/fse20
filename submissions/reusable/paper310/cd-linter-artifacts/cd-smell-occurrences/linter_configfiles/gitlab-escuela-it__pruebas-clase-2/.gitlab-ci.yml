@@ -1,0 +1,34 @@
+stages:
+  - test
+  - build
+  - deploy
+
+test:
+  stage: test
+  script: echo "Lanzando tests..."
+
+build:
+  stage: build
+  script: echo "Build..."
+
+deploy_staging:
+  stage: deploy
+  script:
+    - echo "Deploy a staging..."
+  environment:
+    name: staging
+    url: https://staging.escuela.it
+  only:
+  - master
+
+deploy_prod:
+  stage: deploy
+  script:
+    - echo "Deploy a producción..."
+  environment:
+    name: production
+    url: https://escuelta.it
+  when: manual
+  only:
+  - master
+

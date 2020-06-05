@@ -1,0 +1,70 @@
+stages:
+  - test
+  - build
+  - deploy
+
+# Cache node_modules to avoid reinstalling them on next runs.
+cache:
+  key: ${CI_BUILD_REF_NAME}
+  paths:
+    - node_modules/
+
+test:
+  image: mhart/alpine-node:8.4
+  stage: test
+  script:
+    - npm install
+    - npm test -- --coverage
+    - npm run prettier:check
+  only:
+    - /^(feat\/|bugfix\/|hotfix\/|develop|release|master).*$/
+  coverage: /All files\s*\|\s*([\d\.]+)/
+
+build:
+  image: mhart/alpine-node:8.4
+  stage: build
+  script:
+    - npm install
+    - npm run build
+  # Create artifact of build/ to be available in the next deploy job.
+  artifacts:
+    paths:
+       - build/
+  only:
+    - /^(develop|release|master).*$/
+
+deploy:
+  stage: deploy
+  image: ekino/docker-buildbox:latest-dind-aws
+  script:
+    - pip install awscli
+    - aws s3 sync ./build s3://dev.nice-app.ml/
+  environment:
+    name: development
+    url: https://dev.nice-app.ml
+  only:
+    - develop
+
+deploy-release:
+  stage: deploy
+  image: ekino/docker-buildbox:latest-dind-aws
+  script:
+    - pip install awscli
+    - aws s3 sync ./build s3://release.nice-app.ml/
+  environment:
+    name: release
+    url: https://release.nice-app.ml
+  only:
+    - release
+
+deploy-master:
+  stage: deploy
+  image: ekino/docker-buildbox:latest-dind-aws
+  script:
+    - pip3 install awscli
+    - aws s3 sync ./build s3://nice-app.ml/
+  environment:
+    name: production
+    url: https://nice-app.ml
+  only:
+    - master

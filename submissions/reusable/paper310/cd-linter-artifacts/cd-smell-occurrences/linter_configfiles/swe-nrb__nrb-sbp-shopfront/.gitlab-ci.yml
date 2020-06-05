@@ -1,0 +1,42 @@
+stages:
+  - download-deps
+  - build
+  - deploy
+
+download_deps_npm:
+  stage: download-deps
+  tags:
+    - npm
+  script:
+    - npm install
+  artifacts:
+    paths:
+      - node_modules/
+
+hemsida:
+  stage: build
+  tags:
+    - npm
+  dependencies:
+    - download_deps_npm
+  script:
+    - $(npm bin)/hexo generate
+  artifacts:
+    name: 'hemsida'
+    paths:
+      - public
+
+pages:
+  stage: deploy
+  tags:
+    - npm
+  script:
+    - echo "Publicerar hemsida"
+  dependencies:
+    - hemsida
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

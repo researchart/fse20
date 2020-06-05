@@ -1,0 +1,20 @@
+image: python:3.7
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  script:
+    - python setup.py test
+
+deploy:
+  stage: deploy
+  script:
+    - pip install --user --upgrade pip setuptools wheel twine
+    - python setup.py sdist bdist_wheel
+    - python -m twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD dist/*
+  only:
+    - master
+

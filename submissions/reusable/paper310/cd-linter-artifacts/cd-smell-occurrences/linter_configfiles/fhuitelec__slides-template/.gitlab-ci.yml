@@ -1,0 +1,20 @@
+# This file is a template, and might need editing before it works on your project.
+# Template project: https://gitlab.com/pages/jekyll
+# Docs: https://docs.gitlab.com/ce/pages/
+image: ruby:2.3
+
+variables:
+  JEKYLL_ENV: production
+
+pages:
+  stage: deploy
+  script:
+    - rm -rf ./_site/20*
+    - mkdir public
+    - mv ./_site/* public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

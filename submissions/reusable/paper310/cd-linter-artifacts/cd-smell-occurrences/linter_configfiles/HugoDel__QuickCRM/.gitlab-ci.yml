@@ -1,0 +1,63 @@
+image: thefrenchdev/qc-testing-image
+
+services:
+  - mysql:5
+
+stages:
+  - build
+  - test
+  - release
+  - deploy
+
+variables:
+  CONTAINER_IMAGE: registry.gitlab.com/hugodel/quickcrm
+  CONTAINER_TEST_IMAGE: $CONTAINER_IMAGE:$CI_BUILD_REF_NAME
+  MYSQL_DATABASE: 'qc'
+  MYSQL_ROOT_PASSWORD: 'testing'
+
+
+
+cache:
+  paths:
+    - ~/.cache/pip/
+    - ~/node_modules
+
+before_script:
+  - python -V
+  - pip install -U -r requirements.txt
+  - pip install -U --index-url https://test.pypi.org/simple/ pytexder
+  - npm install -d
+  - webpack
+  - ls -la
+
+test:
+  stage: test
+  script:
+    - ./test_extra/lint.sh
+    - pytest -n auto --tb native
+
+#build:
+#  stage: build
+#  except:
+#    - web
+#  only:
+#    - master
+#  script:
+#    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+#    - docker build -t $CONTAINER_TEST_IMAGE .
+#    - docker push $CONTAINER_TEST_IMAGE
+#
+#
+#release_stg:
+#  stage: release
+#  tags  :
+#    - shell
+#  only:
+#    - web
+#  script:
+#    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+#    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_IMAGE:staging
+#    - docker push $CONTAINER_IMAGE:staging
+
+
+

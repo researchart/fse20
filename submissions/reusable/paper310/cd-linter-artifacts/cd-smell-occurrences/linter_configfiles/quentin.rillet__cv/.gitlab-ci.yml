@@ -1,0 +1,56 @@
+variables:
+  DEPLOY_HOST: quentinrillet.fr
+  DEPLOY_COMMON_PATH: /var/www/cv
+  
+image: docker:latest
+
+stages:
+  - build
+  - release
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+services:
+  - docker:dind
+
+before_script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  - apk add --update python py-pip python-dev && pip install docker-compose
+  - docker info
+  - docker network create webproxy
+  - docker-compose version
+  - mkdir apps
+  - cp .env.dist .env
+
+build:
+  stage: build
+  only:
+    - master
+  tags:
+    - docker
+  script:
+    - docker-compose build
+    - docker-compose up -d
+    - docker-compose ps
+
+deploy:production:
+  image: ruby:latest
+  stage: deploy
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$DEPLOYMENT_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - bundle install
+  environment:
+    name: production
+    url: https://quentinrillet.fr
+  when: manual
+  script:
+    - cap production deploy
+  only:
+    - master
+

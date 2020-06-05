@@ -1,0 +1,17 @@
+image: java:latest
+
+stages:
+  - build
+  - execute
+
+build:
+  stage: build
+  script: /usr/lib/jvm/java-8-openjdk-amd64/bin/javac HelloWorld.java
+  artifacts:
+    paths:
+     - HelloWorld.*
+
+execute:
+  stage: execute
+  script: /usr/lib/jvm/java-8-openjdk-amd64/bin/java HelloWorld
+

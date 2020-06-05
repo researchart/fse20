@@ -1,0 +1,48 @@
+#image: yemistikris/sapar-id3:latest
+
+cache:
+  key: "$CI_JOB_NAME"
+  paths:
+  - vendor/
+
+#Uncomment only if image it not a registry.gitlab image
+#before_script:
+#- bash ./ci/docker_install.sh
+
+stages:
+  - build-7.2
+  - build-latest
+  - publish
+  - deploy
+
+####################
+#       BUILD      #
+####################
+
+build:vendor:php-7.2:
+  stage: build-7.2
+  image: registry.gitlab.com/pyrex-fwi/sapar-id3:php-7.2
+  script:
+    - cat composer.json
+    - composer install
+    - vendor/bin/phpunit --verbose --debug
+  except:
+    - master
+
+pages:
+  stage: publish
+  image: registry.gitlab.com/pyrex-fwi/sapar-id3:php-7.2
+  script:
+    - composer install
+    - vendor/bin/phpunit --verbose --debug --coverage-html coverage/ --coverage-text --colors=never
+    - mv coverage/ public/
+    - vendor/bin/phpmetrics --report-html=public/report ./src
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+
+#gitlab-runner exec docker test:Fonctionnel
+

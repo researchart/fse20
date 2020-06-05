@@ -1,0 +1,32 @@
+image: docker:latest
+
+services:
+        - docker:dind
+
+stages:
+        - build
+        - release
+
+variables:
+        CONTAINER_TEST_IMAGE: isciences/wsim_geoserver:$CI_COMMIT_REF_NAME
+        CONTAINER_RELEASE_IMAGE: isciences/wsim_geoserver:latest
+
+before_script:
+        - docker login -u ci4isciences -p $DOCKERHUB_PW
+
+build:
+        stage: build
+        script:
+                - docker build --pull -t $CONTAINER_TEST_IMAGE .
+                - docker push $CONTAINER_TEST_IMAGE
+
+release-image:
+        stage: release
+        script:
+                - docker pull $CONTAINER_TEST_IMAGE
+                - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+                - docker push $CONTAINER_RELEASE_IMAGE
+        only:
+                - master
+
+

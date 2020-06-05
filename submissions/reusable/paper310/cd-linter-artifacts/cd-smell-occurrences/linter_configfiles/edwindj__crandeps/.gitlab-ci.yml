@@ -1,0 +1,16 @@
+image: rocker/r-base
+
+before_script:
+  - apt-get update && apt-get install -y -t unstable curl
+
+pages:
+  stage: deploy
+  script:
+    - Rscript dependencies.R
+    - cp -r ./data ./public/
+    - cd ./public && zip -o ../website.zip  -r * && cd ..
+    - 'curl -H "Content-Type: application/zip" -H "Authorization: Bearer $NETLIFY_TOKEN" --data-binary "@website.zip" https://api.netlify.com/api/v1/sites/tinyverse.netlify.com/deploys'
+  artifacts:
+    paths:
+    - public
+

@@ -1,0 +1,22 @@
+image: alpine:latest
+
+stages:
+  - test
+
+# Ensure scripts are well-written
+shellcheck:
+  stage: test
+  before_script:
+    - wget https://storage.googleapis.com/shellcheck/shellcheck-stable.linux.x86_64.tar.xz -O - | xzcat | tar -xv
+  script:
+    - find ./bin/scripts/ -name '*.sh' | xargs ./shellcheck-stable/shellcheck -x
+    - ./shellcheck-stable/shellcheck -x ./bin/check-script-references ./bin/workflow-script-commons.sh ./bin/source_vars_template.sh ./bin/start-failover-procedure.sh
+
+references:
+  stage: test
+  before_script:
+    - apk add --no-cache bash
+  script:
+    - bash -x ./bin/check-script-references
+    - ./bin/sanity-check-scripts
+

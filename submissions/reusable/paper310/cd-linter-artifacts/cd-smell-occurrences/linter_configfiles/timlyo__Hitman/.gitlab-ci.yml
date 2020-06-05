@@ -1,0 +1,18 @@
+image: "rust"
+
+test:cargo:
+  script:
+  - rustc --version && cargo --version
+  - cargo test --jobs 1 --release
+  cache:
+    untracked: true
+
+build:
+  script:
+  - uname -a
+  - rustc --version && cargo --version
+  - cargo build --release
+  artifacts:
+    paths:
+    - target/release/hitman
+

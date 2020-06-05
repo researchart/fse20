@@ -1,0 +1,13 @@
+image: continuumio/miniconda3
+before_script:
+- apt-get update -yqq
+- apt-get install libgomp1 -yqq
+- export PATH=$PATH:./bin/
+- export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./lib/
+- export PYTHONPATH=./z3/
+- chmod +x bin/z3
+test:
+  script:
+  - z3 test.txt
+  - find . -path ./z3 -prune -o -name '*.py' -print -exec python {} \;
+

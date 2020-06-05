@@ -1,0 +1,9 @@
+image: aegypius/repoman
+
+test:
+  stage: test
+  script:
+    - repoman full
+  tags:
+    - kubernetes
+

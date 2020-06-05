@@ -1,0 +1,12 @@
+image: alpine:latest
+
+pages:
+  stage: deploy
+  script:
+  - echo 'Dosyalar kopyalanıyor'
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

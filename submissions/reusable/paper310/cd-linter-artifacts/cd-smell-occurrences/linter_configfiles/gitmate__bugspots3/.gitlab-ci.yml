@@ -1,0 +1,15 @@
+check_code:
+  image: coala/base
+  script: coala --ci
+
+release:
+  image: python:3-alpine
+  before_script:
+    - pip install twine
+  script:
+    - python .ci/adjust_version.py bugspots3/VERSION -b `date --utc +%Y%m%d%H%M%S`
+    - python setup.py sdist bdist_wheel
+    - twine upload dist/* -u "$PYPIUSER" -p "$PYPIPW"
+  only:
+    - master
+

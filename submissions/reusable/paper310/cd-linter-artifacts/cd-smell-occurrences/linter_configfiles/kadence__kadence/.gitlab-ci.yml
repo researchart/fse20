@@ -1,0 +1,28 @@
+image: node:10
+
+before_script:
+  - apt-get -qq update
+  - apt-get -qq install -y python2.7 python2.7-dev build-essential make gcc g++ libicu-dev
+  - npm install -g npm
+  - npm set progress=false
+  - GRANAX_USE_SYSTEM_TOR=1 npm install --silent
+
+stages:
+  - test
+  - docs
+
+pages:
+  stage: docs
+  script:
+    - npm run generate-docs
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+run_tests:
+  stage: test
+  script:
+    - npm test
+

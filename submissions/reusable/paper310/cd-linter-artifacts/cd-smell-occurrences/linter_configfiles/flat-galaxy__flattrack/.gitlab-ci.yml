@@ -1,0 +1,12 @@
+unit_test_py2:
+  image: python:2.7
+  script:
+  - pip install -r requirements.txt
+  - pytest test_*.py
+
+unit_test_py3:
+  image: python:3
+  script:
+  - pip install -r requirements.txt
+  - pytest test_*.py
+

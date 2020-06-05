@@ -1,0 +1,30 @@
+image: docker
+
+services:
+    - docker:dind
+
+stages:
+    - build
+    - push
+
+before_script:
+    - apk add --no-cache make
+    - make login-ci
+
+build:
+    stage: build
+    script:
+        - make build
+        - make push-ci
+
+push:
+    stage: push
+    environment: docker-hub
+    only:
+        - master
+    when: manual
+    script:
+        - make login-ci-hub
+        - make pull-ci
+        - make push
+

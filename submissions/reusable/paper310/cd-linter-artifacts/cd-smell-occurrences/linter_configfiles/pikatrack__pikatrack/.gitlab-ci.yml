@@ -1,0 +1,48 @@
+stages:
+  - build
+  - test
+
+services:
+  - postgres:latest
+  - mdillon/postgis:latest
+
+variables:
+  POSTGRES_DB: pikatrack_test
+  POSTGRES_USER: pikatrack
+  POSTGRES_PASSWORD: ""
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+
+
+build_image:
+  stage: build
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+  only:
+    - master
+    
+frontend_tests:
+  stage: test
+  image: $IMAGE_TAG
+  script: 
+    - cd /root/pikatrack/frontend
+    - npm run lint
+    
+backend_tests:
+  stage: test
+  image: ruby:2.6.2
+  script:
+    - apt-get update -qq && apt-get install -y -qq postgresql postgresql-contrib libpq-dev cmake gpsbabel
+    - ruby -v
+    - which ruby
+    - cd /builds/pikatrack/pikatrack/backend
+    - bundle install
+    - cp config/database.yml.example config/database.yml
+    - cp config/secrets.yml.example config/secrets.yml
+    - RAILS_ENV=test bundle exec rails db:schema:load
+    - RAILS_ENV=test bundle exec rspec
+

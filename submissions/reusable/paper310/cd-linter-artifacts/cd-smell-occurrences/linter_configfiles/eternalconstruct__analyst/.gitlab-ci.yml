@@ -1,0 +1,14 @@
+stages:
+  - build
+
+build_project:
+  stage: build
+  script:
+    - sh ./bin/setup
+    - xcodebuild clean -workspace ./Analyst.xcworkspace -scheme Analyst | xcpretty
+    - xcodebuild test -workspace ./Analyst.xcworkspace -scheme Analyst -destination 'platform=iOS Simulator,name=iPhone 6s,OS=9.3' | xcpretty -s
+  tags:
+    - iOS 9.2
+    - XCode 7.2
+    - iOS
+

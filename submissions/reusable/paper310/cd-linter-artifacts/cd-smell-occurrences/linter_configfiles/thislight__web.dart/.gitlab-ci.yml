@@ -1,0 +1,16 @@
+image: google/dart:1.14.1
+
+before_script:
+  - pub get
+  - pub get
+
+#trigger_document_build:
+#  stage: deploy
+#  script:
+#    - "echo 'The Token is $WTTOKEN'"
+#    - "curl -X POST -F token=$WTTOKEN -F ref=master https://gitlab.com/api/v4/projects/5169462/trigger/pipeline"
+
+test:
+  stage: test
+  script: pub run test test/
+

@@ -1,0 +1,35 @@
+.ruby: &ruby
+  image: ruby:2.6
+  variables:
+    LANG: "C.UTF-8"
+  cache:
+    paths:
+      - vendor/
+
+  before_script:
+    - which ruby
+    - bundle install --deployment --jobs $(nproc)
+
+test:
+  <<: *ruby
+  script:
+    - rake build
+  except:
+    - master
+
+pages:
+  <<: *ruby
+  script:
+    - rake build
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+include:
+  - template: Dependency-Scanning.gitlab-ci.yml
+  - template: SAST.gitlab-ci.yml
+  - template: Code-Quality.gitlab-ci.yml
+
+

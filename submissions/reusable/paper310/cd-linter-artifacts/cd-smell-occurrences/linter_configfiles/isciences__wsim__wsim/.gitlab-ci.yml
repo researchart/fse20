@@ -1,0 +1,49 @@
+image: docker:latest
+
+services:
+        # peg version of Docker to prevent hanging build: https://stackoverflow.com/a/60248545/2171894
+        - docker:19.03.5-dind
+
+stages:
+        - build
+        - test
+        - release
+
+variables:
+        CONTAINER_TEST_IMAGE: isciences/wsim:$CI_COMMIT_REF_NAME
+        CONTAINER_RELEASE_IMAGE: isciences/wsim:latest
+        WSIM_VERSION_BASE: "2.0"
+        WSIM_ALL_TESTS: "YES"
+
+before_script:
+        - docker login -u ci4isciences -p $DOCKERHUB_PW
+
+build:
+        stage: build
+        script:
+                - docker build --pull 
+                  --build-arg WSIM_VERSION=$(test master = $CI_COMMIT_REF_NAME && echo -n ${WSIM_VERSION_BASE}. && docker run --rm -v $(pwd):/git alpine/git rev-list --count HEAD || echo "0.0")
+                  --build-arg GIT_COMMIT=$(docker run --rm -v $(pwd):/git alpine/git rev-parse HEAD)
+                  -t $CONTAINER_TEST_IMAGE 
+                  .
+                - docker push $CONTAINER_TEST_IMAGE
+
+test:
+        stage: test
+        script: 
+                - docker pull $CONTAINER_TEST_IMAGE
+                - docker run $CONTAINER_TEST_IMAGE make check
+
+release-image:
+        stage: release
+        script:
+                - docker pull $CONTAINER_TEST_IMAGE
+                - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+                - docker push $CONTAINER_RELEASE_IMAGE
+                - docker tag $CONTAINER_TEST_IMAGE isciences/wsim:${WSIM_VERSION_BASE}.$(docker run --rm -v $(pwd):/git alpine/git rev-list --count HEAD)
+                - docker push isciences/wsim:${WSIM_VERSION_BASE}.$(docker run --rm -v $(pwd):/git alpine/git rev-list --count HEAD)
+
+        only:
+                - master
+
+

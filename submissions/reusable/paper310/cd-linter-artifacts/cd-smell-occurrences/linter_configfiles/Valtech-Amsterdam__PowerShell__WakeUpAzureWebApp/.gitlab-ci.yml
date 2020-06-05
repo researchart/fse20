@@ -1,0 +1,44 @@
+image: microsoft/powershell:latest
+
+### Global configuration: ###
+
+variables:
+  CI_DEBUG_TRACE: "false"
+  GIT_SSL_NO_VERIFY: "true"
+
+stages:
+  - test
+  - publish
+
+before_script:
+  - find ./ -type d -execdir chmod u+x {} +
+
+.test_template: &test_template
+  script:
+  - pwsh -ExecutionPolicy Unrestricted -NoLogo -NonInteractive -File ./Deploy/RunTest.ps1 -Mta -Version 5.0
+
+.publish_template: &publish_template
+  services: 
+  - microsoft/aspnetcore-build
+  - mono:onbuild
+  environment: 
+    name: publish
+    url: https://www.powershellgallery.com/WakeUpAzureWebApp
+  script:
+  - pwsh -ExecutionPolicy Unrestricted -NoLogo -NonInteractive -File ./Deploy/RunPublish.ps1 -Mta
+  dependencies:
+  - test
+  
+### Automatic build scripts ###
+
+test:
+  <<: *test_template
+  stage: test
+
+### Publish ###
+publish:
+  <<: *publish_template
+  stage: publish
+  only:
+    - tags
+

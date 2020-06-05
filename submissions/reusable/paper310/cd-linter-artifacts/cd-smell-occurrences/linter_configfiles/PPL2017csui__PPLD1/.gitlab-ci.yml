@@ -1,0 +1,81 @@
+# Official language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/ruby/tags/
+image: "ruby:2.3.1"
+
+# Pick zero or more services to be used on all builds.
+# Only needed when using a docker container to run your tests in.
+# Check out: http://docs.gitlab.com/ce/ci/docker/using_docker_images.html#what-is-service
+services:
+  - postgres:latest
+
+variables:
+  POSTGRES_DB: nice_marmot
+  POSTGRES_USER: runner
+  POSTGRES_PASSWORD: ""
+  DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/$POSTGRES_DB"
+
+# Cache gems in between builds
+cache:
+  paths:
+    - vendor/ruby
+
+# This is a basic example for a gem or script which doesn't use
+# services such as redis or postgres
+before_script:
+  - ruby -v                                   # Print out ruby version for debugging
+  - apt-get update -qq
+  # nodejs
+  - apt-get install curl
+  - curl -sL https://deb.nodesource.com/setup_7.x | bash -
+  - apt-get install -qq nodejs
+  - npm set progress=false
+  - npm install --silent
+  # Uncomment next line if your rails app needs a JS runtime:
+  - gem install bundler  --no-ri --no-rdoc    # Bundler is not installed with the image
+  - bundle install -j $(nproc) --path vendor  # Install dependencies into ./vendor/ruby
+  - rails db:migrate 
+  - rails db:seed
+
+# Optional - Delete if not using `rubocop`
+#rubocop:
+#  script:
+#  - rubocop
+
+test:
+  stage: test
+  script:
+    - apt-get install -y lcov
+    - npm run coverage:test
+
+# This deploy job uses a simple deploy flow to Heroku, other providers, e.g. AWS Elastic Beanstalk
+# are supported too: https://github.com/travis-ci/dpl
+deploy_to_staging:
+  type: deploy
+  environment: development
+  script:
+  - gem install dpl
+  - dpl --provider=heroku --app=jadvalee-staging --api-key=$HEROKU_API_KEY
+  - "curl -n -X POST https://api.heroku.com/apps/jadvalee-staging/ps -H \"Accept: application/json\" -H \"Authorization: Bearer ${HEROKU_API_KEY}\" -d \"command=bundle exec rails db:migrate\""
+  only:
+  - develop
+
+deploy_to_sit:
+  type: deploy
+  environment: development
+  script:
+  - gem install dpl
+  - dpl --provider=heroku --app=jadvalee-sit --api-key=$HEROKU_API_KEY
+  - "curl -n -X POST https://api.heroku.com/apps/jadvalee-sit/ps -H \"Accept: application/json\" -H \"Authorization: Bearer ${HEROKU_API_KEY}\" -d \"command=bundle exec rails db:migrate\""
+  only:
+  - develop
+
+production:
+  type: deploy
+  environment: production
+  script:
+  - gem install dpl
+  - dpl --provider=heroku --app=jadvalee --api-key=$HEROKU_API_KEY
+  - "curl -n -X POST https://api.heroku.com/apps/jadvalee/ps -H \"Accept: application/json\" -H \"Authorization: Bearer ${HEROKU_API_KEY}\" -d \"command=bundle exec rails db:migrate\""
+  only:
+  - tags
+

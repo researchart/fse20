@@ -1,0 +1,190 @@
+services:
+- docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay
+  TEST_IMAGE: registry.gitlab.com/gitlab-org/gitlab-development-kit:latest
+
+stages:
+- build
+- test
+- verify
+
+.docs-changes:
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes:
+      - "**/*.{md}"
+      - "{doc}/**/*"
+
+.code-changes:
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes:
+      - "**/*.{rb,erb,sh,yml,example,types}"
+      - "{lib,gem,bin}/**/*"
+      - "{spec,support}/**/*"
+      - ".gitlab-ci.yml"
+      - "Gemfile{,.lock}"
+      - "Makefile"
+      - "Rakefile"
+      - "Dockerfile"
+      - "**/*/Dockerfile"
+      - "packages.txt"
+      - "**/*/Makefile"
+      - "Vagrantfile"
+      - "gitlab-openldap/**/*"
+      - "vagrant/assets/**/*"
+
+.docs-or-code-changes:
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes:
+      - "**/*.{md}"
+      - "{doc}/**/*"
+      - "**/*.{rb,erb,sh,yml,example,types}"
+      - "{lib,gem,bin}/**/*"
+      - "{spec,support}/**/*"
+      - ".gitlab-ci.yml"
+      - "Gemfile{,.lock}"
+      - "Rakefile"
+      - "Dockerfile"
+      - "**/*/Dockerfile"
+      - "packages.txt"
+      - "**/*/Makefile"
+      - "Vagrantfile"
+      - "gitlab-openldap/**/*"
+      - "vagrant/assets/**/*"
+
+build:image:
+  extends: .docs-or-code-changes
+  image: docker:git
+  stage: build
+  script:
+    # taken from https://gitlab.com/gitlab-org/gitlab-qa/blob/master/.gitlab-ci.yml
+    - ./bin/docker load
+    - ./bin/docker build
+    - ./bin/docker store
+    - test -n "$CI_BUILD_TOKEN" || exit 0
+    - ./bin/docker publish
+  when: manual
+  cache:
+      key: "docker-build-cache"
+      paths:
+        - ./latest_image.tar
+
+test:docs_lint:
+  extends: .docs-changes
+  image: ruby:2.6
+  stage: test
+  services: []
+  script:
+    - echo "Coming soon..."
+
+test:static-analysis:
+  extends: .docs-or-code-changes
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:node-10
+  stage: test
+  services: []
+  script:
+    - apt-get update && apt-get install -y rake
+    - npm config set unsafe-perm true # enable run npm as root
+    - make static-analysis
+
+test:rspec:
+  extends: .code-changes
+  image: ruby:2.6
+  stage: test
+  services: []
+  script:
+    - gem install rspec
+    - rspec
+
+test:code_quality:
+  extends: .code-changes
+  image: docker:stable
+  stage: test
+  services:
+    - docker:stable-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    reports:
+      codequality: [gl-code-quality-report.json]
+
+test:container_scanning:
+  extends: .code-changes
+  image: docker:stable
+  stage: test
+  services:
+    - docker:stable-dind
+  allow_failure: true
+  before_script: []
+  cache: {}
+  dependencies: []
+  tags: []
+  variables:
+    DOCKER_DRIVER: overlay2
+  script:
+    - docker run -d --name db arminc/clair-db:latest
+    - docker run -p 6060:6060 --link db:postgres -d --name clair --restart on-failure arminc/clair-local-scan:v2.0.1
+    - apk add -U wget ca-certificates
+    - docker pull ${TEST_IMAGE}
+    - wget https://github.com/arminc/clair-scanner/releases/download/v8/clair-scanner_linux_amd64
+    - mv clair-scanner_linux_amd64 clair-scanner
+    - chmod +x clair-scanner
+    - touch clair-whitelist.yml
+    - retries=0
+    - echo "Waiting for clair daemon to start"
+    - while( ! wget -T 10 -q -O /dev/null http://docker:6060/v1/namespaces ) ; do sleep 1 ; echo -n "." ; if [ $retries -eq 10 ] ; then echo " Timeout, aborting." ; exit 1 ; fi ; retries=$(($retries+1)) ; done
+    - ./clair-scanner -c http://docker:6060 --ip $(hostname -i) -r gl-sast-container-report.json -l clair.log -w clair-whitelist.yml ${TEST_IMAGE} || true
+  artifacts:
+    paths:
+      - gl-sast-container-report.json
+
+verify:install:
+  image: $TEST_IMAGE
+  stage: verify
+  extends: .code-changes
+  tags:
+    - gitlab-org
+  artifacts:
+    paths:
+      - ./gitlab-development-kit/gitlab/log/*.log
+      - ./gitlab-development-kit/log
+    expire_in: 2 days
+    when: always
+  script:
+    - support/ci/verify_install
+  retry: 1
+
+verify:update:
+  image: $TEST_IMAGE
+  stage: verify
+  extends: .code-changes
+  tags:
+    - gitlab-org
+  artifacts:
+    paths:
+      - ./gitlab-development-kit/gitlab/log/*.log
+      - ./gitlab-development-kit/log
+    expire_in: 2 days
+    when: always
+  script:
+    - support/ci/verify_update
+  retry: 1
+

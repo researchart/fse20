@@ -1,0 +1,10 @@
+image: python:3.5.9-alpine3.10
+
+pages:
+  script:
+  - pip install -r requirements.txt
+  - pelican -s publishconf.py
+  artifacts:
+    paths:
+    - public/
+

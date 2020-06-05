@@ -1,0 +1,24 @@
+image: alpine:latest
+
+test:
+  stage: test
+  script:
+    - echo Run Tests
+
+deploy to staging:
+  stage: deploy
+  script:
+    - echo Deploy staging
+  only:
+    - master
+  environment: staging
+
+deploy to production:
+  stage: deploy
+  script:
+    - echo Deploy production
+  only:
+    - master
+  when: manual
+  environment: production
+

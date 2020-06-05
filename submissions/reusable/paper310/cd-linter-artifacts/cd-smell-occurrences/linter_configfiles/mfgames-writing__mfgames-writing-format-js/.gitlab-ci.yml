@@ -1,0 +1,23 @@
+image: node:latest
+
+stages:
+    - publish
+
+publish:
+    stage: publish
+    script:
+        # Remove the references so it builds cleanly.
+        - apt-get update
+        - apt-get install jq -y
+        - "cat tsconfig.json | jq 'del(.references)' > a && mv a tsconfig.json"
+
+        # Make sure the commits are clean
+        - npm ci
+        - npx commitlint --from=master to=CI_BUILD_REF_NAME
+
+        # Build the project
+        - npm run build
+
+        # Perform the automatic release process
+        - npx semantic-release
+

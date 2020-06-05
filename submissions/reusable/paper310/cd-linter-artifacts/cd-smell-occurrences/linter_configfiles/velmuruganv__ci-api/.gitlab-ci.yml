@@ -1,0 +1,122 @@
+variables:
+  REVIEW_APP_NAME: "$CI_COMMIT_REF_SLUG-$CI_PROJECT_NAME"
+  
+stages:
+  - build
+  - review
+  - deploy
+
+build:
+  stage: build
+  image: maven:3.3.9-jdk-8
+  script:
+    - mvn clean package
+  tags:
+    - docker
+    - shared
+
+review:
+  stage: review
+  image: ruby:2.3
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev curl
+    - gem install dpl
+    - echo "$REVIEW_APP_NAME " $REVIEW_APP_NAME
+    - >- 
+         curl 
+         -n 
+         -X POST https://api.heroku.com/apps
+         -d '
+         {
+         "name":  "'"$REVIEW_APP_NAME"'",
+         "region": "us",
+         "stack": "heroku-16"
+         }
+         '
+         -H "Content-Type: application/json"
+         -H "Accept: application/vnd.heroku+json; version=3"
+         -H "Authorization: Bearer $HEROKU_API_KEY"
+    - dpl --provider=heroku --app=$REVIEW_APP_NAME --api-key=$HEROKU_API_KEY
+    
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://$CI_COMMIT_REF_SLUG-$CI_PROJECT_NAME.herokuapp.com
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+  tags:
+    - docker
+    - shared
+
+stop_review:
+  stage: review
+  script:
+    - echo "environment is getting deployed !"
+    - >-
+         curl
+         -n
+         -X DELETE https://api.heroku.com/apps/$REVIEW_APP_NAME
+         -H "Content-Type: application/json"
+         -H "Accept: application/vnd.heroku+json; version=3"
+         -H "Authorization: Bearer $HEROKU_API_KEY"
+         
+  variables:
+    GIT_STRATEGY: none
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+
+    
+deploy_dev:
+  stage: deploy
+  image: ruby:2.3
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=vel-ci-api-dev --api-key=$HEROKU_API_KEY
+  environment:
+    name: dev
+    url: https://vel-ci-api-dev.herokuapp.com
+  only:
+    - master
+  tags:
+    - docker
+    - shared
+    
+deploy_staging:
+  stage: deploy
+  image: ruby:2.3
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=vel-ci-api-stg --api-key=$HEROKU_API_KEY
+  environment:
+    name: staging
+    url: https://vel-ci-api-stg.herokuapp.com
+  only:
+    - master
+  tags:
+    - docker
+    - shared
+    
+deploy_local:
+  stage: deploy
+  script:
+    
+    - curl -s https://raw.githubusercontent.com/velmuruganvelayutham/shell-scripts/master/deploy.sh | bash -s
+    
+  environment:
+    name: local-vm
+    url: http://dev.mock-labs.com
+  when: manual
+  only:
+    - master
+  tags:
+    - shell-osboxes
+

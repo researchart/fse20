@@ -1,0 +1,50 @@
+stages:
+  - build
+  - test
+  - deploy
+
+image: php:7-cli
+
+composer:
+  stage: build
+  image: composer:1.3.2
+  script:
+    - composer install --no-interaction --ansi --prefer-dist --optimize-autoloader --ignore-platform-reqs
+  artifacts:
+    paths:
+      - vendor/
+    expire_in: 24h
+
+unit tests:
+  stage: test
+  script:
+    - echo 'Hello Nette Camp'
+    - echo 'All tests passed!'
+
+dev:
+  stage: deploy
+  environment:
+    name: dev
+    url: http://dev.nettecamp.entry.do
+  script:
+    - apt-get update && apt-get install -y ssh
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - eval $(ssh-agent -s)
+    - echo "$DEPLOYER_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - vendor/bin/dep deploy $CI_ENVIRONMENT_SLUG --revision="$CI_COMMIT_SHA"
+
+
+prod:
+  stage: deploy
+  environment:
+    name: prod
+    url: http://prod.nettecamp.entry.do
+  script:
+    - apt-get update && apt-get install -y ssh
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - eval $(ssh-agent -s)
+    - echo "$DEPLOYER_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - vendor/bin/dep deploy $CI_ENVIRONMENT_SLUG --revision="$CI_COMMIT_SHA"
+  only:
+    - master
+

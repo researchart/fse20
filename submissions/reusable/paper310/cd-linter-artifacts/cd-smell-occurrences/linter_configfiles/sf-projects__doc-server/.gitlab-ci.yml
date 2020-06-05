@@ -1,0 +1,29 @@
+# When using dind, it's wise to use the overlayfs driver for
+# improved performance.
+#variables:
+#  DOCKER_DRIVER: overlay
+
+stages:
+- build
+#- release
+
+maven_build:
+  stage: build
+  image: maven:latest
+  script: "mvn install -B"
+  artifacts:
+    paths:
+     - target/docserver-1.1-SNAPSHOT.jar
+
+#release_image:
+#  stage: release
+#  image: docker:git
+#  services:
+#    - docker:dind
+#  script:
+#     - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+#     - docker build -t registry.gitlab.com/sf-projects/docserver src/main/docker
+#     - docker push registry.gitlab.com/sf-projects/docserver
+
+
+

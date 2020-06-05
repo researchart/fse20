@@ -1,0 +1,33 @@
+image: "rust:slim"
+
+stages:
+  - check-build-test
+
+variables:
+  RUST_VERSION: stable
+
+cache:
+  key: "$RUST_VERSION"
+  paths:
+    - /usr/local/rustup/
+    - /usr/local/cargo/
+    - target/
+
+before_script:
+  - apt update
+  - apt install -y --no-install-recommends pkg-config libssl-dev
+  - |
+    rustup install $RUST_VERSION
+    rustup default $RUST_VERSION
+  - |
+    rustc --version
+    cargo --version
+
+
+check-build-test:
+  stage: check-build-test
+  script:
+    - cargo check --verbose
+    - cargo build --release --verbose
+    - cargo test --verbose
+

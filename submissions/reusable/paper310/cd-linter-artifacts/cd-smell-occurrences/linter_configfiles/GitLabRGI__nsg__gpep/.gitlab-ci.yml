@@ -1,0 +1,81 @@
+variables:
+    VERSION: '2.2.0'
+    CONFIG_FILE: '.\gpep\Build\app_config\config\pep.cfg'
+    CONFIG_MANUFACTURER: 'RGi'
+    
+stages:
+    - Test_Styles
+    - Test_Backend
+    - Test_Frontend
+    - Build
+    
+test_backend_styles:
+  stage: Test_Styles
+  image: registry.gitlab.com/gitlabrgi/nsg/gpep/gpep-docker:backend
+  before_script:
+    - echo "Style check..."
+    # Set username and password into initrc location
+    - echo "machine gitlab.com login rgi-build password $TOKEN" > ~/.netrc
+    # Setup gpep and gpep-mapproxy repositories
+    - cd .. && git clone https://gitlab.com/GitLabRGI/nsg/gpep-mapproxy.git && cd gpep
+    # Make the shell scripts executable
+    - chmod +x ./Build/testing/run_style_checks.sh
+    # add style checker
+    - pip install flake8
+    - pip install flake8-docstrings
+    - pip install pep8-naming
+    - apt-get update && apt install nodejs npm -y
+  script:
+    - ./Build/testing/run_style_checks.sh
+
+test_backend:
+  stage: Test_Backend
+  image: registry.gitlab.com/gitlabrgi/nsg/gpep/gpep-docker:backend
+  before_script:
+    - echo "Running backend unit tests..."
+    # Set username and password into initrc location
+    - echo "machine gitlab.com login rgi-build password $TOKEN" > ~/.netrc
+    # Setup gpep and gpep-mapproxy repositories
+    - cd .. && git clone https://gitlab.com/GitLabRGI/nsg/gpep-mapproxy.git && cd gpep
+    # Make the shell scripts executable
+    - chmod +x ./Build/testing/before_tests_backend.sh
+    - chmod +x ./Build/testing/run_tests_backend.sh
+    # Runs the cleanup script
+    - ./Build/testing/before_tests_backend.sh
+    - echo gdalinfo --version
+  script:
+    - ./Build/testing/run_tests_backend.sh
+
+test_frontend:
+  stage: Test_Frontend
+  image: registry.gitlab.com/gitlabrgi/nsg/gpep/gpep-docker:frontend
+  before_script:
+    - echo "Running frontend unit tests..."
+    # Make the shell script executable
+    - chmod +x ./Build/testing/run_tests_frontend.sh
+  script:
+    - ./Build/testing/run_tests_frontend.sh
+
+build:
+    stage: Build
+    tags:
+        # Force this job to specificaly run on the Windows runner built for GPEP
+        - gpep-windows-build
+    only:
+        # Only run this job when a branch has been merged into master
+        - master
+    before_script:
+        - cd ..
+        # Delete the existing clone of the gpep-mapproxy repository
+        - powershell -ExecutionPolicy Bypass Remove-Item gpep-mapproxy -Recurse -Force -ErrorAction Ignore
+        - git clone https://gitlab.com/GitLabRGI/nsg/gpep-mapproxy.git gpep-mapproxy
+    script:
+        # Execute the build script, specifying the version (defined at the top of this file) and the build (pipeline ID number)
+        - powershell -ExecutionPolicy Bypass -File .\gpep\Build\platform\windows\x64\make_installer_x64.ps1 -version $VERSION -build $CI_PIPELINE_ID -manufacturer $CONFIG_MANUFACTURER
+    artifacts:
+        name: "GPEP_$VERSION.$CI_PIPELINE_ID"
+        paths: 
+            - .\Build\installers\windows\x64
+        when: on_success
+        expire_in: 7 days
+

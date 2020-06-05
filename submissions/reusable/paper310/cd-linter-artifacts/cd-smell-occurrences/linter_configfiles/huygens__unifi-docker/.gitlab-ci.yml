@@ -1,0 +1,52 @@
+image: docker:stable
+
+# When using dind, it's wise to use the overlayfs driver for
+# improved performance.
+variables:
+  DOCKER_DRIVER: overlay
+  ARG_ARCH: "amd64"
+  ARG_BASEIMG: "openjdk"
+  ARG_BASEVERS: "8-jre-slim"
+
+services:
+- docker:stable-dind
+
+
+build:amd64:
+  only:
+    - master
+  variables:
+    UNIFI_CHANNEL: stable
+  before_script:
+    - apk add --no-cache curl gzip bash
+    - docker login -u "gitlab-ci-token" -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+  script:
+    - ./scripts/unifi-build.sh -c stable -e latest -g "${CI_COMMIT_SHORT_SHA}" "${CI_REGISTRY_IMAGE}/unifi"
+    - ./scripts/unifi-publi.sh -c stable -e latest -g "${CI_COMMIT_SHORT_SHA}" "${CI_REGISTRY_IMAGE}/unifi"
+    - ./scripts/unifi-build.sh -c oldstable -g "${CI_COMMIT_SHORT_SHA}" "${CI_REGISTRY_IMAGE}/unifi"
+    - ./scripts/unifi-publi.sh -c oldstable -g "${CI_COMMIT_SHORT_SHA}" "${CI_REGISTRY_IMAGE}/unifi"
+    - ./scripts/unifi-build.sh -c unifi-5.6 -t lts -g "${CI_COMMIT_SHORT_SHA}" "${CI_REGISTRY_IMAGE}/unifi"
+    - ./scripts/unifi-publi.sh -c unifi-5.6 -t lts -g "${CI_COMMIT_SHORT_SHA}" "${CI_REGISTRY_IMAGE}/unifi"
+  tags:
+    - docker
+
+
+build:dev:amd64:
+  only:
+    - branches
+  except:
+    - master
+    - oldstable
+    - testing
+  before_script:
+    - apk add --no-cache curl gzip
+    - export VERSION_UNIFI="$(./scripts/ci-get-unifi-version.sh ${UNIFI_CHANNEL})"
+    - docker login -u "gitlab-ci-token" -p "$CI_JOB_TOKEN" $CI_REGISTRY
+  script:
+    - docker build --pull --build-arg stable -t "${CI_REGISTRY_IMAGE}/unifi:dev-${VERSION_UNIFI}-$CI_COMMIT_REF_SLUG" .
+    - docker tag  "${CI_REGISTRY_IMAGE}/unifi:dev-${VERSION_UNIFI}-$CI_COMMIT_REF_SLUG" "${CI_REGISTRY_IMAGE}/unifi:dev-latest"
+    - docker push "${CI_REGISTRY_IMAGE}/unifi:dev-${VERSION_UNIFI}-$CI_COMMIT_REF_SLUG"
+    - docker push "${CI_REGISTRY_IMAGE}/unifi:dev-latest"
+  tags:
+    - docker
+

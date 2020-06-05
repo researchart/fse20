@@ -1,0 +1,11 @@
+# Generates a static website at https://kubic-ci.gitlab.io/ci3/
+pages:
+  script:
+  - echo publish badges
+  - cp .badges/*.svg public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

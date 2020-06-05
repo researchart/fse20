@@ -1,0 +1,99 @@
+# This file is a template, and might need editing before it works on your project.
+stages:
+  - validate
+  - build
+  - provision
+
+# Default output file for Terraform plan
+variables:
+  PLAN: plan.tfplan
+
+validate:
+  image:
+    name: hashicorp/packer:1.2.5
+    entrypoint:
+      - '/usr/bin/env'
+      - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+  stage: validate
+  before_script:
+  - packer --version
+  script:
+    - cd packer
+    - find . -maxdepth 1 -name '*.json' -print0 | xargs -t0n1 packer validate
+
+certify:
+  image:
+    name: hashicorp/packer:1.2.5
+    entrypoint:
+      - '/usr/bin/env'
+      - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+  stage: build
+  environment: production
+  script:
+    - cd packer
+    - packer build certify.json
+  only:
+    - master
+
+control:
+  image:
+    name: hashicorp/packer:1.2.5
+    entrypoint:
+      - '/usr/bin/env'
+      - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+  stage: build
+  environment: production
+  script:
+    - cd packer
+    - packer build control.json
+  only:
+    - master
+
+compute:
+  image:
+    name: hashicorp/packer:1.2.5
+    entrypoint:
+      - '/usr/bin/env'
+      - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+  stage: build
+  environment: production
+  script:
+    - cd packer
+    - packer build compute.json
+  only:
+    - master
+
+loadbalancer:
+  image:
+    name: hashicorp/packer:1.2.5
+    entrypoint:
+      - '/usr/bin/env'
+      - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+  stage: build
+  environment: production
+  script:
+    - cd packer
+    - packer build loadbalancer.json
+  only:
+    - master
+
+terraform:
+  stage: provision
+  image:
+    name: hashicorp/terraform:light
+    entrypoint:
+      - '/usr/bin/env'
+      - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+  before_script:
+  - cd terraform
+  - mkdir -p ~/.ssh
+  - mkdir -p ~/.gcloud
+  - echo '${DIGITALOCEAN_SSH_PRIVATE_KEY}' >> /root/.ssh/id_ed25519
+  - export DIGITALOCEAN_TOKEN=${DIGITALOCEAN_API_TOKEN}
+  - echo '${GCP_ACCOUNT_FILE}' >> ~/.gcloud/account.json
+  - terraform --version
+  - terraform init
+  script:
+    - terraform validate -var commit_id=$CI_COMMIT_SHA
+    - terraform apply -auto-approve -lock=true -lock-timeout=10s -var commit_id=$CI_COMMIT_SHA
+

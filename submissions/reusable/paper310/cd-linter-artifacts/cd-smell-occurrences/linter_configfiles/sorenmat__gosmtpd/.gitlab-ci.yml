@@ -1,0 +1,41 @@
+stages:
+ - build
+ - test
+ - deploy
+ 
+build:
+  stage: build
+  image: golang:1.13
+  artifacts:
+    paths:
+      - gosmtpd
+  script:
+    - CGO_ENABLED=0 go build
+
+test:
+  stage: test
+  image: golang:1.13
+  artifacts:
+    paths:
+      - gosmtpd
+  script:
+    - go test -v -race --cover
+
+build-docker:
+  image: docker:latest
+  services:
+    - docker:dind
+  stage: deploy
+  dependencies:
+    - build
+    - test
+  script:
+    - export VERSION=$(date +%Y%m%d-%H%M)
+    - echo $VERSION
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/sorenmat/gosmtpd:$VERSION .
+    - docker push registry.gitlab.com/sorenmat/gosmtpd:$VERSION
+  only:
+    refs:
+      - master    
+

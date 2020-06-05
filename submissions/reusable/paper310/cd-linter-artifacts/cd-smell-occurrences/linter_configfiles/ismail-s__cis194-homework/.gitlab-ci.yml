@@ -1,0 +1,9 @@
+image: haskell:7.10.3
+
+before_script:
+  - cd cis194-sols/
+
+test:
+  script:
+    - stack test
+

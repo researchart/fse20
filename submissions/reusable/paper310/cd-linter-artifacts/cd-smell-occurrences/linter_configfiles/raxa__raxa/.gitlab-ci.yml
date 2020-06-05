@@ -1,0 +1,36 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+before_script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+
+build-master:
+  stage: build
+  script:
+    - ./build.sh
+    - docker tag raxa "$CI_REGISTRY_IMAGE"
+    - docker push "$CI_REGISTRY_IMAGE"
+  only:
+    - master
+
+build-arm:
+  stage: build
+  script:
+    - ./build.sh --arm
+    - docker tag raxa:arm "$CI_REGISTRY_IMAGE:arm"
+    - docker push "$CI_REGISTRY_IMAGE:arm"
+  only:
+    - master
+  when: manual
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+  except:
+    - master
+  when: manual
+

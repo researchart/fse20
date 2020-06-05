@@ -1,0 +1,13 @@
+image: docker:latest
+services:
+  - docker:dind
+build:
+  stage: build
+  when: manual
+  script:
+    - apk update
+    - apk add curl
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - curl -k -L --compressed $IMAGE_URL | docker load
+    - docker push registry.gitlab.com/signal9/ubuntu-build-env/image
+

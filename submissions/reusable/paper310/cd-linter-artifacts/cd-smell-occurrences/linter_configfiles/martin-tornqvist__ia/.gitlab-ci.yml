@@ -1,0 +1,33 @@
+# TODO: Would like to set the artifact names from variables, but cannot get it
+# to work - so there's a lot of copy/pasted names and commands here
+
+image: gcc:8.3.0
+
+before_script:
+        - apt-get update && apt-get install -y cmake libsdl2-2.0-0 libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev
+
+build-linux:
+        stage: build
+        script:
+                - ./build-release.sh
+                - mv build/target/ia ia-linux-x64-${CI_COMMIT_SHA:0:8}-$(date +%Y-%m-%d)
+        artifacts:
+                paths:
+                - ia-linux-x64-${CI_COMMIT_SHA:0:8}-$(date +%Y-%m-%d)
+                name: "ia-linux-x64-${CI_COMMIT_SHA:0:8}-$(date +%Y-%m-%d)"
+        only:
+                - master
+
+build-windows:
+        stage: build
+        script:
+                - apt-get update && apt-get install -y mingw-w64
+                - ./build-release-windows-cross-compile.sh
+                - mv build/target/ia "ia windows x64 ${CI_COMMIT_SHA:0:8} $(date +%Y-%m-%d)"
+        artifacts:
+                paths:
+                - "ia windows x64 ${CI_COMMIT_SHA:0:8} $(date +%Y-%m-%d)"
+                name: "ia windows x64 ${CI_COMMIT_SHA:0:8} $(date +%Y-%m-%d)"
+        only:
+                - master
+

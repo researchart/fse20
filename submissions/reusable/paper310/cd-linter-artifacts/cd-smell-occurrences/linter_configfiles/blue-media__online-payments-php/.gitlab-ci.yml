@@ -1,0 +1,121 @@
+#    Gitlab CI build file
+#    Docs: https://gitlab.com/help/ci/examples/php.md
+#          https://gitlab.com/help/ci/yaml/README.md
+#          https://gitlab.com/help/ci/README.md
+#    @author    Piotr Żuralski <piotr@zuralski.net>
+#    @copyright 2016 Blue Media
+#    @since     2016-12-03
+#    @version   2.3.3
+#
+variables:
+  GIT_STRATEGY: fetch
+
+before_script:
+  - ./.config/ci/bin/os-check-software.sh
+  - ./.config/ci/bin/cleanup.sh
+  - ./.config/ci/bin/prepare.sh
+  - ./.config/ci/bin/php-check-version.sh
+  - ./.config/ci/bin/php-check-software.sh
+
+.test: &test_definition
+  stage: test
+  except:
+#    - develop
+#    - master
+    - tags
+  only:
+    - branches
+  script:
+    - ./bin/phing build:dev -verbose
+    - ./bin/phing build:prod -verbose
+
+#test:
+#  except:
+#    - develop
+#    - master
+#    - tags
+#  only:
+#    - branches
+#  script:
+##    - test-5.3
+##    - test-5.4
+##    - test-5.5
+##    - test-5.6
+#    - test-7.0
+#    - test-7.1
+
+test-5.3:
+  <<: *test_definition
+  image: php:5.3
+#  stage: test-5.3
+
+test-5.4:
+  <<: *test_definition
+  image: php:5.4
+#  stage: test-5.4
+
+
+test-5.5:
+  <<: *test_definition
+  image: php:5.5
+#  stage: test-5.5
+
+test-5.6:
+  <<: *test_definition
+  image: php:5.6
+#  stage: test-5.6
+
+test-7.0:
+  <<: *test_definition
+  image: php:7.0
+#  stage: test-7.0
+
+test-7.1:
+  <<: *test_definition
+  image: php:7.1
+#  stage: test-7.1
+
+#test-hhvm:
+#  image: php:7.0
+#  stage: test-hhvm
+#  script:
+#    - ./bin/phing build:dev
+#    - ./bin/phing build:prod
+
+#post-test:
+#  stage: post-test
+#  artifacts:
+#    name: "metrics-$CI_BUILD_NAME"
+#    expire_in: 7d
+#    untracked: true
+#    when: always
+#    paths:
+#    - builds/
+#  script:
+#    - echo "ok"
+#
+after_script:
+  - ./.config/ci/bin/cleanup.sh
+
+#job_deploy-prod:
+#  image: php:7.0
+#  stage: deploy
+#  environment: prod
+#  only:
+#    - develop
+#    - master
+#  script:
+#    - ./bin/phing build:prod
+#    - ./.config/ci/bin/version-tag.sh
+
+stages:
+#  - test-5.3
+#  - test-5.4
+#  - test-5.5
+#  - test-5.6
+#  - test-7.0
+#  - test-7.1
+  - test
+#  - post-test
+#  - deploy
+

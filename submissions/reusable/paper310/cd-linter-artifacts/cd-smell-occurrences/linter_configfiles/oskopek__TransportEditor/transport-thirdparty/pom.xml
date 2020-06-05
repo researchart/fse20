@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>transport</artifactId>
+        <groupId>com.oskopek.transport</groupId>
+        <version>0.10.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>transport-thirdparty</artifactId>
+    <packaging>jar</packaging>
+    <name>Transport Third Party Dependencies</name>
+    <description>Third party dependencies for the Transport module.</description>
+    <url>https://github.com/oskopek/TransportEditor/tree/master/${project.artifactId}</url>
+
+    <licenses>
+        <license>
+            <name>WTFPL</name>
+            <url>http://www.wtfpl.net/</url>
+            <distribution>repo</distribution>
+            <comments>For com.github.kevinjdolan.intervaltree</comments>
+        </license>
+        <license>
+            <name>The MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license</url>
+            <distribution>repo</distribution>
+            <comments>For org.teneighty.heap</comments>
+        </license>
+    </licenses>
+    <contributors>
+        <contributor>
+            <name>Kevin J. Dolan</name>
+            <url>https://github.com/kevinjdolan/intervaltree</url>
+        </contributor>
+        <contributor>
+            <name>Fran Lattanzio</name>
+            <url>https://code.google.com/archive/p/java-heaps/</url>
+        </contributor>
+    </contributors>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <rootLevelDir>${project.basedir}/..</rootLevelDir>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphstream</groupId>
+            <artifactId>gs-algo</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+

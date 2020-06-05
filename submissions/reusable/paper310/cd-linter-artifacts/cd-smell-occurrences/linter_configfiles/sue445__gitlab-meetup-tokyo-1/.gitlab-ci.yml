@@ -1,0 +1,28 @@
+image: drecom/centos-ruby:2.4.0
+
+variables:
+  BUNDLE_CACHE: "vendor/bundle/"
+
+cache:
+  untracked: true
+  key: "$CI_BUILD_NAME"
+  paths:
+    # variables.BUNDLE_CACHEと同じものを指定する
+    - vendor/bundle/
+
+before_script:
+  - bundle check --path=${BUNDLE_CACHE} || bundle install --path=${BUNDLE_CACHE} --jobs=2 --retry=3
+
+stages:
+  - deploy
+
+pages:
+  stage: deploy
+  script:
+    - bundle exec rake generate
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

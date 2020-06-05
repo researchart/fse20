@@ -1,0 +1,35 @@
+services:
+  - postgres
+
+variables:
+  POSTGRES_DB: pygcat
+
+stages:
+  - test27
+  - test34
+
+py27:
+  stage: test27
+  script:
+    - apt-get update
+    - apt-get install -y python-virtualenv python-psycopg2 python-tox python3-setuptools postgresql-client
+    - export PGHOST=postgres
+    - export PGUSER=postgres
+    - export PGPORT=5432
+    - export PGDATABASE=pygcat
+    - psql < datas/pygcat_test.sql
+    - tox -e py27 testenv
+
+py34:
+  stage: test34
+  script:
+    - apt-get update
+    - apt-get install -y python3-dev python3-virtualenv python3-psycopg2 python-tox python3-setuptools postgresql-client
+    - export PGHOST=postgres
+    - export PGUSER=postgres
+    - export PGPORT=5432
+    - export PGDATABASE=pygcat
+    - psql < datas/pygcat_test.sql
+    - tox -e py34 testenv
+    
+

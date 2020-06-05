@@ -1,0 +1,34 @@
+stages:
+  - lint
+  - build
+  - test
+
+image: debian:sid
+
+lint:
+  stage: lint
+  script:
+  - apt-get update && apt-get install -y pylint
+  - find . -iname "*.py" | xargs pylint
+
+build:
+  stage: build
+  script:
+  - apt-get update && apt-get install -y python3-setuptools python3-docopt
+  - python3 setup.py install
+  - rename-flac --help
+
+test:unit:
+  stage: test
+  script:
+  - apt-get update && apt-get install -y python3-setuptools python3-docopt flac
+  - python3 setup.py install
+  - python3 setup.py test
+
+test:integration:
+  stage: test
+  script:
+  - apt-get update && apt-get install -y python3-docopt flac
+  - python3 rename_flac.py "%a - %b - %c - %d - %g - %n - %t" tests
+  - test -e "tests/Artist - Album - Composer - Date - Genre - Tracknumber - Title.flac"
+

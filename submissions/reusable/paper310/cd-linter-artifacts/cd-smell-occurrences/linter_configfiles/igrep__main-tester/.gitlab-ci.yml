@@ -1,0 +1,28 @@
+before_script:
+- ghc --version
+- cabal --version
+- cabal update
+- cabal install --enable-tests
+- cabal configure --enable-tests
+- ulimit -n 256
+
+build-latest:
+  image: "haskell:latest"
+  script:
+  - 'cabal test'
+
+build-8.2:
+  image: "haskell:8.2"
+  script:
+  - 'cabal test'
+
+build-8.0:
+  image: "haskell:8.0"
+  script:
+  - 'cabal test'
+
+build-7.10:
+  image: "haskell:7.10"
+  script:
+  - 'cabal test'
+

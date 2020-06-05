@@ -1,0 +1,55 @@
+variables:
+#  ROS_PACKAGES_TO_INSTALL: #"actionlib" # Here the package is useless, it is just for demonstration
+
+before_script:
+
+  #ds prepare generic environment for SRRG2 builds and tests
+  #ds currently retrieved from cmake_modules repository (which is public)
+- mkdir -p "/root/workspace/src"
+- cd "/root/workspace/src/"
+- git clone "https://gitlab.com/srrg-software/srrg_cmake_modules.git"
+- export SRRG_SCRIPT_PATH="/root/workspace/src/srrg_cmake_modules/ci_scripts"
+- ls -al "$SRRG_SCRIPT_PATH"
+- source ${SRRG_SCRIPT_PATH}/install_environment.sh "$CI_PROJECT_DIR" "$CI_PROJECT_NAME"
+
+  #ds set up ssh with key that is required for private repository cloning TODO move
+- eval $(ssh-agent -s)
+- echo "$SSH_PRIVATE_KEY_FULL" | tr -d '\r' | ssh-add - > /dev/null
+- mkdir -p ~/.ssh
+- chmod 700 ~/.ssh
+- ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+- chmod 644 ~/.ssh/known_hosts
+
+- cd "/root/source/srrg2"
+- source srrg2_integration/gitlab-ci.bash
+
+## RELEASE COMPILATION
+# Ubuntu 16.04 (xenial) w/ ros Kinetic
+build_ubuntu1604_kinetic_release:
+  image: osrf/ros:kinetic-desktop-full-xenial
+  stage: build
+  script:
+    - catkin build -j4 --summarize --no-status --force-color
+    - catkin run_tests -j4
+# Ubuntu 18.04 (bionic) w/ ros Melodic
+build_ubuntu1804_melodic_release:
+  image: osrf/ros:melodic-desktop-full-bionic
+  stage: build
+  script:
+    - catkin build -j4 --summarize --no-status --force-color
+    - catkin run_tests -j4
+
+## DEBUG COMPILATION
+# Ubuntu 16.04 (xenial) w/ ros Kinetic
+build_ubuntu1604_kinetic_debug:
+  image: osrf/ros:kinetic-desktop-full-xenial
+  stage: build
+  script:
+    - catkin build -j4 -DCMAKE_BUILD_TYPE=Debug --summarize --no-status --force-color
+# Ubuntu 18.04 (bionic) w/ ros Melodic
+build_ubuntu1804_melodic_debug:
+  image: osrf/ros:melodic-desktop-full-bionic
+  stage: build
+  script:
+    - catkin build -j4 -DCMAKE_BUILD_TYPE=Debug --summarize --no-status --force-color
+

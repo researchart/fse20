@@ -1,0 +1,29 @@
+image: alpine:3.5
+
+before_script:
+  - apk update && apk add openssl
+  - wget https://github.com/spf13/hugo/releases/download/v0.18.1/hugo_0.18.1_Linux-64bit.tar.gz
+  - echo "e8ba723c508e87912970f132534c64dc  hugo_0.18.1_Linux-64bit.tar.gz" | md5sum -c
+  - tar xf hugo_0.18.1_Linux-64bit.tar.gz --strip-components=1 && mv hugo_0.18.1_linux_amd64 hugo && cp ./hugo /usr/bin
+  - hugo version
+
+test:
+  script:
+  - cd site
+  - hugo
+  except:
+  - master
+
+pages:
+  script:
+  - cd site
+  - hugo
+  - mv ./public ../public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+
+

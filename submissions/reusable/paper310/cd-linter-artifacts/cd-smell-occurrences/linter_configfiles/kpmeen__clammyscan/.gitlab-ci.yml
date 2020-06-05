@@ -1,0 +1,54 @@
+######################################################################
+# GitLab CI build script for the ClammyScan project                   #
+######################################################################
+variables:
+  DOCKER_DRIVER: overlay
+  # Setting specific folder for sbt-coursier to cache artifacts
+  COURSIER_CACHE: "/root/cache/coursier"
+
+cache:
+  untracked: true
+  paths:
+    - cache
+
+stages:
+  - stylecheck
+  - test
+
+check style and formatting:
+  image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.13_jdk11
+  stage: stylecheck
+  script:
+    - sbt clean scalastyle scalafmt
+    - git diff --exit-code || (echo "ERROR Code formatting check failed, see differences above."; false)
+
+# Shared settings for the test stage jobs
+.test_template: &test_settings
+  stage: test
+  variables:
+    CLAM_HOST: clammy
+    CLAM_PORT: 3310
+  coverage: '/\[info]\sAll\sdone\.\sCoverage\swas\s\[(.*)%\]/'
+  services:
+    - name: registry.gitlab.com/kpmeen/docker-clamav
+      alias: clammy
+      command: ["-m", "2M"]
+
+run test suites for 2.12:
+  image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.12_jdk11
+  <<: *test_settings
+  script:
+    # Build the project
+    - sbt ++2.12.10 clean coverage test coverageReport
+    #- sbt coverageAggregate codacyCoverage
+    - sbt ++2.12.10 coverageAggregate
+
+run test suites for 2.13:
+  image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.13_jdk11
+  <<: *test_settings
+  script:
+    # Build the project
+    - sbt ++2.13.1 clean coverage test coverageReport
+    #- sbt coverageAggregate codacyCoverage
+    - sbt ++2.13.1 coverageAggregate
+

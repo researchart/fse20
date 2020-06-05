@@ -1,0 +1,176 @@
+<!--
+ Copyright (C) 2016-2020 Linagora
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as
+ published by the Free Software Foundation, either version 3 of the
+ License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with this program.  If not, see http://www.gnu.org/licenses/.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.ow2.petals</groupId>
+    <artifactId>petals-cockpit-parent</artifactId>
+    <version>1.5.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>petals-cockpit</artifactId>
+  <packaging>jar</packaging>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.ow2.petals</groupId>
+      <artifactId>petals-cockpit-server</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.dropwizard</groupId>
+      <artifactId>dropwizard-assets</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.palantir.indexpage</groupId>
+      <artifactId>dropwizard-index-page</artifactId>
+      <version>1.2.0</version>
+       <exclusions>
+        <exclusion>
+        <!-- classes have moved from com.google.code.findbugs:annotations:3.0.1 to 
+        com.google.code.findbugs:jsr305:3.0.2 resulting in duplicates if we keep this.
+        see: https://github.com/palantir/dropwizard-index-page/issues/44 -->
+          <groupId>com.google.code.findbugs</groupId>
+          <artifactId>annotations</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!-- Code quality dependencies -->
+    <dependency>
+      <groupId>org.eclipse.jdt</groupId>
+      <artifactId>org.eclipse.jdt.annotation</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <!-- Let's activate jacoco for unit test coverage -->
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>1.16</version>
+        <executions>
+          <execution>
+            <id>download-licenses</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>download-licenses</goal>
+            </goals>
+            <configuration>
+              <licensesOutputDirectory>${project.build.directory}/dist/third-party/licenses</licensesOutputDirectory>
+              <licensesOutputFile>${project.build.directory}/dist/third-party/third-party-backend-licenses.xml</licensesOutputFile>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-third-party</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>add-third-party</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/dist/</outputDirectory>
+              <thirdPartyFilename>THIRD-PARTY-BACKEND</thirdPartyFilename>
+              <licenseMerges>
+                <licenseMerge>Apache License 2.0|Apache 2.0|Apache 2|The Apache Software License, Version 2.0|
+                              The Apache License, Version 2.0|The Apache License, Version2.0|Apache License, Version 2.0|
+                              Apache Software License - Version 2.0
+                </licenseMerge>
+                <licenseMerge>MIT License|MIT
+                </licenseMerge>
+              </licenseMerges>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>1.8</version>
+        <executions>
+          <execution>
+            <id>copy-frontend</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target name="copy frontend distribution to cockpit resources">
+                <copy todir="${project.build.directory}/classes/frontend/">
+                  <fileset dir="${project.basedir}/../frontend/dist/" />
+                </copy>
+		<copy file="${project.basedir}/../frontend/dist/3rdpartylicenses.txt" tofile="${project.build.directory}/dist/THIRD-PARTY-FRONTEND" />
+              </target>
+            </configuration>
+          </execution>
+          <execution>
+            <id>build-product-dist</id>
+            <phase></phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target name="build final cockpit distribution">
+                <property name="dist" value="${project.build.directory}/dist/" />
+                <copy todir="${dist}">
+                  <fileset dir="${project.basedir}/dist-template/" />
+                </copy>
+                <chmod file="${dist}/*.sh" perm="+x" />
+                <mkdir dir="${dist}/lib" />
+                <mkdir dir="${dist}/logs" />
+                <mkdir dir="${dist}/db" />
+                <copy file="${project.build.directory}/${project.build.finalName}-capsule.jar" todir="${dist}/lib/" />
+                <copy file="${project.basedir}/../LICENSE.md" todir="${dist}/" />
+                <copy file="${project.basedir}/../COPYRIGHT" todir="${dist}/" />
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.github.chrisdchristo</groupId>
+        <artifactId>capsule-maven-plugin</artifactId>
+        <version>1.5.1</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>build</goal>
+            </goals>
+            <configuration>
+              <appClass>org.ow2.petals.cockpit.PetalsCockpitApplication</appClass>
+              <type>fat</type>
+            </configuration>
+          </execution>
+        </executions>
+        <configuration>
+          <manifest>
+            <entry>
+              <key>Min-Java-Version</key>
+              <value>${java-version}</value>
+            </entry>
+          </manifest>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+

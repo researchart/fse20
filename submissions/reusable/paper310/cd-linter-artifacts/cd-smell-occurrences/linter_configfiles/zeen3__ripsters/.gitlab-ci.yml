@@ -1,0 +1,36 @@
+image: conoria/alpine-pandoc:latest
+
+before_script:
+  - apk add bash git openssh
+  - tmp=$(mktemp)
+  - printf "tmp is %s\n" $tmp
+  - if [[ -d public ]]; then rm -r public; fi
+  - cat README.md > $tmp
+  - echo -e "\n\n" >> $tmp
+  - 'for i in src/*.user.js; do echo -e "[\`$(basename "$i")\`]($(basename "$i"))\n~ version: \`$(grep -E "// @version" "$i" | grep -E "\d+\.\d+(\.\d+)?(-.*)?" -o)\`\n~ sha1: \`$(sha1sum < "$i" | head -c 40)\`\n~ last modified: \`$(git log -1 --format="%aI" -- "$i")\`\n~ <details><summary>matching</summary><pre>$(grep -E "// @match\s*http\S*" "$i" | grep -E "http\S*" -o)</pre></details>\n" >> $tmp; done'
+  - echo -e "\n\n" >> $tmp
+  - cat README_AFTER.md >> $tmp
+  # - echo -e '\n\n```gitlog' >> $tmp
+  # - git log --format=oneline --invert-grep --grep=make --grep=build --raw >> $tmp
+  # - echo -e '```\n\n' >> $tmp
+  - mkdir -p public
+  - pandoc -f markdown_mmd -t html5 < $tmp | cat src/head.html - src/foot.html > public/index.html
+  - echo '{"provider_url":"https://zeen3.gitlab.io/ripsters/"}' >| public/oe.json
+  - cat $tmp
+  - sha1sum $tmp
+  - sha256sum $tmp
+  - sha512sum $tmp
+  - sed -e ':a;N;$!ba;s/>\s*</></g' -e 's/href="\([^".]\+\).user.js"/href="\1.user.js" id="\1"/g' -e 's/\([a-z]*\)="\([a-zA-Z0-9\._-]*\)"/\1=\2/g' -e 's/<!--.*-->//g' -i public/index.html
+  - cp src/*.js public/
+  - cat public/* | sha1sum
+  - rm $tmp
+  - cd src && sha1sum *.js > ../public/sha1.sum && sha256sum *.js > ../public/sha256.sum
+
+pages:
+  stage: deploy
+  script: echo 'Nothing to do...'
+  artifacts:
+    paths:
+    - public
+
+

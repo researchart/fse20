@@ -1,0 +1,108 @@
+---
+# Author: Clayton Craft <clayton@craftyguy.net>
+
+image: python:3.7-slim-stretch
+
+cache:
+  paths:
+    - venv
+
+before_script:
+  - ./.gitlab/setup-pmos-environment.sh
+  # venv created in CI_PROJECT_DIR for caching
+  - "[[ ! -d venv ]] && virtualenv venv -p $(which python3)"
+  - "source venv/bin/activate"
+  - "pip3 install pytest-cov python-coveralls pytest"
+  - "python3 --version"
+  - "su pmos -c 'git config --global user.email postmarketos-ci@localhost' || true"
+  - "su pmos -c 'git config --global user.name postmarketOS_CI' || true"
+
+stages:
+  - checks
+  - tests
+
+# defaults for "only"
+# We need to run the CI jobs in a "merge request specific context", if CI is
+# running in a merge request. Otherwise the environment variable that holds the
+# merge request ID is not available. This means, we must set the "only"
+# variable accordingly - and if we only do it for one job, all other jobs will
+# not get executed. So have the defaults here, and use them in all jobs that
+# should run on both the master branch, and in merge requests.
+# https://docs.gitlab.com/ee/ci/merge_request_pipelines/index.html#excluding-certain-jobs
+.only-default: &only-default
+  only:
+    - master
+    - merge_requests
+    - tags
+
+static-code-analysis:
+  stage: checks
+  <<: *only-default
+  script:
+    # Note: This script uses CI_PROJECT_DIR
+    - su pmos -c "CI_PROJECT_DIR=$CI_PROJECT_DIR .gitlab/shared-runner_test-pmbootstrap.sh --static-code-analysis"
+
+# MR settings
+# (Checks for "Allow commits from members who can merge to the target branch")
+mr-settings:
+  stage: checks
+  only:
+    - merge_requests
+  script:
+    - .gitlab/check_mr_settings.py
+
+test-pmbootstrap:
+  stage: tests
+  <<: *only-default
+  script:
+    # Note: This script uses CI_PROJECT_DIR
+    - su pmos -c "CI_PROJECT_DIR=$CI_PROJECT_DIR .gitlab/shared-runner_test-pmbootstrap.sh --testcases-fast"
+  after_script:
+     # Move logs so it can be saved as artifacts
+    - "[[ -f /home/pmos/.local/var/pmbootstrap/log.txt ]] && mv /home/pmos/.local/var/pmbootstrap/log.txt $CI_PROJECT_DIR/log.txt"
+    - "[[ -f /home/pmos/.local/var/pmbootstrap/log_testsuite.txt ]] && mv /home/pmos/.local/var/pmbootstrap/log_testsuite.txt $CI_PROJECT_DIR/log_testsuite.txt"
+    - "[[ -f /home/pmos/.config/pmbootstrap.cfg ]] && cp /home/pmos/.config/pmbootstrap.cfg $CI_PROJECT_DIR/pmbootstrap.cfg"
+    - "sudo dmesg > $CI_PROJECT_DIR/dmesg.txt"
+  artifacts:
+    when: always
+    paths:
+      - "log.txt"
+      - "log_testsuite.txt"
+      - "dmesg.txt"
+      - "pmbootstrap.cfg"
+    expire_in: 1 week
+
+pmbootstrap-qemu-tests:
+  stage: tests
+  <<: *only-default
+  only:
+    variables:
+      # This is configured in the gitlab project. Make sure there is a runner
+      # added to the project that is capable of running these tests before
+      # setting this variable in the project!
+      - $CI_RUN_QEMU
+  tags:
+    # This requires a specific runner, shared runners generally don't work.
+    - qemu
+  script:
+    # Init test (pipefail disabled so 'yes' doesn't fail test)
+    - "set +o pipefail; yes ''| ./pmbootstrap.py init; set -o pipefail"
+    # Build/install QEMU (so it doesn't timeout in the testcase)
+    - "./pmbootstrap.py chroot --add=qemu -- true"
+    # qemu running process tests (-x: stop after first failure)
+    - "python -m pytest -vv -x ./test/test_qemu_running_processes.py"
+  after_script:
+    # Move logs so it can be saved as artifacts
+    - "[[ -f ~/.local/var/pmbootstrap/log.txt ]] && mv ~/.local/var/pmbootstrap/log.txt $CI_PROJECT_DIR/log.txt"
+    - "[[ -f ~/.local/var/pmbootstrap/log_testsuite.txt ]] && mv ~/.local/var/pmbootstrap/log_testsuite.txt $CI_PROJECT_DIR/log_testsuite.txt"
+    - "[[ -f /home/pmos/.config/pmbootstrap.cfg ]] && cp /home/pmos/.config/pmbootstrap.cfg $CI_PROJECT_DIR/pmbootstrap.cfg"
+    - "sudo dmesg > $CI_PROJECT_DIR/dmesg.txt"
+  artifacts:
+    when: always
+    paths:
+      - "log.txt"
+      - "log_testsuite.txt"
+      - "dmesg.txt"
+      - "pmbootstrap.cfg"
+    expire_in: 1 week
+

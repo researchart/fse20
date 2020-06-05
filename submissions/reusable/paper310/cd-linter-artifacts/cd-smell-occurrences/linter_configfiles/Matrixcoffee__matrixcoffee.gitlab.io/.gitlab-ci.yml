@@ -1,0 +1,13 @@
+# Don't need ruby, but it comes with proper Bash and Python3
+image: ruby:2.5
+
+pages:
+  stage: deploy
+  script:
+  - /bin/bash generate_to public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

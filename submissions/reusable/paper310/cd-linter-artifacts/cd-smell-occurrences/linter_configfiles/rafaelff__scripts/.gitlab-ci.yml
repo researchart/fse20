@@ -1,0 +1,7 @@
+image: koalaman/shellcheck-alpine
+
+test_scripts:
+    script:
+        # Fail if any of these files have warnings
+        - shellcheck --color --shell=bash *.sh
+

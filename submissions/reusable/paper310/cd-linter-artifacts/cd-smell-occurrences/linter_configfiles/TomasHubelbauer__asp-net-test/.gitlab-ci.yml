@@ -1,0 +1,14 @@
+image: microsoft/dotnet
+
+myasp:
+  script:
+    - apt-get update
+    - apt-get install lftp
+    - dotnet restore
+    - dotnet publish --configuration Release
+    - mkdir ~/.lftp
+    - printf "set ssl:verify-certificate no;set ftp:use-mdtm off;set ftp:ssl-allow off;" >> ~/.lftp/rc
+    - lftp -e "mirror --ignore-time -R bin/Release/netcoreapp1.1/publish asp-net-test" -u $FTP_USERNAME,$FTP_PASSWORD $FTP_HOST
+  only:
+    - master
+

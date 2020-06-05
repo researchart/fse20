@@ -1,0 +1,439 @@
+stages:
+  - build
+  - test
+  - staging
+  - integration
+  - deploy-beta
+  - deploy
+
+variables:
+  ADAPTER_CONTRACT: "Foci.Orbital.Adapters.Contract"
+  AGENT: "Foci.Orbital.Agent"
+  ADAPTER_CONTRACT_DIR: "OrbitalBus/$ADAPTER_CONTRACT"
+  AGENT_DIR: "OrbitalBus/$AGENT"
+  ADAPTER_CONTRACT_TEST_DIR: "Tests/Foci.Orbital.Adapters.Contract.Tests"
+  AGENT_TEST_DIR: "Tests/Foci.Orbital.Agent.Tests"
+  MAJOR_VERSION: $ORBITAL_MAJOR 
+  MINOR_VERSION: $ORBITAL_MAJOR.$ORBITAL_MINOR 
+  ORBITAL_VERSION: $ORBITAL_MAJOR.$ORBITAL_MINOR.$CI_PIPELINE_IID
+  NUGET_BETA_VERSION: $ORBITAL_MAJOR.$ORBITAL_MINOR.$CI_PIPELINE_IID-beta
+  DOCKER_HUB_REPOSITORY: focisolutions/orbital
+  DOCKER_HUB_PUSH: 'false'
+
+build-debug:
+  image: microsoft/dotnet:latest
+  stage: build
+  except:
+    - tags
+  script:
+    - dotnet build $ADAPTER_CONTRACT_DIR/
+    - dotnet build $AGENT_DIR/
+    - dotnet build $ADAPTER_CONTRACT_TEST_DIR/
+    - dotnet build $AGENT_TEST_DIR/
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - $ADAPTER_CONTRACT_DIR/bin/
+      - $AGENT_DIR/bin/
+      - $ADAPTER_CONTRACT_TEST_DIR/bin/
+      - $AGENT_TEST_DIR/bin/
+
+agent-test-results:
+  image: microsoft/dotnet:latest
+  stage: test
+  except:
+    - tags
+  script:
+    - dotnet restore $ADAPTER_CONTRACT_TEST_DIR
+    - dotnet restore $AGENT_TEST_DIR
+    - dotnet test $ADAPTER_CONTRACT_TEST_DIR
+        --no-build 
+        --logger "trx;LogFileName=adapter.trx" 
+        -v n 
+        /p:CollectCoverage=true 
+        /p:Exclude="[$AGENT]*"
+    - dotnet test $AGENT_TEST_DIR
+        --no-build 
+        --logger "trx;LogFileName=agent.trx" 
+        -v n 
+        /p:CollectCoverage=true 
+        /p:MergeWith="$CI_PROJECT_DIR/$ADAPTER_CONTRACT_TEST_DIR/coverage.json"
+        /p:CoverletOutputFormat=opencover
+        /p:Exclude="[$ADAPTER_CONTRACT]*"
+  after_script:
+    - export PATH="$PATH:/root/.dotnet/tools"
+    - dotnet tool install --global dotnet-reportgenerator-globaltool --version 4.0.0-rc4
+    - dotnet tool install -g trx2junit
+    - trx2junit $AGENT_TEST_DIR/TestResults/agent.trx $ADAPTER_CONTRACT_TEST_DIR/TestResults/adapter.trx --output ./testresults
+    - mv $AGENT_TEST_DIR/coverage.opencover.xml .
+    - reportgenerator -reports:coverage.opencover.xml -targetdir:./coverage
+    - sed -n '3p' < coverage.opencover.xml | awk -F 'sequenceCoverage="' '{split($2, a, "\"");  printf "%.2f", a[1]*100; print "%\n"}'
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - coverage.opencover.xml
+      - coverage
+    reports:
+      junit: ./testresults/*.xml
+  dependencies:
+      - build-debug
+  coverage: '/(\d*.?\d+)%/'
+
+docker-build:
+  image: docker:stable
+  stage: staging
+  services: 
+    - docker:dind
+  except:
+    - master
+    - tags
+  variables:
+    CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+    DOCKER_HOST: tcp://localhost:2375
+  script:
+    - docker_login
+    - docker_build  
+
+windows-x64-staging:
+  image: microsoft/dotnet:latest
+  stage: staging
+  except:
+    - master
+    - tags
+  script:
+    - dotnet publish $AGENT_DIR -c Release -o $CI_PROJECT_DIR/orbital-agent -r win-x64
+  artifacts:
+    name: windows-x64-staging
+    expire_in: 1 week
+    paths:
+      - $CI_PROJECT_DIR/orbital-agent
+
+adapter-contract-nuget-staging:
+  image: microsoft/dotnet:latest
+  stage: staging
+  except:
+    - master
+    - tags
+  script:
+    - dotnet pack $ADAPTER_CONTRACT_DIR/ -c Release -p:PackageVersion=$NUGET_BETA_VERSION
+  dependencies: []
+  artifacts:
+    name: adapters-contract-staging
+    expire_in: 1 week
+    paths:
+      - $ADAPTER_CONTRACT_DIR/bin/
+
+agent-integration-results:
+  image: docker/compose:1.23.1
+  stage: integration
+  services:
+    - docker:dind
+  except:
+    - master
+    - tags
+  variables:
+    DOCKER_HOST: tcp://localhost:2375
+  script:
+    - docker_login
+    - generate_docker_override
+    - integration_test
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - .adapters
+
+deploy-nuget-beta:
+  image: microsoft/dotnet:latest
+  stage: deploy-beta
+  when: manual
+  except:
+    - master
+    - tags
+  variables:
+    PACKAGE_LOCATION: $ADAPTER_CONTRACT_DIR/bin/Release
+  script:
+    - dotnet nuget push $PACKAGE_LOCATION/Foci.Orbital.Adapters.Contract.$NUGET_BETA_VERSION.nupkg -k $NUGET_ORBITAL_CONTRACTS -s https://api.nuget.org/v3/index.json
+  dependencies:
+    - adapter-contract-nuget-staging
+
+windows-x64:
+  image: microsoft/dotnet:latest
+  stage: deploy
+  only:
+    - master
+  script:
+    - dotnet publish $AGENT_DIR -c Release -o $CI_PROJECT_DIR/orbital-agent -r win-x64
+  artifacts:
+    name: windows-x64
+    paths:
+      - $CI_PROJECT_DIR/orbital-agent
+
+windows-x86:
+  image: microsoft/dotnet:latest
+  stage: deploy
+  only:
+    - master
+  script:
+    - dotnet publish $AGENT_DIR -c Release -o $CI_PROJECT_DIR/orbital-agent -r win-x86
+  artifacts:
+    name: windows-x86
+    paths:
+      - $CI_PROJECT_DIR/orbital-agent
+
+macos-x64:
+  image: microsoft/dotnet:latest
+  stage: deploy
+  only:
+    - master
+  script:
+    - dotnet publish $AGENT_DIR -c Release -o $CI_PROJECT_DIR/orbital-agent -r osx-x64
+  artifacts:
+    name: macos-x64
+    paths:
+      - $CI_PROJECT_DIR/orbital-agent
+
+linux-x64:
+  image: microsoft/dotnet:latest
+  stage: deploy
+  only:
+    - master
+  script:
+    - dotnet publish $AGENT_DIR -c Release -o $CI_PROJECT_DIR/orbital-agent -r linux-x64
+  artifacts:
+    name: linux-x64
+    paths:
+      - $CI_PROJECT_DIR/orbital-agent
+
+adapter-contract:
+  image: microsoft/dotnet:latest
+  stage: deploy
+  when: manual
+  only:
+    - master
+  variables:
+    PACKAGE_LOCATION: $ADAPTER_CONTRACT_DIR/bin/Release
+  script:
+    - dotnet pack $ADAPTER_CONTRACT_DIR/ -c Release -p:PackageVersion=$ORBITAL_VERSION
+    - dotnet nuget push $PACKAGE_LOCATION/Foci.Orbital.Adapters.Contract.$ORBITAL_VERSION.nupkg -k $NUGET_ORBITAL_CONTRACTS -s https://api.nuget.org/v3/index.json
+  dependencies: []
+  artifacts:
+    name: adapters-contract
+    paths:
+      - $ADAPTER_CONTRACT_DIR/bin/
+
+docker-hub-deploy:
+  stage: deploy
+  services: 
+    - docker:dind
+  image: docker:stable
+  only:
+    - master
+  variables:
+    CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+    DOCKER_HOST: tcp://localhost:2375
+    DOCKER_HUB_PUSH: 'true'
+  script:
+    - docker_login
+    - docker_build
+  dependencies: []
+
+tag-release:
+  stage: deploy
+  image: alpine/git
+  only:
+    - master
+  script:
+    - git config user.email "${GITLAB_USER_EMAIL}"
+    - git config user.name "${GITLAB_USER_NAME}"
+    - git remote set-url origin https://oauth2:${GITLAB_ACCESS_TOKEN}@gitlab.com/foci-open-source/Foci.OrbitalBus
+    - git tag -a $ORBITAL_VERSION -m "Version created by gitlab-ci Build"
+    - git push origin $ORBITAL_VERSION
+  dependencies: []
+    
+# This will cause our documentation to be made public on push to master.
+pages:
+  image: tsgkadot/docker-docfx
+  stage: deploy
+  only:
+    - master
+  before_script:
+  script:
+    - if [ "$DEPLOY_PAGES" == "true" ]; then docfx metadata -f Docs/docfx.json; fi
+    - if [ "$DEPLOY_PAGES" == "true" ]; then docfx build -f Docs/docfx.json; fi
+    - if [ "$DEPLOY_PAGES" == "true" ]; then echo "Deploying documentation to GitLab pages"; fi
+    - if [ "$DEPLOY_PAGES" == "true" ]; then mv Docs/_public public; fi
+    - if [ "$DEPLOY_PAGES" == "false" ]; then mkdir public; fi
+    - if [ "$DEPLOY_PAGES" == "false" ]; then mv Docs/static.html public/index.html; fi
+  artifacts:
+    paths:
+      - public
+
+.devops_scripts: &devops_scripts |
+  # Auto DevOps variables and functions
+  [[ "$TRACE" ]] && set -x  
+  export CI_APPLICATION_REPOSITORY=$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG
+  export CI_APPLICATION_TAG=$ORBITAL_VERSION
+  export CI_APPLICATION_MINOR_TAG=$MINOR_VERSION
+  export CI_APPLICATION_MAJOR_TAG=$MAJOR_VERSION
+
+  function docker_login() {
+    if [[ -n "$CI_REGISTRY_USER" ]]; then
+      echo "Logging to GitLab Container Registry with CI credentials..."
+      echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" "$CI_REGISTRY" --password-stdin
+      echo docker pull "$CI_APPLICATION_REPOSITORY:latest" || true
+      echo ""      
+    fi
+  }
+
+  function docker_build() {
+
+    if [[ -f Dockerfile ]]; then
+      echo "Building Dockerfile-based application..."
+      docker build --cache-from $CI_APPLICATION_REPOSITORY:latest \
+      -t "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG" \
+      -t "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_MINOR_TAG" \
+      -t "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_MAJOR_TAG" \
+      -t "$CI_APPLICATION_REPOSITORY:latest" \
+      -t "$DOCKER_HUB_REPOSITORY:$CI_APPLICATION_TAG" \
+      -t "$DOCKER_HUB_REPOSITORY:$CI_APPLICATION_MINOR_TAG" \
+      -t "$DOCKER_HUB_REPOSITORY:$CI_APPLICATION_MAJOR_TAG" \
+      -t "$DOCKER_HUB_REPOSITORY:latest" .
+      echo "Created Tags $CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG and \
+                         $CI_APPLICATION_REPOSITORY:$CI_APPLICATION_MINOR_TAG and \
+                         $CI_APPLICATION_REPOSITORY:$CI_APPLICATION_MAJOR_TAG and \
+                         $CI_APPLICATION_REPOSITORY:latest and \
+                         $DOCKER_HUB_REPOSITORY:$CI_APPLICATION_TAG and \
+                         $DOCKER_HUB_REPOSITORY:$CI_APPLICATION_MINOR_TAG and \
+                         $DOCKER_HUB_REPOSITORY:$CI_APPLICATION_MAJOR_TAG and\
+                         $DOCKER_HUB_REPOSITORY:latest"
+    fi
+
+    echo "Pushing to GitLab Container Registry..."
+    docker push "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG"
+    docker push "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_MINOR_TAG"
+    docker push "$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_MAJOR_TAG"
+    docker push "$CI_APPLICATION_REPOSITORY:latest"
+    echo ""
+
+    if [[ "$DOCKER_HUB_PUSH" = true ]]; then
+      echo "Pushing to Docker Hub..."
+      echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+      docker push "$DOCKER_HUB_REPOSITORY:$CI_APPLICATION_TAG"
+      docker push "$DOCKER_HUB_REPOSITORY:$CI_APPLICATION_MINOR_TAG"
+      docker push "$DOCKER_HUB_REPOSITORY:$CI_APPLICATION_MAJOR_TAG"
+      docker push "$DOCKER_HUB_REPOSITORY:latest"
+      echo ""
+    fi
+  }
+
+  function generate_docker_override {
+
+    rm -rf docker-compose.override.yaml
+
+    ( echo "cat <<EOF >docker-compose.override.yaml";
+      cat docker-compose.override.yaml.template;
+    ) >temp.yaml
+    . ./temp.yaml
+    cat docker-compose.override.yaml
+  }
+
+  function integration_test() {
+
+    echo "Setting up files for integration testing"
+    mkdir -p .adapters/docker-configs
+    mkdir -p .adapters/docker-logs
+    cp $AGENT_DIR/Configs/docker.json .adapters/docker-configs/
+    mv .adapters/docker-configs/docker.json .adapters/docker-configs/orbital.config
+    echo ""
+
+    echo "Starting orbital agent"
+    docker-compose up -d
+    echo ""
+
+    echo "Waiting for agent to become available"
+    sleep 20
+    echo ""
+    
+    echo "Uploading the test service with service uploader"
+    docker run --rm -v $CI_PROJECT_DIR/Samples/ServiceUploader:/app \
+                                    --network fociorbitalbus_default \
+                                    -h serviceuploaderapp \
+                                    --name serviceuploaderapp \
+                                    -w /app microsoft/dotnet:sdk \
+                                    bash -c 'dotnet run -- docker.json'
+    echo ""
+
+    echo "Running the integration tests"
+    docker run --rm -v $CI_PROJECT_DIR/Tests/Foci.Orbital.Integration.Tests:/app \
+                                    --expose 3580  \
+                                    --network fociorbitalbus_default \
+                                    -h integration \
+                                    --name integration \
+                                    -w /app microsoft/dotnet:sdk \
+                                    bash -c 'dotnet test --filter Category=Integration'
+    echo ""
+    echo "Running integration tests for HttpEndpoints"
+    docker run --rm -v $CI_PROJECT_DIR/Tests/Foci.Orbital.Integration.Tests:/app \
+                                    --expose 3580  \
+                                    --network fociorbitalbus_default \
+                                    -h integration \
+                                    --name integration \
+                                    -w /app microsoft/dotnet:sdk \
+                                    bash -c 'dotnet test --filter Category=HttpEndpoints'
+    echo ""
+    echo "Running integration tests for Database Adapter"
+  
+    docker run --rm -v $CI_PROJECT_DIR/Tests/Foci.Orbital.Integration.Tests:/app \
+                                    --expose 3580  \
+                                    --network fociorbitalbus_default \
+                                    -h integration \
+                                    --name integration \
+                                    -w /app microsoft/dotnet:sdk \
+                                    bash -c 'dotnet test --filter Category=TableInitialization'
+
+    docker run --rm -v $CI_PROJECT_DIR/Tests/Foci.Orbital.Integration.Tests:/app \
+                                    --expose 3580  \
+                                    --network fociorbitalbus_default \
+                                    -h integration \
+                                    --name integration \
+                                    -w /app microsoft/dotnet:sdk \
+                                    bash -c 'dotnet test --filter Category=UpdateData'
+
+    docker run --rm -v $CI_PROJECT_DIR/Tests/Foci.Orbital.Integration.Tests:/app \
+                                    --expose 3580  \
+                                    --network fociorbitalbus_default \
+                                    -h integration \
+                                    --name integration \
+                                    -w /app microsoft/dotnet:sdk \
+                                    bash -c 'dotnet test --filter Category=DatabaseAdapter'
+    docker-compose stop rabbitmq
+    echo "Waiting for RabbitMQ to stop"
+    echo ""
+    echo "Running integration tests when RabbitMQ is down"
+    docker run --rm -v $CI_PROJECT_DIR/Tests/Foci.Orbital.Integration.Tests:/app \
+                                    --expose 3580  \
+                                    --network fociorbitalbus_default \
+                                    -h integration \
+                                    --name integration \
+                                    -w /app microsoft/dotnet:sdk \
+                                    bash -c 'dotnet test --filter Category=RabbitMQDown'
+    echo ""
+    echo "Waiting for Consul to stop"
+    docker-compose stop consul
+    echo "Running integration tests when Consul is down"
+    docker run --rm -v $CI_PROJECT_DIR/Tests/Foci.Orbital.Integration.Tests:/app \
+                                    --expose 3580  \
+                                    --network fociorbitalbus_default \
+                                    -h integration \
+                                    --name integration \
+                                    -w /app microsoft/dotnet:sdk \
+                                    bash -c 'dotnet test --filter Category=ConsulDown'
+    echo ""
+    
+
+  }
+
+before_script:
+  - *devops_scripts
+

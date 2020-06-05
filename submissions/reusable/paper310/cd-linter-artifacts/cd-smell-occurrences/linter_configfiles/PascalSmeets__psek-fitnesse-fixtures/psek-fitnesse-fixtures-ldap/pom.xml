@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>psek-fitnesse-fixtures</artifactId>
+        <groupId>nl.psek.fitnesse</groupId>
+        <version>1.2.2-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>psek-fitnesse-fixtures-ldap</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>nl.psek.fitnesse</groupId>
+            <artifactId>psek-fitnesse-runner</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ldap</groupId>
+            <artifactId>spring-ldap-core</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>nl.psek.fitnesse</groupId>
+            <artifactId>psek-fitnesse-fixtures-general</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
+

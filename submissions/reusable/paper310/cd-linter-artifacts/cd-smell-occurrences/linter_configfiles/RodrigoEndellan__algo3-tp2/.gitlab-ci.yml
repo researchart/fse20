@@ -1,0 +1,5 @@
+build:
+  script:
+    - apt-get update -qq && apt-get install -y -qq ant ant-optional openjdk-8-jdk openjdk-8-jre openjfx
+    - ant
+

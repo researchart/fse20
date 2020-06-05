@@ -1,0 +1,22 @@
+image: node:4.2.2
+
+# before_script:
+#   - bundle package --all
+
+stages:
+  - test
+  - deploy
+  - cleanup
+
+test:
+  stage: test
+  script:
+    - npm install
+    - npm run unit
+
+#deploy:
+#  - todo
+#
+#cleanup:
+#  - todo
+

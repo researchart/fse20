@@ -1,0 +1,25 @@
+image: python:3.7-alpine
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+services:
+  - postgres:alpine
+
+tests:
+  before_script:
+    - python -V
+    - apk --update add --no-cache build-base gcc libgcc libffi-dev openssl-dev git postgresql-client jpeg-dev openjpeg-dev zlib-dev freetype-dev lcms2-dev freetype-dev gifsicle musl-dev python3-dev
+    - pip3 install pipenv wheel
+    - pipenv install --dev
+    - cp config/config.ci.yml config/config.yml
+    - psql -h postgres -U postgres -f schema.sql
+    - pipenv run ./manage.py genkeys
+    # - pipenv run ./manage.py migrate
+    - pipenv run ./manage.py setup_tests
+  script:
+    - pipenv run pyflakes magma
+    - pipenv run pyflakes tests
+    - pipenv run pyflakes run.py
+    - pipenv run pytest tests
+

@@ -1,0 +1,27 @@
+image: nixos/nix:2.2.1
+
+before_script:
+  - nix-channel --add https://nixos.org/channels/nixos-19.03 nixos-19.03
+  - nix-channel --list
+  - nix-channel --update
+
+stages:
+  - build
+
+# times out currently
+# build-nixos-19_03:
+#   stage: build
+#   script:
+#     - nix-build --max-jobs 4 ./default.nix --argstr nixpkgs /nix/var/nix/profiles/per-user/root/channels/nixos-19.03
+
+# times out currently
+# build-nixpkgs-unstable:
+#   stage: build
+#   script:
+#     - nix-build --max-jobs 4 ./default.nix --argstr nixpkgs /nix/var/nix/profiles/per-user/root/channels/nixpkgs
+
+build-nixpkgs-known:
+  stage: build
+  script:
+    - nix-build --max-jobs 4 ./default.nix
+

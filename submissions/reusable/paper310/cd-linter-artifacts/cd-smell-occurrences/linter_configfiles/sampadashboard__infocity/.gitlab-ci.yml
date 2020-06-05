@@ -1,0 +1,31 @@
+image: ruby:2.4.1
+
+services:
+  - postgres:latest
+
+variables:
+  POSTGRES_DB: test_db
+  POSTGRES_USER: runner
+  POSTGRES_PASSWORD: ""
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq postgresql postgresql-contrib libpq-dev cmake nodejs libxslt-dev libxml2-dev
+  - ruby -v
+  - which ruby
+  - gem install bundler --no-ri --no-rdoc
+  - RAILS_ENV=test bundle install --jobs $(nproc) "${FLAGS[@]}"
+  - cp config/database.yml.gitlab config/database.yml
+  - RAILS_ENV=test bundle exec rake db:create db:schema:load
+
+rspec:
+  script:
+    - RAILS_ENV=test bundle exec rspec
+
+production:
+  type: deploy
+  script:
+  - gem install dpl
+  - dpl --provider=heroku --app=infocity-poo --api-key=$HEROKU_PRODUCTION_API_KEY
+  only:
+  - master #test it by changing to your branch, ex: - issue-19_diego_ci_and_cd
+

@@ -1,0 +1,512 @@
+image: registry.gitlab.com/gitlab-org/gitlab-docs:base
+
+stages:
+  - build-images
+  - build
+  - test
+  - pre-deploy
+  - deploy
+  - post-deploy
+
+#
+# Pick the remote branch, by default master (see the Rakefile for more info)
+#
+variables:
+  BRANCH_EE: 'master'
+  BRANCH_OMNIBUS: 'master'
+  BRANCH_RUNNER: 'master'
+  BRANCH_CHARTS: 'master'
+  BUNDLE_PATH__SYSTEM: 'false'
+  GIT_DEPTH: '20'
+
+#
+# Check Ruby version and install gems
+#
+before_script:
+  - ruby -v
+  - NOKOGIRI_USE_SYSTEM_LIBRARIES=1 bundle install --jobs 4 --path vendor
+
+# Skip this job when it's invoked by a cross project pipeline. That will speed
+# up the pipeline when a docs preview is triggered. The triggered pipeline is
+# always a branch off master which should be green anyway. For more info:
+# https://docs.gitlab.com/ee/development/writing_documentation.html#previewing-the-changes-live
+.except_pipelines: &except_pipelines
+  except:
+    - pipelines
+#
+# Except stable branches (with names like '10.4', '11.2', etc.)
+#
+.except_stable: &except_stable
+  except:
+    - /^\d{1,2}\.\d{1,2}$/
+
+#
+# Retry a job automatically if it fails (2 times)
+#
+.retry: &retry
+  retry: 2
+
+###############################################
+#             Build the website               #
+###############################################
+
+.build_base: &build_base
+  stage: build
+  script:
+    - yarn install --cache-folder .yarn-cache
+    - bundle exec rake setup_git default
+    - bundle exec nanoc compile -VV
+    # Symlink all README.html to index.html so that we can have clean URLs
+    - for i in `find public -name README.html`; do ln -sf README.html $(dirname $i)/index.html; done
+    # Remove CE dir and symlink EE to CE
+    - if [ $CI_PIPELINE_SOURCE != 'pipeline' ]; then cd public && rm -rf ce && ln -s ee ce; fi
+  artifacts:
+    paths:
+      - public
+    expire_in: 1d
+  cache:
+    key:
+      files:
+        - Gemfile.lock
+    paths:
+      - vendor/ruby
+  <<: *retry
+
+#
+# Compile only on master and stable branches
+#
+compile_prod:
+  <<: *build_base
+  variables:
+    NANOC_ENV: 'production'
+  only:
+    - master
+    - /^\d{1,2}\.\d{1,2}$/
+
+#
+# Compile on all branches except master
+#
+compile_dev:
+  <<: *build_base
+  only:
+    - branches
+  except:
+    - master
+    - /^\d{1,2}\.\d{1,2}$/
+
+###############################################
+#              Test the website               #
+###############################################
+
+#
+# Run rspec tests
+#
+rspec:
+  stage: test
+  script:
+    - bundle exec rspec
+  cache:
+    key:
+      files:
+        - Gemfile.lock
+    paths:
+      - vendor/ruby
+  <<: *except_pipelines
+
+#
+# Run JavaScript tests
+#
+jest:
+  stage: test
+  script:
+    - yarn install --cache-folder .yarn-cache
+    - yarn test
+  cache:
+    key:
+      files:
+        - Gemfile.lock
+        - yarn.lock
+    paths:
+      - vendor/ruby
+      - .yarn-cache/
+  <<: *except_pipelines
+
+#
+# Lint JavaScript
+#
+js_lint:
+  stage: test
+  script:
+    - yarn install --cache-folder .yarn-cache
+    - yarn eslint
+    - yarn prettier
+  cache:
+    key:
+      files:
+        - Gemfile.lock
+        - yarn.lock
+    paths:
+      - vendor/ruby
+      - .yarn-cache/
+  <<: *except_pipelines
+
+#
+# SCSS linting
+#
+scss_lint:
+  stage: test
+  script:
+    - bundle exec scss-lint
+  cache:
+    key:
+      files:
+        - Gemfile.lock
+    paths:
+      - vendor/ruby
+  <<: *except_pipelines
+  <<: *retry
+
+#
+# Yamllint of *.yml for .gitlab-ci.yml.
+# This uses rules from project root `.yamllint`.
+#
+yaml_lint:
+  stage: test
+  image: sdesbure/yamllint:latest
+  before_script: []
+  dependencies: []
+  script:
+    - yamllint .gitlab-ci.yml content/_data
+  <<: *except_pipelines
+
+###############################################
+#               Review Apps                   #
+###############################################
+
+#
+# Deploy the Review App on a dev server
+#
+review:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  dependencies:
+    - compile_dev
+  before_script: []
+  cache: {}
+  script:
+    # Rsync to the Pages dir
+    - rsync -av --delete public /srv/nginx/pages/$CI_COMMIT_REF_SLUG
+    # Remove public directory so that the next review app can run in a
+    # clean environment (limitation of the shell executor).
+    - rm -rf public
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: http://$CI_COMMIT_REF_SLUG.$APPS_DOMAIN
+    on_stop: review_stop
+  only:
+    - branches@gitlab-org/gitlab-docs
+  # Except master and stable branches
+  except:
+    - master
+    - /^\d{1,2}\.\d{1,2}$/
+    - /release-\d{1,2}-\d{1,2}/
+  tags:
+    - nginx
+    - review-apps
+  <<: *retry
+
+#
+# Stop the Review App
+#
+review_stop:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  dependencies: []
+  artifacts: {}
+  before_script: []
+  cache: {}
+  script:
+    - rm -rf public /srv/nginx/pages/$CI_COMMIT_REF_SLUG
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+  only:
+    - branches@gitlab-org/gitlab-docs
+  # Except master and stable branches
+  except:
+    - master
+    - /^\d{1,2}\.\d{1,2}$/
+    - /release-\d{1,2}-\d{1,2}/
+  tags:
+    - nginx
+    - review-apps
+  <<: *retry
+
+###############################################
+#          GitLab Pages (production)          #
+###############################################
+
+#
+# Deploy to production with GitLab Pages
+#
+pages:
+  image: registry.gitlab.com/gitlab-org/gitlab-docs:latest
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  before_script: []
+  cache: {}
+  environment:
+    name: production
+    url: https://docs.gitlab.com
+  dependencies:
+    - compile_prod    # Contains the public directory
+  script:
+    #
+    # We want to use the artifacts of the compile_prod job as
+    # the latest docs deployment, and the other versions are
+    # taken from /usr/share/nginx/html which are included in
+    # the image we pull from.
+    #
+    - mv /usr/share/nginx/html/1* public/
+
+    #
+    # Check the size before minifying
+    #
+    - du -sh public/
+
+    #
+    # Minify the assets of the resulting site. The single versions
+    # will be minified eventually when the minification propagates
+    # to all versions that are included in gitlab-docs:latest
+    # (around 12.7), but we also need to minify the content we
+    # pull from master. Currently, there's no way to exclude
+    # files or directories when minifying, so we minify the whole
+    # site (even the versions that are already minified).
+    # TODO: Move to top.
+    # When all versions are minified, we can move this script
+    # to run first and avoid minifying the already minified versions.
+    #
+    - /scripts/minify-assets.sh ./ public/
+
+    #
+    # Check the size after minifying
+    #
+    - du -sh public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 1d
+  only:
+    - master@gitlab-org/gitlab-docs
+  <<: *retry
+
+###############################################
+#           Docker images builds              #
+###############################################
+
+#
+# Reuse some common commands
+#
+.docker_prepare: &docker_prepare
+  image: docker:latest
+  services:
+    - docker:19.03.5-dind
+  before_script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  <<: *retry
+
+.scheduled_infrequent: &scheduled_infrequent
+  rules:
+    - if: '$PIPELINE_SCHEDULE_TIMING == "weekly" && $CI_PIPELINE_SOURCE == "schedule"'
+
+#
+# GitLab docs lint image containing all test tools
+#
+image:docs-lint:
+  <<: *docker_prepare
+  stage: build-images
+  variables:
+    IMAGE_NAME: $CI_REGISTRY_IMAGE:lint
+    DOCKERFILE: dockerfiles/Dockerfile.gitlab-docs-lint
+  script:
+    - docker build --build-arg CI_COMMIT_REF_NAME=${CI_COMMIT_REF_NAME} -t $IMAGE_NAME -f $DOCKERFILE .
+    - docker push $IMAGE_NAME
+  when: manual
+  environment:
+    name: registry/docs-lint
+
+#
+# GitLab docs image
+#
+image:gitlab-docs-base:
+  <<: *docker_prepare
+  stage: build-images
+  variables:
+    IMAGE_NAME: $CI_REGISTRY_IMAGE:base
+    DOCKERFILE: dockerfiles/Dockerfile.gitlab-docs-base
+  script:
+    - docker build -t $IMAGE_NAME -f $DOCKERFILE .
+    - docker push $IMAGE_NAME
+  when: manual
+  environment:
+    name: registry/docs-base
+
+#
+# Helper Docker image containing all build dependencies.
+# It must be rebuilt every time Gemfile and/or Gemfile.lock changes.
+#
+image:bootstrap:
+  <<: *docker_prepare
+  stage: build-images
+  variables:
+    IMAGE_NAME: $CI_REGISTRY_IMAGE:bootstrap
+    DOCKERFILE: dockerfiles/Dockerfile.bootstrap
+  script:
+    - docker build -t $IMAGE_NAME -f $DOCKERFILE .
+    - docker push $IMAGE_NAME
+  only:
+    refs:
+      - master
+    changes:
+      - "Gemfile*"
+  environment:
+    name: registry/docs-bootstrap
+
+#
+# Helper Docker image that builds the gitlab-docs website
+#
+image:builder-onbuild:
+  <<: *docker_prepare
+  stage: build-images
+  variables:
+    IMAGE_NAME: $CI_REGISTRY_IMAGE:builder-onbuild
+    DOCKERFILE: dockerfiles/Dockerfile.builder.onbuild
+  script:
+    - docker build -t $IMAGE_NAME -f $DOCKERFILE .
+    - docker push $IMAGE_NAME
+  when: manual
+  environment:
+    name: registry/builder-onbuild
+  <<: *except_stable
+
+#
+# Helper Docker image that copies the final HTML files in a smaller image
+# (no rubygems included)
+#
+image:nginx-onbuild:
+  <<: *docker_prepare
+  stage: build-images
+  variables:
+    IMAGE_NAME: $CI_REGISTRY_IMAGE:nginx-onbuild
+    DOCKERFILE: dockerfiles/Dockerfile.nginx.onbuild
+  script:
+    - docker build -t $IMAGE_NAME -f $DOCKERFILE .
+    - docker push $IMAGE_NAME
+  when: manual
+  environment:
+    name: registry/nginx-onbuild
+  <<: *except_stable
+
+#
+# Final Docker image containing a single version
+# It is based on Dockerfile.single for each branch
+#
+image:docs-single:
+  <<: *docker_prepare
+  stage: pre-deploy
+  artifacts: {}
+  cache: {}
+  dependencies: []
+  variables:
+    NANOC_ENV: 'production'
+    IMAGE_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+    DOCKERFILE: Dockerfile.$CI_COMMIT_REF_NAME
+  environment:
+    name: registry/$CI_COMMIT_REF_SLUG
+  script:
+    - docker build --build-arg NANOC_ENV=${NANOC_ENV} --build-arg CI_COMMIT_REF_NAME=${CI_COMMIT_REF_NAME} -t $IMAGE_NAME -f $DOCKERFILE .
+    - docker push $IMAGE_NAME
+  # Only branches with versions like 10.4
+  only:
+    - /^\d{1,2}\.\d{1,2}$/
+  except:
+    - tags
+
+#
+# Final Docker image containing all the archives
+#
+image:docs-archives:
+  <<: *docker_prepare
+  <<: *scheduled_infrequent
+  stage: pre-deploy
+  artifacts: {}
+  cache: {}
+  dependencies: []
+  variables:
+    IMAGE_NAME: $CI_REGISTRY_IMAGE:archives
+  environment:
+    name: registry/archives
+  script:
+    - docker build -t $IMAGE_NAME -f dockerfiles/Dockerfile.archives .
+    - docker push $IMAGE_NAME
+
+#
+# Build master containing the online archives and latest docs (on schedules)
+#
+image:docs-latest:
+  <<: *docker_prepare
+  <<: *scheduled_infrequent
+  stage: pre-deploy
+  artifacts: {}
+  cache: {}
+  dependencies: []
+  variables:
+    NANOC_ENV: 'production'
+    IMAGE_NAME: $CI_REGISTRY_IMAGE:latest
+    DOCKERFILE: Dockerfile.$CI_COMMIT_REF_NAME
+  environment:
+    name: registry/latest
+  script:
+    - docker build --build-arg NANOC_ENV=${NANOC_ENV} --build-arg CI_COMMIT_REF_NAME=${CI_COMMIT_REF_NAME} -t $IMAGE_NAME -f $DOCKERFILE .
+    - docker push $IMAGE_NAME
+  allow_failure: true
+
+#
+# Check for broken external links
+# Set to be part of infrequent pipeline
+#
+test_external_links:
+  <<: *scheduled_infrequent
+  stage: test
+  script:
+    - bundle exec nanoc check external_links
+  allow_failure: true
+  cache:
+    key:
+      files:
+        - Gemfile.lock
+    paths:
+      - vendor/ruby
+
+#
+# Check for broken internal links
+# Set to be part of infrequent pipeline
+#
+test_internal_links_and_anchors:
+  <<: *scheduled_infrequent
+  stage: test
+  script:
+    - bundle exec nanoc check internal_links
+    - bundle exec nanoc check internal_anchors
+  cache:
+    key:
+      files:
+        - Gemfile.lock
+    paths:
+      - vendor/ruby
+

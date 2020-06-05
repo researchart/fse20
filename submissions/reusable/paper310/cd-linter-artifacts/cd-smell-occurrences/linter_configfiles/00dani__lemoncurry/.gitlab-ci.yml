@@ -1,0 +1,22 @@
+image: python:3.6
+services:
+  - postgres:latest
+variables:
+  GIT_SUBMODULE_STRATEGY: normal
+  PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
+  PIPENV_CACHE_DIR: $CI_PROJECT_DIR/.cache/pipenv
+  POSTGRES_HOST: postgres
+  POSTGRES_DB: nice_marmot
+  POSTGRES_USER: runner
+  POSTGRES_PASSWORD: ''
+
+cache:
+  paths:
+    - .cache
+
+test:
+  script:
+    - pip install pipenv
+    - pipenv sync --dev
+    - pipenv run pytest
+

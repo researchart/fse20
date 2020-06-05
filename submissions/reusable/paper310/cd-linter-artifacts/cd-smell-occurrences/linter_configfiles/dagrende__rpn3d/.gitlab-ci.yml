@@ -1,0 +1,32 @@
+# This file is a template, and might need editing before it works on your project.
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:latest
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+pages:
+  cache:
+    paths:
+    - node_modules/
+
+  stage: deploy
+  script:
+  - mkdir -p public
+  - npm ci
+  - sed -i 's#/dist/#/rpn3d/dist/#' src/App.vue
+  - npm run build
+  - cp -r dist public
+  - sed 's#/dist#/rpn3d/dist#' index.html >public/index.html
+  - cp public/index.html public/404.html
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+  - pages
+

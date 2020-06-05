@@ -1,0 +1,23 @@
+image: microsoft/dotnet:latest
+
+stages:
+  - test
+  # - deploy
+
+# release:
+  # stage: deploy
+  # only:
+    # - master
+  # artifacts:
+    # paths:
+      # - publish/
+  # script:
+    # The output path is relative to the position of the csproj-file
+    # - cd src/PingPong.Web
+    # - dotnet publish -c Release -o ../../publish
+    
+debug:
+  stage: test
+  script:
+    - /usr/bin/env bash run_tests.sh
+

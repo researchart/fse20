@@ -1,0 +1,57 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <!-- In this repository, everything is inherited from the parent pom -->
+    <parent>
+        <groupId>org.sila-standard.sila_java.servers</groupId>
+        <artifactId>examples</artifactId>
+        <version>0.0.3-SNAPSHOT</version>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.sila-standard.sila_java.servers.examples</groupId>
+    <artifactId>hello_sila</artifactId>
+    <version>0.0.3-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <build>
+        <plugins>
+            <!--
+            The Maven Plugin is used to generate proto files from the Feature Definitions, these should be located
+            in the resources folder of the package (by default src/main/resources). You can add as many
+            feature definitions as you want to implement.
+
+            For this example, we only implement the simplest possible Unobservable Command.
+            -->
+            <plugin>
+                <groupId>org.sila-standard.sila_java.library</groupId>
+                <artifactId>maven_plugin</artifactId>
+                <version>0.0.3-SNAPSHOT</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <protobufVersion>${protobuf.version}</protobufVersion>
+                            <grpcVersion>${grpc.version}</grpcVersion>
+                            <features>
+                                <param>src/main/resources/GreetingProvider.sila.xml</param>
+                            </features>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Wrapping a stand-alone executable for ease of distribution for testing the HelloSiLAServer -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>sila_java.servers.examples.hello_sila.HelloSiLAServer</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+

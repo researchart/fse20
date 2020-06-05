@@ -1,0 +1,13 @@
+image: alpine
+
+pages:
+  script:
+  - apk --no-cache add doxygen
+  - doxygen
+  - mv doc/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

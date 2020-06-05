@@ -1,0 +1,10 @@
+image: "ruby:2.3.0"
+
+before_script:
+  - gem install rspec bundler yard --no-document
+  - gem install rubocop -v 0.47.1 --no-document
+
+rubocop:
+  script:
+    - rubocop
+

@@ -1,0 +1,63 @@
+stages:
+  - build-org
+  - filter-css-classes
+  - publish
+
+org-generation:
+  image:
+    name: iquiw/alpine-emacs
+  before_script:
+    - apk update
+    - apk add graphviz ttf-freefont
+    # If cache succeeded, copy to emacs home
+    - if [ -d elpa ]; then cp -rf elpa /root/.emacs.d; fi
+  cache:
+    key: org-files
+    paths:
+      - .timestamps
+      - elpa/
+  artifacts:
+    paths:
+      - _posts
+      - res
+  script:
+    - emacs -batch -q -l export.el -f org-publish-with-different-timestamp-directory
+    # Copy elpa packages to current directory for cache
+    - cp -rf /root/.emacs.d/elpa/ .
+  stage: build-org
+
+css-theme:
+  image: node:6.11.3-alpine
+  cache:
+    key: node-libraries
+    paths:
+      - .npm_cache/
+  before_script:
+    - npm config set cache $(pwd)/.npm_cache
+    - cd syntax-extractor && npm install && cd ..
+  script:
+    - node syntax-extractor/index.js base16-default-oceanic
+  artifacts:
+    paths:
+      - _assets/css/syntax.scss
+  stage: filter-css-classes
+
+pages:
+  image: ruby:2.4-alpine3.6
+  cache:
+    key: jekyll
+    paths:
+      - .bundle_cache/
+  before_script:
+    - apk update
+    - apk add build-base
+    - bundle install --path .bundle_cache/
+  script:
+    - JEKYLL_ENV=production bundle exec jekyll build -d public
+  artifacts:
+    paths:
+      - public
+  stage: publish
+  only:
+    - master
+

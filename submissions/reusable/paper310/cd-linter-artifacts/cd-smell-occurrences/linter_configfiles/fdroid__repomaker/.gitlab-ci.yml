@@ -1,0 +1,55 @@
+image: registry.gitlab.com/fdroid/ci-images-repomaker:latest
+
+stages:
+  - test
+  - deploy
+
+pep8:
+  stage: test
+  script:
+    - ./tests/test-pep8.sh
+
+pylint:
+  stage: test
+  before_script:
+    - pip3 install -r requirements.txt
+    - pip3 install -r requirements-dev.txt
+
+  script:
+    - ./tests/test-pylint.sh
+
+units:
+  stage: test
+  cache:
+    paths:
+      - /usr/local/lib/python3.5/dist-packages
+      - node_modules
+
+  before_script:
+    - ./setup.sh
+    - pip3 install -r requirements-dev.txt
+    - npm install --user
+
+  script:
+    - ./tests/test-units.sh
+
+docker:
+  stage: deploy
+  image: docker:git
+  services:
+    - docker:dind
+  variables:
+    IMAGE: registry.gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}:latest
+
+  before_script:
+    - echo $CI_BUILD_TOKEN | docker login -u gitlab-ci-token --password-stdin registry.gitlab.com
+  script:
+    - docker build -t $IMAGE .
+    - docker push $IMAGE
+
+  when: on_success
+  only:
+    - master
+  environment:
+      name: docker
+

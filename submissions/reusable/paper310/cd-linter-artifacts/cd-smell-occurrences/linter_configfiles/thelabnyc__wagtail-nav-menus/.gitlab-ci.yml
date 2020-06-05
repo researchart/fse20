@@ -1,0 +1,32 @@
+include:
+  - project: thelabnyc/gitlab-ci-templates
+    file: /ci/sast.gitlab-ci.yml
+
+test_python36:
+  stage: test
+  image: python:3.6
+  script:
+    - pip install tox
+    - tox -e 'py36-django{111,220,300}-wagtail{25,26,27}'
+
+test_python37:
+  stage: test
+  image: python:3.7
+  script:
+    - pip install tox
+    - tox -e 'py37-django{220,300}-wagtail{25,26,27}'
+
+test_python38:
+  stage: test
+  image: python:3.8
+  script:
+    - pip install tox
+    - tox -e 'py38-django{220,300}-wagtail{25,26,27}'
+
+test_pypy3:
+  stage: test
+  image: pypy:3
+  script:
+    - pip install tox
+    - tox -e 'pypy3-django{111,220,300}-wagtail{25,26,27}'
+

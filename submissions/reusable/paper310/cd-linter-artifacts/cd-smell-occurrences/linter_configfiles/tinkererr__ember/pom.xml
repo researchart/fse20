@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>me.lukecarr.ember</groupId>
+    <artifactId>ember</artifactId>
+    <version>1.0.0-rc-18a</version>
+    <packaging>pom</packaging>
+
+    <name>Ember</name>
+    <description>Transform your Minecraft server into a unique experience with custom ore, items, armor, machines and
+        more!
+    </description>
+    <url>https://gitlab.com/tinkererr/ember</url>
+
+    <organization>
+        <name>Luke Carr</name>
+        <url>https://gitlab.com/tinkererr</url>
+    </organization>
+
+    <issueManagement>
+        <system>Gitlab</system>
+        <url>https://bugs.playember.com</url>
+    </issueManagement>
+
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>https://gitlab.com/tinkererr/ember/blob/master/LICENSE</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Luke (Tinkererr) Carr</name>
+        </developer>
+    </developers>
+
+    <modules>
+        <module>api</module>
+        <module>plugin</module>
+    </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>spigotmc-repo</id>
+            <url>https://hub.spigotmc.org/nexus/content/groups/public/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>1.14-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>
+

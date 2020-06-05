@@ -1,0 +1,54 @@
+image: ruby:2.5
+
+before_script:
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo $CI_PRIVATE_KEY |base64 -d)
+  - mkdir -p ~/.ssh
+  - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  - ruby -v
+  - which ruby
+  - gem install bundler --no-document
+  - bundle install --jobs $(nproc)  "${FLAGS[@]}" --path vendor
+
+cache:
+  paths:
+    - vendor
+
+stages:
+  - rspec
+  - configtest
+  - publish
+
+rspec:
+  stage: rspec
+  script:
+    - bundle exec rspec -f d
+  only:
+    variables:
+      - $CI_PRIVATE_KEY
+
+config-test:
+  stage: configtest
+  image: docker.elastic.co/logstash/logstash:5.6.5
+  before_script:
+    - cp -r tests/config/* /usr/share/logstash/pipeline/
+    # HACK! locks webrick version until this is fixed in a released
+    # docker image.
+    - sed -i'' -e 's/<webrick>, \[">= 0"\]/<webrick>, ["~> 1.3.1"]/' /usr/share/logstash/vendor/bundle/jruby/1.9/specifications/logstash-output-http-4.4.0.gemspec
+    - logstash-plugin install --development
+  script:
+    - ./tests/bin/logstash-config.sh
+
+push-cookbook:
+  stage: publish
+  only:
+    refs:
+      - master
+    variables:
+      - $OPS_CLONE_USERNAME
+      - $OPS_CLONE_PASSWORD
+  script:
+    - git clone https://$OPS_CLONE_USERNAME:$OPS_CLONE_PASSWORD@ops.gitlab.net/gitlab-cookbooks/cookbook-publisher.git /tmp/cookbook-publisher
+    - cp /tmp/cookbook-publisher/publisher.rb .
+    - ruby publisher.rb
+

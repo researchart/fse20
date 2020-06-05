@@ -1,0 +1,91 @@
+stages:
+  - test
+  - validate
+  - build
+
+py37:
+  stage: test
+  image: python:3.7-slim
+  services:
+    - postgres:10
+  variables:
+    POSTGRES_DB: yakbak_tox_test
+    POSTGRES_USER: yakbak
+    POSTGRES_PASSWORD: ""
+    # tests expect env vars in the format tox-docker
+    # sets, so set those up as well
+    POSTGRES_5432_TCP_PORT: 5432
+    POSTGRES_HOST: postgres
+  script:
+    - python3.7 -m pip install tox
+    - tox -r -e py37
+
+style:
+  stage: test
+  image: python:3.7-slim
+  script:
+    - python3.7 -m pip install tox
+    - tox -r -e style
+
+mypy:
+  stage: test
+  image: python:3.7-slim
+  script:
+    - python3.7 -m pip install tox
+    - tox -r -e mypy
+
+migrate:
+  stage: validate
+  image: python:3.7-slim
+  services:
+    - postgres:10
+  variables:
+    POSTGRES_DB: yakbak_tox_test
+    POSTGRES_USER: yakbak
+    POSTGRES_PASSWORD: ""
+    # tests expect env vars in the format tox-docker
+    # sets, so set those up as well
+    POSTGRES_5432_TCP_PORT: 5432
+    POSTGRES_HOST: postgres
+  script:
+    - python3.7 -m pip install tox
+    - echo 0.0.0-0-fakeForGitLab > version.txt
+    - cp yakbak.toml-example yakbak.toml
+    - tox -r -e migrate
+
+docker:
+  stage: build
+  except:
+    - master
+  image: docker:git
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $CI_REGISTRY_IMAGE:ci || true
+    - docker build --cache-from $CI_REGISTRY_IMAGE:ci .
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+docker_tags:
+  stage: build
+  image: docker:git
+  only:
+    - master@bigapplepy/yak-bak
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker pull $CI_REGISTRY_IMAGE:ci || true
+    - docker build --cache-from $CI_REGISTRY_IMAGE:ci --tag $CI_REGISTRY_IMAGE:ci --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
+    - docker push $CI_REGISTRY_IMAGE:ci
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+

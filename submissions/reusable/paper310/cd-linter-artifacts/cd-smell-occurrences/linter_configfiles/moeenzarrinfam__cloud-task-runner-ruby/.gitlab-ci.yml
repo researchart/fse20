@@ -1,0 +1,32 @@
+image: "ruby:2.3"
+stages:
+  - test
+  - build
+variables:
+  POSTGRES_DB: cloud_task_runner_test
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: 'postgres'
+rspec:
+  stage: test
+  services:
+    - postgres:10
+  script:
+    - apt-get update -qq && apt-get install -y -qq nodejs libpq-dev cmake
+    - ruby -v
+    - which ruby
+    - gem install bundler --no-ri --no-rdoc
+    - RAILS_ENV=test bundle install --jobs $(nproc) "${FLAGS[@]}"
+    - cp config/application.sample.yml config/application.yml
+    - cp config/database.sample.yml config/database.yml
+    - cp config/secrets.sample.yml config/secrets.yml
+    - RAILS_ENV=test bundle exec rake db:setup
+    - RAILS_ENV=test bundle exec rspec spec
+
+rubocop:
+  stage: test
+  script:
+    - ruby -v
+    - which ruby
+    - gem install rubocop
+    - rubocop
+

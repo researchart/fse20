@@ -1,0 +1,18 @@
+image: php:7.1
+
+services:
+  - mysql:5.7
+
+variables:
+  MYSQL_DATABASE: dobrado_test
+  MYSQL_ROOT_PASSWORD: password
+
+before_script:
+  - curl -s -L -o /usr/local/bin/phpunit https://phar.phpunit.de/phpunit-7.1.0.phar
+  - chmod +x /usr/local/bin/phpunit
+  - docker-php-ext-install mysqli > /dev/null
+  - echo '$db_server="mysql";' >> tests/db_config.php
+
+test:
+  script: phpunit --bootstrap tests/bootstrap.php tests
+

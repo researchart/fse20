@@ -1,0 +1,87 @@
+image : registry.filiosoft.com/docker/jdk-node:latest
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - iebs/node_modules/
+
+before_script:
+  - cd ./iebs
+  - npm install
+
+stages:
+  - lint
+  - build
+  - test
+  - deploy
+
+lint:
+  stage: lint
+  script:
+    - npm run lint
+  
+build_client:
+  stage: build
+  script:
+    - echo "build_client"
+    - npm run build
+
+
+test_client:
+  stage: test
+  script:
+    - echo "test_client"
+    - npm test
+
+deploy_production:
+  stage: deploy
+  only:
+    - master
+  script:
+    - echo "preparing to deploy"
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - apt-get install -y rubygems
+    - gem install dpl
+    - echo "deploy to production"
+    - dpl --provider=heroku --app=iebs-production --api-key=0fef0dbf-10b4-431c-8111-68f6fa026bef
+  environment:
+    name: production
+    url: https://iebs-production.herokuapp.com/
+
+deploy_sit_uat:
+  stage: deploy
+  only:
+    - sit_uat
+  script:
+    - echo "preparing to deploy"
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - apt-get install -y rubygems
+    - gem install dpl
+    - echo "deploy to sit_uat"
+    - npm config set user 0
+    - npm config set unsafe-perm true
+    - npm install -g firebase-tools
+    - dpl --provider=heroku --app=iebs-situat --api-key=0fef0dbf-10b4-431c-8111-68f6fa026bef
+  environment:
+    name: sit_uat
+    url: https://iebs-situat.herokuapp.com/
+
+deploy_coba_coba:
+  stage: deploy
+  only:
+    - coba_coba
+  script:
+    - echo "preparing to deploy"
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - apt-get install -y rubygems
+    - gem install dpl
+    - echo "deploy to coba_coba"
+    - dpl --provider=heroku --app=iebs-cobacoba --api-key=0fef0dbf-10b4-431c-8111-68f6fa026bef
+  environment:
+    name: coba_coba
+    url: https://iebs-cobacoba.herokuapp.com/
+
+

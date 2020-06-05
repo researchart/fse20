@@ -1,0 +1,26 @@
+image: ubuntu
+
+before_script:
+  - apt update
+  - apt install -y wget
+  - wget https://github.com/Keats/gutenberg/releases/download/v0.3.0/gutenberg-v0.3.0-x86_64-unknown-linux-gnu.tar.gz
+  - echo "e896058cb0088cb38e9b1b4565da03cd  gutenberg-v0.3.0-x86_64-unknown-linux-gnu.tar.gz" | md5sum -c
+  - tar xf gutenberg-v0.3.0-x86_64-unknown-linux-gnu.tar.gz
+  - install -Dm0755 ./gutenberg /usr/bin/gutenberg
+  - gutenberg --version
+
+test:
+  script:
+    - gutenberg build
+  except:
+    - master
+
+pages:
+  script:
+    - gutenberg build
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

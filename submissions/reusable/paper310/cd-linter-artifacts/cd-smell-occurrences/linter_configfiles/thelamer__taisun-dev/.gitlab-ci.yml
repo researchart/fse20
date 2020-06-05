@@ -1,0 +1,23 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+job1:
+  tags:
+    - docker
+  stage: build
+  script:
+    - docker build -f ./Dockerfile.go -t taisun/dev_cloud9:Go .
+    - docker build -f ./Dockerfile.node -t taisun/dev_cloud9:Node.js .
+    - docker build -f ./Dockerfile.python -t taisun/dev_cloud9:Python .
+    - docker build -f ./Dockerfile.ruby -t taisun/dev_cloud9:Ruby .
+    - echo $DOCKERPASS | docker login -u taisun --password-stdin
+    - docker push taisun/dev_cloud9:Go
+    - docker push taisun/dev_cloud9:Node.js
+    - docker push taisun/dev_cloud9:Python
+    - docker push taisun/dev_cloud9:Ruby
+

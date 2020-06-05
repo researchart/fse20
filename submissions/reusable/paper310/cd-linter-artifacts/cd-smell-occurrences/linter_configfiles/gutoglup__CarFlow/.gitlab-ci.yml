@@ -1,0 +1,12 @@
+stages:
+  - build
+
+build_project:
+  stage: build
+  script:
+    - xcodebuild clean -project CarFlow.xcodeproj -scheme CarFlow | xcpretty
+  tags:
+    - ios_10-2-1
+    - xcode_8-2-1
+    - osx_10-12-3
+

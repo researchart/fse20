@@ -1,0 +1,15 @@
+before_script:
+  - wget https://repo.continuum.io/miniconda/Miniconda3-4.4.10-Linux-x86_64.sh
+    --output-document miniconda.sh
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - source $HOME/miniconda/etc/profile.d/conda.sh
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda info --all
+  - conda env create --quiet --file=environment.yml
+  - conda activate pmc-citation-styles
+
+tests:
+  script:
+    - pytest utils
+

@@ -1,0 +1,13 @@
+pages:
+  stage: deploy
+  script:
+    - git clone https://gitlab.com/our-sci/documentation.wiki.git
+    - mkdir .public
+    - cp -r documentation.wiki/* .public
+    - mv .public public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

@@ -1,0 +1,87 @@
+cache:
+  untracked: true
+  key: "$CI_BUILD_REF_NAME"
+  paths:
+    - node_modules/
+    - bower_components/
+    - .yarn
+
+stages:
+# - build
+- test
+- deploy
+# - clean
+
+# build:
+#   stage: build
+#   image: nullvoxpopuli/ember-cli:2.14.1-2
+#   tags:
+#     - docker
+#
+#   script:
+#     - yarn install && bower install
+
+# eslint:
+#   stage: test
+#   image: node:6
+#   tags:
+#     - docker
+#   dependencies:
+#     - build
+#   script: npm run eslint-no-fix
+
+test:
+  stage: test
+  image: nullvoxpopuli/ember-cli:2.14.1-2
+  tags:
+    - docker
+  # dependencies:
+  #   - build
+  script:
+    - time ( yarn install && bower install )
+    - time npm run ci
+  artifacts:
+    paths:
+      - coverage/
+
+production:
+  stage: deploy
+  image: nullvoxpopuli/ember-cli:2.14.1-2
+  tags:
+    - docker
+  dependencies:
+    - test
+    # - eslint
+    # - build
+  only:
+    - master
+  script:
+    - export DEPLOY_TARGET=production
+    - export REDISCLOUD_URL=$PRODUCTION_REDIS_URL
+    - export REDISCLOUD_PORT=$PRODUCTION_REDIS_PORT
+    - export REDISCLOUD_PASSWORD=$PRODUCTION_REDIS_PASSWORD
+
+    - export AWS_ACCESS_KEY_ID=$PRODUCTION_AWS_KEY_ID
+    - export AWS_SECRET_ACCESS_KEY=$PRODUCTION_AWS_SECRET_KEY
+    - export STRIPE_CLIENT_ID=$PRODUCTION_STRIPE_CLIENT_ID
+    - ember --version
+
+    - time DEPLOY_ENV=$DEPLOY_TARGET ember deploy $DEPLOY_TARGET --activate
+
+# https://about.gitlab.com/2016/11/03/publish-code-coverage-report-with-gitlab-pages/
+# pages:
+#   stage: deploy
+#   dependencies:
+#     - test
+#     #- "Build, Quality"
+#     # - codeclimate
+#   script:
+#     - mv coverage/ public/
+#     #- mv codeclimate.html public/
+#   artifacts:
+#     paths:
+#       - public
+#     expire_in: 30 days
+#   only:
+#     - develop
+

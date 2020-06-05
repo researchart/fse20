@@ -1,0 +1,70 @@
+variables:
+    GIT_STRATEGY: clone
+    BUILD_TESTING: "NO"
+    CUDA_AVAILABLE: "NO"
+
+
+Ubuntu-gcc7-superbuild:
+    stage: test
+    tags:
+      - linux
+      - docker
+      - gpu
+    image: andreasga/cbctrecon:gcc-7-x86_64
+    script:
+      - ./ci/ci.sh
+
+#Ubuntu-gcc7-CUDA:
+#    stage: test
+#    tags:
+#      - linux
+#      - docker
+#      - cuda
+#      - gpu
+#    image: andreasga/cbctrecon:gcc-7-CUDA-x86_64
+#    variables:
+#      CUDA_AVAILABLE: "YES"
+#      COVERAGE: "YES"
+#    script:
+#      - ./ci/ci.sh
+
+Ubuntu-gcc9-coverage-prebuild-deps:
+    stage: test
+    tags:
+      - linux
+      - docker
+      - gpu
+    image: andreasga/cbctrecon:gcc-9-x86_64-libDCMTK-ITKv5-RTK
+    variables:
+      COVERAGE: "YES"
+    script:
+      - export CC=/usr/bin/gcc-9
+      - export CXX=/usr/bin/g++-9
+      - ./ci/ci.sh
+
+
+#Ubuntu-clang6:
+#    stage: test
+#    tags:
+#      - linux
+#      - docker
+#      - gpu
+#    image: andreasga/cbctrecon:clang-6-x86_64
+#    script:
+#      - export CC=clang
+#      - export CXX=clang++
+#      - ./ci/ci.sh
+
+Ubuntu-clang6-prebuild-deps:
+    stage: test
+    tags:
+      - linux
+      - docker
+      - gpu
+    image: andreasga/cbctrecon:clang-6-x86_64-libDCMTK-ITKv5-RTK
+    script:
+      - export CC=clang
+      - export CXX=clang++
+      - ./ci/ci.sh
+
+

@@ -1,0 +1,24 @@
+stages:
+  - check
+  - copy
+#  - setup
+#  - build
+#  - deploy
+#  - run
+
+print-env:
+  stage: check
+  script:
+    - whoami
+    - pwd
+    - echo $PATH
+    - export CUR_PATH=$(pwd)
+
+copy-env:
+  stage: copy
+  script:
+    - export REMOTE_PATH="/home/gitlab-runner/go/src/gitlab.com/eunleem/gopack"
+    - mkdir -p $REMOTE_PATH
+    - rm -rf ./.git
+    - cp -r ./ $REMOTE_PATH
+

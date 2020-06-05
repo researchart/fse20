@@ -1,0 +1,38 @@
+ubuntu-64bit-snap:
+  image: ubuntu:18.04
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y python3-pip snapcraft ghostscript vlc ffmpeg ttf-ubuntu-font-family
+  - pip3 install PySide2 mutagen python-vlc Pillow pyinstaller bs4
+  - pyinstaller kihvim_linux.spec
+  - snapcraft
+  - echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > snapcraft.login
+  - snapcraft login --with snapcraft.login
+  - snapcraft push *.snap --release edge
+  only:
+  - master
+
+windows-64bit-nsis:
+  image: schnouki/pyinstaller-windows-ci:python3
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y nsis unzip openssh-client sshpass
+  - wine pip3 install mutagen PySide2 Pillow python-vlc bs4 #PyQtWebEngine
+  - wget https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-latest-win64-static.zip
+  - unzip ffmpeg-latest-win64-static.zip
+  - wget http://download.videolan.org/pub/videolan/vlc/3.0.6/win64/vlc-3.0.6-win64.zip
+  - unzip vlc-3.0.6-win64.zip
+  - wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs927/gs927w32.exe
+  - wine pyinstaller kihvim_win.spec
+  - makensis kihvim_win.nsi
+  - export SSHPASS=$USER_PASS
+  - sshpass -e scp -o stricthostkeychecking=no Kihvim*Installer.exe jonata@jonata.org:/home/jonata/kihvim.jonata.org/packages/
+  artifacts:
+    paths:
+    - Kihvim*Installer.exe
+    expire_in: 1 week
+  only:
+  - master
+

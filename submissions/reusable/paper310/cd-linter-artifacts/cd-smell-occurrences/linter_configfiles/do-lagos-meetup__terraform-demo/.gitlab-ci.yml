@@ -1,0 +1,38 @@
+image: "alpine:latest"
+
+variables:
+  TF_VAR_abuango_pub_key: ""
+  TF_VAR_private_key: ""
+  TF_VAR_do_dev_token: ""
+  TF_VAR_aws_access_key: ""
+  TF_VAR_aws_secret_key: ""
+
+stages:
+  - planning
+  - deploy
+
+before_script:
+  - echo ${TF_VAR_private_key} > private.key
+  - apk add --no-cache unzip wget ca-certificates
+  - update-ca-certificates
+  - wget -q https://releases.hashicorp.com/terraform/0.10.8/terraform_0.10.8_linux_amd64.zip -O /terraform.zip
+  - unzip /terraform.zip -d /
+  - /terraform init -input=false
+
+development:
+  stage: planning
+  script:
+    - /terraform plan
+  except:
+    - master
+
+deploy_development:
+  stage: deploy
+  script:
+    - /terraform apply
+  environment:
+    name: development
+    url: https://gitlab.com
+  only:
+    - master
+

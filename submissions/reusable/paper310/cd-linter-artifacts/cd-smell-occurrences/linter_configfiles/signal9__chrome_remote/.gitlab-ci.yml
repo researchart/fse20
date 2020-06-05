@@ -1,0 +1,29 @@
+build_and_test:
+  cache:
+    paths:
+      - .conan/
+  image: registry.gitlab.com/signal9/cpp-env
+  script:
+      - . /bootstrap.sh
+      - mkdir stage && cd stage
+      - conan remote add signal9 https://api.bintray.com/conan/signal9/conan || true
+      - conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan || true
+      - conan remote add grafikrobot https://api.bintray.com/conan/grafikrobot/public-conan || true
+      - conan install -u -b missing ..
+      - patch_pcs
+      - meson --buildtype=release -Dbuild_demo=true
+      - ninja
+      - du -sh $CONAN_USER_HOME/.conan
+
+upload_conan:
+  image: alpine
+  script:
+    - apk update
+    - apk add python3 build-base curl git
+    - curl -k -L --compressed 'https://bootstrap.pypa.io/get-pip.py' > get-pip.py
+    - python3 get-pip.py
+    - python3 -m pip install --user conan
+    - ~/.local/bin/conan remote add signal9 https://api.bintray.com/conan/signal9/conan
+    - ~/.local/bin/conan user -p $CONAN_PASSWORD -r signal9 $CONAN_USERNAME
+    - tools/upload_conanfile.sh
+

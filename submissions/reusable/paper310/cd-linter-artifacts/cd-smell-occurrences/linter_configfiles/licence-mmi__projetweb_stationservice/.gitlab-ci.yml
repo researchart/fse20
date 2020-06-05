@@ -1,0 +1,16 @@
+stages:
+- deploy
+
+deploy:master:
+  stage: deploy
+  image: mwienk/docker-lftp
+  script:
+  - echo "Deploy to DATA server"
+  environment:
+    name: master
+    url: https://git.avamac.com/
+  only:
+  - master
+  script:
+  - lftp -c "set ftp:ssl-allow no; open -u $USERNAME,$PASSWORD $HOST; mirror -Rev web/ ./web  --ignore-time --parallel=10 --exclude-glob .git* --exclude .git/"
+

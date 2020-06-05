@@ -1,0 +1,11 @@
+image: node:latest
+
+
+build:
+  artifacts:
+    paths:
+    - ./*.tgz
+  script:
+   - npm install
+   - npm pack
+

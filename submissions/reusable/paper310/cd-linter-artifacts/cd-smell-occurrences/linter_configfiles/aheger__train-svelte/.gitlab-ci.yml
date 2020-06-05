@@ -1,0 +1,18 @@
+image: node:8.11.2
+
+cache:
+    paths:
+    - node_modules/
+
+pages:
+    stage: deploy
+    script:
+    - npm install
+    - npm run build
+    - node -p 'require("./package.json").version' > public/version.txt
+    artifacts:
+        paths:
+        - public
+    only:
+    - master
+

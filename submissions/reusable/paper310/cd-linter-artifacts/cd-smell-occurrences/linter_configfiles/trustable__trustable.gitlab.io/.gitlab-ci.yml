@@ -1,0 +1,23 @@
+image: python:2.7-alpine
+
+pages:
+  script:
+  - pip install -r requirements.txt
+  - pelican -s publishconf.py
+  - mv output public
+  artifacts:
+    paths:
+    - public/
+  only:
+  - master
+  
+test:
+  script:
+  - pip install -r requirements.txt
+  - pelican -s publishconf.py
+  artifacts:
+    paths:
+    - output/
+  except:
+  - master
+

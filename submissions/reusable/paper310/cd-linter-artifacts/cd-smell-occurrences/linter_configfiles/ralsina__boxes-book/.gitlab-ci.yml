@@ -1,0 +1,16 @@
+image: base/archlinux
+pages:
+  stage: deploy
+  script:
+  - pacman -Sy --noconfirm npm git python-pip graphviz make
+  - npm install gitbook-cli
+  - ./node_modules/.bin/gitbook install
+  - pip install -r requirements.txt
+  - PATH=$PATH:`pwd`/bin make all
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+

@@ -1,0 +1,19 @@
+image: docker:latest
+
+services:
+  - docker
+
+stages:
+  - test
+
+job1:
+  stage: test
+  script:
+    - docker-compose up -d && sleep 10
+    - docker ps;
+    - testResults="echo $(curl -i /tests/basic/index.cfm?opt_run=true&reporter=json&target=tests.basic.basic)";
+    - echo "$testResults";
+    - if ! grep -i "http/1.1 200" <<< $testResults; then exit 1; fi
+  only:
+    - master
+

@@ -1,0 +1,86 @@
+image: wurssb/sappgeneric
+
+#stages to execute
+stages:
+- test_build
+
+#to install before scripts
+before_script:
+ #  - apt-get install -y sshpass
+ - wget -nc --quiet http://download.systemsbiology.nl/ngtax/databases/SILVA_128_SSURef_tax_silva.fasta.gz
+ - wget -nc --quiet http://download.systemsbiology.nl/ngtax/databases/bac_ssu_r86.1_20180911.fna.gz
+ # - wget -nc --quiet http://download.systemsbiology.nl/ngtax/databases/SILVA_128_SSURef_tax_silva_full_align_trunc.fasta.gz
+ # - wget -nc --quiet http://download.systemsbiology.nl/ngtax/databases/trimmed_databases/SILVA_128_SSURef_tax_silva_full_align_trunc.fasta.gz_%5bAG%5dGGATTAGATACCC_CGAC%5bAG%5d%5bAG%5dCCATGCA%5bACGT%5dCACCT_70_70_v1_1.gz
+
+#test the gradle build
+test_build_dev:
+  stage: test_build
+  except:
+    - schedules
+  script:
+  - mkdir databases
+  - mv SILVA_128_SSURef_tax_silva.fasta.gz databases/
+  - mv bac_ssu_r86.1_20180911.fna.gz databases/
+  # - mv SILVA_128_SSURef_tax_silva_full_align_trunc.fasta.gz_[AG]GGATTAGATACCC_CGAC[AG][AG]CCATGCA[ACGT]CACCT_70_70_v1_1.gz databases/
+  # - gradle build --info
+  - ./install.sh test
+  - LATEST="$(ls -t ./build/libs/NGTax*.jar | head -1)"
+  - java -jar $LATEST
+  - lftp sftp://$USERNAME:$PASSWORD@$HOST -e "set sftp:auto-confirm yes; cd upload/ngtax/dev/;mput $LATEST; bye"
+  only:
+    - dev
+  #build and deploy dev  
+
+test_build_pipeline:
+  stage: test_build
+  only:
+    - schedules
+    - dev
+  script:
+    - echo "pipeline"
+    - ./install.sh test
+    - LATEST="$(ls -t ./build/libs/NGTax*.jar | head -1)"
+    - java -jar $LATEST
+    - lftp sftp://$USERNAME:$PASSWORD@$HOST -e "set sftp:auto-confirm yes; cd upload/ngtax/dev/;mput $LATEST; bye"
+
+test_build_pipeline:
+  stage: test_build
+  only:
+    - schedules
+    - master
+  script:
+    - echo "pipeline"
+    - ./install.sh test
+    - LATEST="$(ls -t ./build/libs/NGTax*.jar | head -1)"
+    - java -jar $LATEST
+    - lftp sftp://$USERNAME:$PASSWORD@$HOST -e "set sftp:auto-confirm yes; cd upload/ngtax/;mput $LATEST; bye"
+  
+test_build_master:
+  stage: test_build
+  except:
+    - schedules
+  script:
+    - ./install.sh test
+    - LATEST="$(ls -t ./build/libs/NGTax*.jar | head -1)"
+    - java -jar $LATEST
+    - lftp sftp://$USERNAME:$PASSWORD@$HOST -e "set sftp:auto-confirm yes; cd upload/ngtax/;mput $LATEST; bye"
+  only:
+    - master
+  
+# build_dev:
+#  stage: build
+#  script:
+#  - gradle build -x test --stacktrace
+#  - sshpass -p $PASSWORD scp -o StrictHostKeyChecking=no ./build/libs/NGTax.jar $USERNAME@$HOST:/var/www/html/download.systemsbiology.nl/ngtax/dev/
+#  only:
+#  - dev
+#  #build and deploy master
+# build_master:
+#  stage: build
+#  script:
+#  - gradle build -x test --stacktrace
+#  - sshpass -p $PASSWORD scp -o StrictHostKeyChecking=no ./build/libs/NGTax.jar $USERNAME@$HOST:/var/www/html/download.systemsbiology.nl/ngtax/
+#  only:
+#  - master
+
+

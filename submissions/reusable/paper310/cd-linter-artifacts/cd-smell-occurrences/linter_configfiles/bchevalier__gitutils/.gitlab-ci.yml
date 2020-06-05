@@ -1,0 +1,48 @@
+image: ubuntu:latest
+
+#services:
+##  - 
+
+stages:
+- test
+- deploy
+
+before_script:
+  - apt-get update
+    #  - apt-get install -y python2.7
+    #  - ln -s $(which python2.7) /usr/local/bin/python
+  - apt-get install -y python-pip
+
+unit-tests:
+  stage: test
+  script:
+    - apt-get install -y git
+    - git config --global user.name "Test User"
+    - git config --global user.email "testuser@gmail.com"
+    - python -m unittest discover -v
+
+pages:
+  stage: deploy
+  script:
+    - pip install mkdocs
+      # auto-generate docs on available commands that will be displayed on website
+    - PYTHONPATH=. python gitutils/git_utils.py -m > www/mkdocs_docs/commands.md
+    - cd www
+      # build website HTML
+    - mkdocs build --clean
+    - cd ..
+      # update file used by install.py to query website for latest version
+    - VERSION=$( PYTHONPATH=. python gitutils/git_utils.py -v )
+    - echo { \"version\":\"$VERSION\" } > public/version.json
+      # build source distribution
+    - mkdir public/release
+    - python setup.py sdist
+    - cp dist/gitutils*.tar.gz public/release
+    - cp gitutils/update.py public
+  only:
+    - tags
+    - triggers
+  artifacts:
+    paths:
+      - public
+

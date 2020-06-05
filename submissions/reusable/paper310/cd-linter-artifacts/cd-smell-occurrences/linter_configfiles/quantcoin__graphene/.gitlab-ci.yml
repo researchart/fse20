@@ -1,0 +1,72 @@
+# Evnironment variables which have to been defined
+# SSH_PRIVATE_KEY
+# TARGET_HOST
+
+image: denis4inet/graphene-builder
+
+variables:
+  LINK_STATICALLY: "false"
+  VERSION: 0.0.${CI_PROJECT_ID}
+  BUILD_TYPE: release
+stages:
+  - build
+  - test
+  - deploy
+
+# build-graphene-armhf:
+#   image: denis4inet/armhf-debian
+#   stage: build
+#   before_script:
+#     - uname -a
+#     - git submodule update --init --recursive
+#   script:
+#     - cmake -f CMakeLists.txt -GNinja
+#     - ninja witness_node
+#   artifacts:
+#     paths:
+#       - programs/witness_node/witness_node
+#       - programs/cli_wallet/cli_wallet
+
+build-graphene:
+  stage: build
+  cache:
+    untracked: true
+  script:
+    - git submodule update --init --recursive
+    - tools/build/build_posix.sh tests/chain_test
+  artifacts:
+    paths:
+      - programs/cli_wallet/cli_wallet
+      - programs/witness_node/witness_node
+      - tests/chain_test
+      #- packages/graphene-0.1.0-Linux.tar.gz This artifcat will not be built for Debug targets
+
+test-graphene:
+  stage: test
+  dependencies:
+    - build-graphene
+  script:
+    - tests/chain_test
+
+deploy-graphene:
+  image: denis4inet/ansible-playbook
+  stage: deploy
+  dependencies:
+    - build-graphene
+  only:
+    - master
+  before_script:
+    # Run ssh-agent (inside the build environment)
+    - eval $(ssh-agent -s)
+    # Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    # For Docker builds disable host key checking. Be aware that by adding that
+    # you are suspectible to man-in-the-middle attacks.
+    # WARNING: Use this only with the Docker executor, if you use it with shell
+    # you will overwrite your user's SSH config.
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    - echo $TARGET_HOST > /tmp/hosts
+    - ansible-playbook -i /tmp/hosts tools/deploy/main.yml
+

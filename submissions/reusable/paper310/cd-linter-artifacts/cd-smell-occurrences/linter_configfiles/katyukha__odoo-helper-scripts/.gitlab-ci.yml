@@ -1,0 +1,111 @@
+image: ubuntu:18.04
+
+variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    CI_RUN: '1'
+    ODOO_HELPER_INSTALL_PATH: "$CI_PROJECT_DIR"
+    TEST_TMP_DIR: "/tmp/odoo-helper-tests"
+    DEBIAN_FRONTEND: 'noninteractive'
+    ALWAYS_ANSWER_YES: '1'
+    LANG: 'C.UTF-8'
+    LC_ALL: 'C.UTF-8'
+    LANGUAGE: 'C.UTF-8'
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache"
+    APT_DIR: "$CI_PROJECT_DIR/.apt-cache"
+    APT_STATE_LISTS: "$APT_DIR/lists"
+    APT_CACHE_ARCHIVES: "$APT_DIR/archives"
+
+cache:
+    key: ${CI_JOB_NAME}
+    paths:
+        - .cache
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+shellcheck:
+    image: koalaman/shellcheck-alpine:stable
+    stage: lint
+    before_script:
+        - shellcheck --version
+    script:
+        - shellcheck -s bash -x -a --color -e "SC1090,SC1091,SC2034" ./bin/* ./lib/*.bash
+
+flake8:
+    image: python:3
+    stage: lint
+    before_script:
+        - pip install flake8
+    script:
+        - flake8 ./lib/pylib/lodoo.py
+
+
+.test:definition: &tests-definition
+    stage: test
+    before_script:
+        # Setup PIP Cache
+        - mkdir -p .cache && chmod a+rwx -R .cache
+
+        # Install deps
+        - apt-get update -qq && apt-get install -yqq adduser sudo locales ruby git
+        - update-locale LANG=C.UTF-8 && update-locale LC_ALL=C.UTF-8 && update-locale LANGUAGE=C.UTF-8
+        - gem install bashcov codecov simplecov-console
+
+        # Configure Odoo user
+        - adduser -q odoo
+        - echo ' odoo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+        - sudo -u odoo -HE git config --global user.email "test-oh@test.test"
+        - sudo -u odoo -HE git config --global user.name "test-oh"
+    script:
+        - bash install-system.bash
+        - sudo -u odoo -HE bashcov tests/test.bash
+    coverage: '/COVERAGE:.*\s+(\d{1,3}\.\d{2}\%)/'
+    artifacts:
+        paths:
+             - coverage
+
+tests:ubuntu:16.04:
+    image: ubuntu:16.04
+    <<: *tests-definition
+
+tests:ubuntu:18.04:
+    image: ubuntu:18.04
+    <<: *tests-definition
+
+
+build_packages:
+    image: ubuntu:18.04
+    stage: build
+    variables:
+        ODOO_HELPER_ROOT: $CI_PROJECT_DIR
+        ODOO_HELPER_BIN: $CI_PROJECT_DIR/bin
+        ODOO_HELPER_LIB: $CI_PROJECT_DIR/lib
+    before_script:
+        - apt-get update -qq && apt-get install -qqy ruby ruby-dev make gcc
+        - gem install fpm
+    script:
+        - bash scripts/build_packages.bash
+    artifacts:
+        paths:
+            - build/*.deb
+    only:
+        - tags
+ 
+pages:
+    image: ubuntu:18.04
+    stage: deploy
+    before_script:
+        - apt-get update
+        - apt-get install -y python3-pip
+        - bash install-system.bash
+        - python3 -m pip install mkdocs mkdocs-cinder==0.14.0
+    script:
+        - bash scripts/build_docs.bash
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+

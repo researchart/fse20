@@ -1,0 +1,12 @@
+image: debian:stretch
+
+before_script:
+  - apt-get update && apt-get install php phpunit -yq
+
+test:
+  script:
+  - phpunit --log-junit phpunit.xml tests
+  artifacts:
+    reports:
+      junit: phpunit.xml
+

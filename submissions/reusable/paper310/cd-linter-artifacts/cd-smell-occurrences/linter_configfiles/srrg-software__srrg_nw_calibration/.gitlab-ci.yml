@@ -1,0 +1,39 @@
+.job_template: &ros_job
+  before_script:
+  - export TERM=xterm
+  - export SHELL=/bin/bash
+  - git submodule update --init
+
+  # add private ssh key to docker ssh config.
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo "$SSH_PRIVATE_KEY")
+  - mkdir -p ~/.ssh
+  - '[[ -f /.dockerenv ]]
+      && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+  # prepare build folder for catkin
+  - mkdir this_package
+  - rsync -ar --exclude={this_package} . this_package
+  - rm -rf src/
+  - mkdir src
+
+  # build empty workspace to intialize it for later use
+  - catkin build --no-status
+  # move package to src folder
+  - mv this_package src/
+  # fetch dependencies
+  - pip install --upgrade catkin_tools_fetch
+  - catkin dependencies fetch --no_status --default_url git@gitlab.com:srrg-software
+  tags:
+  - docker
+  - linux
+
+build_kinetic:
+  <<: *ros_job
+  image: registry.gitlab.com/srrg-software/srrg_nw_calibration
+  stage: build
+  script:
+  - catkin build --no-status --verbose
+  - catkin run_tests --no-status --verbose
+  - catkin test --no-status --verbose
+

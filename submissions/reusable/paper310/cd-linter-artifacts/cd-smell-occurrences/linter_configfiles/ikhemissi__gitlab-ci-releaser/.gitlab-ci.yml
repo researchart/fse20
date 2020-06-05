@@ -1,0 +1,41 @@
+image: node:6
+
+stages:
+  - build
+  - validate
+  - test
+  - release
+
+build:
+  stage: build
+  script:
+    - npm --version
+    - npm install
+  cache:
+    key: ${CI_BUILD_REF_NAME}
+    paths:
+      - node_modules/
+  artifacts:
+    paths:
+     - node_modules/
+
+test:
+  stage: test
+  script:
+    - npm test
+
+validate:
+  stage: validate
+  script:
+    - npm run validate
+
+release:
+  stage: release
+  before_script:
+    - npm install gitlab-ci-releaser -g
+  only:
+    - master
+  script:
+    - gitlab-ci-releaser --npm
+  when: manual
+

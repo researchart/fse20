@@ -1,0 +1,23 @@
+image: kkarczmarczyk/node-yarn:latest
+
+pages:
+  cache:
+    untracked: true
+    paths:
+    - node_modules/
+
+  script:
+  - git config --global user.name "SMC Webfonts Bot"
+  - git config --global user.email "smc-webfonts@kollavarsham.org"
+  - npm install gulp -g
+  - npm install
+  - gulp build-deploy-and-tag
+  - ./deploy.sh
+  - rm -rf public && mkdir -p public
+  - mv dist/* public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

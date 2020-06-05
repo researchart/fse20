@@ -1,0 +1,29 @@
+image: ruby:2.4
+
+build:gem:
+  stage: build
+  script:
+    - gem build *.gemspec
+  artifacts:
+    name: "${CI_PROJECT_NAME}"
+    paths:
+      - "*.gem"
+    expire_in: 4 weeks
+  only:
+    - tags
+
+publish:gem:
+  stage: deploy
+  dependencies:
+    - "build:gem"
+  when: manual
+  before_script:
+    - mkdir -p ~/.gem
+    - curl -u "trainline-eu:${RUBYGEMS_PASS}" https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials
+    - chmod 0600 ~/.gem/credentials
+  script:
+    - gem build *.gemspec
+    - gem push *.gem
+  only:
+    - tags
+

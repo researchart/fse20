@@ -1,0 +1,172 @@
+image: registry.gitlab.com/rconan/docker-and-compose:1.25.3-0
+
+variables:
+  DOCKER_BUILDKIT: 1
+  DOCKER_DRIVER: overlay2
+
+services:
+  - docker:19.03.6-dind
+
+stages:
+  - test
+  - stage2
+  - release
+
+before_script:
+  - export GIT_DESCRIBE=$(git describe)
+  - export APP_IMAGE_TAG="${CI_REGISTRY_IMAGE}/app:${GIT_DESCRIBE}"
+  - export METRICS_IMAGE_TAG="${CI_REGISTRY_IMAGE}/metrics:${GIT_DESCRIBE}"
+  - export PYTHON_IMAGE_TAG="${CI_REGISTRY_IMAGE}/python:${GIT_DESCRIBE}"
+  - export WEB_IMAGE_TAG="${CI_REGISTRY_IMAGE}/web:${GIT_DESCRIBE}"
+  - chmod -R g-w,o-w .
+  - ln -s docker-compose.test.yml docker-compose.yml
+
+include:
+  template: SAST.gitlab-ci.yml
+
+check:flake8:
+  stage: test
+  script:
+    - docker-compose -f docker-compose.check.yml run --rm flake8 --verbose
+
+check:eslint:
+  stage: test
+  script:
+    - docker-compose -f docker-compose.check.yml run --rm eslint
+
+image:app:
+  stage: test
+  script:
+    - docker build --target python_build -t "${PYTHON_IMAGE_TAG}" --build-arg BUILD_TAG="${GIT_DESCRIBE}" --progress plain .
+    - docker build -t "${APP_IMAGE_TAG}" --build-arg BUILD_TAG="${GIT_DESCRIBE}" --progress plain .
+    - docker save -o python.tar "${PYTHON_IMAGE_TAG}"
+    - docker save -o app.tar "${APP_IMAGE_TAG}"
+  artifacts:
+    expire_in: 90 days
+    name: app-container
+    paths:
+      - python.tar
+      - app.tar
+
+image:metrics:
+  stage: test
+  variables:
+  script:
+    - docker build -t "${METRICS_IMAGE_TAG}" --build-arg BUILD_TAG="${GIT_DESCRIBE}" --progress plain ./prometheus
+    - docker save -o metrics.tar "${METRICS_IMAGE_TAG}"
+  artifacts:
+    expire_in: 90 days
+    name: metrics-container
+    paths:
+      - metrics.tar
+
+image:web:
+  stage: stage2
+  dependencies:
+    - image:app
+  script:
+    - docker load -i app.tar
+    - docker build -t "${WEB_IMAGE_TAG}" --build-arg BUILD_TAG="${GIT_DESCRIBE}" --progress plain ./nginx
+    - docker save -o web.tar "${WEB_IMAGE_TAG}"
+  artifacts:
+    expire_in: 90 days
+    name: web-container
+    paths:
+      - web.tar
+
+doc:graph:
+  stage: stage2
+  dependencies:
+    - image:app
+  script:
+    - docker load -i app.tar
+    - install -d -m 777 diagram
+    - docker run --rm --entrypoint "sh" -v "${PWD}/diagram:/diagram" "${CI_REGISTRY_IMAGE}/app:${GIT_DESCRIBE}" -c "/opt/hunter2/venv/bin/python manage.py graph_models -a > /diagram/models.dot"
+    - docker-compose -f docker-compose.check.yml run --rm dot
+  artifacts:
+    expire_in: 90 days
+    name: models-graph
+    paths:
+      - diagram/models.*
+
+test:app:
+  stage: stage2
+  dependencies:
+    - image:app
+  variables:
+    SERVICE: app
+  script:
+    - export IMAGE_TAG="${CI_REGISTRY_IMAGE}/${SERVICE}:${GIT_DESCRIBE}"
+    - docker load -i "${SERVICE}.tar"
+    - install -d -m 777 coverage
+    - docker-compose run -e H2_TEST_SEED=1 -v "${PWD}/coverage:/opt/hunter2/src/coverage" --entrypoint "/opt/hunter2/venv/bin/python" "${SERVICE}" -Wd -m coverage run --source . manage.py test -v 2
+    - docker run -v "${PWD}/coverage:/opt/hunter2/src/coverage" --entrypoint "/opt/hunter2/venv/bin/python" "${IMAGE_TAG}" -m coverage html
+    - docker run -v "${PWD}/coverage:/opt/hunter2/src/coverage" --entrypoint "/opt/hunter2/venv/bin/python" "${IMAGE_TAG}" -m coverage report
+  after_script:
+    - docker-compose logs db > db.log
+    - docker-compose logs redis > redis.log
+  artifacts:
+    expire_in: 180 days
+    name: coverage
+    paths:
+      - coverage/
+      - "*.log"
+  coverage: /\d+\%\s*$/
+
+release:app:
+  stage: release
+  dependencies:
+    - image:app
+  script:
+    - export APP_LATEST_TAG="${APP_IMAGE_TAG%:*}:latest"
+    - echo "${CI_JOB_TOKEN}" | docker login -u gitlab-ci-token --password-stdin "${CI_REGISTRY}"
+    - docker load -i app.tar
+    - docker tag "${APP_IMAGE_TAG}" "${APP_LATEST_TAG}"
+    - docker push "${APP_IMAGE_TAG}"
+    - docker push "${APP_LATEST_TAG}"
+  only:
+    - master
+
+release:metrics:
+  stage: release
+  dependencies:
+    - image:metrics
+  script:
+    - export METRICS_LATEST_TAG="${METRICS_IMAGE_TAG%:*}:latest"
+    - echo "${CI_JOB_TOKEN}" | docker login -u gitlab-ci-token --password-stdin "${CI_REGISTRY}"
+    - docker load -i metrics.tar
+    - docker tag "${METRICS_IMAGE_TAG}" "${METRICS_LATEST_TAG}"
+    - docker push "${METRICS_IMAGE_TAG}"
+    - docker push "${METRICS_LATEST_TAG}"
+  only:
+    - master
+
+release:python:
+  stage: release
+  dependencies:
+    - image:app
+  script:
+    - export PYTHON_LATEST_TAG="${PYTHON_IMAGE_TAG%:*}:latest"
+    - echo "${CI_JOB_TOKEN}" | docker login -u gitlab-ci-token --password-stdin "${CI_REGISTRY}"
+    - docker load -i python.tar
+    - docker tag "${PYTHON_IMAGE_TAG}" "${PYTHON_LATEST_TAG}"
+    - docker push "${PYTHON_IMAGE_TAG}"
+    - docker push "${PYTHON_LATEST_TAG}"
+  only:
+    - master
+
+release:web:
+  stage: release
+  dependencies:
+    - image:web
+  variables:
+  script:
+    - export WEB_LATEST_TAG="${WEB_IMAGE_TAG%:*}:latest"
+    - echo "${CI_JOB_TOKEN}" | docker login -u gitlab-ci-token --password-stdin "${CI_REGISTRY}"
+    - docker load -i web.tar
+    - docker tag "${WEB_IMAGE_TAG}" "${WEB_LATEST_TAG}"
+    - docker push "${WEB_IMAGE_TAG}"
+    - docker push "${WEB_LATEST_TAG}"
+  only:
+    - master
+

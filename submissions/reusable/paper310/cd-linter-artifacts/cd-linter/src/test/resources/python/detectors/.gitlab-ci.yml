@@ -1,0 +1,25 @@
+image: maven:latest
+
+stages:
+  - build
+  - test
+
+install1:
+  stage: build
+  before_script:
+    - mvn clean
+  script:
+    - pip install lxml csv
+    - pip install -r requirements.txt
+    - pip install sql==1.0.0
+    - pip install tensorflow>=1.0
+
+install2:
+  stage: build
+  script:
+    - pip install --no-deps .
+    - pip install https://github.com/kivy/buildozer/archive/master.zip six --upgrade
+    - python3 -m pip install .. -t . -v --no-cache-dir
+    - pip install master.gz
+    - pip install this/is/a/test/path
+    - pip install ".[docs,test]"

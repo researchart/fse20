@@ -1,0 +1,25 @@
+stages:
+- build
+- test
+- deploy
+
+job-build:
+  stage: build
+  script:
+  - mvn clean compile
+
+job-test:
+  stage: test
+  script:
+  - mvn clean test
+
+job-deploy:
+  stage: deploy
+  only:
+  - tags
+  script:
+  - mvn clean deploy
+  artifacts:
+    paths:
+    - target/*.jar
+

@@ -1,0 +1,14 @@
+compile_pdf:
+  image: lxkl/debian
+  only:
+    - master
+  script:
+    - apt-get update
+    - apt-get dist-upgrade -y
+    - git clone https://gitlab.com/lxkl/latex.git ../latex
+    - export TZ=Europe/Berlin
+    - latexmk
+  artifacts:
+    paths:
+      - BasicMath.pdf
+

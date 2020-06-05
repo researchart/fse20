@@ -1,0 +1,22 @@
+before_script:
+- apt-get update -yqq
+- apt-get install -yqq libmcrypt-dev g++ libsqlite3-dev libssl-dev libcurl3-dev libxml2-dev libzzip-dev libpq-dev
+- rm -rf /var/lib/apt/lists/*
+- docker-php-ext-install hash json mcrypt mbstring pdo pdo_mysql simplexml pdo_pgsql pdo_sqlite
+- echo "date.timezone = UTC" > /usr/local/etc/php/php.ini
+
+services:
+- mysql:latest
+
+variables:
+  # Configure mysql service (https://hub.docker.com/_/mysql/)
+  MYSQL_DATABASE: freischutz_test
+  MYSQL_ROOT_PASSWORD: mysql
+
+php7.1:
+  image: mileschou/phalcon:7.1
+  script:
+  - curl --location --output /usr/local/bin/phpunit https://phar.phpunit.de/phpunit-7.1.5.phar
+  - chmod +x /usr/local/bin/phpunit
+  - phpunit --configuration phpunit.xml
+

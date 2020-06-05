@@ -1,0 +1,99 @@
+image: maven:3.6-jdk-11
+
+stages:
+- verify_source
+- build
+- test
+- deploy
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode"
+
+cache:
+  paths:
+  - .m2/repository/
+
+verify_release:
+  stage: verify_source
+  tags: ["docker"]
+  only:
+  - tags
+  script:
+  - export PROJECT_VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
+  - >
+    if [[ "$PROJECT_VERSION" == *SNAPSHOT ]]; then
+      echo "a release version can't be a snapshot (project.version=$PROJECT_VERSION)"
+      exit 1
+    fi
+  - >
+    if [ "$PROJECT_VERSION" != "$CI_COMMIT_TAG" ]; then
+      echo "project.version doesn't match git tag (project.version=$PROJECT_VERSION, git.tag=$CI_COMMIT_TAG)"
+      exit 1
+    fi
+
+compile:
+  stage: build
+  tags: ["docker"]
+  script: mvn $MAVEN_CLI_OPTS compile
+
+unit_tests:
+  stage: test
+  tags: ["docker"]
+  script: mvn $MAVEN_CLI_OPTS verify
+  artifacts:
+    reports:
+      junit:
+      - target/surefire-reports/TEST-*.xml
+      - target/failsafe-reports/TEST-*.xml
+
+integration_tests:
+  stage: test
+  tags: ["docker"]
+  script:
+  - mvn $MAVEN_CLI_OPTS -DhttpBinDomain=httpbin -P integration-test verify
+  - cat target/site/jacoco/index.html
+  services:
+  - name: "kennethreitz/httpbin"
+    alias: "httpbin"
+  artifacts:
+    reports:
+      junit:
+      - target/surefire-reports/TEST-*.xml
+      - target/failsafe-reports/TEST-*.xml
+
+deploy_snapshot:
+  stage: deploy
+  tags: ["docker"]
+  only:
+  - master
+  before_script:
+  - export PROJECT_VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
+  - >
+    if [[ "$PROJECT_VERSION" != *SNAPSHOT ]]; then
+      echo "not a snapshot version, not deploying"
+      exit 1
+    fi
+  - gpg -v --import <(echo "$GPG_SIGNING_KEY")
+  - gpg --list-key
+  script:
+  - mvn $MAVEN_CLI_OPTS -P release -DskipTests=true deploy
+  artifacts:
+    paths:
+    - "target/"
+
+deploy_release:
+  stage: deploy
+  tags: ["docker"]
+  only:
+  - tags
+  before_script:
+  - export PROJECT_VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
+  - gpg -v --import <(echo "$GPG_SIGNING_KEY")
+  - gpg --list-key
+  script:
+  - mvn $MAVEN_CLI_OPTS -P release -DskipTests=true deploy
+  artifacts:
+    paths:
+    - "target/"
+

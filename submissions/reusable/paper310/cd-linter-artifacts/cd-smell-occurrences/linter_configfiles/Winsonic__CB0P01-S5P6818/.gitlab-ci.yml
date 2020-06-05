@@ -1,0 +1,23 @@
+image: gmacario/build-aosp
+
+before_script:
+  - sudo apt-get --quiet install --yes realpath ssh putty-tools
+
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - export
+    - cd build_scripts/OEM_Standard.Product01/
+    - ./1_buildLinuxKernel.sh
+    - ./2_buildAndroid.sh
+    - ./3_buildOTA.sh
+    - ./4_buildUbuntu.sh
+    - ./5_buildQT.sh
+
+
+
+

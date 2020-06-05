@@ -1,0 +1,56 @@
+stages:
+  - build
+
+.before_script_template: &common_before_script
+  before_script:
+    - mkdir -p ~/.cabal /cache/store
+    - rm -rf ~/.cabal/store
+    - ln -s /cache/store ~/.cabal/store
+    - ls -l ..
+    - mkdir -p ../ghc-mod.sdist-$CI_PIPELINE_ID
+    - cabal update
+    - cabal install cabal-doctest
+    - cabal act-as-setup -- sdist --output-directory=../ghc-mod.sdist-$CI_PIPELINE_ID
+    - cd core && cabal act-as-setup -- sdist --output-directory=../../ghc-mod.sdist-$CI_PIPELINE_ID/core
+    - cd ../../ghc-mod.sdist-$CI_PIPELINE_ID
+
+after_script:
+  - rm -rf  "$CI_PROJECT_DIR"/../ghc-mod.sdist-$CI_PIPELINE_ID
+
+.script_template: &common_script
+  script:
+    - echo $PWD
+    - which cabal
+    - cabal --version
+    - cabal new-configure --enable-tests
+    - cabal new-build
+    - cabal new-test
+    - cabal new-haddock
+
+.artifacts_template: &common_artifacts
+  artifacts:
+    paths:
+      - ~/.cabal/logs
+    when: always
+
+job-ghc802:
+  image: registry.gitlab.com/dxld/ghc-mod:ghc8.2.2-cabal-install2.4.0.0
+  stage: build
+  <<: *common_before_script
+  <<: *common_script
+  <<: *common_artifacts
+
+job-ghc800:
+  image: registry.gitlab.com/dxld/ghc-mod:ghc8.0.2-cabal-install2.4.0.0
+  stage: build
+  <<: *common_before_script
+  <<: *common_script
+  <<: *common_artifacts
+
+job-ghc710:
+  image: registry.gitlab.com/dxld/ghc-mod:ghc7.10.3-cabal-install2.4.0.0
+  stage: build
+  <<: *common_before_script
+  <<: *common_script
+  <<: *common_artifacts
+

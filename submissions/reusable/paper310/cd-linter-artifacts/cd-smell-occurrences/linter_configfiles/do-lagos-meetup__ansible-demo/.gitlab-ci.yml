@@ -1,0 +1,30 @@
+image: "ubuntu:latest"
+
+variables:
+  DO_TOKEN: ""
+  PUBLIC_KEY: ""
+  PRIVATE_KEY: ""
+
+stages:
+  - deploy
+
+before_script:
+  - apt-get update
+  - apt-get install software-properties-common -y
+  - apt-add-repository ppa:ansible/ansible
+  - apt-get update
+  - apt-get install python-pip ansible -y
+  - pip install 'dopy>=0.3.5,<=0.3.5'
+  - echo "${PUBLIC_KEY}" > id_rsa.pub
+  - echo "${PRIVATE_KEY}" > id_rsa
+
+deploy_development:
+  stage: deploy
+  script:
+    - ansible-playbook do-ha.yml -c paramiko -e "do_api_token=${DO_TOKEN}" --private-key=id_rsa
+  environment:
+    name: development
+    url: https://abuango.me
+  only:
+    - master
+

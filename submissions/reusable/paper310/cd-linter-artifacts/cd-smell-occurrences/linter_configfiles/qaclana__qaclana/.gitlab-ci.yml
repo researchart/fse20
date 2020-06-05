@@ -1,0 +1,73 @@
+image: docker:latest
+
+stages:
+- build
+- distribution
+- release
+
+variables:
+  DOCKER_DRIVER: overlay
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
+  HUB_CONTAINER_TEST_IMAGE: $CI_PROJECT_PATH:$CI_BUILD_REF_NAME
+  HUB_CONTAINER_RELEASE_IMAGE: $CI_PROJECT_PATH:latest
+
+services:
+- docker:dind
+
+compile:
+  image: qaclana/qaclana-build-image
+  stage: build
+  script:
+    - mkdir -p /go/src/gitlab.com/qaclana
+    - ln -s ${CI_PROJECT_DIR} /go/src/gitlab.com/qaclana/${CI_PROJECT_NAME}
+    - cd /go/src/gitlab.com/qaclana/${CI_PROJECT_NAME}
+    - make ci
+  artifacts:
+    when: on_success
+    paths:
+      - _output
+
+build-distribution:
+  image: docker:latest
+  stage: distribution
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+release-final-image-to-ci-registry:
+  image: docker:latest
+  stage: release
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - master
+
+release-final-image-to-dockerhub:
+  image: docker:latest
+  stage: release
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker login -u "${DOCKER_HUB_USERNAME}" -p "${DOCKER_HUB_PASSWORD}"
+    - docker tag $CONTAINER_TEST_IMAGE $HUB_CONTAINER_RELEASE_IMAGE
+    - docker push $CI_PROJECT_PATH
+  only:
+    - master@qaclana/qaclana
+
+codequality:
+  image: docker:latest
+  stage: build
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  script:
+    - docker run --env CODECLIMATE_CODE="$PWD" --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock --volume /tmp/cc:/tmp/cc codeclimate/codeclimate analyze -f json > codeclimate.json
+  artifacts:
+    paths: [codeclimate.json]
+

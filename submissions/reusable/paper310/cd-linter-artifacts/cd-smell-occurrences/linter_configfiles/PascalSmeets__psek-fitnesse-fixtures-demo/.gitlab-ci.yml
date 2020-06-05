@@ -1,0 +1,36 @@
+stages:
+  - test
+  - publish
+
+run-fitnesse-test:
+  image: maven:3.3.9-jdk-8
+  stage: test
+  before_script:
+  script:
+    - mvn clean install -B -P start-demo-test -DskipTests=false -DforkCount=1
+  after_script:
+    - cp target/fitnesse-test-results/TestSuite.html target/fitnesse-test-results/index.html
+  only:
+    - master
+  artifacts:
+    paths:
+    - target/fitnesse-test-results
+    expire_in: 1 day
+
+pages:
+  stage: publish
+  script:
+# GitLab Pages verwacht files in de map public, daarom rename van de testresultaten map naar public
+    - mv target/fitnesse-test-results public
+# dependency op run-fitnesse-test zorgt ervoor dat we bij de artifacts van deze stap kunnen komen
+  dependencies:
+    - run-fitnesse-test
+  only:
+    - master
+  artifacts:
+    paths:
+    - public/
+    expire_in: 1 day
+  when: always
+
+

@@ -1,0 +1,85 @@
+image: omos/argon2-gpu:zesty-nocuda
+
+before_script:
+    - git submodule update --init
+    # workaround for missing symlink on Ubuntu:
+    - test -f /usr/lib/x86_64-linux-gnu/libOpenCL.so || ln -s libOpenCL.so.1 /usr/lib/x86_64-linux-gnu/libOpenCL.so
+
+stages:
+    - build
+    - test
+
+build-gcc-cuda:
+    stage: build
+    image: omos/argon2-gpu:zesty-cuda
+    script:
+        - export COMPILER=gcc
+        - export CUDA=cuda
+        - . scripts/ci-build.sh
+    artifacts:
+        paths:
+            - build/gcc-cuda/
+
+build-gcc-nocuda:
+    stage: build
+    script:
+        - export COMPILER=gcc
+        - export CUDA=nocuda
+        - . scripts/ci-build.sh
+    artifacts:
+        paths:
+            - build/gcc-nocuda/
+
+build-clang-cuda:
+    stage: build
+    image: omos/argon2-gpu:zesty-cuda
+    script:
+        - export COMPILER=clang
+        - export CUDA=cuda
+        - . scripts/ci-build.sh
+    artifacts:
+        paths:
+            - build/clang-cuda/
+
+build-clang-nocuda:
+    stage: build
+    script:
+        - export COMPILER=clang
+        - export CUDA=nocuda
+        - . scripts/ci-build.sh
+    artifacts:
+        paths:
+            - build/clang-nocuda/
+
+update-pocl:
+    stage: build
+    script:
+        - . scripts/ci-update-pocl.sh
+    cache:
+        key: pocl-build
+        paths:
+            - pocl/
+    artifacts:
+        paths:
+            - pocl/
+
+test-gcc-nocuda:
+    stage: test
+    script:
+        - export COMPILER=gcc
+        - export CUDA=nocuda
+        - . scripts/ci-test.sh
+    dependencies:
+        - build-gcc-nocuda
+        - update-pocl
+
+test-clang-nocuda:
+    stage: test
+    script:
+        - export COMPILER=clang
+        - export CUDA=nocuda
+        - . scripts/ci-test.sh
+    dependencies:
+        - build-clang-nocuda
+        - update-pocl
+

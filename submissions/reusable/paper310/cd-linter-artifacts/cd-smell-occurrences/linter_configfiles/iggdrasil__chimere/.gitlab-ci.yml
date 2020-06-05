@@ -1,0 +1,26 @@
+before_script:
+  - apt-get update
+  - apt-get install -q -y locales-all python3-pip libpq-dev python-dev libjpeg-dev zlib1g-dev libxml2-dev libxslt1-dev libgeos-dev libexiv2-dev python3-gdal libboost-python-dev libtidy-0.99-0
+  - pip3 install -r requirements_gitlab.txt
+  - cp Makefile.example Makefile
+  - cp local_settings.py.gitlab-ci local_settings.py
+  - export LANG=french
+  - export LC_CTYPE="fr_FR.UTF8"
+
+variables:
+  POSTGRES_DB: gis
+  POSTGRES_USER: gis
+  POSTGRES_PASSWORD: "gis"
+
+services:
+  - mdillon/postgis
+
+master:
+  script: "make test_gitlab"
+  only:
+    - master
+    - v3.0
+    - v3.1
+  tags:
+    - jessie
+

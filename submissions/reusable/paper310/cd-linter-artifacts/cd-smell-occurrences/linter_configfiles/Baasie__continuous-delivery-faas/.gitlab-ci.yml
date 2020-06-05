@@ -1,0 +1,135 @@
+stages:
+    - build
+    - acceptance test
+    - staging
+    - reports
+    - production
+
+variables:
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+  RELEASE_BUCKET: "baasie.cd-faas.releases"
+
+before_script:
+  - source ./ci/release-name.sh
+
+build:
+  image: baasie/node-awscli
+  stage: build
+  script:
+    - sh ./ci/build.sh
+  artifacts:
+    paths:
+    - coverage/
+
+analyse-mutation:
+  image: baasie/node-awscli
+  stage: build
+  script:
+    - sh ./ci/mutation-test.sh
+  artifacts:
+    paths:
+    - reports/mutation/html
+
+Automated Acceptance Test TF:
+  image: baasie/terraform-serenityjs-rest
+  stage: acceptance test
+  allow_failure: true
+  variables:
+    tf_state_bucket: "baasie.cd-faas.state"
+    tf_state_folder: "aat"
+    aws_stage: "tf-aat"
+  before_script:
+    - source ./ci/release-name.sh
+    - source ./ci/deploy-to-env-tf.sh
+  script:
+    - npm i --silent
+    - npm run aat
+  after_script:
+    - source ./ci/release-name.sh
+    - sh ./ci/destroy-env-tf.sh
+  artifacts:
+    when: always
+    paths:
+    - target/site/serenity/
+
+#Automated Acceptance Test CF:
+#  image: baasie/node-awscli
+#  stage: acceptance test
+#  allow_failure: true
+#  variables:
+#    aws_stage: "cf-aat"
+#  before_script:
+#  - source ./ci/release-name.sh
+#    - sh ./ci/deploy-to-env-cf.sh
+#  script:
+#    - npm i --silent
+#    - npm run aat
+#  after_script:
+#    - source ./ci/release-name.sh
+#    - sh ./ci/destroy-env-cf.sh
+#  artifacts:
+#    when: always
+#    paths:
+#    - target/site/serenity/
+
+deploy-staging-tf:
+  image: baasie/terraform-serenityjs-rest
+  stage: staging
+  environment:
+      name: tf-staging
+  variables:
+    tf_state_bucket: "baasie.cd-faas.state"
+    tf_state_folder: "staging"
+    aws_stage: "tf-staging"
+  script:
+    - sh ./ci/deploy-to-env-tf.sh
+
+deploy-staging-cf:
+  image: baasie/node-awscli
+  stage: staging
+  environment:
+      name: cf-staging
+  variables:
+    aws_stage: "cf-staging"
+  script:
+    - sh ./ci/deploy-to-env-cf.sh
+
+deploy-production-tf:
+  image: baasie/terraform-serenityjs-rest
+  stage: production
+  when: manual
+  environment:
+      name: tf-production
+  variables:
+    tf_state_bucket: "baasie.cd-faas.state"
+    tf_state_folder: "production"
+    aws_stage: "tf-production"
+  script:
+    - sh ./ci/deploy-to-env-tf.sh
+
+deploy-production-cf:
+  image: baasie/node-awscli
+  stage: production
+  when: manual
+  environment:
+      name: cf-production
+  variables:
+    aws_stage: "cf-production"
+  script:
+    - sh ./ci/deploy-to-env-cf.sh
+
+
+pages:
+  stage: reports
+  script:
+    - mkdir .public
+    - mv coverage .public/coverage/
+    - mv reports/mutation/html .public/mutation/
+    - mv target/site/serenity/ .public/bdd/
+    - mv .public/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+

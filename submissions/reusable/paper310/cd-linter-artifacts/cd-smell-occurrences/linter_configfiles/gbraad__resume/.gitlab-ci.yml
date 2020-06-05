@@ -1,0 +1,50 @@
+stages:
+  - build
+  - deploy
+
+build_page:
+  image: registry.gitlab.com/gbraad/docugen:latest
+  stage: build
+  script:
+    - git clone https://gitlab.com/gbraad/document-generation-assets.git assets --depth 1
+    - mkdir public
+    - pandoc -t html5 -f markdown-citations --template assets/templates/resume-template.html --standalone --section-divs -o ./public/index.html ./index.md
+    - pandoc -t html5 --template ./assets/templates/resume-template.html --standalone --section-divs -o ./public/resume.html ./resume.md
+    - pandoc -t html5 --template ./assets/templates/resume-template.html --standalone --section-divs -o ./public/recommendations.html ./recommendations.md
+    - cp ./gbraad-fc.png ./public/
+    - phantomjs ./assets/scripts/topdf.js ./public/resume.html ./public/resume.pdf 0.7
+    - phantomjs ./assets/scripts/topdf.js ./public/resume.html ./public/resume-A5.pdf 0.7 A5
+    - phantomjs ./assets/scripts/topdf.js ./public/recommendations.html ./public/recommendations.pdf 0.7
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+publish:
+  image: registry.gitlab.com/gbraad/docker:git
+  stage: deploy
+  script:
+    - cd public
+    - git init
+    - git remote add github https://gbraad:$GITHUB_TOKEN@github.com/gbraad/resume.git
+    - git add .
+    - git config --global user.email "me@gbraad.nl"
+    - git config --global user.name "Gerard Braad"
+    - "git commit -m 'Deployed by GitLab: https://gitlab.com/gbraad/resume'"
+    - git branch -m gh-pages
+    - git push github :gh-pages || echo 1
+    - git push github gh-pages
+  only:
+    - master
+
+pages:
+  stage: deploy
+  script:
+    - mkdir -p public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

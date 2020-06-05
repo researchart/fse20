@@ -1,0 +1,127 @@
+image: java:8u102-jdk
+
+variables:
+  DEVELOP: "develop"
+  MASTER: "master"
+  STAGE: "ioultreia"
+
+stages:
+  - Build
+  - Test
+  - Staging
+
+.before_script_default: &before_script_default
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - (cd ~ ; git clone ssh://git@gitlab.com/ultreiaio/env.git)
+    - . ~/env/bin/prepare-env.sh "$GITLAB_USER_ID" "$GITLAB_USER_EMAIL"
+
+.before_script_clone: &before_script_clone
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - (cd ~ ; git clone ssh://git@gitlab.com/ultreiaio/env.git)
+    - . ~/env/bin/prepare-env-with-clone.sh "$CI_PROJECT_PATH" "$CI_PROJECT_NAME" "$GITLAB_USER_ID" "$GITLAB_USER_EMAIL"
+
+.env_test: &env_test
+  environment:
+    name: test
+
+.env_staging: &env_staging
+  environment:
+    name: staging
+
+.deploy_site: &deploy_site
+  script:
+    - wget -q -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/execute-maven.sh | sed 's/$1/install/' | bash
+    - wget -q -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/execute-maven.sh | sed 's/$1/site site:stage scm-publish:publish-scm -DperformRelease/' | bash
+
+build:
+  stage: Build
+  <<: *before_script_default
+  script:
+    - wget -q -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/execute-maven.sh | sed 's/$1/verify/' | bash
+  only:
+    - develop
+    - feature/*
+  except:
+    - triggers
+
+.test_manual: &test_manual
+  stage: Test
+  <<: *before_script_default
+  only:
+    - develop
+  except:
+    - triggers
+  when: manual
+
+stage:
+  <<: *env_staging
+  <<: *test_manual
+  <<: *before_script_clone
+  script:
+    - wget -q -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/close-milestone.sh | bash
+    - wget -q -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/create-stage.sh | bash
+    - wget -q -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/close-stage.sh | sed 's/$1/ioultreia/' | bash
+    - wget -q -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/update-staging-changelog.sh | sed 's/$1/ioultreia/' | bash
+    - wget -q -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/create-milestone.sh | bash
+
+snapshot:
+  <<: *env_staging
+  <<: *test_manual
+  script:
+    - wget -q -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/execute-maven.sh | sed 's/$1/deploy -DperformRelease/' | bash
+
+latest-site:
+  <<: *env_test
+  <<: *test_manual
+  <<: *deploy_site
+
+.nightly: &nightly
+  <<: *before_script_default
+  only:
+    - triggers
+
+nightly-build:
+  stage: Build
+  <<: *nightly
+  script:
+    - wget -q -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/execute-maven.sh | sed 's/$1/verify -DperformRelease/' | bash
+
+nightly-site:
+  stage: Test
+  <<: *env_test
+  <<: *nightly
+  <<: *deploy_site
+
+.staging: &staging
+  stage: Staging
+  only:
+    - tags
+  <<: *env_staging
+  <<: *before_script_default
+
+staging-site:
+  <<: *staging
+  <<: *deploy_site
+
+release:
+  <<: *staging
+  when: manual
+  script:
+    - wget -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/release-stage.sh | sed 's/$1/ioultreia/' | bash
+
+drop:
+  <<: *staging
+  when: manual
+  script:
+    - wget -O - https://gitlab.com/ultreiaio/pom/raw/master/bin/drop-stage.sh | sed 's/$1/ioultreia/' | bash
+

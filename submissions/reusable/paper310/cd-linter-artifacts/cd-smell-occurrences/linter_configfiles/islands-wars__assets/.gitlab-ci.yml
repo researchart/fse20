@@ -1,0 +1,11 @@
+image: alpine:latest
+
+pages:
+    stage: deploy
+    script:
+        - echo 'Serving static files...'
+        - mv static/ public/
+    artifacts:
+        paths:
+            - public
+

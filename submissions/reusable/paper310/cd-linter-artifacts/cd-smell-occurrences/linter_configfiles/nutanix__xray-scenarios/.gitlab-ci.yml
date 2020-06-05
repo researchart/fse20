@@ -1,0 +1,12 @@
+make_archive:
+  stage: build
+  image: ubuntu:16.04
+  tags:
+    - docker
+  script:
+    - tar -cz scenarios > scenarios.tar.gz
+  artifacts:
+    paths:
+      - scenarios.tar.gz
+    expire_in: 1 week
+

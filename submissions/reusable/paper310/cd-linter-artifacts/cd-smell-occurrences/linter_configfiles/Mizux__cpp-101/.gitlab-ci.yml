@@ -1,0 +1,51 @@
+stages:
+  - docker
+#  - build
+
+before_script:
+#  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+docker:alpine:
+  stage: docker
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - cd docker/alpine
+    - docker build -t mizux/cpp-101/alpine:$CI_COMMIT_REF_NAME .
+#    - docker push mizux/cpp-101/alpine:$CI_COMMIT_REF_NAME
+
+docker:archlinux:
+  stage: docker
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker info
+    - cd docker/archlinux
+    - docker build -t mizux/cpp-101/archlinux:$CI_COMMIT_REF_NAME .
+#    - docker push mizux/cpp-101/archlinux:$CI_COMMIT_REF_NAME
+
+docker:ubuntu:
+  stage: docker
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - cd docker/ubuntu
+    - docker build -t mizux/cpp-101/ubuntu:$CI_COMMIT_REF_NAME .
+#    - docker push mizux/cpp-101/ubuntu:$CI_COMMIT_REF_NAME
+
+#build:linux:
+#  stage: build
+#  image: mizux/cpp:latest
+#  script:
+#    - mkdir build && cd build
+#    - cmake -DENABLE_TEST=ON ..
+#    - make
+#    - ctest --output-on-failure
+#  artifacts:
+#    paths:
+#      - build/
+#    expire_in: 1 week
+

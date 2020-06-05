@@ -1,0 +1,74 @@
+---
+image: docker:1.12.3-git
+services:
+- docker:1.12.3-dind
+
+stages:
+- build-base
+- build
+- test
+- release
+- deploy
+
+variables:
+  CONTAINER_BASE_IMAGE: $CI_REGISTRY_IMAGE:base-$CI_BUILD_REF_NAME
+  CONTAINER_RELEASE_BASE_IMAGE: $CI_REGISTRY_IMAGE:base
+  CONTAINER_DATABASE_IMAGE: $CI_REGISTRY_IMAGE:database-$CI_BUILD_REF_NAME
+  CONTAINER_RELEASE_DATABASE_IMAGE: $CI_REGISTRY_IMAGE:database
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+build base image:
+  stage: build-base
+  script:
+    - docker build -f rapps.base.Dockerfile -t $CONTAINER_BASE_IMAGE .
+    - docker push $CONTAINER_BASE_IMAGE
+    - docker tag $CONTAINER_BASE_IMAGE $CONTAINER_RELEASE_BASE_IMAGE
+    - docker push $CONTAINER_RELEASE_BASE_IMAGE
+  only:
+    - tags
+
+build database image:
+  stage: build-base
+  script:
+    - docker build -f rapps.database.Dockerfile -t $CONTAINER_DATABASE_IMAGE .
+    - docker push $CONTAINER_DATABASE_IMAGE
+    - docker tag $CONTAINER_DATABASE_IMAGE $CONTAINER_RELEASE_DATABASE_IMAGE
+    - docker push $CONTAINER_RELEASE_DATABASE_IMAGE
+  only:
+    - tags
+
+build to test:
+  stage: build
+  script:
+    - docker build -f Dockerfile -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+  only:
+    - branches
+  except:
+    - master
+  environment: devel
+
+build to realease:
+  stage: build
+  script:
+    - 'sed -e "s/production: False/production: True/" -i config/config.dist.yaml'
+    - docker build -f Dockerfile -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+  only:
+    - tags
+  environment: production
+
+release-image:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - tags
+  environment: production
+

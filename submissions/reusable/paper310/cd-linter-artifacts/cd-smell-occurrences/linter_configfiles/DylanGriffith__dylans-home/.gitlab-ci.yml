@@ -1,0 +1,44 @@
+image: registry.gitlab.com/pages/hugo:latest
+
+update_ssl_cert:
+  image: ubuntu:16.04
+  only:
+  - schedules
+  script:
+  - apt-get update
+  - apt-get -yq install software-properties-common
+  - add-apt-repository ppa:certbot/certbot
+  - apt-get update
+  - apt-get install -yq tzdata locales
+  - echo "Australia/Sydney" > /etc/timezone
+  - dpkg-reconfigure -f noninteractive tzdata
+  - echo 'LANG="en_US.UTF-8"'>/etc/default/locale
+  - locale-gen "en_US.UTF-8"
+  - dpkg-reconfigure --frontend=noninteractive locales
+  - update-locale LANG=en_US.UTF-8
+  - apt-get -yq install python-certbot-apache
+  - apt-get -yq install curl
+  - bin/update-cert
+
+test:
+  script:
+  - git submodule init
+  - git submodule update --force
+  - hugo
+  except:
+  - master
+
+pages:
+  script:
+  - git submodule init
+  - git submodule update --force
+  - hugo
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - public
+  only:
+  - master
+  except:
+  - schedules
+

@@ -1,0 +1,71 @@
+stages:
+  - test
+  - build
+  - deploy
+
+# Cache node_modules to avoid reinstalling them on next runs.
+cache:
+  key: ${CI_BUILD_REF_NAME}
+  paths:
+    - node_modules/
+
+test:
+  image: ekino/docker-buildbox:node6.10-2017.03.30
+  stage: test
+  script:
+    - npm install
+    - npm test --  --coverage
+    - npm run prettier:check
+  only:
+    - /^(JIRA-|NO-JIRA-|bugfix\/|hotfix\/|develop|release|master).*$/
+  coverage: /All files\s*\|\s*([\d\.]+)/
+
+build:
+  image: ekino/docker-buildbox:node6.10-2017.03.30
+  stage: build
+  script:
+    - npm install
+    - npm run build
+  # Create artifact of build/ to be available in the next deploy job.
+  artifacts:
+    paths:
+       - build/
+  only:
+    - /^(develop|release|master).*$/
+
+deploy:
+  stage: deploy
+  image: ekino/docker-buildbox:latest-dind-aws
+  script:
+    - pip install awscli
+    - aws s3 sync ./build s3://dev.nice-app.tk/
+  environment:
+    name: development
+    url: https://dev.nice-app.tk
+  only:
+    - develop
+
+deploy-release:
+  stage: deploy
+  image: ekino/docker-buildbox:latest-dind-aws
+  script:
+    - pip install awscli
+    - aws s3 sync ./build s3://release.nice-app.tk/
+  environment:
+    name: release
+    url: https://release.nice-app.tk
+  only:
+    - release
+
+deploy-master:
+  stage: deploy
+  image: ekino/docker-buildbox:latest-dind-aws
+  script:
+    - pip install awscli
+    - aws s3 sync ./build s3://nice-app.tk/
+  environment:
+    name: production
+    url: https://nice-app.tk
+  only:
+    - master
+

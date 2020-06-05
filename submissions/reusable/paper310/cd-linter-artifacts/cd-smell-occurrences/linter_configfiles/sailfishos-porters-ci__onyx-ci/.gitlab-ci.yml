@@ -1,0 +1,20 @@
+image: coderus/sailfishos-platform-sdk-base:latest
+
+before_script:
+ - source onyx.env
+
+stages:
+ - build
+
+run-build:
+  stage: build
+  script:
+  - ./run-mic.sh 
+
+  only:
+   - web
+
+  artifacts:
+    paths:
+    - sfe-*/*.zip
+

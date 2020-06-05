@@ -1,0 +1,23 @@
+before_script:
+  - apt-get -q update -y
+  - apt-get -q install -y unzip
+  - echo "--- Setting up lua environment ---"
+  - apt-get -q install -y lua5.2 lua5.2-dev
+  - wget http://luarocks.org/releases/luarocks-2.2.2.tar.gz
+  - tar zxpf luarocks-2.2.2.tar.gz
+  - cd luarocks-2.2.2
+  - ./configure; make bootstrap
+  - cd ..
+  - echo "--- Installing dependencies ---"
+  - luarocks install busted
+  - luarocks install luacov
+
+test:
+  script:
+    - busted
+    - report=$(tail -n 1 luacov.report.out)
+    - echo "$report covered"
+  artifacts:
+    paths:
+    - luacov.report.out
+

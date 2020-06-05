@@ -1,0 +1,83 @@
+image: stonedmoose/mtm
+
+stages:
+    - test
+    - sonar
+    - build
+    - page
+    - deploy
+    - check
+
+before_script:
+    - export GRADLE_USER_HOME=$(pwd)/.gradle
+
+cache:
+    paths:
+        - .gradle/
+        - node_modules/
+        - build/
+
+test:
+    stage: test
+    script:
+        - ./gradlew test --no-daemon
+        - tar cvzf jacoco.tar.gz build/reports/jacoco
+    artifacts:
+        paths:
+            - jacoco.tar.gz
+        expire_in: 1 week
+
+sonar:
+    stage: sonar
+    script:
+        - ./gradlew sonarqube
+
+build:
+    stage: build
+    script:
+        - npm install
+        - npm run buildProd
+        - ./gradlew assemble --no-daemon
+    artifacts:
+        paths:
+            - build/libs/*.jar
+        expire_in: 1 week
+
+pages:
+    stage: page
+    script:
+        - mkdir public && asciidoctor -a toc=left -a source-highlighter=pygments -a pygments-style=manni -a data-uri adoc/*.adoc
+        - mv adoc/*.html public/
+        - ./gradlew javadoc --no-daemon
+        - mv build/docs/javadoc public/
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+
+deploy:
+    stage: deploy
+    script:
+        - touch id_rsa && chmod 400 id_rsa
+        - echo "$SSH_KEY" >> id_rsa
+        - mv build/libs/*.jar MTM.jar
+        - scp -o "StrictHostKeyChecking no" -i id_rsa MTM.jar pi@madpi.freeboxos.fr:/home/pi/
+        - ssh -o "StrictHostKeyChecking no" -i id_rsa pi@madpi.freeboxos.fr "/home/pi/bin/mtm start"
+    only:
+        - master
+
+healthCheck:
+    stage: check
+    script:
+        - sleep 180 && curl https://madpi.freeboxos.fr:443
+    only:
+        - master
+
+
+
+
+
+
+
+

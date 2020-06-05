@@ -1,0 +1,67 @@
+.js:
+  image: node:latest
+  before_script:
+    - cd web-ui
+    - yarn install
+
+.elixir:
+  image: elixir:latest
+  before_script:
+    - cd core
+    - mix local.hex --force
+    - mix local.rebar --force
+    - mix deps.get
+
+stages:
+  - test
+  - deploy
+
+web test:
+  extends: .js
+  stage: test
+  script:
+    - yarn test
+  only:
+    changes:
+      - web-ui/**/*
+
+core test:
+  extends: .elixir
+  stage: test
+  services:
+    - postgres:latest
+  variables:
+    POSTGRES_HOST: postgres
+    POSTGRES_DB: guildship_test
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+  script:
+    - mix test
+  only:
+    changes:
+      - core/**/*
+
+deploy web:
+  extends: .js
+  stage: deploy
+  script:
+    - yarn build
+  environment: production
+  only:
+    refs:
+      - master
+    changes:
+      - web-ui/**/*
+
+deploy core:
+  extends: .elixir
+  stage: deploy
+  script:
+    - mix compile
+  environment: production
+  only:
+    refs:
+      - master
+    changes:
+      - core/**/*
+

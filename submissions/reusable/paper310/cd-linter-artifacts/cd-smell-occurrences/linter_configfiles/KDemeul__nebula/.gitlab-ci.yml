@@ -1,0 +1,78 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+variables:
+  IMAGE: "registry.gitlab.com/kdemeul/nebula:latest"
+  HOST: "ec2-user@ec2-54-93-88-96.eu-central-1.compute.amazonaws.com"
+
+stages:
+  - test
+  - build
+  - deploy
+
+test:flake8:
+    stage: test
+    image: python:3
+    script:
+      - pip install flake8
+      - flake8
+
+test:unit-tests:
+    stage: test
+    image: python:3
+    script:
+      - pip install -r requirements.txt
+      - pytest nebula/ --cov=nebula
+
+build:production:
+  stage: build
+  image: docker:latest
+  only:
+    - master
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    # Overwrite settings
+    - mv nebula/nebula/settings_production.py nebula/nebula/settings_injected.py
+    # Overwrite nginx.conf
+    - docker build -f Dockerfile -t $IMAGE .
+    - docker push $IMAGE
+
+deploy:production:
+  stage: deploy
+  image: debian:latest
+  only:
+    - master
+  environment:
+    name: nebula
+    url: https://nebula.kdemeul.fr
+  script:
+  # Allow ssh
+  - source bin/allow_ssh.sh
+  # Copy secrets
+  - source bin/scp_secrets.sh $HOST
+  # scp docker-compose
+  - scp docker-compose.yml $HOST:~/docker-compose.yml
+  # Update the stack - rolling update prevent downtime :D
+  - ssh $HOST "sudo docker service update --with-registry-auth --image $IMAGE NEBULA_nebula"
+
+deploy-production-hard:
+  stage: deploy
+  image: debian:latest
+  only:
+    - master
+  when: manual
+  environment:
+    name: nebula
+    url: https://nebula.kdemeul.fr
+  script:
+  # Allow ssh
+  - source bin/allow_ssh.sh
+  # Copy secrets
+  - source bin/scp_secrets.sh $HOST
+  # scp docker-compose
+  - scp docker-compose.yml $HOST:~/docker-compose.yml
+  # docker up the stack
+  - ssh $HOST "sudo docker stack deploy -c docker-compose.yml NEBULA --with-registry-auth"
+

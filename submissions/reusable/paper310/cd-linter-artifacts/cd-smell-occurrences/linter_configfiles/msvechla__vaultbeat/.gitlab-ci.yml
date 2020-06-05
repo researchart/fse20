@@ -1,0 +1,47 @@
+image: docker:latest
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+services:
+- docker:dind
+
+stages:
+- test
+- release
+
+integration-tests:
+  stage: test
+  image: msvechla/golang-dind
+  script:
+  - mkdir -p /go/src/gitlab.com/msvechla/
+  - cp -R /builds/msvechla/* /go/src/gitlab.com/msvechla/
+  - cd /go/src/gitlab.com/msvechla/vaultbeat
+  - make integration-tests-environment
+
+build-latest:
+  stage: release
+  script:
+  - docker login -u msvechla -p $DOCKER_PASS
+  - docker build -t msvechla/vaultbeat:latest .
+  - docker push msvechla/vaultbeat:latest
+
+build-semver:
+  stage: release
+  script:
+  - docker login -u msvechla -p $DOCKER_PASS
+  - docker build -t msvechla/vaultbeat:${CI_COMMIT_TAG} .
+  - docker push msvechla/vaultbeat:${CI_COMMIT_TAG}
+  - export MAJOR=$(echo ${CI_COMMIT_TAG} |cut -d "." -f 1);export MINOR=$(echo ${CI_COMMIT_TAG} |cut -d "." -f 2)
+  - docker tag msvechla/vaultbeat:${CI_COMMIT_TAG} msvechla/vaultbeat:${MAJOR};docker push msvechla/vaultbeat:${MAJOR}
+  - docker tag msvechla/vaultbeat:${MAJOR} msvechla/vaultbeat:${MAJOR}.${MINOR}; docker push msvechla/vaultbeat:${MAJOR}.${MINOR}
+  - docker run --rm -v "$PWD":/go/src/gitlab.com/msvechla/vaultbeat -w /go/src/gitlab.com/msvechla/vaultbeat golang:latest bash -c 'go get .;go get github.com/mitchellh/gox;gox -output="{{.Dir}}-{{.OS}}-{{.Arch}}" -osarch="darwin/amd64 linux/amd64 windows/amd64"'
+  artifacts:
+    name: "vaultbeat-${CI_COMMIT_TAG}"
+    paths:
+    - vaultbeat*
+    - fields.yml
+    - _meta/
+  only:
+    - tags
+

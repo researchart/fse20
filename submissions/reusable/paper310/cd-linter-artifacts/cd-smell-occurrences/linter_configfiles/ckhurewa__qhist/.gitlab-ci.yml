@@ -1,0 +1,36 @@
+# Define the stages
+stages: [test, deploy]
+
+# Requires ROOT6-docker image for testing
+pytest:
+  stage: test
+  image: rootproject/root-ubuntu16
+  script:
+  - sudo apt-get update -q
+  - sudo apt-get install python-pip -yqq
+  - pip install -r requirements_test.txt
+  - export PYTHONPATH=/usr/local/lib/root:$PYTHONPATH
+  - python -m pytest -v
+  artifacts: {paths: [htmlcov/]}
+
+# Deploy to production PyPi, only major version
+pypi_production:
+  stage: deploy
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=pypi --distributions='sdist bdist_wheel'
+  only: 
+    - /^\d+\.\d+\.\d+?$/  # PEP-440 compliant version (tags)
+  except: [branches]
+
+# Deploy the coverage report to gitlab's Page
+pages:
+  stage: deploy
+  image: alpine:latest
+  dependencies: [pytest]
+  script: [mv htmlcov public]
+  artifacts: {paths: [public]}
+  only: [master]
+

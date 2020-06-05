@@ -1,0 +1,12 @@
+image: scorpil/rust:1
+
+stages:
+  - test
+
+unit_tests:
+  stage: test
+  script:
+    - cargo test
+  tags:
+    - docker
+

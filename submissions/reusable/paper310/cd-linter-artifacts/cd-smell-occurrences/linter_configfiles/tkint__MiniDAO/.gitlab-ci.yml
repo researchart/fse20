@@ -1,0 +1,79 @@
+image: maven:3.5.0
+
+stages:
+  - build
+  - test
+  - verify
+  - release
+  - deploy
+
+cache:
+  paths:
+    - .m2
+    - target/
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  MAVEN_CLI_OPTS: "-s ./resources/deployment/mvn-settings.xml --batch-mode"
+
+.gitlab_pusher_template: &gitlab_pusher_template
+  before_script:
+    - mkdir ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan gitlab.com > ~/.ssh/known_hosts
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - ssh -T git@gitlab.com
+    - git config --global user.email "$GITLAB_USER_EMAIL"
+    - git config --global user.name "$GITLAB_USER_NAME"
+    - git remote set-url origin git@gitlab.com:tkint/MiniDAO.git
+
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS compile
+
+test:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS test
+
+verify:
+  stage: verify
+  script:
+    - mvn $MAVEN_CLI_OPTS verify
+
+release:
+  stage: release
+  only:
+    - tags
+  <<: *gitlab_pusher_template
+  script:
+    # Report to master
+    - git checkout "$GIT_TARGET_BRANCH"
+    - git reset --hard "origin/$GIT_TARGET_BRANCH"
+    - git merge --no-ff --no-commit "$CI_COMMIT_SHA"
+    # Setting version
+    - mvn versions:set -DgenerateBackupPoms=false -DnewVersion=$CI_COMMIT_TAG
+    - git commit -a -m "[version] $CI_COMMIT_TAG"
+    # Push to master
+    - git push origin "$GIT_TARGET_BRANCH"
+    # Report to develop
+    - git checkout "$GIT_SOURCE_BRANCH"
+    - git reset --hard "origin/$GIT_SOURCE_BRANCH"
+    - git merge --no-ff --no-commit "origin/$GIT_TARGET_BRANCH"
+    # Setting pre version
+    - mvn versions:set -DgenerateBackupPoms=false -DnewVersion=$CI_COMMIT_TAG-SNAPSHOT
+    - git commit -a -m "[pre-version] $CI_COMMIT_TAG-SNAPSHOT"
+    # Push to develop
+    - git push origin "$GIT_SOURCE_BRANCH"
+
+
+deploy:
+  stage: deploy
+  when: manual
+  only:
+    - master
+  script:
+    - mvn $MAVEN_CLI_OPTS deploy
+

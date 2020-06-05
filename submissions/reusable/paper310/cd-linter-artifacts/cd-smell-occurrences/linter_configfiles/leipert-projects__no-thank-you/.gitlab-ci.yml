@@ -1,0 +1,35 @@
+image: alpine
+
+stages:
+- test
+- build
+- deploy
+
+shellcheck:
+  stage: test
+  image: koalaman/shellcheck-alpine
+  script:
+    - shellcheck ./build.sh
+    - shellcheck -e SC2034 -s bash translations/*
+
+build_page:
+  stage: build
+  script:
+    - apk update
+    - apk add bash gzip
+    - bash ./build.sh
+  artifacts:
+    when: always
+    paths:
+      - public
+
+pages:
+  stage: deploy
+  script:
+    - ls public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

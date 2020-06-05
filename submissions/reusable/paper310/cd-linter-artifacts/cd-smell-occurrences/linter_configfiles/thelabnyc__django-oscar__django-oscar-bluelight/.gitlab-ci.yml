@@ -1,0 +1,85 @@
+variables:
+  SKIP_SELENIUM_TESTS: 'yes'
+  POSTGRES_DB: postgres
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: ""
+  POSTGRES_HOST_AUTH_METHOD: 'trust'
+
+stages:
+  - test
+
+services:
+  - postgres:latest
+  - redis:latest
+
+cache:
+  key: "$CI_PROJECT_NAME"
+  paths:
+    - node_modules
+    - $HOME/.cache/pip
+
+include:
+  - project: thelabnyc/gitlab-ci-templates
+    file: /ci/sast.gitlab-ci.yml
+
+lint_typescript:
+  stage: test
+  tags:
+    - django-oscar
+  image: node:8
+  script:
+    - cd client/
+    - NODE_ENV=dev yarn
+    - yarn run lint
+    - NODE_ENV=production node_modules/.bin/webpack
+
+test_python35:
+  stage: test
+  tags:
+    - django-oscar
+  image: python:3.5
+  script:
+    - cd server/
+    - pip install tox
+    - tox -e 'py35-django{220}-drf{39,310}-oscar{20}'
+
+test_python36:
+  stage: test
+  tags:
+    - django-oscar
+  image: python:3.6
+  script:
+    - cd server/
+    - pip install tox
+    - tox -e 'py36-django{220}-drf{39,310}-oscar{20}'
+
+test_python37:
+  stage: test
+  tags:
+    - django-oscar
+  image: python:3.7
+  script:
+    - cd server/
+    - pip install tox
+    - tox -e 'py37-django{220}-drf{39,310}-oscar{20}'
+
+test_python38:
+  stage: test
+  tags:
+    - django-oscar
+  image: python:3.8
+  script:
+    - cd server/
+    - pip install tox
+    - tox -e 'py38-django{220}-drf{39,310}-oscar{20}'
+
+test_pypy35:
+  stage: test
+  tags:
+    - django-oscar
+  image: pypy:3-5
+  script:
+    - cd server/
+    - pip install tox
+    - tox -e 'pypy3-django{220}-drf{39,310}-oscar{20}'
+

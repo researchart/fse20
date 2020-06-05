@@ -1,0 +1,36 @@
+image: python:3.7
+
+stages:
+  - test
+  - deploy
+
+test:
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  cache:
+    paths:
+      - .cache/pip
+      - venv/
+  before_script:
+    - pip install virtualenv poetry pre-commit
+    - virtualenv venv
+    - source venv/bin/activate
+    - poetry config settings.virtualenvs.create false
+    - poetry install
+    - pip uninstall -y kerma
+    - python manage.py migrate
+    - python manage.py collectstatic --noinput
+  script:
+    - pre-commit run -a
+    - python manage.py test
+  stage: test
+
+deploy to production:
+  image: ilyasemenov/gitlab-ci-git-push
+  stage: deploy
+  script:
+    - git-push ssh://dokku@projects.stavros.io:16022/spamnesty
+  environment: production
+  only:
+    - master
+

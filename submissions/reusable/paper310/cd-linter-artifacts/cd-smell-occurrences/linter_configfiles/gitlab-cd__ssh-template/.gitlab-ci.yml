@@ -1,0 +1,55 @@
+.ssh_helper: &ssh_helper |
+    function ssh_init() {
+        SSH_PRIVATE_KEY="$1"
+        SSH_KNOWN_HOSTS="$2"
+        test -n "$SSH_PRIVATE_KEY" || ( echo "missing variable SSH_PRIVATE_KEY" && exit 1)
+        test -n "$SSH_KNOWN_HOSTS" || ( echo "missing variable SSH_KNOWN_HOSTS" && exit 1)
+        which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )
+        eval $(ssh-agent -s)
+        echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        ssh-keyscan -H "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+        chmod 644 ~/.ssh/known_hosts
+    }
+
+    function ssh_run() {
+        USER=$1
+        HOST=$2
+        PKEY=$3
+        COMMAND=$4
+        ssh_init "$PKEY" $HOST
+        ssh $USER@$HOST $COMMAND
+    }
+
+before_script:
+- *ssh_helper
+
+stages:
+- init
+- test
+
+ssh_init:
+    script:
+    - ssh_init "$TEST_PRIVATE_KEY" "$TEST_HOST_NAME"
+    - ssh ubuntu@$TEST_HOST_NAME "ls -la ."
+
+ssh_run:
+    script:
+    - ssh_run "ubuntu" "$TEST_HOST_NAME" "$TEST_PRIVATE_KEY" "ls -la ."
+
+ssh_init_sh:
+    variables:
+        SSH_PRIVATE_KEY: $TEST_PRIVATE_KEY
+        SSH_KNOWN_HOSTS: $TEST_HOST_NAME
+    script:
+    - curl -sL https://gitlab.com/gitlab-cd/ssh-template/raw/master/ssh-init.sh | bash
+    - ssh_run "ubuntu" "$TEST_HOST_NAME" "$TEST_PRIVATE_KEY" "ls -la ."
+
+ssh_init_sh_no_host:
+    variables:
+        SSH_PRIVATE_KEY: $TEST_PRIVATE_KEY
+    script:
+    - curl -sL https://gitlab.com/gitlab-cd/ssh-template/raw/master/ssh-init.sh | bash
+    - ssh_run "ubuntu" "$TEST_HOST_NAME" "$TEST_PRIVATE_KEY" "ls -la ."
+

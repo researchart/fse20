@@ -1,0 +1,72 @@
+image: timbru31/node-alpine-git:latest
+
+stages:
+  - lint
+  - build
+  - publish
+
+lint:
+  except:
+    - tags
+  stage: lint
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - yarn  
+    - yarn eslint
+
+# test:
+#   except:
+#     - tags
+#   stage: test
+#   script:
+#     - yarn test
+
+
+# build for mac:
+#   stage: build installer
+#   tags:
+#     - osx
+#     - shell
+#   # only: master
+#   script:
+#     - nvm install 8.9
+#     - yarn run build -m
+#     - ls build/*.zip && ls build/*.dmg
+#   artifacts:
+#     paths:
+#       - build/*.zip
+#       - build/*.dmg
+
+
+build:
+  image: electronuserland/builder:wine
+  stage: build
+  cache:
+    paths:
+      - node_modules
+  only:
+    - tags
+  script:
+    - yarn --ignore-engines
+    - yarn run build -lwm
+  artifacts:
+    expire_in: '1 hour'
+    paths:
+      - build/mnz-wallet-*
+
+publish:
+  image: inetprocess/gitlab-release
+  stage: publish
+  only:
+    - tags
+  script:
+    - VERSION=$(echo $CI_BUILD_TAG | sed 's/v//'); gitlab-release --message "MNZ Wallet $CI_BUILD_TAG Release"
+      build/mnz-wallet-$VERSION-setup.exe
+      build/mnz-wallet-$VERSION-x86_64.AppImage
+      build/mnz-wallet-$VERSION-mac.zip
+    - "curl -X POST -H 'Content-type: application/json' \
+      --data \"{\\\"text\\\":\\\"MNZ Wallet Release $CI_BUILD_TAG! Go <https://gitlab.com/monaize-mnz/mnz-wallet/tags/$CI_BUILD_TAG|here> to download it ! \\\"}\" \
+      $SLACK_HOOK_URL"
+

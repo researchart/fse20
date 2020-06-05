@@ -1,0 +1,17 @@
+install:
+  before_script:
+    - mkdir -p /tmp/git-lfs && curl -L https://github.com/github/git-lfs/releases/download/v1.2.1/git-lfs-linux-amd64-1.2.1.tar.gz | tar -xz -C /tmp/git-lfs --strip-components 1 && /tmp/git-lfs/git-lfs pull
+    - wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash && source ~/.bashrc
+    - nvm install 7
+    - curl -o- -L https://yarnpkg.com/install.sh | bash
+    - source ~/.bashrc
+    - yarn global add xvfb-maybe
+    - yarn
+  script:
+    - yarn run build
+  cache:
+    paths:
+      - node_modules
+      - "$HOME/.electron"
+      - "$HOME/.cache"
+

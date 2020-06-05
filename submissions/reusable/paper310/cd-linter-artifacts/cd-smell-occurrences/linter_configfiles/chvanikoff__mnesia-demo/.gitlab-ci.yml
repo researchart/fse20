@@ -1,0 +1,20 @@
+stages:
+  - build
+
+build:
+  image: docker:17.05.0-ce
+  variables:
+    REPO_PATH: "chvanikoff/mnesia-demo"
+    APP_NAME: "demo"
+    VERSION: "0.0.1"
+  services:
+    - docker:17.09.0-ce-dind
+  stage: build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+  script:
+    - docker build --build-arg VERSION=$VERSION --build-arg APP=$APP_NAME -t registry.gitlab.com/$REPO_PATH:latest -t registry.gitlab.com/$REPO_PATH:$VERSION .
+    - docker push registry.gitlab.com/$REPO_PATH:$VERSION
+    - docker push registry.gitlab.com/$REPO_PATH:latest
+
+

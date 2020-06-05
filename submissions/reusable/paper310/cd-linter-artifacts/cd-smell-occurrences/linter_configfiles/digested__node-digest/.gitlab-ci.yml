@@ -1,0 +1,529 @@
+image: node:13-alpine
+
+stages:
+  - install
+  - build
+  - test
+  - e2e
+  - deploy
+
+before_script:
+  - echo "CPU $(awk '/siblings/ {print $3}' /proc/cpuinfo | uniq)x$(awk '/cpu MHz/ {print $4}' /proc/cpuinfo | sort -nrk 1 | head -1) MHz"
+  - echo "Memory $(($(awk '/MemTotal/ {print $2}' /proc/meminfo)/1024)) gB"
+  - node -v
+  - yarn -v
+  - pwd
+  - ls -alh --color | grep "^d" && ls -alh --color | grep -v "^d"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+  - node_modules/
+  - yarn.lock
+  - demo/cssModules/node_modules/
+  - demo/library/node_modules/
+  - demo/library-react-cssModules/node_modules/
+  - demo/react/node_modules/
+  - demo/react-cssModules/node_modules/
+  - demo/typescript/node_modules/
+  - demo/typescript-cssModules/node_modules/
+  - demo/typescript-library/node_modules/
+  - demo/typescript-library-react-cssModules/node_modules/
+  - demo/typescript-react/node_modules/
+  - demo/typescript-react-cssModules/node_modules/
+  - demo/vanilla/node_modules/
+
+##
+# DEFAULTS
+##
+
+.defaults: &defaults
+  except:
+  - tags
+  retry: 2
+
+.build: &build
+  <<: *defaults
+  stage: build
+
+.test: &test
+  <<: *defaults
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+    policy: pull
+  dependencies:
+  - build:babel
+  - build:express
+  - build:express-pre-compressed-assets
+  - build:jest
+  - build:jest-babel
+  - build:jest-graphql
+  - build:jest-react
+  - build:jest-typescript
+  - build:nightwatch
+  - build:scripts
+  - build:webpack
+  - build:webpack-express
+  - build:webpack-workbox
+  stage: test
+
+.test_demo: &test_demo
+  <<: *test
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - public/
+
+.e2e: &e2e
+  <<: *defaults
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - public/
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    policy: pull
+  dependencies:
+  - lint
+  - unit
+  - build:babel
+  - build:express
+  - build:express-pre-compressed-assets
+  - build:nightwatch
+  - build:scripts
+  - build:webpack-express
+  - build:demo-vanilla
+  - build:demo-library
+  - build:demo-cssModules
+  - build:demo-react
+  - build:demo-react-cssModules
+  - build:demo-library-react-cssModules
+  - build:demo-typescript
+  - build:demo-typescript-library
+  - build:demo-typescript-cssModules
+  - build:demo-typescript-react
+  - build:demo-typescript-react-cssModules
+  - build:demo-typescript-library-react-cssModules
+  image: registry.hub.docker.com/atlassianlabs/docker-node-jdk-chrome-firefox:latest
+  stage: e2e
+
+.deploy: &deploy
+  <<: *defaults
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    policy: pull
+  dependencies:
+  - build:babel
+  - build:express
+  - build:express-pre-compressed-assets
+  - build:jest
+  - build:jest-babel
+  - build:jest-graphql
+  - build:jest-react
+  - build:jest-typescript
+  - build:nightwatch
+  - build:scripts
+  - build:webpack
+  - build:webpack-express
+  - build:webpack-workbox
+  - chrome
+#  - firefox
+  image: node:13
+  only:
+  - master@digested/node-digest
+  stage: deploy
+
+##
+# INSTALL
+##
+
+install:
+  <<: *defaults
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - yarn.lock
+    - demo/cssModules/node_modules/
+    - demo/library/node_modules/
+    - demo/library-react-cssModules/node_modules/
+    - demo/react/node_modules/
+    - demo/react-cssModules/node_modules/
+    - demo/typescript/node_modules/
+    - demo/typescript-cssModules/node_modules/
+    - demo/typescript-library/node_modules/
+    - demo/typescript-library-react-cssModules/node_modules/
+    - demo/typescript-react/node_modules/
+    - demo/typescript-react-cssModules/node_modules/
+    - demo/vanilla/node_modules/
+    policy: push
+  script:
+  - yarn add --dev --frozen-lockfile --ignore-workspace-root-check lerna
+  - yarn lerna bootstrap
+  stage: install
+
+##
+# BUILD
+##
+
+build:babel:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/babel/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/babel --include-filtered-dependencies
+
+build:express:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/express/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/express --include-filtered-dependencies
+
+build:express-pre-compressed-assets:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/express-pre-compressed-assets/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/express-pre-compressed-assets --include-filtered-dependencies
+
+build:jest:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/jest/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/jest --include-filtered-dependencies
+
+build:jest-babel:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/jest-babel/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/jest-babel --include-filtered-dependencies
+
+build:jest-graphql:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/jest-graphql/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/jest-graphql --include-filtered-dependencies
+
+build:jest-react:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/jest-react/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/jest --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/jest-react --include-filtered-dependencies
+
+build:jest-typescript:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/jest-typescript/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/jest --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/jest-typescript --include-filtered-dependencies
+
+build:nightwatch:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/nightwatch/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/nightwatch --include-filtered-dependencies
+
+build:scripts:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/scripts/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+
+build:webpack:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/webpack/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/webpack --include-filtered-dependencies
+
+build:webpack-express:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/webpack-express/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/scripts --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/express --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/express-pre-compressed-assets --include-filtered-dependencies
+  - PARALLEL='off' yarn lerna run build --scope @digest/webpack-express --include-filtered-dependencies
+
+build:webpack-workbox:
+  <<: *build
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - packages/webpack-workbox/dist
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest/webpack-workbox --include-filtered-dependencies
+
+##
+# TEST
+##
+
+lint:
+  <<: *test
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/cssModules/node_modules/
+    - demo/library/node_modules/
+    - demo/library-react-cssModules/node_modules/
+    - demo/react/node_modules/
+    - demo/react-cssModules/node_modules/
+    - demo/typescript/node_modules/
+    - demo/typescript-cssModules/node_modules/
+    - demo/typescript-library/node_modules/
+    - demo/typescript-library-react-cssModules/node_modules/
+    - demo/typescript-react/node_modules/
+    - demo/typescript-react-cssModules/node_modules/
+    - demo/vanilla/node_modules/
+    policy: pull
+  script:
+  - yarn lint
+
+unit:
+  <<: *test
+  artifacts:
+    expire_in: 12 hrs
+    paths:
+    - public/
+    reports:
+      junit: reports/junit.xml
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    policy: pull
+  script:
+  - yarn unit:ci
+  - yarn copy:coverage
+
+build:demo-vanilla:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/vanilla/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/vanilla
+  - yarn copy:stats
+
+build:demo-library:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/library/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/library
+  - yarn copy:stats
+
+build:demo-cssModules:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/cssModules/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/cssModules
+  - yarn copy:stats
+
+build:demo-react:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/react/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/react
+  - yarn copy:stats
+
+build:demo-react-cssModules:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/react-cssModules/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/react-cssModules
+  - yarn copy:stats
+
+build:demo-library-react-cssModules:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/library-react-cssModules/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/library-react-cssModules
+  - yarn copy:stats
+
+build:demo-typescript:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/typescript/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/typescript
+  - yarn copy:stats
+
+build:demo-typescript-library:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/typescript-library/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/typescript-library
+  - yarn copy:stats
+
+build:demo-typescript-cssModules:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/typescript-cssModules/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/typescript-cssModules
+  - yarn copy:stats
+
+build:demo-typescript-react:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/typescript-react/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/typescript-react
+  - yarn copy:stats
+
+build:demo-typescript-react-cssModules:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/typescript-react-cssModules/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/typescript-react-cssModules
+  - yarn copy:stats
+
+build:demo-typescript-library-react-cssModules:
+  <<: *test_demo
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+    - node_modules/
+    - demo/typescript-library-react-cssModules/node_modules/
+    policy: pull
+  script:
+  - PARALLEL='off' yarn lerna run build --scope @digest-demo/typescript-library-react-cssModules
+  - yarn copy:stats
+
+##
+# E2E
+##
+
+chrome:
+  <<: *e2e
+  script:
+  - ln -sf /opt/google/chrome/google-chrome /usr/bin/google-chrome
+  - google-chrome --version
+  - yarn run e2e:chrome
+
+firefox:
+  <<: *e2e
+  script:
+  - ln -sf /usr/lib/firefox-esr/firefox-esr /usr/bin/firefox
+  - /usr/bin/firefox --version
+  - yarn run e2e:firefox
+
+##
+# DEPLOY
+##
+
+release:
+  <<: *deploy
+  script:
+  - yarn semantic-release
+  - yarn release
+
+pages:
+  <<: *deploy
+  artifacts:
+    paths:
+    - public/
+  script:
+  - echo "deploying demo to gitlab pages"
+

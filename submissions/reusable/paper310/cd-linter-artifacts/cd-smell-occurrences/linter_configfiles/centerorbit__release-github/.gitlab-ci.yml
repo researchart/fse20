@@ -1,0 +1,42 @@
+
+
+stages:
+- init
+- build
+
+init:
+  image: php:7.2-cli
+  stage: init
+  cache:
+    paths:
+    - vendor/
+  script:
+  - apt-get update && apt-get install -y unzip git curl
+  - if [ ! -f composer ]; then { curl -sS https://getcomposer.org/installer | php -- --filename=composer; } fi;
+  - php composer install
+  artifacts:
+    expire_in: 10 minutes
+    paths:
+    - vendor/
+
+
+build:
+  image: docker:latest
+  stage: build
+  dependencies:
+  - init
+  services:
+  - docker:dind
+  script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - docker build -t $CI_REGISTRY_IMAGE:latest .
+
+  # Ensure the container can run properly
+  - docker run -e TEST='true' $CI_REGISTRY_IMAGE:latest php createRelease.php
+  - docker run -e TEST='true' $CI_REGISTRY_IMAGE:latest php uploadBinary.php
+
+
+  - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+  - master
+

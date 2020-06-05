@@ -1,0 +1,57 @@
+image: rust
+
+stages:
+  - lint
+  - test
+  - build
+
+before_script:
+  # Update and install dependencies
+  - apt-get update -yqq
+  - apt-get install -yqq --no-install-recommends curl build-essential cmake pkg-config
+
+  # Use Rust nightly
+  - rustup default nightly
+  - rustc --version && cargo --version
+
+  # Install the Leap Motion SDK
+  - ./ci/install_sdk
+
+fmt:
+  stage: lint
+  before_script:
+    # Install Rust nightly with rustfmt
+    - rustup default nightly
+    - rustup component add rustfmt-preview
+    - rustc --version && cargo --version
+  script:
+    - cargo fmt --all -- --check
+
+# clippy:
+#   stage: lint
+#   script:
+#     - rustup component add clippy-preview
+#     - cargo clippy --all
+
+# Test the project
+test:
+  stage: test
+  script:
+    - cargo test --all --verbose
+
+# Build a dynamic Linux library for x86_64 architectures
+linux-x86_64-dynamic:
+  stage: build
+  artifacts:
+    paths:
+      - bin/*
+    name: 'linux-x86_64-dynamic'
+    when: on_success
+    expire_in: '1 month'
+  script:
+    - cargo build --all --verbose
+    - cargo build --all --verbose --release
+    - mkdir -p ./bin
+    - mv ./target/debug/cant-touch-this ./bin/cant-touch-this-debug
+    - mv ./target/release/cant-touch-this ./bin/cant-touch-this
+

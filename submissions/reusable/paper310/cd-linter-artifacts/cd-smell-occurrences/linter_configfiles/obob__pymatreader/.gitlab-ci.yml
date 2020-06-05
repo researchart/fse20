@@ -1,0 +1,105 @@
+test_38:
+  image: python:3.8
+  script: sh gitlab-ci-test.sh
+
+test_37:
+  image: python:3.7
+  script: sh gitlab-ci-test.sh
+
+test_36:
+  image: python:3.6
+  script: sh gitlab-ci-test.sh
+
+test_35:
+  image: python:3.5
+  script: sh gitlab-ci-test.sh
+
+test_miniconda3:
+  image: continuumio/miniconda3
+  script:
+    - conda install conda-build conda-verify
+    - conda config --add channels obob
+    - conda config --add channels conda-forge
+    - conda build .
+
+test_miniconda2:
+  image: continuumio/miniconda
+  script:
+    - conda install conda-build conda-verify
+    - conda config --add channels obob
+    - conda config --add channels conda-forge
+    - conda build .
+
+test_flake:
+  image: python:3
+  script:
+    - apt-get update
+    - apt-get install -y libhdf5-dev
+    - pip install -U -r requirements.txt
+    - make flake
+
+test_docs:
+  image: python:3
+  script:
+    - apt-get update
+    - apt-get install -y libhdf5-dev
+    - pip install -U -r requirements.txt
+    - make build-doc
+
+sast:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+  - docker:stable-dind
+  script:
+  - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+  - docker run
+      --env SAST_CONFIDENCE_LEVEL="${SAST_CONFIDENCE_LEVEL:-3}"
+      --volume "$PWD:/code"
+      --volume /var/run/docker.sock:/var/run/docker.sock
+      "registry.gitlab.com/gitlab-org/security-products/sast:$SP_VERSION" /app/bin/run /code
+  artifacts:
+    paths: [gl-sast-report.json]
+  before_script:
+  - echo Hello
+
+dependency_scanning:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env DEP_SCAN_DISABLE_REMOTE_CHECKS="${DEP_SCAN_DISABLE_REMOTE_CHECKS:-false}"
+        --volume "$PWD:/code"
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/dependency-scanning:$SP_VERSION" /code
+  artifacts:
+    paths: [gl-dependency-scanning-report.json]
+  before_script:
+  - echo Hello
+
+code_quality:
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+  - docker:stable-dind
+  script:
+          - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+          - docker run
+              --env SOURCE_CODE="$PWD"
+              --volume "$PWD":/code
+              --volume /var/run/docker.sock:/var/run/docker.sock
+              "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+  artifacts:
+    paths: [gl-code-quality-report.json]
+  before_script:
+  - echo Hello
+

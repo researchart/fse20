@@ -1,0 +1,68 @@
+image: aheuermann/electron:latest
+
+stages:
+  - test
+  - bundle
+
+cache:
+    paths:
+    - node_modules/
+    - app/node_modules/
+
+before_script:
+  - Xvfb -ac -screen scrn 1280x2000x24 :9.0 &
+  - export DISPLAY=:9.0
+  #- apt-get update -qq
+  #- apt-get install -qq nodejs npm
+  #- apt-get install -qq -y xvfb libgtk2.0-0 libnotify4 libgconf-2-4 libnss3 libxss1
+  #- export DISPLAY=':99.0'
+  #- Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+  - npm install gulp electron-prebuilt -g --no-progress --quiet --depth 0
+  - npm install --no-progress --quiet --depth 0
+
+unit_test:
+  stage: test
+  script:
+  - npm test
+
+e2e_test:
+  stage: test
+  script:
+  - npm run e2e
+   
+code_coverage:
+  stage: test
+  script:
+  - npm run coverage
+  artifacts: 
+    paths:
+    - coverage/
+    name: "coverage_report"
+
+pages:
+  stage: bundle
+  cache:
+    paths:
+    - public/
+  only: 
+  - master
+  script:
+  - npm install -g plato --no-progress --quiet --depth 0
+  - plato -r -d public src
+  artifacts:
+    paths:
+    - public
+    name: "plato_report"
+   
+release:
+  stage: bundle
+  only: 
+  - master
+  script:
+  - npm run release
+  artifacts: 
+    paths:
+    - dist/*.deb
+    name: "package"
+   
+

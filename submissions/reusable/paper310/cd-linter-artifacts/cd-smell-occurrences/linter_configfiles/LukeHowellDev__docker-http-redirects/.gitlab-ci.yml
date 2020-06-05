@@ -1,0 +1,67 @@
+stages:
+  - build
+  - deploy
+
+image: docker
+
+services:
+  - docker:dind
+
+variables:
+  IMAGE: lukehowelldev/redirect
+
+.build: &build
+  stage: build
+  script:
+    - cd "redirect-${TAG}"
+    - docker build -t "${CI_REGISTRY_IMAGE}/${TAG}:${CI_COMMIT_SHA}" -f ../_shared/Dockerfile .
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    - docker push "${CI_REGISTRY_IMAGE}/${TAG}:${CI_COMMIT_SHA}"
+
+.deploy: &deploy
+  stage: deploy
+  script:
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    - docker pull "${CI_REGISTRY_IMAGE}/${TAG}:${CI_COMMIT_SHA}"
+    - docker tag "${CI_REGISTRY_IMAGE}/${TAG}:${CI_COMMIT_SHA}" "${IMAGE}:${TAG}"
+    - docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+    - docker push "${IMAGE}:${TAG}"
+  only:
+    - master
+
+.ssl: &ssl
+  variables:
+    TAG: "ssl"
+
+.www: &www
+  variables:
+    TAG: "www"
+
+.non-www: &non-www
+  variables:
+    TAG: "non-www"
+
+build/ssl:
+  <<: *build
+  <<: *ssl
+
+deploy/ssl:
+  <<: *deploy
+  <<: *ssl
+
+build/www:
+  <<: *build
+  <<: *www
+
+deploy/www:
+  <<: *deploy
+  <<: *www
+
+build/non-www:
+  <<: *build
+  <<: *non-www
+
+deploy/non-www:
+  <<: *deploy
+  <<: *non-www
+

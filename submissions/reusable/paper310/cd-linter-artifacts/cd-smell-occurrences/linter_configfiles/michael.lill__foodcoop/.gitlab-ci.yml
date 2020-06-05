@@ -1,0 +1,14 @@
+image: node:8-alpine
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+all_tests:
+  script:
+   - apk add --update python make gcc g++ git
+   - npm i
+   - ./node_modules/.bin/gulp test
+

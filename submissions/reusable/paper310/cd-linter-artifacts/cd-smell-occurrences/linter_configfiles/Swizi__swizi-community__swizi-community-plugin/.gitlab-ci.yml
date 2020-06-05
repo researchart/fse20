@@ -1,0 +1,18 @@
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:latest
+
+before_script:
+  - npm install
+
+# Publish tagged versions to npm
+publish:
+  stage: deploy
+  only:
+    - tags
+    - triggers
+  script:
+    - npm run build
+    - echo //registry.npmjs.org/:_authToken=$NPM_TOKEN > .npmrc
+    - npm publish
+

@@ -1,0 +1,242 @@
+before_script:
+  - PROJECT_VERSION=$(cat PROJECT_VERSION.txt)
+  - echo "Project version =$PROJECT_VERSION"
+#  - SHORT_COMMIT=$(echo $CI_COMMIT_SHA | cut -c1-8)
+#  - echo "Short Commit=$SHORT_COMMIT"
+
+
+stages:
+  - unit-test
+  - build
+  - docker-package
+  - analyse
+  - deploy-review
+  - functional-test
+  - tags-production
+  - to-production
+  - cleanup
+
+variables:
+  SBT_OPTS: "-Dsbt.global.base=sbt-cache/sbtboot -Dsbt.boot.directory=sbt-cache/boot -Dsbt.ivy.home=sbt-cache/ivy"
+  DOCKER_REGISTRY: registry.gitlab.com
+  BACKEND_PROJECT_NAME: ts-tile-backend
+  BACKEND_CONTAINER_LOCAL_IMAGE:   "${BACKEND_PROJECT_NAME}/${CI_COMMIT_REF_SLUG}:${CI_COMMIT_SHA}"
+  BACKEND_CONTAINER_BRANCH_IMAGE:  "${CI_REGISTRY_IMAGE}/${BACKEND_PROJECT_NAME}:${CI_COMMIT_REF_SLUG}.latest"
+  BACKEND_CONTAINER_UNIQUE_IMAGE:  "${CI_REGISTRY_IMAGE}/${BACKEND_PROJECT_NAME}:${CI_COMMIT_REF_SLUG}.${CI_COMMIT_SHA}"
+  BACKEND_CONTAINER:  "${CI_REGISTRY_IMAGE}/${BACKEND_PROJECT_NAME}:"
+  FRONTEND_PROJECT_NAME: ts-frontend
+  FRONTEND_CONTAINER_LOCAL_IMAGE:  "${FRONTEND_PROJECT_NAME}/${CI_COMMIT_REF_SLUG}:${CI_COMMIT_SHA}"
+  FRONTEND_CONTAINER_BRANCH_IMAGE: "${CI_REGISTRY_IMAGE}/${FRONTEND_PROJECT_NAME}:${CI_COMMIT_REF_SLUG}.latest"
+  FRONTEND_CONTAINER_UNIQUE_IMAGE: "${CI_REGISTRY_IMAGE}/${FRONTEND_PROJECT_NAME}:${CI_COMMIT_REF_SLUG}.${CI_COMMIT_SHA}"
+  FRONTEND_CONTAINER: "${CI_REGISTRY_IMAGE}/${FRONTEND_PROJECT_NAME}:"
+
+
+tile_backend_test_unit:
+  image: bigtruedata/sbt:0.13.15-2.11
+  stage: unit-test
+  script:
+    - cd components/ts-tile-backend/
+    - sbt clean test
+  cache:
+    key: "$CI_BUILD_REF_NAME-ts-tile-backend" # contains either the branch or the tag, so it's caching per branch
+    paths:
+      - "components/ts-tile-backend/sbt-cache/ivy/cache"
+      - "components/ts-tile-backend/sbt-cache/boot"
+      - "components/ts-tile-backend/sbt-cache/sbtboot"
+
+# skip for testing
+frontend_test_unit:
+  #image: node:8
+  image: alexmass/node-chrome-headless:8
+  stage: unit-test
+  script:
+    - cd components/ts-frontend
+    - npm install
+    - ./node_modules/@angular/cli/bin/ng test --single-run=true --browsers ChromeHeadless --watch=false
+  retry: 2 # shall be removed once we get out of Chrome (the connection is not that stable...)
+  cache:
+    key: "$CI_BUILD_REF_NAME-ts-frontend" # contains either the branch or the tag, so it's caching per branch
+    paths:
+      - components/ts-frontend/dist
+      - components/ts-frontend/node_modules
+
+# TODO : Stop to rebuild the application as it has already be done during the previous stage...
+frontend_build_dist:
+  image: node:8
+  stage: build
+  script:
+    - cd components/ts-frontend
+    - npm install
+    - ./node_modules/@angular/cli/bin/ng build --prod
+    - rm -r dist/assets/dev-data
+  cache:
+    key: "$CI_BUILD_REF_NAME-ts-frontend" # contains either the branch or the tag, so it's caching per branch
+    paths:
+      - components/ts-frontend/dist
+      - components/ts-frontend/node_modules
+  artifacts:
+      paths:
+        - components/ts-frontend/dist
+        - components/ts-frontend/node_modules
+
+backend_build_image:
+  image: bigtruedata/sbt:0.13.15-2.11
+  stage: build
+  script:
+    - cd components/ts-tile-backend/
+    - VERSION=$PROJECT_VERSION sbt docker:stage
+  cache:
+    key: "$CI_BUILD_REF_NAME-ts-tile-backend" # contains either the branch or the tag, so it's caching per branch
+    paths:
+      - "components/ts-tile-backend/sbt-cache/ivy/cache"
+      - "components/ts-tile-backend/sbt-cache/boot"
+      - "components/ts-tile-backend/sbt-cache/sbtboot"
+      - "components/ts-tile-backend/sbt-cache/target"
+  artifacts:
+      paths:
+      - components/ts-tile-backend/target/docker
+
+backend_publish_docker_image:
+  image: docker:latest
+  stage: docker-package
+  services:
+    - docker:dind
+  script:
+    - cd components/ts-tile-backend/target/docker/stage/
+    - docker build -t $BACKEND_CONTAINER_LOCAL_IMAGE .
+    - docker tag $BACKEND_CONTAINER_LOCAL_IMAGE $BACKEND_CONTAINER_BRANCH_IMAGE
+    - echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - docker push $BACKEND_CONTAINER_BRANCH_IMAGE
+
+frontend_publish_docker_image:
+  image: docker:latest
+  stage: docker-package
+  services:
+    - docker:dind
+  script:
+    - cp -R components/ts-frontend/dist components/ts-infra/config/terra-submersa-frontend
+    - cd components/ts-infra/config/terra-submersa-frontend
+    - docker build -t $FRONTEND_CONTAINER_LOCAL_IMAGE .
+    - docker tag $FRONTEND_CONTAINER_LOCAL_IMAGE $FRONTEND_CONTAINER_BRANCH_IMAGE
+    - echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - docker push $FRONTEND_CONTAINER_BRANCH_IMAGE
+  artifacts:
+      paths:
+        - components/ts-frontend/dist
+
+sonar:
+  image: emeraldsquad/sonar-scanner:1.0.0
+  stage: analyse
+  script:
+    - sonar-scanner -Dsonar.login=$SONAR_LOGIN
+  artifacts:
+      paths:
+        - components/ts-frontend/node_modules
+  # Community only support 'master' anlysis
+  only:
+    - branches
+
+start_review:
+  image: registry.gitlab.com/terrasubmersa/terra-submersa-portal/docker-compose:17-dind
+  stage: deploy-review
+  script:
+    # Remove '-' that are not supported by docker
+    - export COMPOSE_PROJECT_NAME=$CI_BUILD_REF_NAME
+    - export DOCKER_ENV_NETWORK=infradocker_tsbranches_terra-submersa
+    - export DOCKER_TS_VERSION=$CI_BUILD_REF_NAME.latest
+    - echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - cd components/ts-infra
+    - docker-compose -f docker-compose.yml down -v
+    - docker-compose -f docker-compose.yml pull
+    - docker-compose -f docker-compose.yml up -d
+  environment:
+    name: review/${CI_BUILD_REF_NAME}
+    url: https://${CI_COMMIT_REF_SLUG}_test-terra-submersa.demo.octo.ch/
+    on_stop: stop_review
+  tags:
+    - onpremise
+  only:
+    - branches
+
+
+stop_review:
+  image: registry.gitlab.com/terrasubmersa/terra-submersa-portal/docker-compose:17-dind
+  stage: cleanup
+  variables:
+    GIT_STRATEGY: fetch
+  script:
+    - export COMPOSE_PROJECT_NAME=$CI_BUILD_REF_NAME
+    - export DOCKER_ENV_NETWORK=infradocker_tsbranches_terra-submersa
+    - export DOCKER_TS_VERSION=$CI_BUILD_REF_NAME.latest
+    - cd components/ts-infra
+    - docker-compose -f docker-compose.yml down -v
+  when: manual
+  environment:
+    name: review/${CI_BUILD_REF_NAME}
+    action: stop
+  tags:
+    - onpremise
+  only:
+    - branches
+
+
+test_deployed:
+  image: python:3
+  stage: functional-test
+  variables:
+    TS_BACKEND: https://${CI_COMMIT_REF_SLUG}_test-terra-submersa.demo.octo.ch/tiles/
+  script:
+    - cd test/api-system-test
+    - pip install -r requirements.txt
+    - find . -name '*.pyc' -delete
+    - pytest --cache-clear src
+  only:
+    - branches
+  except:
+    - master #TODO Remove it after test reparation
+
+master_tag_docker_image:
+  image: docker:latest
+  stage: tags-production
+  services:
+    - docker:dind
+  script:
+    # Push unique ID, xxx:latest and xxx.version
+    - echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - docker pull $BACKEND_CONTAINER_BRANCH_IMAGE
+    - docker tag $BACKEND_CONTAINER_BRANCH_IMAGE $BACKEND_CONTAINER_UNIQUE_IMAGE
+    - docker tag $BACKEND_CONTAINER_BRANCH_IMAGE ${BACKEND_CONTAINER}latest
+    - docker tag $BACKEND_CONTAINER_BRANCH_IMAGE ${BACKEND_CONTAINER}${PROJECT_VERSION}
+    - docker push $BACKEND_CONTAINER_UNIQUE_IMAGE
+    - docker push ${BACKEND_CONTAINER}latest
+    - docker push ${BACKEND_CONTAINER}${PROJECT_VERSION}
+    - docker pull $FRONTEND_CONTAINER_BRANCH_IMAGE
+    - docker tag $FRONTEND_CONTAINER_BRANCH_IMAGE $FRONTEND_CONTAINER_UNIQUE_IMAGE
+    - docker tag $FRONTEND_CONTAINER_BRANCH_IMAGE ${FRONTEND_CONTAINER}latest
+    - docker tag $FRONTEND_CONTAINER_BRANCH_IMAGE ${FRONTEND_CONTAINER}${PROJECT_VERSION}
+    - docker push $FRONTEND_CONTAINER_UNIQUE_IMAGE
+    - docker push ${FRONTEND_CONTAINER}latest
+    - docker push ${FRONTEND_CONTAINER}${PROJECT_VERSION}
+  only:
+    - master
+
+deploy-to-production:
+  image: registry.gitlab.com/terrasubmersa/terra-submersa-portal/docker-compose:17-dind
+  stage: to-production
+  when: manual
+  script:
+    - export COMPOSE_PROJECT_NAME=tsprod
+    - export DOCKER_TS_VERSION=${CI_COMMIT_REF_SLUG}.${CI_COMMIT_SHA}
+    - export DOCKER_ENV_NETWORK=infradocker_tsprod_terra-submersa
+    - echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - cd components/ts-infra
+    - docker-compose -f docker-compose.yml up -d
+  environment:
+    name: production
+    url: https://terra-submersa.demo.octo.ch/
+  tags:
+    - onpremise
+  only:
+    - master
+
+

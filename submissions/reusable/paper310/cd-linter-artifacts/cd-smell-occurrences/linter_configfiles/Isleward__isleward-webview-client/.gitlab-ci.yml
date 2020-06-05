@@ -1,0 +1,55 @@
+image: node:carbon-stretch
+
+before_script:
+- apt-get update
+- apt-get install zip -y
+- npm install -g electron-packager
+- npm install -g electron-installer-zip
+- npm install
+
+build-linux:
+  stage: build
+  script:
+    - npm run package-linux
+    - npm run zip-linux-ia32
+    - npm run zip-linux-x64
+    - npm run zip-linux-armv7l
+    - npm run zip-linux-arm64
+  tags:
+    - docker
+  only:
+    - tags
+  artifacts:
+    paths:
+      - release/zip/
+
+build-win32:
+  stage: build
+  script:
+    - dpkg --add-architecture i386
+    - apt-get update
+    - apt-get install wine32 -y
+    - npm run package-win32
+    - npm run zip-win32-ia32
+    - npm run zip-win32-x64
+  tags:
+    - docker
+  only:
+    - tags
+  artifacts:
+    paths:
+      - release/zip/
+     
+build-darwin:
+  stage: build
+  script:
+    - npm run package-darwin
+    - npm run zip-darwin-x64
+  tags:
+    - docker
+  only:
+    - tags
+  artifacts:
+    paths:
+      - release/zip/
+

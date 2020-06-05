@@ -1,0 +1,106 @@
+image: registry.gitlab.com/jlack/rdl:ci-docker-melodic
+
+variables:
+  WS_NAME: "rdl_ws"
+
+before_script:
+  - apt-get update -qq -y
+  - apt-get upgrade -y
+  - rosdep update
+
+stages:
+  - test
+  - analyze
+  - pages
+
+build_and_test:
+  stage: test
+  retry: 1
+  script:
+    - echo $CI_PROJECT_NAME
+    - mkdir -p $WS_NAME/src && cd $WS_NAME/src
+    - git clone -b ${CI_COMMIT_REF_NAME} ${CI_REPOSITORY_URL}
+    - cd .. && rosdep install --from-paths src -i -y --as-root apt:false
+    - catkin config --init --mkdirs --install --extend /opt/ros/$ROS_DISTRO
+    - catkin build
+    - catkin run_tests
+    - catkin_test_results build/
+
+    # Check formatting
+    - catkin build --no-deps rdl_dynamics --make-args format_code_rdl_dynamics --
+    - catkin build --no-deps rdl_urdfreader --make-args format_code_rdl_urdfreader --
+    - catkin build --no-deps rdl_ros_tools --make-args format_code_rdl_ros_tools --
+    - cd src/$CI_PROJECT_NAME && if git diff --quiet --exit-code; then printf "\033[1;32mCode formatting test passed\033[0m\n"; else printf "\033[1;31mYour code requires formatting\033[0m\n" && exit 1; fi
+  artifacts:
+    paths:
+    - $WS_NAME/
+    expire_in: 1 day
+
+coverage_rdl_urdfreader:
+  stage: analyze
+  dependencies:
+  - build_and_test
+  script:
+  - cd $WS_NAME && rosdep install --from-paths src -i -y --as-root apt:false
+  - catkin build
+  - catkin run_tests --no-deps rdl_urdfreader -DCMAKE_BUILD_TYPE=Coverage --make-args run_coverage_rdl_urdfreader
+  - gcovr -r .
+  - mv build/rdl_urdfreader/coverage $CI_PROJECT_DIR/rdl_urdfreader_coverage
+  artifacts:
+    name: rdl_urdfreader_coverage
+    paths:
+    - $CI_PROJECT_DIR/rdl_urdfreader_coverage/
+
+coverage_rdl_ros_tools:
+  stage: analyze
+  dependencies:
+  - build_and_test
+  script:
+  - cd $WS_NAME && rosdep install --from-paths src -i -y --as-root apt:false
+  - catkin build
+  - catkin run_tests --no-deps rdl_ros_tools -DCMAKE_BUILD_TYPE=Coverage --make-args run_coverage_rdl_ros_tools
+  - gcovr -r .
+  - mv build/rdl_ros_tools/coverage $CI_PROJECT_DIR/rdl_ros_tools_coverage
+  artifacts:
+    name: rdl_ros_tools_coverage
+    paths:
+    - $CI_PROJECT_DIR/rdl_ros_tools_coverage/
+
+coverage_rdl_dynamics:
+  stage: analyze
+  dependencies:
+  - build_and_test
+  script:
+  - cd $WS_NAME && rosdep install --from-paths src -i -y --as-root apt:false
+  - catkin build
+  - catkin run_tests --no-deps rdl_dynamics -DCMAKE_BUILD_TYPE=Coverage --make-args run_coverage_rdl_dynamics
+  - gcovr -r .
+  - mv build/rdl_dynamics/coverage $CI_PROJECT_DIR/rdl_dynamics_coverage
+  artifacts:
+    name: rdl_dynamics_coverage
+    paths:
+    - $CI_PROJECT_DIR/rdl_dynamics_coverage/
+
+pages:
+  stage: pages
+  dependencies:
+  - build_and_test
+  - coverage_rdl_urdfreader
+  - coverage_rdl_dynamics
+  - coverage_rdl_ros_tools
+  script:
+  - cd $WS_NAME
+  - rosdep install --from-paths src -i -y --as-root apt:false
+  - cd src/$CI_PROJECT_NAME && doxygen Doxyfile
+  - cd $CI_PROJECT_DIR
+  - mkdir public/
+  - mv $WS_NAME/src/$CI_PROJECT_NAME/doxygen/ public/doxygen
+  - mv rdl_dynamics_coverage/ public/rdl-dynamics-coverage
+  - mv rdl_urdfreader_coverage/ public/rdl-urdfreader-coverage
+  - mv rdl_ros_tools_coverage/ public/rdl-ros-tools-coverage
+  artifacts:
+    paths:
+    - public/
+  only: 
+  - master
+

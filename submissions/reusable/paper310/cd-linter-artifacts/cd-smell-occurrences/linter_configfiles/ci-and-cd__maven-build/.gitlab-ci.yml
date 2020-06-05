@@ -1,0 +1,201 @@
+# GIT_STRATEGY: none Clone manually as a resolution of https clone is not available, and runner can't do ssh clone automatically
+# Issue 3378 Uploading untracked artifacts includes ignored files, see: https://gitlab.com/gitlab-org/gitlab-runner/issues/3378
+# Issue 4072 artifacts ignore paths                              , see: https://gitlab.com/gitlab-org/gitlab-ce/issues/4072
+
+.git_refs_develop_only: &git_refs_develop_only
+  only:
+    - develop
+
+.git_refs_of_snapshots: &git_refs_of_snapshots
+  except:
+    - master
+    - /^hotfix\/.+$/
+    - /^release\/.+$/
+    - /^support\/.*$/
+    - /^v\d+\.\d+(\.\d+)?(-\S*)?/
+
+.git_refs_of_releases: &git_refs_of_releases
+  only:
+    - /^hotfix\/.+$/
+    - /^release\/.+$/
+    - /^support\/.*$/
+    #- temp
+
+.script_build: &script_build
+  script:
+    - |
+      if [[ -z "${CI_OPT_MAVEN_EFFECTIVE_POM}" ]]; then export CI_OPT_MAVEN_EFFECTIVE_POM="true"; fi;
+      time ./mvnw ${MAVEN_GLOBAL_SETTINGS} -e -ntp -U clean verify;
+      if type -p column > /dev/null; then find .mvn/profiler-report -name "*.json" | xargs cat | jq -r '.projects[]|"module:", .project, "plugins", (.mojos[]|[.mojo,.time]|@tsv)' | column -t; fi; rm -rf .mvn/profiler-report;
+      echo archive $(git ls-files -o | grep -Ev '.+-exec\.jar' | grep -v 'artifacts.tar.gz' | grep -v 'profiler-report' | wc -l) files into artifacts.tar.gz;
+      git ls-files -o | grep -Ev '.+-exec\.jar' | grep -v 'artifacts.tar.gz' | grep -v 'profiler-report' | tar -czf artifacts.tar.gz -T -;
+      #git ls-files -o | grep -Ev '.+-exec\.jar' | grep -v 'artifacts.tar.gz' | grep -v 'profiler-report' | xargs rm -f;
+
+.script_publish: &script_publish
+  script:
+    # force publish on temp branch push
+    #- export CI_OPT_PUBLISH_TO_REPO="true";
+    - |
+      if [ -f artifacts.tar.gz ]; then tar -xzf artifacts.tar.gz; fi; ls -ahl;
+      time CI_OPT_FAST="true" ./mvnw ${MAVEN_GLOBAL_SETTINGS} -e -ntp -U -Dmaven.clean.skip=true deploy;
+      if type -p column > /dev/null; then find .mvn/profiler-report -name "*.json" | xargs cat | jq -r '.projects[]|"module:", .project, "plugins", (.mojos[]|[.mojo,.time]|@tsv)' | column -t; fi; rm -rf .mvn/profiler-report;
+
+      time CI_OPT_FAST="true" CI_OPT_INFRASTRUCTURE="custom" CI_OPT_MAVEN_PACKAGES_SKIP="true" CI_OPT_MVN_DEPLOY_PUBLISH_SEGREGATION="true" CI_OPT_NEXUS2_STAGING="false" ./mvnw ${MAVEN_GLOBAL_SETTINGS} -e -ntp -Dmaven.clean.skip=true -Dmaven.install.skip=true deploy;
+      if type -p column > /dev/null; then find .mvn/profiler-report -name "*.json" | xargs cat | jq -r '.projects[]|"module:", .project, "plugins", (.mojos[]|[.mojo,.time]|@tsv)' | column -t; fi; rm -rf .mvn/profiler-report;
+
+      echo archive $(git ls-files -o | grep -Ev '.+-exec\.jar' | grep -v 'artifacts.tar.gz' | grep -v 'profiler-report' | wc -l) files into artifacts.tar.gz;
+      git ls-files -o | grep -Ev '.+-exec\.jar' | grep -v 'artifacts.tar.gz' | grep -v 'profiler-report' | tar -czf artifacts.tar.gz -T -;
+
+.script_site: &script_site
+  script:
+    - |
+      if [ -f artifacts.tar.gz ]; then tar -xzf artifacts.tar.gz; fi; ls -ahl;
+      time ./mvnw ${MAVEN_GLOBAL_SETTINGS} -e -ntp -Dmaven.clean.skip=true -DskipITs=true -DskipTests=true site-deploy;
+      if type -p column > /dev/null; then find .mvn/profiler-report -name "*.json" | xargs cat | jq -r '.projects[]|"module:", .project, "plugins", (.mojos[]|[.mojo,.time]|@tsv)' | column -t; fi; rm -rf .mvn/profiler-report;
+
+.upload_files_for_latter_stages: &upload_files_for_latter_stages
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - artifacts.tar.gz
+
+before_script:
+  - if [ -f ~/env ]; then source ~/env; fi;
+  - set -ex;
+  # info
+  - |
+    echo "HOST_HOSTNAME '${HOST_HOSTNAME}', HOST_IPADDRESS '${HOST_IPADDRESS}'";
+    echo working directory `pwd`;
+    echo CI_PROJECT_URL ${CI_PROJECT_URL} CI_COMMIT_REF_NAME ${CI_COMMIT_REF_NAME}, CI_COMMIT_SHA ${CI_COMMIT_SHA}, CI_PROJECT_NAME ${CI_PROJECT_NAME}, CI_PROJECT_NAMESPACE ${CI_PROJECT_NAMESPACE};
+  # environment variables
+  # Settings -> CI / CD -> Variables -> Expand -> Save Variables
+  # CI_OPT_GPG_PASSPHRASE
+  # CI_OPT_ORIGIN_REPO_SLUG
+  # CI_OPT_OSSRH_DOCKER_REGISTRY_PASS
+  # CI_OPT_OSSRH_DOCKER_REGISTRY_USER
+  # CI_OPT_OSSRH_GIT_AUTH_TOKEN
+  # CI_OPT_OSSRH_MVNSITE_PASSWORD
+  # CI_OPT_OSSRH_MVNSITE_USERNAME
+  # CI_OPT_OSSRH_NEXUS2_PASS
+  # CI_OPT_OSSRH_NEXUS2_USER
+  # CI_OPT_OSSRH_SONAR_LOGIN
+  - |
+    export CI_OPT_MVN_DEPLOY_PUBLISH_SEGREGATION="true";
+    source circ.sh;
+#  - export CI_OPT_CI_SCRIPT="${CI_OPT_GIT_PREFIX}/${CI_PROJECT_PATH:-ci-and-cd/maven-build}/raw/${CI_COMMIT_REF_NAME:-develop}/src/main/ci-script/lib_ci.sh";
+#  - |
+#    echo "download ${SETTINGS_GLOBAL_XML_URL} to ${SETTINGS_GLOBAL_XML}";
+#    mkdir -p $(dirname ${SETTINGS_GLOBAL_XML});
+#    curl -L "${SETTINGS_GLOBAL_XML_URL}" 2>/dev/null | tee ${SETTINGS_GLOBAL_XML};
+#    export MAVEN_GLOBAL_SETTINGS="--global-settings ${SETTINGS_GLOBAL_XML}";
+  - |
+    rm -rf ~/.m2/repository/top/infra/maven/maven-build-extension;
+    if [[ -z "${MAVEN_OPTS}" ]]; then export MAVEN_OPTS="-XX:+UseParallelGC -Dprofile=title -DprofileFormat=JSON,HTML"; fi;
+    ls -ahl ~/.m2;
+    ./mvnw ${MAVEN_GLOBAL_SETTINGS} -version;
+
+#  # manual_git
+#  - export GIT_REMOTE="git@${CI_OPT_GIT_HOST}:${CI_PROJECT_NAMESPACE}/${CI_OPT_BUILD_PREFIX}${CI_PROJECT_NAME}.git";
+#    if [ -d .git ]; then git remote set-url origin ${GIT_REMOTE} && git fetch --all; fi;
+#    if [ ! -d .git ]; then echo "clone into non-empty directory"; git init && git remote add origin ${GIT_REMOTE} && git fetch --all && git reset origin/${CI_COMMIT_REF_NAME} > /dev/null 2>&1; fi;
+#    if git show-ref --verify refs/tags/${CI_COMMIT_REF_NAME} > /dev/null 2>&1; then
+#      echo 'build on tag is not supported'; exit 1;
+#    elif git show-ref --verify refs/remotes/origin/${CI_COMMIT_REF_NAME} > /dev/null 2>&1; then
+#      echo 'build on branch is supported';
+#      git checkout -f origin/${CI_COMMIT_REF_NAME};
+#      if [ "$(git rev-parse origin/${CI_COMMIT_REF_NAME})" != "${CI_COMMIT_SHA}" ]; then
+#        echo Prevents build of an older commit;
+#        PRIVATE_TOKEN_COLON='PRIVATE-TOKEN:';
+#        set +x; curl -H "${PRIVATE_TOKEN_COLON} ${CI_OPT_GITLAB_GIT_AUTH_TOKEN}" -X POST ${CI_OPT_GIT_PREFIX}/api/v4/projects/${CI_PROJECT_ID}/pipelines/${CI_PIPELINE_ID}/cancel; set -x;
+#        exit 0;
+#      fi;
+#      git checkout -f ${CI_COMMIT_SHA};
+#      echo "remove untracked files and directories"; git clean -fdx :/ -e artifacts.tar.gz;
+#    fi;
+
+build_snapshots:
+  <<: *git_refs_of_snapshots
+  <<: *script_build
+  <<: *upload_files_for_latter_stages
+  stage: build
+  variables:
+    GIT_STRATEGY: fetch
+
+analysis:
+  dependencies:
+    - build_snapshots
+  <<: *git_refs_develop_only
+  stage: analysis
+  script:
+    - |
+      if [ -f artifacts.tar.gz ]; then tar -xzf artifacts.tar.gz; fi; ls -ahl;
+      time CI_OPT_SONAR="true" ./mvnw ${MAVEN_GLOBAL_SETTINGS} -e -ntp -Dmaven.clean.skip=true sonar:sonar;
+      if type -p column > /dev/null; then find .mvn/profiler-report -name "*.json" | xargs cat | jq -r '.projects[]|"module:", .project, "plugins", (.mojos[]|[.mojo,.time]|@tsv)' | column -t; fi; rm -rf .mvn/profiler-report;
+  variables:
+    GIT_STRATEGY: fetch
+
+publish_snapshots:
+  dependencies:
+    - build_snapshots
+  <<: *git_refs_of_snapshots
+  <<: *script_publish
+  <<: *upload_files_for_latter_stages
+  stage: publish
+  variables:
+    GIT_STRATEGY: fetch
+
+site_snapshots:
+  dependencies:
+    - publish_snapshots
+  <<: *git_refs_develop_only
+  <<: *script_site
+  stage: site
+  variables:
+    GIT_STRATEGY: fetch
+
+build_releases:
+  <<: *git_refs_of_releases
+  <<: *script_build
+  <<: *upload_files_for_latter_stages
+  stage: build
+  variables:
+    GIT_STRATEGY: fetch
+
+publish_releases:
+  dependencies:
+    - build_releases
+  <<: *git_refs_of_releases
+  <<: *script_publish
+  <<: *upload_files_for_latter_stages
+  stage: publish
+  variables:
+    GIT_STRATEGY: fetch
+
+#publish_releases_to_gitlab:
+#  <<: *git_refs_of_releases
+##  artifacts:
+##    paths:
+##      - "**/target/pom.xml"
+#  dependencies:
+#    - build_releases
+#  script:
+#    - echo release artifacts to git service
+#  stage: publish
+#  variables:
+#    GIT_STRATEGY: fetch
+
+site_releases:
+  dependencies:
+    - publish_releases
+  <<: *git_refs_of_releases
+  <<: *script_site
+  stage: site
+  variables:
+    GIT_STRATEGY: fetch
+
+stages:
+  - build
+  - analysis
+  - publish
+  - site
+

@@ -1,0 +1,94 @@
+image: alpine
+
+stages:
+    - compile
+    - test
+    - package
+    - ssh-stage
+
+compile:
+    stage: compile
+    script: cat file1.txt file2.txt > compiled.txt
+    artifacts:
+        paths:
+            - compiled.txt
+        expire_in: 20 minutes
+    
+test:
+    stage: test
+    script: cat compiled.txt | grep -q 'Hello world'
+      
+pack-gz:
+    stage: package
+    script:
+        - gzip -k compiled.txt
+        - mv compiled.txt.gz package.gz
+    artifacts:
+        paths:
+            - package.gz
+        expire_in: 20 minutes
+
+pack-iso:
+    stage: package
+    before_script:
+        - echo "ipv6" >> /etc/modules
+        - apk update
+        - apk add xorriso
+    script:
+        - mkisofs -o ./packaged.iso ./compiled.txt
+    artifacts:
+        paths:
+            - packaged.iso
+        expire_in: 20 minutes
+            
+update-repo:
+    stage: ssh-stage
+    only: 
+        - schedules
+        - web
+    before_script:
+        # Install ssh-agent if not already installed, it is required by Docker.
+        # (change apt-get to yum if you use a CentOS-based image)
+        - echo "ipv6" >> /etc/modules
+        - apk update
+        - apk add openssh-client
+        # Be sure to have bash
+        - apk add bash bash-doc bash-completion
+        - apk add git
+        # Run ssh-agent (inside the build environment)
+        - eval $(ssh-agent -s)
+        # Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+        #- mkdir -p ~/.ssh_tmp
+        #- echo "$SSH_PRIVATE_KEY" > ~/.ssh_tmp/id_rsa
+        - bash -c "ssh-add <(echo '$SSH_PRIVATE_KEY')"
+        # For Docker builds disable host key checking. Be aware that by adding that
+        # you are suspectible to man-in-the-middle attacks.
+        # WARNING: Use this only with the Docker executor, if you use it with shell
+        # you will overwrite your user's SSH config.
+        - mkdir -p ~/.ssh
+        - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+        # In order to properly check the server's host key, assuming you created the
+        # SSH_SERVER_HOSTKEYS variable previously, uncomment the following two lines
+        # instead.
+        # - mkdir -p ~/.ssh
+        # - '[[ -f /.dockerenv ]] && echo "$SSH_SERVER_HOSTKEYS" > ~/.ssh/known_hosts'
+        
+        # Try if ssh works
+        - ssh git@gitlab.com
+    script:
+        - pwd
+        - echo ~
+        - rm -rf date.txt
+        - date > date.txt
+        - echo date.txt
+        - git checkout -B 'master'
+        - git remote -v
+        - git remote set-url origin git@gitlab.com:kubouch/ci-test.git
+        - git remote -v
+        - git config --global user.email $GITLAB_USER_EMAIL
+        - git config --global user.name $GITLAB_USER_LOGIN
+        - git status
+        - git add date.txt
+        - git commit -m "Automatic date file update"
+        - git push origin master
+

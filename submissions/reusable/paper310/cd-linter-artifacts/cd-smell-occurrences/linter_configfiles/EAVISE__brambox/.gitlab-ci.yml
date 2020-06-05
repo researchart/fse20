@@ -1,0 +1,73 @@
+image: python:3.6
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+
+cache:
+  paths:
+    - "$CI_PROJECT_DIR/pip-cache"
+  key: "$CI_PROJECT_ID"
+
+before_script:
+  - pip install numpy Cython tables bs4 pyarrow openpyxl==3.0.1 xlrd lxml opencv-python pyyaml pillow
+  - make clean
+  - make build cython=1 debug=1
+  - pip install -r develop.txt
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  script:
+    - make test
+  artifacts:
+    paths:
+      - .coverage
+    expire_in: 1 hour
+
+lint:
+  stage: test
+  script:
+    - make lint
+
+coverage:
+  stage: deploy
+  only:
+    - master
+    - develop
+  dependencies:
+    - test
+  script:
+    - pip install codecov
+    - coverage report 
+    - codecov -t 55553a97-b480-426f-9f03-3b6d401151a7 --branch "$CI_COMMIT_BRANCH"
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+
+coverage2:
+  stage: deploy
+  only:
+    - tags
+  dependencies:
+    - test
+  script:
+    - pip install codecov
+    - coverage report 
+    - codecov -t 55553a97-b480-426f-9f03-3b6d401151a7 --tag "$CI_COMMIT_TAG"
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+
+pages:
+  stage: deploy
+  only:
+    - tags
+  script:
+    - apt-get update --fix-missing && apt-get install -y pandoc
+    - pip install IPython
+    - make version match=${CI_COMMIT_TAG:1}
+    - make docs
+    - mv docs/.build/html public/
+  artifacts:
+    paths:
+      - public
+

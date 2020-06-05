@@ -1,0 +1,107 @@
+image: owan/corerobotics:latest
+
+stages:
+   - build
+   - test
+   - deploy
+
+build-lib:
+  stage: build
+  script: 
+   - mkdir build && cd build
+   - cmake ..
+   - make
+  artifacts:
+    paths:
+     - $CI_PROJECT_DIR/lib/*
+    expire_in: 1 week
+
+build-python-2:
+  stage: build
+  script:
+    - mkdir bin
+    - mkdir build && cd build
+    - cmake -Dpython=2 ..
+    - make
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/lib/*
+      - $CI_PROJECT_DIR/lib/python/*
+      - $CI_PROJECT_DIR/bin/*
+    expire_in: 1 week
+
+build-python-3:
+  stage: build
+  script:
+    - mkdir bin
+    - mkdir build && cd build
+    - cmake -Dpython=3 ..
+    - make
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/lib/*
+      - $CI_PROJECT_DIR/lib/python/*
+      - $CI_PROJECT_DIR/bin/*
+    expire_in: 1 week
+
+build-test:
+  stage: build
+  script:
+    - mkdir build && cd build
+    - cmake -Dtests=true ..
+    - make
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/lib/*
+      - $CI_PROJECT_DIR/bin/*
+    expire_in: 1 week
+
+test-python-2:
+  stage: test
+  script:
+    - $CI_PROJECT_DIR/bin/cr-examples --python2
+  dependencies:
+    - build-python-2
+
+test-python-3:
+  stage: test
+  script:
+    - $CI_PROJECT_DIR/bin/cr-examples --python3
+  dependencies:
+    - build-python-3
+
+test-lib:
+  stage: test
+  script:
+    - $CI_PROJECT_DIR/bin/cr-tests
+  dependencies:
+    - build-test
+
+deploy-install:
+  stage: deploy
+  script:
+    - mkdir build && cd build
+    - cmake -Dtests=true ..
+    - make && make install
+    - ldconfig /usr/local/lib
+    - cr-tests
+  dependencies:
+    - build-test
+
+deploy-coverage:
+  stage: deploy
+  script:
+    - mkdir build && cd build
+    - cmake -Dreport=true ..
+    - cmake --build . --config Debug
+    - ctest --output-on-failure
+  after_script:
+    # Create lcov report
+    - lcov --capture --directory . --output-file coverage.info
+    - lcov --remove coverage.info '/usr/*' --output-file coverage.info # filter system-files
+    - lcov --list coverage.info
+    # Uploading to CodeCov
+    - bash <(curl -s https://codecov.io/bash) -f coverage.info || echo "Codecov did not collect coverage reports"
+  dependencies:
+    - build-lib
+

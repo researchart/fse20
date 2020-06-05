@@ -1,0 +1,13 @@
+# This script is used by GitLab Runner to create the "Getting Started" guide for Raptor. DO NOT DELETE!
+
+
+pages:                      # the build job must be named pages
+  script:
+  - gem install jekyll      # we install jekyll
+  - jekyll build -s userGuide -d public/ # we tell jekyll to build the site for us
+  artifacts:
+    paths:
+    - public                # this is where the site will live and the Runner uploads it in GitLab
+  only:
+  - master                  # this script is only affecting the master branch
+

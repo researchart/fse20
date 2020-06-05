@@ -1,0 +1,14 @@
+image: node:6
+
+before_script:
+  - npm install
+
+# This folder is cached between builds.
+cache:
+  paths:
+    - node_modules/
+
+test:build:
+  script:
+    - npm run build
+

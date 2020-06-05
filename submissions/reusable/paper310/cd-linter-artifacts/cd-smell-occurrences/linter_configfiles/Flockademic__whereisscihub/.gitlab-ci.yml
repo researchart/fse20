@@ -1,0 +1,57 @@
+image: node:8
+
+stages:
+  - review
+  - deploy
+
+variables:
+  REPO_NAME: whereisscihubnow
+
+start_review:
+  stage: review
+  script:
+    - npm install -g --unsafe-perm now
+    - URL=$(now --public --token=${NOW_TOKEN} -n ${REPO_NAME}-${CI_COMMIT_REF_SLUG})
+    - NOW_URL=$(echo ${URL} | sed s/'http:\/\/'/''/g | sed s/'https:\/\/'//g)
+    - now --token=${NOW_TOKEN} alias set ${NOW_URL} ${REPO_NAME}-${CI_COMMIT_REF_SLUG}.now.sh
+    # Remove old, unaliased deployments (output supressed because it logs email addresses):
+    - now rm ${REPO_NAME}-${CI_COMMIT_REF_SLUG} --safe --yes --token=${NOW_TOKEN} > /dev/null
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    url: https://$REPO_NAME-$CI_COMMIT_REF_SLUG.now.sh
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+
+stop_review:
+  stage: review
+  script:
+    - npm install -g --unsafe-perm now
+    # Output supressed because it logs email addresses
+    - now rm -t ${NOW_TOKEN} --yes ${REPO_NAME}-${CI_COMMIT_REF_SLUG} > /dev/null
+  when: manual
+  environment:
+    name: review/$CI_BUILD_REF_NAME
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+
+start_production:
+  stage: deploy
+  script:
+    - npm install -g --unsafe-perm now
+    - URL=$(now --public --token=${NOW_TOKEN} -n ${REPO_NAME}-${CI_COMMIT_REF_SLUG})
+    - NOW_URL=$(echo ${URL} | sed s/'http:\/\/'/''/g | sed s/'https:\/\/'//g)
+    - now --token=${NOW_TOKEN} alias set ${NOW_URL} whereisscihub.now.sh
+    # Remove old, unaliased deployments (output supressed because it logs email addresses):
+    - now rm ${REPO_NAME}-${CI_COMMIT_REF_SLUG} --safe --yes --token=${NOW_TOKEN} > /dev/null
+  environment:
+    name: production
+    url: https://whereisscihub.now.sh
+  only:
+    - master
+

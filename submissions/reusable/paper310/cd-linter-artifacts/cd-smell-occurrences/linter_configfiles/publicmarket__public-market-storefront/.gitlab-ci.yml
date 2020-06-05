@@ -1,0 +1,121 @@
+variables:
+  DOCKER_DRIVER: overlay2 # use faster volume driver
+  DOCKER_IMAGE: registry.gitlab.com/publicmarket/public-market-storefront
+
+stages:
+  - phase1
+  - phase2
+  - phase3
+
+build:
+  stage: phase1
+  tags:
+    - build
+  image: docker:latest
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    # base image contains only dependencies
+    - docker build -f ./config/deploy/dockerfiles/base/Dockerfile -t $DOCKER_IMAGE/base:latest .
+    - docker push $DOCKER_IMAGE/base:latest
+    # ci image inherits from base, installs chrome and copies code
+    - docker build -f ./config/deploy/dockerfiles/ci/Dockerfile -t $DOCKER_IMAGE/ci:latest .
+    - docker push $DOCKER_IMAGE/ci:latest
+    # kubectl image contains docker and kubectl for deploying
+    - docker build -f ./config/deploy/dockerfiles/kubectl/Dockerfile -t $DOCKER_IMAGE/kubectl:latest ./config/deploy/dockerfiles/kubectl
+    - docker push $DOCKER_IMAGE/kubectl:latest
+    # cleanup
+    - docker system prune -f
+
+rspec:
+  image: $DOCKER_IMAGE/ci:latest
+  stage: phase2
+  services:
+    - postgres:10.1-alpine
+    - elasticsearch:6.4.2
+  retry: 2
+  cache:
+    paths:
+      - vendor/bundle
+      - node_modules
+      - cc-test-reporter
+  variables:
+    DB_HOST: postgres
+    ELASTICSEARCH_URL: http://elasticsearch:9200
+    RAILS_ENV: test
+    DATABASE_CLEANER_ALLOW_REMOTE_DATABASE_URL: 'true'
+  before_script:
+    # setup codeclimate test reporter
+    - wget -nc -O ./cc-test-reporter https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 || true
+    - chmod +x ./cc-test-reporter
+    - ./cc-test-reporter before-build
+    # setup rails test env
+    - bundle check || bundle install --deployment --jobs $(nproc) --without development staging production
+    - yarn
+    - bundle exec rake parallel:create
+    - bundle exec rake parallel:load_schema
+  script:
+    - bundle exec rake parallel:spec
+    - ./cc-test-reporter after-build --coverage-input-type simplecov --exit-code $?
+  artifacts:
+    when: always
+    expire_in: 1 day
+    paths:
+      - coverage/
+      - tmp/capybara/
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /skip-test/
+
+# deploy to staging:
+#   stage: phase2
+#   image: $DOCKER_IMAGE/kubectl:latest
+#   tags:
+#     - build
+#   before_script:
+#     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+#   script:
+#     - env
+#     - docker build -f ./config/deploy/Dockerfile -t $DOCKER_IMAGE/staging:latest .
+#     - docker push $DOCKER_IMAGE/staging:latest
+#     - docker system prune -f
+#     - kubectl cluster-info
+#     - kubectl patch sts web -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"app\":\"$CI_ENVIRONMENT_SLUG\"}, \"annotations\":{\"date\":\"`date +'%s'`\"}}}}}"
+#     - kubectl patch sts sidekiq -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"app\":\"$CI_ENVIRONMENT_SLUG\"}, \"annotations\":{\"date\":\"`date +'%s'`\"}}}}}"
+#     - kubectl patch sts sidekiq-uploads -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"app\":\"$CI_ENVIRONMENT_SLUG\"}, \"annotations\":{\"date\":\"`date +'%s'`\"}}}}}"
+#     - kubectl get pod
+#     - kubectl rollout status sts/web --timeout=5m
+#     - curl -s -X POST -d "payload={\"channel\":\"build-status\", \"username\":\"$CI_ENVIRONMENT_NAME\",\"text\":\"🚀 Deploy to *$CI_ENVIRONMENT_NAME* finished 🚀 \n $CI_JOB_URL\"}" $SLACK_HOOK > /dev/null
+#     # set Pivotal Tracker stories to delivered state
+#     - git log --format=%s $CI_BUILD_BEFORE_SHA..$CI_COMMIT_SHA | (grep -io "\[fixes .*\]" || true) | (grep -o "[0-9][0-9]*" || true) | xargs -I % curl -s -X PUT -H "X-TrackerToken:$PT_TOKEN" -H "Content-Type:application/json" -d '{"current_state":"delivered"}' https://www.pivotaltracker.com/services/v5/projects/$PT_PROJECT_ID/stories/%
+#   environment:
+#     name: staging
+#     url: https://staging.public.market
+#   only:
+#     - master
+
+deploy to production:
+  stage: phase3
+  image: $DOCKER_IMAGE/kubectl:latest
+  tags:
+    - build
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  script:
+    - docker build -f ./config/deploy/Dockerfile -t $DOCKER_IMAGE/production:latest .
+    - docker push $DOCKER_IMAGE/production:latest
+    - docker system prune -f
+    - kubectl cluster-info
+    - kubectl patch sts web -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"app\":\"$CI_ENVIRONMENT_SLUG\"}, \"annotations\":{\"date\":\"`date +'%s'`\"}}}}}"
+    - kubectl patch sts sidekiq -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"app\":\"$CI_ENVIRONMENT_SLUG\"}, \"annotations\":{\"date\":\"`date +'%s'`\"}}}}}"
+    - kubectl patch sts sidekiq-uploads -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"app\":\"$CI_ENVIRONMENT_SLUG\"}, \"annotations\":{\"date\":\"`date +'%s'`\"}}}}}"
+    - kubectl get pod
+    - kubectl rollout status sts/web --timeout=5m
+    - curl -s -X POST -d "payload={\"channel\":\"build-status\", \"username\":\"$CI_ENVIRONMENT_NAME\",\"text\":\"🚀 Deploy to *$CI_ENVIRONMENT_NAME* finished 🚀 \n $CI_JOB_URL\"}" $SLACK_HOOK > /dev/null
+  when: manual
+  environment:
+    name: production
+    url: https://production.public.market
+  only:
+    - master
+

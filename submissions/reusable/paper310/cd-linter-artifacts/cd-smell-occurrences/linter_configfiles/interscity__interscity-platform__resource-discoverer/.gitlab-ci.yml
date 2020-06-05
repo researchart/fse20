@@ -1,0 +1,12 @@
+image: ruby:2.3
+
+before_script:
+  - ruby -v
+  - which ruby
+  - gem install bundler --no-ri --no-rdoc
+  - bundle check || bundle install
+
+rspec:
+  script:
+    - bundle exec rspec
+

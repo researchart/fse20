@@ -1,0 +1,16 @@
+stages:
+  - deploy
+
+deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    - ssh $USER@$HOST "cd $PROJECT_ROOT && git pull origin master"
+    - ssh $USER@$HOST "cd $PROJECT_ROOT && composer install -o"
+    - ssh $USER@$HOST "cd $PROJECT_ROOT && drush cr -y"
+    - ssh $USER@$HOST "cd $PROJECT_ROOT && drush cim -y"
+    - ssh $USER@$HOST "cd $PROJECT_ROOT && drush updb --entity-updates -y"
+    - echo "Deploy complete!"
+
+

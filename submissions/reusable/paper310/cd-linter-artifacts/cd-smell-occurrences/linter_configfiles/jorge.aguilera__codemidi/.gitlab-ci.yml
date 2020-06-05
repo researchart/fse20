@@ -1,0 +1,31 @@
+image: java:8
+
+before_script:
+
+build_doc:
+ script:
+ - apt-get update
+ - apt-get -y install graphviz
+ - echo '{"allow_root"'  ':'  true '}'   > /root/.bowerrc
+ - ./gradlew codemidi:asciidoctor
+ stage: build
+ artifacts:
+  paths:
+   - codemidi/build/asciidoc/html5
+ only:
+ - master
+
+pages:
+ stage: deploy
+ dependencies:
+ - build_doc
+ script:
+ - mkdir ./public
+ - mkdir -p codemidi/build/asciidoc/html5
+ - cp -r codemidi/build/asciidoc/html5/* ./public
+ artifacts:
+    paths:
+    - public
+ only:
+ - master
+

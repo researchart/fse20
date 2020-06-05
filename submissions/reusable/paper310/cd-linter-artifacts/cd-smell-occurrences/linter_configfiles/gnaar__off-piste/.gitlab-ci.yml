@@ -1,0 +1,17 @@
+image: gnar/base:1.0
+
+variables:
+  PYTHONPATH: "/builds/gnaar"
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - pip3 install --upgrade pip setuptools codecov
+    - pip3 install -r app/requirements.txt
+    - pip3 install -r test/requirements.txt
+    - pytest
+    - codecov --token=aefc1c85-dfc0-4bbc-9afe-5e7308ba08f3
+

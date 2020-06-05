@@ -1,0 +1,63 @@
+# This file is a template, and might need editing before it works on your project.
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:latest
+
+# Pick zero or more services to be used on all builds.
+# Only needed when using a docker container to run your tests in.
+# Check out: http://docs.gitlab.com/ce/ci/docker/using_docker_images.html#what-is-a-service
+services:
+  - mongo:latest
+
+variables:
+   MONGO_URI: 'mongodb://mongo/SaunaDB'
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+  
+stages:
+#   - testBuild
+  - test
+  - build
+  
+# testBuild:
+#   stage: testBuild
+#   image: docker:git
+#   services:
+#   - docker:dind
+#   script:
+#   - docker login -u Rankaisija -p runneri123 registry.gitlab.com
+#   - docker build -t registry.gitlab.com/casette/sauna-project:test .
+#   - docker push registry.gitlab.com/casette/sauna-project:test
+#   tags:
+#   - rankaisumetodit
+
+  
+robotTest:
+  before_script:
+  - pm2 start app/index.js
+  - pm2 start app/main.js
+  stage: test
+  script:
+  - firefox -v
+  - robot robot
+  tags:
+  - testi
+  after_script:
+  - pm2 stop index
+  - pm2 stop main
+  
+build_image:
+  stage: build
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+  - docker login -u Rankaisija -p runneri123 registry.gitlab.com
+  - docker build -t registry.gitlab.com/casette/sauna-project:release .
+  - docker push registry.gitlab.com/casette/sauna-project:release
+  tags:
+  - rankaisumetodit
+

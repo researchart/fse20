@@ -1,0 +1,35 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  PROXY_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+
+build site:
+  services: 
+  - docker:dind
+  stage: build
+  before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+  - docker build -t ${PROXY_IMAGE} .
+  - docker push ${PROXY_IMAGE}
+  only:
+  - master
+
+deploy float:
+  image: alpine:latest
+  stage: deploy
+  script:
+  - mkdir -p /root/.ssh
+  - echo "${LOOT_HERE}" > ~/.ssh/id_rsa
+  - chmod 600 ~/.ssh/id_rsa
+  - apk add --update openssh
+  - scp -o StrictHostKeyChecking=no sites deploy@163.172.178.167:/deploy/status/sites
+  - ssh -o StrictHostKeyChecking=no deploy@163.172.178.167 "docker pull ${PROXY_IMAGE} && 
+    docker stop proxy || true &&
+    docker rm --force proxy || true &&
+    docker run --name proxy -d -p 80:80 --net="host" ${PROXY_IMAGE}"
+  only:
+  - master
+

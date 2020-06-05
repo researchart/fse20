@@ -1,0 +1,5 @@
+trigger:
+  stage: deploy
+  script:
+  - "curl -X POST -F token=0972c72ae5bc6a033ba8d7a316803c -F ref=master https://gitlab.com/api/v3/projects/1503410/trigger/builds"
+

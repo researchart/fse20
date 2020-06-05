@@ -1,0 +1,29 @@
+
+# tags 要是你Runner里面的标签
+stages:
+- build
+- test
+- deploy
+
+
+build_maven:
+  stage: build
+  script:
+  - echo "build maven....."
+  - echo "mvn clean"
+  - echo "done"
+
+test_springboot:
+  stage: test
+  script:
+  - echo "run java test....."
+  - echo "java -test"
+  - echo "done"
+
+deploy_springboot:
+  stage: deploy
+  script:
+  - echo "deploy springboot...."
+  - echo "run mvn install"
+  - echo "done"
+

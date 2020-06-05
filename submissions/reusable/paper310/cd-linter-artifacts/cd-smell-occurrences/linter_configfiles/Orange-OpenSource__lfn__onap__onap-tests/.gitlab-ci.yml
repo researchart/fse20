@@ -1,0 +1,145 @@
+---
+image: python:latest
+
+stages:
+  - linting
+  - VVP
+  - unit_test
+  - docker
+  - test
+
+.syntax_checking: &syntax_docker
+  stage: linting
+  tags:
+    - gitlab-org
+  except:
+    - schedules
+
+.vvp_checking: &vvp_checking
+  image:
+    name: nexus3.onap.org:10001/onap/vvp/validation-scripts
+    entrypoint: [""]
+  stage: VVP
+  before_script:
+    - mkdir -p onap_tests/reports
+  artifacts:
+    paths:
+      - onap_tests/reports
+    when: always
+  tags:
+    - gitlab-org
+  except:
+    - schedules
+
+yaml_linting:
+  image: sdesbure/yamllint:latest
+  script:
+    - "yamllint \
+       onap_tests/onap-conf \
+       onap_tests/templates/vnf-services"
+  <<: *syntax_docker
+
+markdown_linting:
+  image:
+    vpgrp/linter:markdown
+  script:
+    - mdl .
+  <<: *syntax_docker
+
+basic_vm:
+  <<: *vvp_checking
+  script:
+    - pytest /vvp/tests --template-directory=onap_tests/templates/heat_files/ubuntu16 --output-directory=onap_tests/reports
+
+freeradius_nbi:
+  <<: *vvp_checking
+  script:
+    - pytest /vvp/tests --template-directory=onap_tests/templates/heat_files/freeRadius --output-directory=onap_tests/reports
+
+vims:
+  <<: *vvp_checking
+  script:
+    - pytest /vvp/tests --template-directory=onap_tests/templates/heat_files/clearwater --output-directory=onap_tests/reports
+
+vfw:
+  <<: *vvp_checking
+  script:
+    - pytest /vvp/tests --template-directory=onap_tests/templates/heat_files/vfw --output-directory=onap_tests/reports
+
+vfwcl:
+  <<: *vvp_checking
+  script:
+    - pytest /vvp/tests --template-directory=onap_tests/templates/heat_files/vfwcl --output-directory=onap_tests/reports
+  allow_failure: true
+
+variables:
+  # CODE_PATH: "src"
+  SAST_GOSEC_LEVEL: 3
+  # Change pip's cache directory to be inside the project directory since we can
+  # only cache local items.
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  # Pip's cache doesn't store the python packages
+  # https://pip.pypa.io/en/stable/reference/pip_install/#caching
+  # Variables for pylint/pydocstyle/SAST/Code-Quality.gitlab-ci.yml
+  SRC_PATH: '/onap_tests'
+  # PYLINT_OPT: -d too-few-public-methods -d consider-using-set-comprehension
+
+.before_script_python: &before_script_python
+  before_script:
+    - python -V               # Print out python version for debugging
+    - pip install virtualenv
+    - virtualenv venv
+    - source venv/bin/activate
+
+.before_script_docker: &before_script_docker
+  stage: docker
+  image: docker:latest
+  <<: *before_script_docker
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+
+docker-master:
+  <<: *before_script_docker
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE" ./docker/
+    - docker push "$CI_REGISTRY_IMAGE"
+  only:
+    - master
+
+docker:
+  <<: *before_script_docker
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" ./docker/
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+  except:
+    - master
+
+pytest:
+  stage: unit_test
+  image: python:3.6
+  script:
+    - pip install -e .
+    - python setup.py test
+  artifacts:
+    paths:
+      - coverage
+    reports:
+      junit: pytest-*.xml
+
+container_scanning:
+  variables:
+    CI_APPLICATION_REPOSITORY: rregistry.gitlab.com/orange-opensource/lfn/onap/onap-tests
+    CI_APPLICATION_TAG: latest
+
+include:
+  - remote: 'https://gitlab.com/Orange-OpenSource/lfn/ci_cd/gitlab-ci-templates/raw/master/pylint.gitlab-ci.yml'
+  # - remote: 'https://gitlab.com/Orange-OpenSource/lfn/ci_cd/gitlab-ci-templates/raw/master/pytest.gitlab-ci.yml'
+  - remote: 'https://gitlab.com/Orange-OpenSource/lfn/ci_cd/gitlab-ci-templates/raw/master/pydocstyle.gitlab-ci.yml'
+  - template: Container-Scanning.gitlab-ci.yml
+  - remote: 'https://gitlab.com/Orange-OpenSource/lfn/ci_cd/gitlab-ci-templates/raw/master/Code-Quality.gitlab-ci.yml'
+  - remote: 'https://gitlab.com/Orange-OpenSource/lfn/ci_cd/gitlab-ci-templates/raw/master/SAST.gitlab-ci.yml'
+  - template: License-Management.gitlab-ci.yml
+  - template: Dependency-Scanning.gitlab-ci.yml
+

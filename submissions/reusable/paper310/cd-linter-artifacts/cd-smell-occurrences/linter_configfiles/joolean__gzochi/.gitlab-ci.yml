@@ -1,0 +1,13 @@
+# Build scripts for GitLab CI. 
+
+debian:
+  image: registry.gitlab.com/joolean/gzochi/gzochi-build:latest
+  script:
+    - "export GUILE_CFLAGS=\"-pthread -I/usr/include/guile/2.0 -I/usr/include\""
+    - "export GUILE_LIBS=\"-L/usr/lib -lguile-2.0 -lgc\""
+    - "./autogen.sh"
+    - "./configure"
+    - "make"
+    - "make check"
+    
+

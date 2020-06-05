@@ -1,0 +1,28 @@
+image: golang:alpine
+
+variables:
+  REPO_NAME: agamigo.io/material
+
+before_script:
+  - mkdir -p "${GOPATH}/src/$(dirname ${REPO_NAME})"
+  - cp -r "${CI_PROJECT_DIR}" "${GOPATH}/src/${REPO_NAME}"
+  - apk add -U git build-base python2 cairo-dev py2-cairo nodejs-npm yarn
+  - go get github.com/gopherjs/gopherjs
+  - cd $GOPATH/src/github.com/gopherjs/gopherjs/node-syscall/
+  - npm install --global node-gyp
+  - node-gyp rebuild
+  - mkdir -p ~/.node_libraries/
+  - cp build/Release/syscall.node ~/.node_libraries/syscall.node
+  - cd "${GOPATH}/src/${REPO_NAME}"
+  - yarn install
+
+stages:
+  - test
+
+default:
+    stage: test
+    script:
+      - go fmt $(go list ./...)
+      - go vet $(go list ./...)
+      - gopherjs test -v $(go list ./...)
+

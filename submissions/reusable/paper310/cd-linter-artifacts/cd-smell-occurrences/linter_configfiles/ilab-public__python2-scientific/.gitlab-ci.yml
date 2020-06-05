@@ -1,0 +1,16 @@
+variables:
+  DOCKER_DRIVER: overlay2
+
+release-image:
+  stage: deploy
+  image: docker:latest
+  services:
+      - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build --pull -t $CI_REGISTRY_IMAGE .
+    - docker tag $CI_REGISTRY_IMAGE $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+    - docker push $CI_REGISTRY_IMAGE
+  only:
+    - tags
+

@@ -1,0 +1,17 @@
+image: node:8
+pages:
+  cache:
+    paths:
+    - node_modules/
+
+  script:
+  - npm i hexo-cli -g
+  - npm i
+  - node server/index.js
+  - hexo deploy
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

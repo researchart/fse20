@@ -1,0 +1,35 @@
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+
+test:stable:
+  image: "scorpil/rust:stable"
+  script:
+  - rustc --version && cargo --version
+  - cargo test --verbose --jobs 1 --release
+  cache:
+    paths:
+      - target/
+      - cargo/
+
+test:beta:
+  image: "scorpil/rust:beta"
+  allow_failure: true
+  script:
+  - rustc --version && cargo --version
+  - cargo test --verbose --jobs 1 --release
+  cache:
+    paths:
+      - target/
+      - cargo/
+
+test:unstable:
+  image: "scorpil/rust:nightly"
+  allow_failure: true
+  script:
+  - rustc --version && cargo --version
+  - cargo test --verbose --jobs 1 --release
+  cache:
+    paths:
+      - target/
+      - cargo/
+

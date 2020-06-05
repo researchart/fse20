@@ -1,0 +1,12 @@
+image: golang:1.7
+
+test:
+  type: test
+  script:
+    - mkdir -p /go/src/gitlab.com/lyda
+    - ln -s $PWD /go/src/gitlab.com/lyda/gqgmc
+    - cd /go/src/gitlab.com/lyda/gqgmc
+    - b=master; test -z "$CI_BUILD_TAG" && b=$CI_BUILD_REF_NAME; git branch -f $b $CI_BUILD_REF; git checkout $b
+    - go get -u -f ./cmd/*
+    - ./run_tests.sh
+

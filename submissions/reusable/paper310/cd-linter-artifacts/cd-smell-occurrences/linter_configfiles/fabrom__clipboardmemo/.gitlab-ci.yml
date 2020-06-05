@@ -1,0 +1,69 @@
+image: electronuserland/builder:wine
+
+cache:
+  paths:
+    - node_modules
+    - .cache/electron
+    - .cache/electron-builder
+
+before_script:
+  - yarn install
+  - yarn run install-app-deps
+
+stages:
+  - build
+  - deploy
+
+build_job_linux:
+  stage: build
+  script:
+    - yarn run dist:linux
+    - mkdir -p ./dist/linux
+    - cp -rf ./dist/*.gz ./dist/linux/
+    - cp -rf ./dist/*.deb ./dist/linux/
+  artifacts:
+   paths:
+    - dist/linux
+   expire_in: 1 week
+
+build_job_win32:
+  stage: build
+  script:
+    - mkdir -p ./dist/win32
+    - yarn run dist:win32
+    - cp -rf ./dist/*.exe ./dist/win32/
+  artifacts:
+    paths:
+      - dist/win32
+    expire_in: 1 week
+
+build_job_macos:
+  stage: build
+  script:
+    - yarn run dist:darwin
+    - mkdir -p ./dist/darwin
+    - cp -rf ./dist/*.dmg ./dist/darwin
+  artifacts:
+    paths:
+      - dist/darwin
+    expire_in: 1 week
+
+pages:
+  stage: deploy
+  script:
+  - cd website
+  - ./build.sh
+  #- ---------------------------------
+  - mkdir -p ../public/download/linux/
+  - mkdir -p ../public/download/win32/
+  - mkdir -p ../public/download/macos/
+  - cp -rf ../dist/linux/*.gz ../public/download/linux/
+  - cp -rf ../dist/linux/*.deb ../public/download/linux/
+  - cp -rf ../dist/win32/*.exe ../public/download/win32/
+  - cp -rf ../dist/darwin/* ../public/download/macos/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

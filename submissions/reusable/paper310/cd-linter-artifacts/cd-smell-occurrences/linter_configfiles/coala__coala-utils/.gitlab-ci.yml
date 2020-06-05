@@ -1,0 +1,64 @@
+# Start ignoring YAMLLintBear
+include: 'https://gitlab.com/coala/mobans/raw/master/templates/ci/gitlab-ci-base.yml'
+# Stop ignoring YAMLLintBear
+
+variables:
+  DEBIAN_FRONTEND: noninteractive
+  XDG_CACHE_HOME: "$CI_PROJECT_DIR/.cache/"
+
+cache:
+  paths:
+    - $CI_PROJECT_PATH/.cache/pip
+
+
+# git for git+ requirements
+# gcc and musl-dev for compiled modules, as wheels are not possible on Alpine
+.common_deps_script: &common_deps_script |
+  apk add --no-cache git gcc musl-dev
+  $PYTHON -m pip install --constraint test-requirements.txt moban
+  $PYTHON -m pip install setuptools==21 pip==9.0.1
+  pip install -r test-requirements.txt -r requirements.txt
+
+.common_script:
+  before_script:
+    - *common_deps_script
+  script:
+    - $PYTHON -m pytest --cov-fail-under=100
+    - $PYTHON -m codecov
+  retry: 2
+tests:3.4:
+  extends: .common_script
+  image: python:3.4-alpine
+  coverage: '/Total coverage: \d+\.\d+%/'
+
+tests:3.5:
+  extends: .common_script
+  image: python:3.5-alpine
+  coverage: '/Total coverage: \d+\.\d+%/'
+
+tests:3.6:
+  extends: .common_script
+  image: python:3.6-alpine
+  coverage: '/Total coverage: \d+\.\d+%/'
+
+tests:3.7:
+  extends: .common_script
+  image: python:3.7-alpine
+  coverage: '/Total coverage: \d+\.\d+%/'
+
+lint:
+  image: python:3.6
+  before_script:
+    - $PYTHON -m pip install setuptools==21 pip==9.0.1
+    - pip install 'git+https://github.com/coala/coala#egg=coala'
+    - pip install 'git+https://github.com/coala/coala-bears#egg=coala-bears'
+  script:
+    - coala --ci
+
+moban:
+  image: python:3.6
+  before_script:
+    - pip install --constraint test-requirements.txt moban
+  script:
+    - .ci/check_moban.sh
+

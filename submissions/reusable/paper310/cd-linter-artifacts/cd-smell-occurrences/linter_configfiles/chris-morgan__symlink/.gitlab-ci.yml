@@ -1,0 +1,27 @@
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+
+before_script:
+  - rustc --version
+  - cargo --version
+
+.job_template: &common
+  script:
+    - cargo test --verbose --jobs 1 --release
+  cache:
+    paths:
+      - target/
+      - cargo/
+
+test:stable:
+  <<: *common
+  image: "scorpil/rust:stable"
+
+test:beta:
+  <<: *common
+  image: "scorpil/rust:beta"
+
+test:nightly:
+  <<: *common
+  image: "scorpil/rust:nightly"
+

@@ -1,0 +1,34 @@
+variables:
+  REPO_NAME: gitlab.com/b0/matrix-nsfw
+
+stages:
+- build
+- deploy
+
+build:
+  stage: build
+  tags:
+  - opencv
+  before_script:
+  - rm -rf $GOPATH/src/$(dirname $REPO_NAME)
+  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  script:
+  - cd $GOPATH/src/$REPO_NAME
+  - go get -d ./...
+  - go build
+  artifacts:
+    paths:
+    - matrix-nsfw
+
+production:
+  stage: deploy
+  tags:
+  - opencv
+  script:
+  - sudo service matrix-nsfw stop
+  - rm -rf $GOPATH/bin/matrix-nsfw
+  - cp matrix-nsfw $GOPATH/bin
+  - cp -R model /var/lib/matrix-nsfw
+  - sudo service matrix-nsfw start
+

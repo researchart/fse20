@@ -1,0 +1,42 @@
+stages:
+- build
+- deploy
+
+build:
+  stage: build
+  image: docker
+  services:
+  - docker:dind
+  before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  tags: [docker, linux]
+  script:
+  - chmod +x ./build.sh && ./build.sh
+  cache:
+    paths:
+    - vendor
+  artifacts:
+    paths:
+    - package/*.tgz
+    - package/docs
+
+npm:
+  stage: deploy
+  only:
+  - master
+  image: node:6
+  script:
+  - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > .npmrc
+  - find . -type f -name *.tgz -exec npm publish {} \;
+
+pages:
+  stage: deploy
+  only:
+  - master
+  image: busybox
+  script:
+  - mv ./package/docs ./public
+  artifacts:
+    paths:
+    - public
+

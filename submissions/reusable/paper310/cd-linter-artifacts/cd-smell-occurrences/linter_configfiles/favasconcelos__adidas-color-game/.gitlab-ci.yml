@@ -1,0 +1,24 @@
+image: node:latest
+
+cache:
+    paths:
+        - node_modules/
+
+before_script:
+    - yarn
+
+test:
+    stage: test
+    script:
+        - yarn test
+
+pages:
+    stage: deploy
+    script:
+        - yarn build
+        - rm -rf public
+        - mv build public
+    artifacts:
+        paths:
+            - public # GitLab pages serve from a 'public' directory
+

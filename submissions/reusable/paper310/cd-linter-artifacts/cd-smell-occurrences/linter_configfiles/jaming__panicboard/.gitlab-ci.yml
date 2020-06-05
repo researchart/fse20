@@ -1,0 +1,36 @@
+stages:
+  - test
+  - deploy
+
+before_script:
+  - npm install
+
+lint:
+  stage: test
+  tags:
+   - node
+  script:
+   - ./node_modules/.bin/gulp vendor
+   - npm run lint
+
+test:
+  stage: test
+  tags:
+   - node
+  script:
+   - ./node_modules/.bin/gulp vendor
+   - npm test
+
+pages:
+  stage: deploy
+  tags:
+    - node
+  script:
+    - wget http://static.bertrandjamin.fr/board-params.js -O src/app/config/params.js
+    - ./node_modules/.bin/gulp
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

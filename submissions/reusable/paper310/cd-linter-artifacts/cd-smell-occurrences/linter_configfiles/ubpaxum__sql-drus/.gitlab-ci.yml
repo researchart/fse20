@@ -1,0 +1,49 @@
+image: java:8-jdk
+
+stages:
+  - build
+  - test
+  # - deploy
+
+before_script:
+#  - echo `pwd` # debug
+#  - echo "$CI_BUILD_NAME, $CI_BUILD_REF_NAME $CI_BUILD_STAGE" # debug
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+
+cache:
+  paths:
+    - .gradle/wrapper
+    - .gradle/caches
+    - build
+
+build:
+  stage: build
+  script:
+    - ./gradlew assemble
+  artifacts:
+    paths:
+      - build/distributions/*.zip
+    expire_in: 1 week
+  only:
+    - master
+
+test:
+  stage: test
+  services:
+    - nukedzn/informix:latest
+    - alexeiled/docker-oracle-xe-11g
+  script:
+    # - cat /etc/hosts
+    # - ping -c 3 nukedzn-informix || ping -c 3 informix || ping -c 3 172.17.0.2
+    # - ping -c 3 alexeiled-docker-oracle-xe-11g || ping -c 3 172.17.0.3
+    - ./gradlew test
+    # - cat ./build/classes/main/log/sql-drus.log
+
+# deploy:
+#   stage: deploy
+#   script:
+#     - ./deploy
+
+after_script:
+- echo "End CI"
+

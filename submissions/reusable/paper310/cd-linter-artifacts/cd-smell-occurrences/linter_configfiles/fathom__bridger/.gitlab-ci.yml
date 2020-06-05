@@ -1,0 +1,19 @@
+runWebpack: 
+  image: library/node:9.11.1
+  stage: build
+  before_script:
+    - npm i
+  script: npm run build
+  artifacts:
+    paths:
+      - public
+
+pages:
+  stage: deploy
+  script: echo 'deploying'
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

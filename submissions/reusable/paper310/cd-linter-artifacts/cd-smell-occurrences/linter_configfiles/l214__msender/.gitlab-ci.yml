@@ -1,0 +1,18 @@
+image: node:8.12.0-alpine
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+before_script:
+  - yarn install
+
+test:
+  script:
+    - yarn run test
+
+build:
+  script:
+    - yarn run build
+

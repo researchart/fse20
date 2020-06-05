@@ -1,0 +1,62 @@
+stages:
+  - build
+  - deploy
+
+NPM stuff:
+  stage: build
+  image: node:6
+  script:
+    - npm install --silent
+    - mv ./config/dev.env.example.js ./config/dev.env.js
+    - mv ./config/prod.env.example.js ./config/prod.env.js
+    - sed -i "s#^\(.*mounted.*function.*$\)#\1\n${GA_TRACKING}#" ./src/App.vue
+    - npm run build
+  artifacts:
+    paths:
+      - dist
+  environment:
+    name: live.ganttlab.org
+    url: https://live.ganttlab.org/
+  only:
+    - master
+
+AWS Stack:
+  stage: deploy
+  image: alpine:3.7
+  script:
+    # install the bare minimum for the AWS CLI to be fully operational
+    - apk -v --no-cache add python py-pip groff less
+    - pip --no-cache-dir install --upgrade awscli s3cmd python-magic
+    # setting up variable driving names
+    - THE_ENVIRONMENT=$(if [ "$CI_COMMIT_REF_NAME" == "master" ]; then echo "production"; fi)
+    - THE_STACK_NAME="live-dot-ganttlab-dot-org-${THE_ENVIRONMENT}"
+    - THE_S3_BUCKET="${THE_STACK_NAME}"
+    # create/update the deployment CloudFormation stack
+    - aws cloudformation deploy --stack-name ${THE_STACK_NAME} --template-file devops/deploy/AWS/CloudFormation/stack.yaml --no-fail-on-empty-changeset --tags billing-project=live-dot-ganttlab-dot-org
+    - aws cloudformation update-termination-protection --enable-termination-protection --stack-name ${THE_STACK_NAME}
+    # sync (with deletion) the built website from the artifacts of former pipeline stage right into the S3 bucket
+    - aws s3 sync dist/ "s3://${THE_S3_BUCKET}" --delete
+    # invalidate /index.html from CloudFront for users to get the latest version straight away
+    - CLOUDFRONT_DISTRIBUTION_ID=$(aws cloudformation describe-stack-resource --stack-name ${THE_STACK_NAME} --logical-resource-id CloudFrontDistribution | grep PhysicalResourceId | cut -d \" -f4)
+    - aws cloudfront create-invalidation --distribution-id ${CLOUDFRONT_DISTRIBUTION_ID} --paths /index.html
+  environment:
+    name: live.ganttlab.org
+    url: https://live.ganttlab.org/
+  only:
+    - master
+
+Docker Hub Image:
+  stage: deploy
+  image: docker:git
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay2
+  script:
+    - docker info
+    - docker login -u "${DOCKER_HUB_USER}" -p "${DOCKER_HUB_PASSWORD}" docker.io
+    - docker build -f devops/deploy/DockerHub/Dockerfile -t "ganttlab/ganttlab-live:latest" .
+    - docker push index.docker.io/ganttlab/ganttlab-live:latest
+  only:
+    - master
+

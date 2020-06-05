@@ -1,0 +1,32 @@
+image: maven:lates
+
+stages:
+  - build
+  - test
+  - deploy
+  
+build:
+  stage: build
+  tags:
+   - peter8-runner
+  script:
+    - mvn $MAVEN_CLI_OPTS -DskipTests compile
+
+test:
+  stage: test
+  tags:
+   - peter8-runner
+  script:
+    - mvn $MAVEN_CLI_OPTS -Dtest=hk.quantr.assembler.FullTest2 test -DCI_JOB_ID=$CI_JOB_ID -DGITLAB_USER_ID="$GITLAB_USER_ID" -DGITLAB_USER_NAME="$GITLAB_USER_NAME" -DGITLAB_USER_EMAIL=$GITLAB_USER_EMAIL -DGITLAB_USER_LOGIN="$GITLAB_USER_LOGIN"
+    
+deploy:
+  stage: deploy
+  tags:
+   - peter8-runner
+  environment:
+   name: test
+   url: https://www.quantr.hk/asmweb
+  script:
+    - mvn $MAVEN_CLI_OPTS -DskipTests package
+    - scp -i ~/empty target/assembler*.jar gitlab-runner@192.168.10.124:/home/gitlab-runner/assembler/assembler.jar
+

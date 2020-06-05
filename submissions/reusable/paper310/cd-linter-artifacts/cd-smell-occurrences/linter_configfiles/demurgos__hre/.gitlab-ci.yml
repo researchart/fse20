@@ -1,0 +1,20 @@
+before_script:
+- "haxe -version"
+- "make prepare"
+
+stages:
+- test
+
+.test_template: &test_definition
+  stage: test
+  script:
+  - "make test"
+
+test-3.1:
+  <<: *test_definition
+  image: demurgos/haxe@sha256:d032db4b811a984291011f556a6a17d3807a879e9ff50295a0fb3013814e269a
+
+test-3.4:
+  <<: *test_definition
+  image: demurgos/haxe@sha256:674a9005e88da195e6c4dd8d6e783463ec4b2824b23235d579349e209a6debf6
+

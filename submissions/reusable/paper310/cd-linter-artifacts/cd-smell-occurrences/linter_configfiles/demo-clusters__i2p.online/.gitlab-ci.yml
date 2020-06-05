@@ -1,0 +1,61 @@
+# This script requires the project name to be equal to the baseDomain, including TLD such as `.com`
+
+# Group/project variables needed:
+# GCLOUD_SERVICE_KEY, base64 encoded, from https://console.developers.google.com/apis/credentials/serviceaccountkey?project=_, with role Container Engine / Container Engine Admin and Project / Service Account Actor
+# Then `base64 <your-service-account.json> | pbcopy`
+# GCLOUD_PROJECT: gitlab-demos
+# GCLOUD_ZONE: us-central1-a
+
+stages:
+  - deploy
+  - cleanup
+
+helm-upgrade:
+  stage: deploy
+  image: registry.gitlab.com/demo-clusters/gcloud-kubectl-helm
+  before_script:
+    - set -o pipefail
+    - export HELM_RELEASE_NAME=${CI_PROJECT_NAME%%.*} # Strip TLD e.g. foo.com => foo
+    - export GCLOUD_CLUSTER=${CI_PROJECT_NAME//./-}   # Turn periods into dashes e.g foo.com => foo-com
+    - echo $GCLOUD_SERVICE_KEY | base64 -d > ${HOME}/gcloud-service-key.json
+    - gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+    - gcloud container clusters get-credentials $GCLOUD_CLUSTER --zone $GCLOUD_ZONE --project $GCLOUD_PROJECT ||
+      (gcloud components install alpha &&
+      gcloud alpha container clusters create $GCLOUD_CLUSTER --num-nodes=1 --enable-autoscaling --min-nodes=1 --max-nodes=3 --machine-type=n1-highmem-4 --zone $GCLOUD_ZONE --project $GCLOUD_PROJECT &&
+      gcloud container clusters get-credentials $GCLOUD_CLUSTER --zone $GCLOUD_ZONE --project $GCLOUD_PROJECT)
+    - helm init --upgrade --force-upgrade
+    - kubectl rollout status -n kube-system -w "deployment/tiller-deploy"
+    - helm repo add gitlab https://charts.gitlab.io
+  script:
+    - helm upgrade -i $HELM_RELEASE_NAME -f values.yaml --set gitlabEELicense=$GITLAB_LICENSE --set baseDomain=$CI_PROJECT_NAME gitlab/kubernetes-gitlab-demo
+
+# TODO Delete extraneous namespaces too
+helm-delete:
+  stage: cleanup
+  image: registry.gitlab.com/demo-clusters/gcloud-kubectl-helm
+  before_script:
+    - set -o pipefail
+    - export HELM_RELEASE_NAME=${CI_PROJECT_NAME%%.*} # Strip TLD e.g. foo.com => foo
+    - export GCLOUD_CLUSTER=${CI_PROJECT_NAME//./-}   # Turn periods into dashes e.g foo.com => foo-com
+    - echo $GCLOUD_SERVICE_KEY | base64 -d > ${HOME}/gcloud-service-key.json
+    - gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+    - gcloud container clusters get-credentials $GCLOUD_CLUSTER --zone $GCLOUD_ZONE --project $GCLOUD_PROJECT
+    - helm init --upgrade
+    - kubectl rollout status -n kube-system -w "deployment/tiller-deploy"
+  script:
+    - helm delete $HELM_RELEASE_NAME
+  when: manual
+
+delete-cluster:
+  stage: cleanup
+  image: registry.gitlab.com/demo-clusters/gcloud-kubectl-helm
+  before_script:
+    - set -o pipefail
+    - export GCLOUD_CLUSTER=${CI_PROJECT_NAME//./-}   # Turn periods into dashes e.g foo.com => foo-com
+    - echo $GCLOUD_SERVICE_KEY | base64 -d > ${HOME}/gcloud-service-key.json
+    - gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+    - gcloud container clusters get-credentials $GCLOUD_CLUSTER --zone $GCLOUD_ZONE --project $GCLOUD_PROJECT
+  script:
+    - gcloud container clusters delete $GCLOUD_CLUSTER
+  when: manual
+

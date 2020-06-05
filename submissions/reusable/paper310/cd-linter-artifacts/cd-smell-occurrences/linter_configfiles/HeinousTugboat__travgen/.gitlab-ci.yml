@@ -1,0 +1,15 @@
+# OHMIGOD IT *almost* WORKS
+image: node:alpine
+
+pages:
+  stage: deploy
+  script:
+  - npm install
+  - npm run build -- -bh /travgen/
+  - mv dist public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,12 @@
+# https://hub.docker.com/r/silex/emacs/
+image: silex/emacs:26.1-alpine-dev
+
+pages:
+  script:
+  - emacs --quick --script publish.el --funcall=ambrevar/publish
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

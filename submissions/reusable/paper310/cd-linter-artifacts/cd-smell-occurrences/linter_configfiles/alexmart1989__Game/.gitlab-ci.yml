@@ -1,0 +1,11 @@
+image: bash
+
+build:
+    stage: build    
+    script:
+        - qmake -o Makefile game.pro
+        - make
+    artifacts:
+        paths:
+            - bin
+

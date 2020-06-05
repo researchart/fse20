@@ -1,0 +1,122 @@
+image: docker:latest
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - release
+  - staging
+  - production
+
+variables:
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_BUILD_REF
+  CONTAINER_NAMED_IMAGE: $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+  CONTAINER_TAG_IMAGE: $CI_REGISTRY_IMAGE:$CI_BUILD_TAG
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
+  DOCKER_DRIVER: overlay
+  GIT_STRATEGY: none
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+build:
+  stage: build
+  variables: {GIT_STRATEGY: fetch}
+  script:
+    - docker build --pull -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+  except:
+    - tags
+
+test1:
+  stage: test
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run $CONTAINER_TEST_IMAGE echo "test1"
+  except:
+    - tags
+
+test2:
+  stage: test
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run $CONTAINER_TEST_IMAGE echo "test2"
+  except:
+    - tags
+
+release-branch:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_NAMED_IMAGE
+    - docker push $CONTAINER_NAMED_IMAGE
+  except:
+    - master
+    - tags
+
+release-master:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - master
+
+release-tag:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_TAG_IMAGE
+    - docker push $CONTAINER_TAG_IMAGE
+  only:
+    - tags
+
+auto-deploy-master:
+  stage: staging
+  environment: staging
+  script:
+    - docker login --username=_ --password=$HEROKU_AUTH_TOKEN registry.heroku.com
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE registry.heroku.com/$HEROKU_STAGING_APP/web
+    - docker push registry.heroku.com/$HEROKU_STAGING_APP/web
+  only:
+    - master
+
+auto-deploy-tags:
+  stage: production
+  environment: production
+  script:
+    - docker login --username=_ --password=$HEROKU_AUTH_TOKEN registry.heroku.com
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE registry.heroku.com/$HEROKU_PROD_APP/web
+    - docker push registry.heroku.com/$HEROKU_PROD_APP/web
+  only:
+    - tags
+
+deploy to staging:
+  stage: staging
+  environment: staging
+  script:
+    - docker login --username=_ --password=$HEROKU_AUTH_TOKEN registry.heroku.com
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE registry.heroku.com/$HEROKU_STAGING_APP/web
+    - docker push registry.heroku.com/$HEROKU_STAGING_APP/web
+  when: manual
+  except:
+    - master
+    - tags
+
+deploy to production:
+  stage: production
+  environment: production
+  script:
+    - docker login --username=_ --password=$HEROKU_AUTH_TOKEN registry.heroku.com
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE registry.heroku.com/$HEROKU_PROD_APP/web
+    - docker push registry.heroku.com/$HEROKU_PROD_APP/web
+  when: manual
+  only:
+    - master
+

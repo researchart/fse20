@@ -1,0 +1,16 @@
+image: 'rustlang/rust:nightly'
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - 'cargo build'
+
+test:
+  stage: test
+  script:
+    - 'cargo test'
+

@@ -1,0 +1,28 @@
+stages:
+  - deploy
+
+image: node:8.1.0
+
+deploy_logic_to_lambda:
+  only:
+    refs:
+      - master
+  stage: deploy
+  before_script:
+    - npm i -g serverless
+  script:
+    - cd main
+    - npm install
+    - sls deploy
+
+deploy_codegrant_to_lambda:
+  only:
+    refs:
+      - master
+  stage: deploy
+  before_script:
+    - npm i -g serverless
+  script:
+    - cd codegrant_display
+    - sls deploy
+

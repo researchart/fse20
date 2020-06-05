@@ -1,0 +1,8 @@
+compile_pdf:
+  image: aergus/latex
+  script:
+    - latexmk -pdf Money-project.tex
+  artifacts:
+    paths:
+      - Money-project.pdf
+

@@ -1,0 +1,10 @@
+image: ubuntu
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq curl libssl-dev pkg-config build-essential
+  - curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain nightly -y
+
+build:
+  script:
+    - /root/.cargo/bin/cargo build --release
+

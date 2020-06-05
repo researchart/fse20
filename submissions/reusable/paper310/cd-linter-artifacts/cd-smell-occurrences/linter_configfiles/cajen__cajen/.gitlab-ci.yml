@@ -1,0 +1,60 @@
+stages:
+  - build
+  - test
+#  - deploy
+
+# Variables
+variables:
+  MYSQL_ROOT_PASSWORD: root
+  MYSQL_USER: cajen
+  MYSQL_PASSWORD: secret
+  MYSQL_DATABASE: cajen
+  DB_HOST: mysql
+  DOCKER_DRIVER: overlay2
+
+build:
+  stage: build
+  services:
+    - mysql:5.7
+
+  image: "chilio/laravel-dusk-ci:latest"
+  script:
+    - versions
+    - composer install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts
+    - npm install
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - vendor
+      - node_modules
+
+test:
+  stage: test
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - vendor
+      - node_modules
+    policy: pull
+
+  services:
+    - mysql:5.7
+
+  image: "chilio/laravel-dusk-ci:latest"
+  script:
+    - npm run production
+    - cp .env.example .env
+    - cat .env
+    - configure-laravel
+    - start-nginx-ci-project
+    - ./vendor/phpunit/phpunit/phpunit -v --coverage-text --colors=never --stderr
+    - php artisan dusk --colors --debug
+
+  artifacts:
+    paths:
+      - ./storage/logs # for debugging
+      - ./tests/Browser/screenshots
+      - ./tests/Browser/console
+    expire_in: 7 days
+    when: always
+

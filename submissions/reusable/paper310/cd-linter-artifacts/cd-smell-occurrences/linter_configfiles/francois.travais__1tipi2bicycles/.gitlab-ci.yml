@@ -1,0 +1,170 @@
+image: docker:latest
+
+stages:
+  - build
+  - test
+  - tag
+  - deploy
+  - cleanup
+
+variables:
+  IMAGE_TAG: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_NAME:$CI_COMMIT_SHA
+  TEST_IMAGE_TAG: $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_NAME/test:$CI_COMMIT_SHA
+  LATEST_IMAGE_TAG: $CI_REGISTRY_IMAGE:latest
+  LATEST_TEST_IMAGE_TAG: $CI_REGISTRY_IMAGE/test:latest
+  DOCKER_COMPOSE_FILE: /ottb/docker-compose.yml
+
+build-test:
+  stage: build
+  services:
+    - docker:stable-dind
+  before_script:
+    - docker info
+#    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - docker build -t $TEST_IMAGE_TAG -f Dockerfile-test .
+    - docker push $TEST_IMAGE_TAG
+  tags:
+    - docker
+    - shared
+  retry: 2
+
+build:
+  stage: build
+  services:
+    - docker:stable-dind
+  before_script:
+    - docker info
+#    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - docker build --build-arg DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY" -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+  tags:
+    - docker
+    - shared
+  retry: 2
+
+inspect:
+  stage: test
+  image: $TEST_IMAGE_TAG
+  script:
+    - pip install -r ottb/ottb/requirements/codestyle.txt
+    - flake8
+  tags:
+    - docker
+    - shared
+
+check-dependencies-compatibility:
+  stage: test
+  image: $TEST_IMAGE_TAG
+  script:
+    # Install pip-tools
+    - pip install -r ottb/ottb/requirements/dev.txt
+    - pip-sync ottb/ottb/requirements/production.txt
+    - pip check
+  tags:
+    - docker
+    - shared
+
+test:
+  stage: test
+  image: $TEST_IMAGE_TAG
+  services:
+    - redis:3.2-alpine
+    - postgres:9.3-alpine
+  script:
+    - cd "$INSTALL_PATH/ottb/"
+    - coverage run --source='.' manage.py test
+    - coverage report
+    - coverage html
+    - mv htmlcov/ "$CI_PROJECT_DIR/htmlcov"
+  tags:
+    - docker
+    - shared
+  retry: 2
+  artifacts:
+    name: coverage
+    paths:
+      - htmlcov
+
+tag-latest:
+  stage: tag
+  services:
+    - docker:dind
+  before_script:
+    - docker info
+#    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - docker pull $IMAGE_TAG
+    - docker tag $IMAGE_TAG $LATEST_IMAGE_TAG
+    - docker push $LATEST_IMAGE_TAG
+  only:
+    - master
+  tags:
+    - docker
+    - shared
+
+tag_latest_test:
+  stage: tag
+  services:
+    - docker:stable-dind
+  before_script:
+    - docker info
+#    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - docker pull $TEST_IMAGE_TAG
+    - docker tag $TEST_IMAGE_TAG $LATEST_TEST_IMAGE_TAG
+    - docker push $LATEST_TEST_IMAGE_TAG
+  only:
+    - master
+  tags:
+    - docker
+    - shared
+
+deploy-production:
+  stage: deploy
+  image:
+    name: docker/compose:1.19.0
+    entrypoint: [""]
+  before_script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - docker-compose -f $DOCKER_COMPOSE_FILE pull
+    - docker-compose -f $DOCKER_COMPOSE_FILE up -d --no-build
+  only:
+    - master
+  tags:
+    - docker
+    - ottb
+  retry: 2
+  environment:
+    name: production
+
+pages:
+  stage: deploy
+  dependencies:
+    - test
+  script:
+    - mv htmlcov/ public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+cleanup-production:
+  stage: cleanup
+  before_script:
+    - docker info
+  script:
+    - docker image prune -f
+  only:
+    - master
+  tags:
+    - docker
+    - ottb
+  environment:
+    name: production
+  retry: 2
+

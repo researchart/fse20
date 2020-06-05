@@ -1,0 +1,315 @@
+stages:
+  - test
+  - build_python
+  - build_docker
+  - build_documentation
+  - push_python
+  - push_docker
+  - push_documentation
+  - deploy
+
+# Docker
+job_docker_build:
+  stage: build_docker
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE" -f docker/Dockerfile .
+    - VERSION=`cat docker/rootfs/version`
+    - docker tag "$CI_REGISTRY_IMAGE" "$CI_REGISTRY_IMAGE:$VERSION"
+    - docker run --rm "$CI_REGISTRY_IMAGE:$VERSION" run_tests
+    - docker push "$CI_REGISTRY_IMAGE:$VERSION"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+    - docker tag "$CI_REGISTRY_IMAGE:$VERSION" registry-1.docker.io/mayanedms/mayanedms:"$VERSION"
+    - docker tag "$CI_REGISTRY_IMAGE:$VERSION" registry-1.docker.io/mayanedms/mayanedms:latest
+    - docker logout
+  only:
+    - releases/all
+    - releases/docker
+
+job_docker_push:
+  stage: push_docker
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - VERSION=`cat docker/rootfs/version`
+    - docker pull "$CI_REGISTRY_IMAGE:$VERSION"
+    - docker tag "$CI_REGISTRY_IMAGE:$VERSION" registry-1.docker.io/mayanedms/mayanedms:"$VERSION"
+    - docker tag "$CI_REGISTRY_IMAGE:$VERSION" registry-1.docker.io/mayanedms/mayanedms:latest
+    - docker logout
+    - docker login -u "$DOCKER_HUB_USERNAME" -p "$DOCKER_HUB_PASSWORD" https://registry-1.docker.io
+    - docker push registry-1.docker.io/mayanedms/mayanedms:"$VERSION"
+    - docker push registry-1.docker.io/mayanedms/mayanedms:latest
+  only:
+    - releases/all
+    - releases/docker
+
+job_docker_nightly:
+  stage: build_docker
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" -f docker/Dockerfile .
+    - docker run --rm "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" run_tests
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+  only:
+    - nightly
+    - staging
+
+# Documentation
+job_documentation_build:
+  stage: build_documentation
+  image: ubuntu:18.04
+  artifacts:
+    expire_in: 1 hr
+    paths:
+    - docs
+  before_script:
+    - apt-get -qq update
+    - apt-get install -qq locales make python-pip enchant
+    - echo "LC_ALL=\"en_US.UTF-8\"" >> /etc/default/locale
+    - locale-gen en_US.UTF-8
+    - update-locale LANG=en_US.UTF-8
+    - export LC_ALL=en_US.UTF-8
+  script:
+    - pip install -r requirements/documentation.txt
+    - cd docs
+    - make html
+  only:
+    - releases/all
+    - releases/documentation
+
+job_documentation_push:
+  stage: push_documentation
+  image: ubuntu:18.04
+  before_script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$DOCUMENTATION_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client rsync -y )'
+    - eval $(ssh-agent -s)
+    - echo "$DOCUMENTATION_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+  script:
+    - ssh mayandocs@docs.mayan-edms.com "rm -Rf /home/rosarior/webapps/mayan_docs/*"
+    - rsync -avzP --progress -e ssh docs/_build/html/* mayandocs@docs.mayan-edms.com:/home/rosarior/webapps/mayan_docs
+  only:
+    - releases/all
+    - releases/documentation
+
+# Python
+job_build_python:
+  stage: build_python
+  image: ubuntu:18.04
+  artifacts:
+    expire_in: 1 hr
+    paths:
+    - dist
+  before_script:
+    - apt-get -qq update
+    - apt-get install -qq locales make python-pip
+  script:
+    - echo "LC_ALL=\"en_US.UTF-8\"" >> /etc/default/locale
+    - locale-gen en_US.UTF-8
+    - update-locale LANG=en_US.UTF-8
+    - export LC_ALL=en_US.UTF-8
+    - pip install -r requirements/build.txt
+    - make python-wheel
+  only:
+    - releases/all
+    - releases/python
+
+job_push_python:
+  stage: push_python
+  image: ubuntu:18.04
+  before_script:
+    - apt-get -qq update
+    - apt-get install -qq python-pip
+  script:
+    - pip install -r requirements/build.txt
+    - echo "$PYPIRC" > ~/.pypirc
+    - twine upload dist/* -r pypi
+  only:
+    - releases/all
+    - releases/python
+
+# Test upgrade from the latest public version to the local version
+.test_upgrade_base: &test_upgrade_base
+  stage: test
+  image: ubuntu:18.04
+  cache:
+    paths:
+      - ~/.cache/pip/
+      - /var/cache/apt/archives/
+  before_script:
+    - set -a && . ./config.env && set +a
+    - apt-get -qq update
+    - apt-get install -qq locales
+    - echo "LC_ALL=\"en_US.UTF-8\"" >> /etc/default/locale
+    - locale-gen en_US.UTF-8
+    - update-locale LANG=en_US.UTF-8
+    - export LC_ALL=en_US.UTF-8
+    - apt-get install -qq curl exiftool gcc ghostscript gnupg1 libjpeg-dev libmagic1 libpng-dev libtiff-dev poppler-utils python-dev python-virtualenv python3-dev tesseract-ocr
+    - virtualenv venv -p /usr/bin/python3
+    - . venv/bin/activate
+    - pip install mayan-edms==`python -c "import xmlrpc.client;pypi = xmlrpc.client.ServerProxy('https://pypi.org');print(pypi.package_releases('mayan-edms')[0])"`
+    - pip install -r requirements/build.txt -r requirements/testing-base.txt
+    - make python-wheel
+  only:
+    - releases/all
+    - releases/docker
+    - releases/python
+    - staging
+    - nightly
+
+test_upgrade_sqlite:
+  <<: *test_upgrade_base
+  script:
+    - . venv/bin/activate
+    - mayan-edms.py initialsetup
+    - pip install dist/mayan_edms-*.whl
+    - mayan-edms.py performupgrade
+
+test_upgrade_mysql:
+  <<: *test_upgrade_base
+  variables:
+    MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    MYSQL_DATABASE: "mayan_edms"
+  services:
+    - mysql:5.7
+  script:
+    - apt-get install -qq libmysqlclient-dev libssl-dev mysql-client
+    - . venv/bin/activate
+    - pip install mysqlclient==$PYTHON_MYSQL_VERSION
+    - mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD" -e "set global character_set_server=utf8mb4;"
+    - mayan-edms.py initialsetup --settings=mayan.settings.testing.gitlab-ci.db_mysql
+    - pip install dist/mayan_edms-*.whl
+    - mayan-edms.py performupgrade --settings=mayan.settings.testing.gitlab-ci.db_mysql
+  tags:
+    - mysql
+
+test_upgrade_postgres:
+  <<: *test_upgrade_base
+  variables:
+    POSTGRES_DB: "mayan_edms"
+    POSTGRES_PASSWORD: "postgres"
+  services:
+    - postgres:9.6-alpine
+  script:
+    - apt-get install -qq libpq-dev
+    - . venv/bin/activate
+    - pip install psycopg2==$PYTHON_PSYCOPG2_VERSION
+    - mayan-edms.py initialsetup --settings=mayan.settings.testing.gitlab-ci.db_postgres
+    - pip install dist/mayan_edms-*.whl
+    - mayan-edms.py performupgrade --settings=mayan.settings.testing.gitlab-ci.db_postgres
+  tags:
+    - postgres
+
+# Run the test suit
+.test_base: &test_base
+  stage: test
+  image: ubuntu:18.04
+  cache:
+    paths:
+      - ~/.cache/pip/
+      - /var/cache/apt/archives/
+  before_script:
+    - set -a && . ./config.env && set +a
+    - apt-get -qq update
+    - apt-get install -qq locales
+    - echo "LC_ALL=\"en_US.UTF-8\"" >> /etc/default/locale
+    - locale-gen en_US.UTF-8
+    - update-locale LANG=en_US.UTF-8
+    - export LC_ALL=en_US.UTF-8
+    - apt-get install -qq curl exiftool firefox-geckodriver gcc ghostscript gnupg1 graphviz libfuse2 libjpeg-dev libmagic1 libpng-dev libtiff-dev libreoffice poppler-utils python-dev python-virtualenv python3-dev sane-utils tesseract-ocr tesseract-ocr-deu
+    - virtualenv venv -p /usr/bin/python3
+    - . venv/bin/activate
+    - pip install -r requirements.txt -r requirements/testing-base.txt
+  only:
+    - releases/all
+    - releases/docker
+    - releases/python
+    - staging
+    - nightly
+
+test-mysql:
+  <<: *test_base
+  variables:
+    MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    MYSQL_DATABASE: "mayan_edms"
+  services:
+    - mysql:5.7
+  script:
+    - apt-get install -qq libmysqlclient-dev libssl-dev mysql-client
+    - . venv/bin/activate
+    - pip install mysqlclient==$PYTHON_MYSQL_VERSION
+    - mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD" -e "set global character_set_server=utf8mb4;"
+    - make test-all SETTINGS=mayan.settings.testing.gitlab-ci.db_mysql
+    - make test-all-migrations SETTINGS=mayan.settings.testing.gitlab-ci.db_mysql
+  tags:
+    - mysql
+
+test-postgres:
+  <<: *test_base
+  variables:
+    POSTGRES_DB: "mayan_edms"
+    POSTGRES_PASSWORD: "postgres"
+  services:
+    - postgres:9.6-alpine
+  script:
+    - apt-get install -qq libpq-dev
+    - . venv/bin/activate
+    - pip install psycopg2==$PYTHON_PSYCOPG2_VERSION
+    - make test-all SETTINGS=mayan.settings.testing.gitlab-ci.db_postgres
+    - make test-all-migrations SETTINGS=mayan.settings.testing.gitlab-ci.db_postgres
+  tags:
+    - postgres
+
+test-sqlite:
+  <<: *test_base
+  script:
+    - . venv/bin/activate
+    - python manage.py test --mayan-apps --settings=mayan.settings.testing.gitlab-ci --nomigrations
+    - make test-all
+    - make test-all-migrations
+
+# Deploy
+deploy_demo:
+  environment:
+    name: demo
+  stage: deploy
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "${DEMO_SSH_KNOWN_HOST}" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - echo "${DEMO_PRIVATE_KEY}" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+  script:
+    - scp contrib/scripts/install/docker.sh root@$DEMO_IP_ADDRESS:~
+    - ssh root@$DEMO_IP_ADDRESS "DELETE_VOLUMES=true ./docker.sh"
+  when: manual
+
+deploy_staging:
+  environment:
+    name: staging
+  stage: deploy
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "${STAGING_SSH_KNOWN_HOST}" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - echo "${STAGING_PRIVATE_KEY}" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+  script:
+    - scp contrib/scripts/install/docker.sh root@$STAGING_IP_ADDRESS:~
+    - ssh root@$STAGING_IP_ADDRESS "DOCKER_MAYAN_IMAGE=registry.gitlab.com/mayan-edms/mayan-edms:staging ./docker.sh"
+  when: manual
+

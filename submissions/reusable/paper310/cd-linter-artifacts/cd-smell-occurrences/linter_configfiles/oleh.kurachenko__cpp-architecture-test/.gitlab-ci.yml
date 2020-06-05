@@ -1,0 +1,22 @@
+stages:
+  - build
+  - test
+
+image: srzzumix/googletest
+
+build:
+  stage: build
+  except:
+  - tags
+  script:
+    - ./tools/build_debug.sh
+    - ./tools/build_release.sh
+
+test:
+  stage: test
+  except:
+  - tags
+  script:
+    - ./tools/build_debug.sh
+    - ./tools/run_tests.sh
+

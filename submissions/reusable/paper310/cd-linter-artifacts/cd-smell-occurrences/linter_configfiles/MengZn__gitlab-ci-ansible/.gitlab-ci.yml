@@ -1,0 +1,93 @@
+stages:
+  - check
+  - build
+  - deploy
+  - test
+  - release
+
+check_playbooks:
+  image: jason0330/ubuntu-flask:1.2
+  stage: check
+  before_script:
+    - echo "${VAULT_HOSTS}" > /etc/hosts
+  script:
+    - pwd
+    - echo "${VAULT_KEY}" >> ansible-playbook/secret.txt
+    - ansible-playbook -i inventory/inventory  ansible-playbook/deploy-docker.yml
+    - rm -f ansible-playbook/secret.txt
+  only:
+    - master@MengZn/gitlab-ci-ansible
+    - dev@MengZn/gitlab-ci-ansible
+    - tags@MengZn/gitlab-ci-ansible
+
+build_binary:
+  image: jason0330/ubuntu-flask:1.2
+  stage: build
+  before_script:
+    - echo "${VAULT_HOSTS}" > /etc/hosts
+  script:
+    - pyinstaller -F hello/backend/app.py --onefile --specpath=temp --workpath=temp --distpath=temp/disk
+    - ls temp
+  artifacts:
+    expire_in: 1 hour
+    paths:
+      - temp
+  tags:
+    - docker
+
+deploy_to_dev:
+  image: jason0330/ubuntu-flask:1.2
+  stage: deploy
+#  dependencies:
+#        - build_binary
+  before_script:
+    - echo "${VAULT_HOSTS}" > /etc/hosts
+  script:
+    - pwd
+    - ls temp
+    - echo "${VAULT_KEY}" >> ansible-playbook/secret.txt
+    - ansible all -m ping
+    - ansible-playbook -i inventory/inventory ansible-playbook/deploy-dev.yml
+    - rm -f ansible-playbook/secret.txt
+  only:
+    - master@MengZn/gitlab-ci-ansible
+    - dev@MengZn/gitlab-ci-ansible
+    - tags@MengZn/gitlab-ci-ansible
+  tags:
+    - docker
+
+test_dev:
+  image: jason0330/ubuntu-flask:1.2
+  stage: test
+  before_script:
+    - echo "${VAULT_HOSTS}" > /etc/hosts
+  script:
+    - pwd
+    - ls temp
+    - echo "${VAULT_KEY}" >> ansible-playbook/secret.txt
+    - ansible-playbook -i inventory/inventory ansible-playbook/test.yml
+    - rm -f ansible-playbook/secret.txt
+  only:
+    - master@MengZn/gitlab-ci-ansible
+    - dev@MengZn/gitlab-ci-ansible
+    - tags@MengZn/gitlab-ci-ansible
+  tags:
+    - docker
+
+release_to_prd:
+  image: jason0330/ubuntu-flask:1.2
+  stage: release
+  before_script:
+    - echo "${VAULT_HOSTS}" > /etc/hosts
+  script:
+    - pwd
+    - ls temp
+    - echo "${VAULT_KEY}" >> ansible-playbook/secret.txt
+    - ansible-playbook -i inventory/inventory ansible-playbook/deploy-prod.yml
+    - rm -f ansible-playbook/secret.txt
+  only:
+    - master@MengZn/gitlab-ci-ansible
+    - tags@MengZn/gitlab-ci-ansible
+  tags:
+    - docker
+

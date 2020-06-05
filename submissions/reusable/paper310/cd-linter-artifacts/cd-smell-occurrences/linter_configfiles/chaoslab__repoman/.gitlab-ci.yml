@@ -1,0 +1,33 @@
+stages:
+  - build
+  - auto-build
+
+variables:
+  C_IMAGE: chaoslab/repoman
+  GIT_DEPTH: 1
+
+image: docker:stable
+
+services:
+  - docker:dind
+
+build:
+  stage: build
+  only:
+    - pushes
+  script:
+    - &build_stage1 docker pull "$C_IMAGE:latest" || true
+    - &build_stage2 docker build --cache-from "$C_IMAGE:latest" -t "$C_IMAGE:$(date -u +%Y%m%d)" .
+
+auto-build:
+  stage: auto-build
+  only:
+    - schedules
+  script:
+    - *build_stage1
+    - *build_stage2
+    - docker tag "$C_IMAGE:$(date -u +%Y%m%d)" "$C_IMAGE:latest"
+    - echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+    - docker push "$C_IMAGE:$(date -u +%Y%m%d)"
+    - docker push "$C_IMAGE:latest"
+

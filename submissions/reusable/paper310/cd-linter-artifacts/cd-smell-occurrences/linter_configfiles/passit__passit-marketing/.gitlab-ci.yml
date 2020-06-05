@@ -1,0 +1,28 @@
+image: ruby:2.4
+
+variables:
+  JEKYLL_ENV: production
+  
+before_script:
+- bundle install
+
+test:
+  stage: test
+  script:
+  - bundle exec jekyll build -d public/ --config _config.yml,_config-gitlab.yml
+  artifacts:
+    paths:
+    - test
+  except:
+  - master
+
+pages:
+  stage: deploy
+  script:
+  - jekyll build -d public/ --config _config.yml,_config-gitlab.yml
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

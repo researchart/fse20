@@ -1,0 +1,43 @@
+image: docker:latest
+
+services: 
+    - docker:dind
+
+stages:
+    - build
+    - test
+    - package
+
+build_gstreamer_sharp_release:
+    stage: build
+    image: registry.gitlab.com/lunatix89/gstreamer-sharp:build-runner
+    script: 
+        - ./build-ci.sh
+    tags: 
+        - docker 
+
+test_gstreamer_sharp_release:
+    stage: test
+    image: registry.gitlab.com/lunatix89/gstreamer-sharp:build-runner
+    script: 
+        - ./build-ci.sh --NUnit
+        - ./test-ci.sh
+    dependencies:
+        - build_gstreamer_sharp_release
+    tags: 
+        - docker
+
+package_gstreamer_sharp_release:
+    stage: package
+    image: registry.gitlab.com/lunatix89/gstreamer-sharp:build-runner
+    script: 
+        - ./build-ci.sh --package
+        - ./package-ci.sh
+    dependencies:
+        - build_gstreamer_sharp_release
+        - test_gstreamer_sharp_release
+    artifacts: 
+        expire_in: 7 days
+        paths: 
+            - "./Build"
+

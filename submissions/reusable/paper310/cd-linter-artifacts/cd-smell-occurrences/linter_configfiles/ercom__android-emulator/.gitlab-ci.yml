@@ -1,0 +1,19 @@
+
+build:
+    stage: build
+    only:
+        - tags
+    services:
+        - name: registry.gitlab.com/ercom/docker:17.11.0-ce-dind
+          alias: docker
+    variables:
+        DOCKER_DRIVER: overlay
+        DOCKER_HOST: tcp://docker:2375
+    image: registry.gitlab.com/ercom/docker:17.11.0-ce-git
+    script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG .
+    - if [ -n "$CI_BUILD_TOKEN" ]; then
+        docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY;
+        docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG;
+      fi
+

@@ -1,0 +1,70 @@
+.base_test:
+  stage: test
+  tags:
+    - docker
+  before_script:
+    - apk update
+    - apk add git
+  script:
+    - ./install.py -vv
+    - git status --short && test "$(git status --short)" = ""
+
+lint:
+  stage: test
+  image: python:latest
+  tags:
+    - docker
+  script:
+    - pip install --user --upgrade pip
+    - pip install --user --upgrade flake8 \
+        flake8-docstrings \
+        flake8-future-import \
+        flake8-import-order \
+        pep8-naming \
+        'pydocstyle<4.0.0'
+    - pip check
+    - ~/.local/bin/flake8 --statistics install.py
+
+py35:
+  image: python:3.5-alpine
+  extends: .base_test
+
+py36:
+  image: python:3.6-alpine
+  extends: .base_test
+
+py37:
+  image: python:3.7-alpine
+  extends: .base_test
+
+py38:
+  image: python:3.8-alpine
+  extends: .base_test
+
+deploy_github:
+  stage: deploy
+  script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "${GITHUB_KEY}" > ~/.ssh/id_rsa
+    - echo "${GITHUB_KEY_PUB}" > ~/.ssh/id_rsa.pub
+    - chmod 700 ~/.ssh/id_rsa*
+    - ssh-keyscan 'github.com' >> ~/.ssh/known_hosts
+    - git remote add github -t master git@github.com:perobertson/dotfiles.git
+    - git fetch --all --verbose
+    - git checkout -B ${CI_COMMIT_REF_SLUG}
+    - git push --set-upstream github ${CI_COMMIT_REF_SLUG}
+  environment:
+    name: github
+  only:
+    refs:
+      - master
+
+trigger_scripts:
+  stage: deploy
+  trigger:
+    project: perobertson/scripts
+  only:
+    refs:
+      - master
+

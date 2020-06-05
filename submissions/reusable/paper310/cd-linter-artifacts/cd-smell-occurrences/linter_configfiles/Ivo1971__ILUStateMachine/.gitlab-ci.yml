@@ -1,0 +1,93 @@
+# Test with a recent version of gcc --> will use C++14 (no boost)
+# This also tests generating a package and running an autotools test on the generated package
+# (package generation includes documentation because doxygen is installed)
+test_gcc_latest:
+   image: gcc
+   script:
+      - apt-get update
+      - apt-get install -y doxygen
+      - autoreconf -i
+      - mkdir -p build
+      - ./configure --prefix=$pwd/build
+      - make
+      - make check
+      - make install
+      - make dist-gzip
+      - make distcheck
+
+# Test with a recent version of clang --> will use C++14 (no boost)
+# This also tests generating a package and running an autotools test on the generated package
+# (package generation excludes documentation because doxygen is not installed)
+test_clang_6_0_0:
+   image: jianann/ubuntu-clang
+   script:
+      - apt-get update
+      - apt-get install -y autoconf
+      - apt-get install -y libtool
+      - clang -v && clang++ -v
+      - autoreconf -i
+      - mkdir -p build
+      - CC=clang CXX=clang++ ./configure --prefix=$pwd/build
+      - make
+      - make check
+      - make install
+      - make dist-gzip
+      - make distcheck
+
+# Test with gcc 4.8 --> no C++14 --> requires boost   
+# This also tests generating a package and running an autotools test on the generated package
+# (package generation excludes documentation because doxygen is not installed)
+test_gcc_4_8:
+   image: gcc:4.8
+   script:
+      - mkdir tmp
+      - cd tmp
+      - curl -L -o boost_1_67_0.tar.gz 'https://dl.bintray.com/boostorg/release/1.67.0/source/boost_1_67_0.tar.gz'
+      - tar -xf boost_1_67_0.tar.gz
+      - cp -R boost_1_67_0/boost /usr/include/
+      - cd ..
+      - mkdir -p m4
+      - autoreconf --install
+      - mkdir -p build
+      - ./configure --prefix=$pwd/build
+      - make
+      - make check
+      - make install
+      - make dist-gzip
+      - make distcheck
+
+# Test with a recent version of gcc, but build with vpath
+# This also tests generating a package and running an autotools test on the generated package
+# (package generation excludes documentation because doxygen is not installed)
+test_gcc_latest_vpath:
+   image: gcc
+   script:
+      - autoreconf -i
+      - mkdir -p build/gcc
+      - cd build/gcc
+      - ../../configure
+      - make
+      - make check
+      - make install
+      - make dist-gzip
+      - make distcheck
+
+# Generate doxygen documentation and use it as gitlab static pages
+pages:
+   image: gcc
+   script:
+      - apt-get update
+      - apt-get install -y doxygen
+      - autoreconf -i
+      - ./configure
+      - cd docs
+      - make
+      - cd ..
+      - mv docs/out/html/ public/
+   artifacts:
+      paths:
+        - public
+   only:
+      - master
+    
+

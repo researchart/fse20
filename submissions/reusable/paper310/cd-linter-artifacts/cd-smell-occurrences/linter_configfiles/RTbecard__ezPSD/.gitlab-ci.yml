@@ -1,0 +1,12 @@
+image: rocker/verse 
+test:
+  script:
+    - R -e 'install.packages(c("tuneR","ggplot2","knitr","rmarkdown"))'
+    - R CMD build .
+    - R CMD check $(ls ./*.tar.gz)
+  artifacts:
+    paths:
+      - ezPSD.Rcheck/ezPSD/doc/spectral_analysis.html
+      - ezPSD.Rcheck/ezPSD-manual.pdf
+      - "./ezPSD_*.tar.gz"
+

@@ -1,0 +1,71 @@
+# Select image from https://hub.docker.com/_/php/
+#
+# there is used special image with some software preconfigured
+# https://hub.docker.com/r/oprudkyi/laravel-bootstrap-adminlte-starter-kit
+# https://github.com/oprudkyi/docker-laravel-bootstrap-adminlte-starter-kit
+image: oprudkyi/laravel-bootstrap-adminlte-starter-kit:test-php-7.0
+
+# Select what we should cache
+cache:
+  key: "$CI_JOB_NAME"
+  paths:
+  - vendor
+  - node_modules
+  - .install-cache
+
+before_script:
+
+services:
+#- mysql
+
+variables:
+  # Configure mysql service (https://hub.docker.com/_/mysql/)
+  #MYSQL_DATABASE: hello_world_test
+  #MYSQL_ROOT_PASSWORD: mysql
+
+# We test PHP7.0
+test:php70:
+  script:
+    - ./bootstrap.sh
+    - ./configure  
+    - export COMPOSER_ALLOW_SUPERUSER=1
+    # Install all project dependencies
+    - make install-dependencies
+    # run tests
+    - make -k check-functional
+    - make -k check-acceptance
+
+# We test PHP7.1, but we allow it to fail
+test:php71:
+  image: oprudkyi/laravel-bootstrap-adminlte-starter-kit:test-php-7.1
+  script:
+    - ./bootstrap.sh
+    - ./configure  
+    - export COMPOSER_ALLOW_SUPERUSER=1
+    # Install all project dependencies
+    - make install-dependencies
+    # run tests
+    - make -k check-functional
+    - make -k check-acceptance
+  allow_failure: true
+
+deploy to production:
+  stage: deploy
+  script:
+    # simple ssh based deploy:
+    - echo Deploy production
+    # run ssh-agent
+    - eval $(ssh-agent -s)
+    # add ssh key stored in SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$PRODUCTION_SSH_PRIVATE_KEY")
+    # call remote command, set it to something like: 
+    # ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null user_on_server@server_host /path/to/source/on/server/deploy_production.sh
+    - $PRODUCTION_DEPLOY_REMOTE_COMMAND
+  only:
+    - master
+  #enable for manual deploy: when: manual
+  environment:
+    name: production
+    url: $PRODUCTION_URI
+
+

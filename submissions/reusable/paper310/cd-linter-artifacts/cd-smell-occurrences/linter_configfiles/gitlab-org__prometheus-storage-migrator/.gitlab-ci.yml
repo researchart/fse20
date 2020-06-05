@@ -1,0 +1,23 @@
+image: golang:1.11
+
+variables:
+  REPO_NAME: gitlab.com/gitlab-org/prometheus-storage-migrator
+
+before_script:
+  - mkdir -p "${GOPATH}/src/${REPO_NAME}"
+  - mv "${CI_PROJECT_DIR}"/* "${GOPATH}/src/${REPO_NAME}"
+
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  script:
+    - go test -v "${REPO_NAME}/..."
+
+build:
+  stage: build
+  script:
+    - go build "${REPO_NAME}"
+

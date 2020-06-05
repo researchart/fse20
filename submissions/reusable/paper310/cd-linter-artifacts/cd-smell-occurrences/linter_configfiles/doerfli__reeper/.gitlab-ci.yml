@@ -1,0 +1,51 @@
+stages:
+  - test
+  - build
+
+run_spec_tests:
+  stage: test
+  image: ruby:2.6.5
+  services:
+    - postgres:12.0
+  variables:
+    DB_HOST: postgres
+  script:
+    - apt-get update && apt-get install -y apt-transport-https
+    # install node 8x
+    - curl -sL https://deb.nodesource.com/setup_8.x | bash -
+    - apt-get install -y nodejs
+    # install yarn latest
+    - curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
+    - echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+    - apt-get update
+    - apt-get install yarn
+    # install node packages and gems
+    - yarn 
+    - gem update bundler
+    - bundle config --local build.nokogiri --use-system-libraries
+    - bundle install
+    # prepare tests
+    - bundle exec rake db:create
+    - bundle exec rake db:migrate 
+    - bundle exec rake db:test:prepare 
+    # run tests
+    - bundle exec rails spec
+    # run check for vulnerable gems 
+    # ignore CVE-2018-1000544 (rubyzip issue - referenced by selenium - only testcode)
+    - bundle audit check --update --ignore CVE-2018-1000544
+    
+
+docker_images:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind  
+  variables:
+    IMAGE_TAG_DEV: $CI_REGISTRY_IMAGE/dev:$CI_COMMIT_REF_SLUG
+    IMAGE_TAG_PROD: $CI_REGISTRY_IMAGE/prod:$CI_COMMIT_REF_SLUG  
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -f Dockerfile-prod -t $IMAGE_TAG_PROD .
+    - docker push $IMAGE_TAG_PROD
+    
+

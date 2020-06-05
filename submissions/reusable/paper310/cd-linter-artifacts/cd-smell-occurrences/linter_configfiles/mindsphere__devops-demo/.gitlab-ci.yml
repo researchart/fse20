@@ -1,0 +1,113 @@
+# Copyright Siemens AG 2018
+# SPDX-License-Identifier: MIT
+
+# The following CI/CD variables are required:
+# - CF_ORG
+# - CF_SPACE_DEV
+# - CF_API
+# - CF_ACCESS_TOKEN
+# - CF_REFRESH_TOKEN
+# - CF_TECHUSER_CLIENT_ID
+# - CF_TECHUSER_CLIENT_SECRET
+# - CF_TECHUSER_OAUTH_ENDPOINT
+# - CF_API_PUBLISH_EMAIL_ENDPOINT
+# - MDSP_TENANT
+# - MDSP_REGION
+# - NOTIFICATION_EMAIL_ADDRESSES
+
+# Optionally you can also set the following ones if you are behind a proxy
+# - npm_config_registry
+# - npm_config_sass_binary_site
+# - npm_config_chromedriver_cdnurl
+# - https_proxy
+# - no_proxy
+
+stages:
+  - test
+  - deploy
+  - notify
+
+test:
+  stage: test
+  image: node:carbon
+  variables:
+    SELENIUM_URL: http://selenium__standalone-chrome:4444/wd/hub
+    MONGODB_URL: mongodb://mongo:27017/e2e
+  services:
+    - selenium/standalone-chrome:3.5.2
+    - mongo:3.2
+  before_script:
+    - apt-get update
+    - apt-get -y install zip
+  script:
+    - yarn
+    - yarn commitlint
+    - yarn lint
+    - yarn build:prod --no-progress
+    - yarn build:dev --no-progress
+    - yarn test --no-progress --code-coverage
+    - yarn --cwd server
+    - yarn --cwd devops/devopsadmin
+    - yarn --cwd agent
+    - yarn license:all
+    - export BASE_URL=http://$(hostname -i):3000
+    - yarn e2e
+    - yarn mdsp:zip
+  artifacts:
+    reports:
+      junit:
+        - coverage/*.xml
+        - test-reports/*.xml
+
+mindsphere:
+  stage: deploy
+  image: node:carbon
+  environment:
+    name: dev
+  before_script:
+    - curl -L "https://packages.cloudfoundry.org/stable?release=linux64-binary&source=github" | tar -zx
+    - mv cf /usr/local/bin
+    - mkdir -p ~/.cf
+    - echo "{\"ConfigVersion\":3,\"Target\":\"$CF_API\",\"AccessToken\":\"bearer ${CF_ACCESS_TOKEN}\",\"RefreshToken\":\"${CF_REFRESH_TOKEN}\"}" > ~/.cf/config.json
+  script:
+    - cf target -o "$CF_ORG" -s "$CF_SPACE_DEV"
+    - yarn
+    - yarn build:prod --no-progress
+    - yarn --cwd server
+    - cf push --var mdspTenant="$MDSP_TENANT" --var mdspRegion="$MDSP_REGION"
+  only:
+    - master
+
+# Authentication based on flow:
+# https://developer.mindsphere.io/howto/howto-selfhosted-api-access.html
+# The value of `CF_API_PUBLISH_EMAIL_ENDPOINT` should be e.g.
+#   https://gateway.eu1.mindsphere.io/api/notification
+.notify-common: &notify-common
+  stage: notify
+  image: node:carbon
+  script:
+    - set -euo pipefail
+    - apt update && apt install jq -y
+    - CF_TOKEN=$(curl -s -u "${CF_TECHUSER_CLIENT_ID}:${CF_TECHUSER_CLIENT_SECRET}"
+        -d "grant_type=client_credentials"
+        -X POST "${CF_TECHUSER_OAUTH_ENDPOINT}" | jq -r -e '.access_token')
+    - >-
+        curl -s -X POST
+        -H "Authorization: Bearer ${CF_TOKEN}"
+        -H "Content-Type: application/json"
+        --data '
+        {
+        "body": {"message": "MindSphere devops-demo deployment successful: '"${CI_ENVIRONMENT_NAME}"'"},
+        "recipientsTo": "'"${NOTIFICATION_EMAIL_ADDRESSES}"'",
+        "from": "gitlab",
+        "subject": "MindSphere devops-demo deployment: '"${CI_ENVIRONMENT_NAME}"'"}
+        '
+        "${CF_API_PUBLISH_EMAIL_ENDPOINT}"
+
+notify:
+  environment:
+    name: dev
+  only:
+    - master
+  <<: *notify-common
+

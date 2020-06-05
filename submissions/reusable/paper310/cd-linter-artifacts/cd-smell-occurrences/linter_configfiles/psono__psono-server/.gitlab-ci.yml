@@ -1,0 +1,223 @@
+variables:
+  CONTAINER_TEST_IMAGE: psono-docker.jfrog.io/psono/psono-server:$CI_BUILD_REF_NAME
+  CONTAINER_LATEST_IMAGE: psono-docker.jfrog.io/psono/psono-server:latest
+
+stages:
+  - build
+  - test
+  - release
+  - deploy
+
+build-container-alpine:
+  except:
+    - schedules
+  stage: build
+  image: psono-docker.jfrog.io/ubuntu:18.04
+  services:
+    - docker:18-dind
+  variables:
+    DOCKER_HOST: 'tcp://docker:2375'
+  script:
+    - sh ./var/update_version.sh
+    - apt-get update && apt-get install -y curl
+    - curl -fSL "https://download.docker.com/linux/static/stable/x86_64/docker-17.12.0-ce.tgz" -o docker.tgz && echo "692e1c72937f6214b1038def84463018d8e320c8eaf8530546c84c2f8f9c767d *docker.tgz" | sha256sum -c - && tar -xzvf docker.tgz && mv docker/* /usr/local/bin/
+    - docker info
+    - echo $CI_BUILD_TOKEN | docker login --username=gitlab-ci-token --password-stdin registry.gitlab.com
+    - echo $artifactory_credentials | docker login --username=gitlab --password-stdin psono-docker.jfrog.io
+    - echo $docker_hub_credentials | docker login --username=psonogitlab --password-stdin
+    - docker build -f DockerfileAlpine -t $CONTAINER_TEST_IMAGE --pull .
+    - docker push $CONTAINER_TEST_IMAGE
+    - curl -fL https://getcli.jfrog.io | sh
+    - ./jfrog rt c rt-server-1 --url=https://psono.jfrog.io/psono --user=gitlab --password=$artifactory_credentials
+    - ./jfrog rt sp "docker/psono/psono-server/$CI_BUILD_REF_NAME/manifest.json" "CI_BUILD_REF_NAME=$CI_BUILD_REF_NAME;CI_COMMIT_SHA=$CI_COMMIT_SHA;CI_COMMIT_URL=$CI_PROJECT_URL/commit/$CI_COMMIT_SHA;CI_PROJECT_ID=$CI_PROJECT_ID;CI_PROJECT_NAME=$CI_PROJECT_NAME;CI_PROJECT_NAMESPACE=$CI_PROJECT_NAMESPACE;CI_PROJECT_URL=$CI_PROJECT_URL;CI_PIPELINE_ID=$CI_PIPELINE_ID;CI_PIPELINE_URL=$CI_PROJECT_URL/pipelines/$CI_PIPELINE_ID;CI_COMMIT_REF_NAME=$CI_COMMIT_REF_NAME;CI_JOB_ID=$CI_JOB_ID;CI_JOB_URL=$CI_PROJECT_URL/-/jobs/$CI_JOB_ID;CI_JOB_NAME=$CI_JOB_NAME;CI_JOB_STAGE=$CI_JOB_STAGE;CI_RUNNER_ID=$CI_RUNNER_ID;GITLAB_USER_ID=$GITLAB_USER_ID;CI_SERVER_VERSION=$CI_SERVER_VERSION"
+    - ./jfrog rt sp "docker/psono/psono-server/$CI_BUILD_REF_NAME/manifest.json" "CI_COMMIT_TAG=$CI_COMMIT_TAG" || true
+  only:
+    - branches@psono/psono-server
+    - tags@psono/psono-server
+
+
+run-unittests-ubuntu1804:
+  except:
+    - schedules
+  stage: test
+  image: psono-docker.jfrog.io/docker:git
+  variables:
+    POSTGRES_DB: postgres
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: ""
+    PSONO_EMAIL_HOST: 172.17.0.1
+    PSONO_EMAIL_FROM: test@example.com
+    PSONO_ACTIVATION_LINK_SECRET: 9SruC2qPmKScVzGaF4378LW4rvNNkK2G3Gddqy9kPQqgkjeDQjs7jaLBCstgtJTt
+    PSONO_SECRET_KEY: RQTKawYQv4w6KkuphcLzLu7r5ap7xE5DSDu5SkKXjMnWBQ93mcMKjdZfeZkY2Y7C
+  services:
+    - docker:18-dind
+  script:
+    - docker info
+    - sh ./var/update_version.sh
+    - docker build -f DockerfileUbuntu1804 -t ubu1804-testimage --pull .
+    - docker run -d --name db postgres:9.6.16
+    - sleep 20
+    - docker run --link db:postgres ubu1804-testimage bash -c "apt-get update && apt-get install -y python3-pip && pip3 install -r requirements-dev.txt && pip3 install mypy && python3 /usr/local/bin/mypy -p psono --ignore-missing-imports && python3 ./psono/manage.py presetup && python3 ./psono/manage.py migrate && coverage3 run --source='.' ./psono/manage.py test restapi.tests administration.tests fileserver.tests && coverage3 report --omit=psono/restapi/migrations/*,psono/administration/tests*,psono/administration/migrations/*,psono/restapi/tests*,psono/fileserver/migrations/*,psono/fileserver/tests*"
+
+
+run-unittests-alpine:
+  except:
+    - schedules
+  stage: test
+  image: psono-docker.jfrog.io/docker:git
+  variables:
+    POSTGRES_DB: postgres
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: ""
+    PSONO_EMAIL_HOST: 172.17.0.1
+    PSONO_EMAIL_FROM: test@example.com
+    PSONO_ACTIVATION_LINK_SECRET: 9SruC2qPmKScVzGaF4378LW4rvNNkK2G3Gddqy9kPQqgkjeDQjs7jaLBCstgtJTt
+    PSONO_SECRET_KEY: RQTKawYQv4w6KkuphcLzLu7r5ap7xE5DSDu5SkKXjMnWBQ93mcMKjdZfeZkY2Y7C
+  services:
+    - docker:18-dind
+  script:
+    - docker info
+    - echo $CI_BUILD_TOKEN | docker login --username=gitlab-ci-token --password-stdin registry.gitlab.com
+    - echo $artifactory_credentials | docker login --username=gitlab --password-stdin psono-docker.jfrog.io
+    - echo $docker_hub_credentials | docker login --username=psonogitlab --password-stdin
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run -d --name db postgres:9.6.16
+    - sleep 20
+    - docker run --link db:postgres $CONTAINER_TEST_IMAGE /bin/sh -c "pip3 install -r requirements-dev.txt && python3 ./psono/manage.py presetup && python3 ./psono/manage.py migrate && python3 ./psono/manage.py test --parallel=8 restapi.tests administration.tests fileserver.tests"
+  only:
+    - branches@psono/psono-server
+    - tags@psono/psono-server
+
+run-unittests-centos7:
+  except:
+    - schedules
+  stage: test
+  image: psono-docker.jfrog.io/docker:git
+  variables:
+    POSTGRES_DB: postgres
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: ""
+    PSONO_EMAIL_HOST: 172.17.0.1
+    PSONO_EMAIL_FROM: test@example.com
+    PSONO_ACTIVATION_LINK_SECRET: 9SruC2qPmKScVzGaF4378LW4rvNNkK2G3Gddqy9kPQqgkjeDQjs7jaLBCstgtJTt
+    PSONO_SECRET_KEY: RQTKawYQv4w6KkuphcLzLu7r5ap7xE5DSDu5SkKXjMnWBQ93mcMKjdZfeZkY2Y7C
+  services:
+    - docker:18-dind
+  script:
+    - docker info
+    - sh ./var/update_version.sh
+    - docker build -f DockerfileCentos7 -t centos7-testimage --pull .
+    - docker run -d --name db postgres:9.6.16
+    - sleep 20
+    - docker run --link db:postgres centos7-testimage bash -c "yum -y install python36u-pip && pip3.6 install -r requirements-dev.txt && pip3.6 install mypy && python3.6 /usr/local/bin/mypy -p psono --ignore-missing-imports && python3.6 ./psono/manage.py presetup && python3.6 ./psono/manage.py migrate && python3.6 ./psono/manage.py test --parallel=8 restapi.tests administration.tests fileserver.tests"
+
+run-vulnerability-scan:
+  except:
+    - schedules
+  stage: test
+  image: psono-docker.jfrog.io/docker:git
+  services:
+    - docker:18-dind
+  script:
+    - docker info
+    - echo $CI_BUILD_TOKEN | docker login --username=gitlab-ci-token --password-stdin registry.gitlab.com
+    - echo $artifactory_credentials | docker login --username=gitlab --password-stdin psono-docker.jfrog.io
+    - echo $docker_hub_credentials | docker login --username=psonogitlab --password-stdin
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run -e "LANG=C.UTF-8" $CONTAINER_TEST_IMAGE sh -c "pip3 install safety && safety check"
+    - docker run -e "LANG=C.UTF-8" $CONTAINER_TEST_IMAGE sh -c "pip3 install bandit==1.5.1 && bandit -r /root -x /root/psono/restapi/tests,/root/psono/administration/tests,/root/psono/fileserver/tests"
+  only:
+    - branches@psono/psono-server
+    - tags@psono/psono-server
+
+#deploy-security-scan-image:
+#  except:
+#    - schedules
+#  stage: deploy
+#  image: psono-docker.jfrog.io/docker:git
+#  services:
+#    - docker:18-dind
+#  script:
+#    - docker info
+#    - echo $CI_BUILD_TOKEN | docker login --username=gitlab-ci-token --password-stdin registry.gitlab.com
+#    - echo $artifactory_credentials | docker login --username=gitlab --password-stdin psono-docker.jfrog.io
+#    - echo $docker_hub_credentials | docker login --username=psonogitlab --password-stdin
+#    - docker pull $CONTAINER_TEST_IMAGE
+#    - docker tag $CONTAINER_TEST_IMAGE psono/security-scans:psono-server-ce-$CI_BUILD_REF_NAME
+#    - docker push psono/security-scans:psono-server-ce-$CI_BUILD_REF_NAME
+
+release-container:
+  except:
+    - schedules
+  stage: release
+  image: psono-docker.jfrog.io/docker:git
+  services:
+    - docker:18-dind
+  script:
+    - docker info
+    - echo $CI_BUILD_TOKEN | docker login --username=gitlab-ci-token --password-stdin registry.gitlab.com
+    - echo $artifactory_credentials | docker login --username=gitlab --password-stdin psono-docker.jfrog.io
+    - echo $docker_hub_credentials | docker login --username=psonogitlab --password-stdin
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_LATEST_IMAGE
+    - docker push $CONTAINER_LATEST_IMAGE
+  only:
+    - /^v[0-9]*\.[0-9]*\.[0-9]*$/
+
+release-version-bump:
+  except:
+    - schedules
+  stage: release
+  image: psono-docker.jfrog.io/docker:git
+  script:
+    - mkdir -p /root/.ssh
+    - echo "$github_deploy_key" > /root/.ssh/id_rsa
+    - chmod 600 /root/.ssh/id_rsa
+    - ssh-keyscan -t rsa gitlab.com >> ~/.ssh/known_hosts
+    - git remote set-url --push origin "git@gitlab.com:${CI_PROJECT_PATH}.git"
+    - git config --global user.email "buildserver@psono.com"
+    - git config --global user.name "Build Server"
+    - git checkout master
+    - git pull
+    - sh ./var/update_version.sh
+    - git add psono/VERSION.txt
+    - git add psono/SHA.txt
+    - git commit -m "Bump version [skip ci]"
+    - git push
+  only:
+    - /^v[0-9]*\.[0-9]*\.[0-9]*$/
+
+
+deploy:
+  except:
+    - schedules
+  stage: deploy
+  image: psono-docker.jfrog.io/docker:git
+  services:
+    - docker:18-dind
+  script:
+    - docker info
+    - echo $CI_BUILD_TOKEN | docker login --username=gitlab-ci-token --password-stdin registry.gitlab.com
+    - echo $artifactory_credentials | docker login --username=gitlab --password-stdin psono-docker.jfrog.io
+    - echo $docker_hub_credentials | docker login --username=psonogitlab --password-stdin
+    - sh ./var/deploy.sh
+  environment:
+    name: production
+    url: https://psono.pw
+  only:
+    - /^v[0-9]*\.[0-9]*\.[0-9]*$/
+
+
+deploy-changelog:
+  except:
+    - schedules
+  stage: deploy
+  image: psono-docker.jfrog.io/ubuntu:18.04
+  script:
+    - sh ./var/deploy_changelog.sh
+  environment:
+    name: static.psono.com
+    url: https://static.psono.com/gitlab.com/psono/psono-server/changelog.json
+  only:
+    - /^v[0-9]*\.[0-9]*\.[0-9]*$/
+

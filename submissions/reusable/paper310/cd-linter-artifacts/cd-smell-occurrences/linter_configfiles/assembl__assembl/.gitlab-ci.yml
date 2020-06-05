@@ -1,0 +1,70 @@
+image: docker:19.03.1
+
+services:
+  - name: docker:19.03.1
+    alias: docker
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  assembl_docker_tag: $CI_COMMIT_REF_SLUG
+
+stages:
+  - build
+  - test
+  - deploy-crashtest
+  - push
+
+before_script:
+  - docker info
+  - apk add make git
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - rm -rf /tmp/apoti || true
+  - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/assembl/apoti.git /tmp/apoti
+
+.make_command: &make_command >
+    set -x && make -C /tmp/apoti/containers APOTI_DOCKER_TAG=${assembl_docker_tag} APOTI_DOCKER_MISC_IMAGE_PATH_BASE=registry.gitlab.com/assembl/assembl/ci-misc ASSEMBL_GIT_REF=${CI_COMMIT_REF_NAME} assembl-build assembl-async-build
+
+# build, then test, then push
+
+build:
+  stage: build
+  script:
+    - *make_command
+
+test-front-a:
+  stage: test
+  script:
+    - docker run -d --rm --name test-${CI_JOB_ID}-a registry.gitlab.com/assembl/assembl/assembl:${assembl_docker_tag}
+    - docker exec -t test-${CI_JOB_ID}-a /bin/bash -c "source /venv/bin/activate; cd /app/assembl/static2; yarn jest --coverage --maxWorkers 2"
+    - docker kill test-${CI_JOB_ID}-a
+test-front-b:
+  stage: test
+  script:
+    - docker run -d --rm --name test-${CI_JOB_ID}-b registry.gitlab.com/assembl/assembl/assembl:${assembl_docker_tag}
+    - docker exec -t test-${CI_JOB_ID}-b /bin/bash -c "source /venv/bin/activate; cd /app/assembl/static2; yarn run eslint"
+    - docker kill test-${CI_JOB_ID}-b
+
+test-front-c:
+  stage: test
+  script:
+    - docker run -d --rm --name test-${CI_JOB_ID}-c registry.gitlab.com/assembl/assembl/assembl:${assembl_docker_tag}
+    - docker exec -t test-${CI_JOB_ID}-c /bin/bash -c "source /venv/bin/activate; cd /app/assembl/static2; yarn run stylelint"
+    - docker kill test-${CI_JOB_ID}-c
+
+test-front-d:
+  stage: test
+  script:
+    - docker run -d --rm --name test-${CI_JOB_ID}-d registry.gitlab.com/assembl/assembl/assembl:${assembl_docker_tag}
+    - docker exec -t test-${CI_JOB_ID}-d /bin/bash -c "source /venv/bin/activate; cd /app/assembl/static2; yarn run flow --quiet"
+    - docker kill test-${CI_JOB_ID}-d
+
+deploy-crashtest:
+  stage: deploy-crashtest
+  script:
+    - echo "Well hello ~"
+
+push-to-registry:
+  stage: push
+  script:
+    - make -C /tmp/apoti/containers APOTI_DOCKER_TAG=${assembl_docker_tag} APOTI_DOCKER_MISC_IMAGE_PATH_BASE=registry.gitlab.com/assembl/assembl/ci-misc ASSEMBL_GIT_REF=${CI_COMMIT_REF_NAME} assembl-push assembl-async-push
+

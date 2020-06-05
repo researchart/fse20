@@ -1,0 +1,235 @@
+# Install and update rust
+before_script:
+- source $HOME/.cargo/env
+- rustup self update
+- rustup update
+- git submodule init
+- git submodule update
+
+stages:
+    - build
+    - test
+    - deploy
+
+# Use cargo to build the project
+# First for CPU platform
+fusion_cpu_nightly:
+  stage: build
+  script:
+      - rustc --version && cargo --version      # Print version info for debugging
+      - rustup default nightly 
+      - cargo clean
+      - export PLATFORM=2 DEVICE=0 MAX_ITERATIONS=1
+      - cargo build -v --release
+  tags:
+      - fusion
+      - rust
+  
+fusion_cpu_stable:
+  stage: build
+  script:
+      - rustc --version && cargo --version
+      - rustup default stable
+      - cargo clean
+      - export PLATFORM=2 DEVICE=0 MAX_ITERATIONS=1
+      - cargo build -v --release
+  tags:
+      - fusion
+      - rust
+
+# Next for GPU platform
+fusion_gpu_nightly:
+  stage: build
+  script:
+      - rustc --version && cargo --version      # Print version info for debugging
+      - rustup default nightly 
+      - cargo clean
+      - export PLATFORM=1 DEVICE=0 MAX_ITERATIONS=1
+      - cargo build -v --release
+  tags:
+      - fusion
+      - rust
+  
+fusion_gpu_stable:
+  stage: build
+  script:
+      - rustc --version && cargo --version
+      - rustup default stable
+      - cargo clean
+      - export PLATFORM=1 DEVICE=0 MAX_ITERATIONS=1
+      - cargo build -v --release
+  tags:
+      - fusion
+      - rust
+
+fusion_cpu_test:
+    stage: test
+    script:
+        - rustc --version && cargo --version
+        - rustup default nightly
+        - cargo clean
+        - export PLATFORM=2 DEVICE=0 MAX_ITERATIONS=1
+        - export RUST_TEST_THREADS=1 && cargo test --verbose
+    tags:
+        - fusion
+        - rust
+
+fusion_gpu_test:
+    stage: test
+    script:
+        - rustc --version && cargo --version
+        - rustup default nightly
+        - cargo clean
+        - export PLATFORM=1 DEVICE=0 MAX_ITERATIONS=1
+        - export RUST_TEST_THREADS=1 && cargo test --verbose
+    tags:
+        - fusion
+        - rust
+
+odroid_cpu_nightly:
+  stage: build
+  script:
+      - rustup default nightly 
+      - rustc --version && cargo --version      # Print version info for debugging
+      - cargo clean
+      - export PLATFORM=1 DEVICE=0 MAX_ITERATIONS=1
+      - cargo build -v --release
+  tags:
+      - odroid
+      - rust
+  only: 
+      - master
+      
+odroid_gpu_nightly:
+  stage: build
+  script:
+      - rustup default nightly 
+      - rustc --version && cargo --version      # Print version info for debugging
+      - cargo clean
+      - export PLATFORM=0 DEVICE=0 MAX_ITERATIONS=1
+      - cargo build -v --release
+  tags:
+      - odroid
+      - rust
+  only:
+      - master
+
+odroid_cpu_stable:
+  stage: build
+  script:
+      - rustup default stable
+      - rustc --version && cargo --version      # Print version info for debugging
+      - cargo clean
+      - export PLATFORM=1 DEVICE=0 MAX_ITERATIONS=1
+      - cargo build -v --release
+  tags:
+      - odroid
+      - rust
+  only: 
+      - master
+      
+odroid_gpu_stable:
+  stage: build
+  script:
+      - rustup default stable
+      - rustc --version && cargo --version      # Print version info for debugging
+      - cargo clean
+      - export PLATFORM=0 DEVICE=0 MAX_ITERATIONS=1
+      - cargo build -v --release
+  tags:
+      - odroid
+      - rust
+  only:
+      - master
+
+odroid_gpu_test:
+    stage: test
+    script:
+        - rustup default nightly
+        - rustc --version && cargo --version
+        - cargo clean
+        - export PLATFORM=0 DEVICE=0 MAX_ITERATIONS=1
+        - export RUST_TEST_THREADS=1 && cargo test --verbose
+    tags:
+        - odroid
+        - rust
+    only:
+        - master
+
+odroid_cpu_test:
+    stage: test
+    script:
+        - rustup default nightly
+        - rustc --version && cargo --version
+        - cargo clean
+        - export PLATFORM=1 DEVICE=0 MAX_ITERATIONS=1
+        - export RUST_TEST_THREADS=1 && cargo test --verbose
+    tags:
+        - odroid
+        - rust
+    only:
+        - master
+
+odroid_deploy:
+    stage: deploy
+    script:
+        - rustup default stable
+        - rustc --version && cargo --version
+        - mkdir results
+        - cargo clean
+        - export PLATFORM= DEVICE= MAX_ITERATIONS=
+        - cd ${CI_PROJECT_DIR}/scripts && ./experiment && cd ${CI_PROJECT_DIR}
+    tags:
+        - odroid
+        - rust
+    artifacts:
+        name: "odroid_"
+        paths:
+            - ${CI_PROJECT_DIR}/results/ubench_rust_*
+            - ${CI_PROJECT_DIR}/scripts/ubench_rust_*
+    only: 
+        - master
+    when: manual
+
+beast_deploy:
+    stage: deploy
+    script:
+        - rustup default stable
+        - rustc --version && cargo --version
+        - mkdir results
+        - cargo clean
+        - export PLATFORM= DEVICE= MAX_ITERATIONS=
+        - cd ${CI_PROJECT_DIR}/scripts && ./experiment && cd ${CI_PROJECT_DIR}
+    artifacts:
+        name: "beast"
+        paths:
+            - ${CI_PROJECT_DIR}/results/ubench_rust_*
+            - ${CI_PROJECT_DIR}/scripts/ubench_rust_*
+    tags:
+        - beast
+        - rust
+    only:
+        - master
+    when: manual
+
+fusion_deploy:
+    stage: deploy
+    script:
+        - rustup default stable
+        - rustc --version && cargo --version
+        - mkdir results
+        - cargo clean
+        - export PLATFORM= DEVICE= MAX_ITERATIONS=
+        - cd ${CI_PROJECT_DIR}/scripts && ./experiment && cd ${CI_PROJECT_DIR}
+    artifacts:
+        name: "fusion_"
+        paths:
+            - ${CI_PROJECT_DIR}/results/ubench_rust_*
+            - ${CI_PROJECT_DIR}/scripts/ubench_rust_*
+    tags:
+        - fusion
+        - rust
+    only:
+        - master
+    when: manual
+

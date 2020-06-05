@@ -1,0 +1,18 @@
+image: docker:latest
+
+variables:
+  DOCKER_DRIVER: overlay
+  CONTAINER_TEST_IMAGE: mdymel/aspdocker:$CI_BUILD_REF_NAME
+
+services:
+- docker:dind
+
+stages:
+- build
+
+build:
+  stage: build
+  script:
+  - docker build -t $CONTAINER_TEST_IMAGE .
+
+

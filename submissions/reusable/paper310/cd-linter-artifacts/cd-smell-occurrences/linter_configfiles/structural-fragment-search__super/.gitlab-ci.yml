@@ -1,0 +1,35 @@
+# This file is a template, and might need editing before it works on your project.
+# use the official gcc image, based on debian
+# can use verions as well, like gcc:5.2
+# see https://hub.docker.com/_/gcc/
+image: debian:testing
+
+build:
+  stage: build
+  # instead of calling g++ directly you can also use some build toolkit like make
+  # install the necessary build tools when needed
+  # before_script: 
+  #   - apt update && apt -y install make autoconf 
+  script:
+    - apt update && apt -y install make autoconf automake libtool check lcov cppcheck python3 pkgconf
+    - autoreconf -i && ./configure --disable-pylint && make
+  artifacts:
+    paths:
+      - super
+      - superdb
+  # depending on your build setup it's most likely a good idea to cache outputs to reduce the build time
+  cache:
+     paths:
+       - "src/*.o"
+
+# run tests using the binary built before
+test:
+  stage: test
+  script:
+    - apt update && apt -y install make autoconf automake libtool check lcov cppcheck pkgconf clang-tools-4.0 clang python3 python3-pip python3-numpy python3-scipy python3-biopython python3-pyparsing pylint
+    - pip3 install -U ProDy
+    - autoreconf -i && ./configure --enable-code-coverage
+    - scan-build make
+    - make check
+    - make local-code-coverage-output
+

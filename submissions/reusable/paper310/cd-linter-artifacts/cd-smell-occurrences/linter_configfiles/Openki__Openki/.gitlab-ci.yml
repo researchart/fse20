@@ -1,0 +1,99 @@
+image: openki/meteor-chromium:1.0.0
+
+
+stages:
+  - cleanup
+  - lint
+  - test
+  - deploy
+
+
+cache:
+  paths:
+  - node_modules/
+  - .npm/
+  - .meteor/
+
+
+variables:
+  DISPLAY: ":99.0"
+  # Reduce git traffic
+  GIT_DEPTH: "10"
+  METEOR_ALLOW_SUPERUSER: "true"
+  TOOL_NODE_FLAGS: '--max_old_space_size=4096'
+
+
+cleanup:
+  stage: cleanup
+  script:
+  - rm -rf .meteor/ .npm/ node_modules/
+  only:
+  - dev
+  - staging
+  - master
+
+
+lint:
+  stage: lint
+  script: ./ci/lint.sh
+
+# Unit tests
+test:
+  stage: test
+  tags:
+  - gitlab-org
+  script: ./ci/test.sh
+
+
+# e2e tests
+app-test:
+  stage: test
+  tags:
+  - gitlab-org
+  script: ./ci/app-test.sh
+  allow_failure: true
+
+
+deploy_dev:
+  stage: deploy
+  variables:
+    SOURCE_BRANCH: dev
+    TARGET_HOST: dev
+  only:
+  - dev
+  when: always
+  trigger: Openki/sysadmin/deploy-config
+
+
+deploy_staging:
+  stage: deploy
+  variables:
+    SOURCE_BRANCH: staging
+    TARGET_HOST: staging
+  only:
+  - staging
+  trigger: Openki/sysadmin/deploy-config
+
+
+deploy_live:
+  stage: deploy
+  variables:
+    SOURCE_BRANCH: master
+    TARGET_HOST: live
+  only:
+  - master
+  trigger: Openki/sysadmin/deploy-config
+
+
+
+## Not possible yet: https://gitlab.com/gitlab-org/gitlab-ce/issues/27818
+#deploy_prod:
+#  stage: deploy
+#  variables:
+#    SOURCE_BRANCH: master
+#    TARGET_HOST: live
+#  only:
+#  - master
+#  trigger: Openki/sysadmin/deploy-config
+#
+

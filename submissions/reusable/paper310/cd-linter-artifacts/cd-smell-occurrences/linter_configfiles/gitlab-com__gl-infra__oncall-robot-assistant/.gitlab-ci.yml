@@ -1,0 +1,35 @@
+image: golang:1.9
+
+stages:
+  - test
+  - report
+
+before_script:
+  - export GOPATH=/go
+  - export REPONAME=$(basename $CI_PROJECT_DIR)
+  - export GROUPNAME=$(basename $(dirname $CI_PROJECT_DIR))
+  - export PATH=$PATH:$GOPATH/bin
+  - mkdir -p $GOPATH/src/gitlab.com/$GROUPNAME
+  - cd $GOPATH/src/gitlab.com/$GROUPNAME
+  - ln -s $CI_PROJECT_DIR
+  - cd $CI_PROJECT_NAME
+  - go get -u github.com/golang/dep/cmd/dep
+  - dep ensure
+  - go build
+
+test:
+  stage: test
+  script:
+    - go test ./... -v -cover
+
+report:
+  stage: report
+  variables:
+    DEBUG: "-debug"
+  script:
+    - cp oncall-settings-example.yaml ~/.oncall-settings.yaml
+    - ./oncall-robot-assistant $DEBUG
+  only:
+    variables:
+      - $GITLAB_API_TOKEN
+

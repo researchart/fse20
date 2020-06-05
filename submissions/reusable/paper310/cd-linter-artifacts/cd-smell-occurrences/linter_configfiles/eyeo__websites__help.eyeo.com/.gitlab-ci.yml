@@ -1,0 +1,58 @@
+image: "registry.gitlab.com/eyeo/websites/docker:eyeo-python2.7-cms"
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  script:
+    - npm install
+    - gulp build
+    - python -m cms.bin.generate_static_pages --version ${CI_COMMIT_SHA:0:8} . ${CI_COMMIT_SHA:0:8}
+  artifacts:
+    paths:
+      - ${CI_COMMIT_SHA:0:8}
+
+pages:
+  stage: deploy
+  script:
+    - apt-get install -y rpl rename
+    - pip install crudini
+    - cp -a ${CI_COMMIT_SHA:0:8} public
+    - SITEURL="$(crudini --get settings.ini general siteurl)"
+    - rpl -Rq "$SITEURL" "$CI_PAGES_URL" public/
+    - rpl -Rq 'src="/' "src=\"$CI_PAGES_URL/" public/
+    - rpl -Rq 'srcset="/' "srcset=\"$CI_PAGES_URL/" public/
+    - rpl -Rq 'href="/' "href=\"$CI_PAGES_URL/" public/
+    - rpl -Rq 'url(/' "url($CI_PAGES_URL/" public/
+    - rpl -Rq 'url("/' "url(\"$CI_PAGES_URL/" public/
+    - rename 's/index/index.html/' public/**/**/index
+  dependencies:
+    - build
+  artifacts:
+    paths:
+      - public
+
+upload-artifacts:
+  stage: deploy
+  only:
+    refs:
+      - master@eyeo/websites/help.eyeo.com
+  script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan eyeofiles.com >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - tar czf ${CI_COMMIT_SHA:0:8}.tar.gz ${CI_COMMIT_SHA:0:8}
+    - md5sum ${CI_COMMIT_SHA:0:8}.tar.gz | cut -d' ' -f 1 > ${CI_COMMIT_SHA:0:8}.md5
+    - scp ${CI_COMMIT_SHA:0:8}.tar.gz gl-help_eyeo_com@eyeofiles.com:/var/www/helpcenter.eyeofiles.com
+    - scp ${CI_COMMIT_SHA:0:8}.md5 gl-help_eyeo_com@eyeofiles.com:/var/www/helpcenter.eyeofiles.com
+  dependencies:
+    - build
+  variables:
+    GIT_STRATEGY: none
+

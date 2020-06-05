@@ -1,0 +1,12 @@
+before_script:
+  - apt-get update && apt-get -y install cmake
+
+testing:
+  stage: test
+  script:
+    - cmake .
+    - make
+    - ./pre-commit-tests
+  only:
+    - master
+

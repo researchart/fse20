@@ -1,0 +1,13 @@
+image: python:3.6
+
+pages:
+  script:
+  - pip install lektor
+  - lektor build --output-path public -f minify:html,css,js
+  - gzip -k -6 -r public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

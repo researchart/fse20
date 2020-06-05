@@ -1,0 +1,9 @@
+image: ruby:2.2
+
+before_script:
+  - gem install awesome_bot
+
+build:
+  script:
+  - awesome_bot README.md
+

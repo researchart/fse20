@@ -1,0 +1,251 @@
+image: node:latest
+stages:
+  - build
+  - test
+  - deploy
+build_commonjs:
+  stage: build
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+    - node_modules/
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME-common"
+    paths:
+      - lib/common
+    expire_in: 1 hour
+  only:
+    - master
+    - tags
+    - development
+  except:
+    - schedules
+  script:
+    - yarn install
+    - yarn build:common
+build_es6:
+  stage: build
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+    - node_modules/
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME-es6"
+    paths:
+      - lib/es6
+    expire_in: 1 hour
+  only:
+    - master
+    - tags
+  except:
+    - schedules
+  script:
+    - yarn install
+    - yarn build:es6
+build_quality:
+  stage: build
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+    - node_modules/
+    policy: pull
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME-quality"
+    paths:
+      - quality/
+    expire_in: 1 hour
+  only:
+    - master
+    - tags
+  except:
+    - schedules
+  script:
+    - yarn install
+    - yarn build:quality
+build_docs:
+  stage: build
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+    - node_modules/
+    policy: pull
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME-docs"
+    paths:
+      - docs/
+    expire_in: 1 hour
+  only:
+    - master
+    - tags
+  except:
+    - schedules
+  script:
+    - yarn install
+    - yarn build:docs
+test_commonjs_node_6:
+  stage: test
+  image: node:6
+  dependencies:
+    - build_commonjs
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+      - node_modules/
+    policy: pull
+  only:
+    - master
+    - tags
+  except:
+    - schedules
+  script:
+    - yarn install
+    - yarn test
+test_commonjs_node_8:
+  stage: test
+  image: node:8
+  dependencies:
+    - build_commonjs
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+      - node_modules/
+    policy: pull
+  only:
+    - master
+    - tags
+  except:
+    - schedules
+  script:
+    - yarn install
+    - yarn test
+test_commonjs_node_10:
+  stage: test
+  image: node:10
+  dependencies:
+    - build_commonjs
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+      - node_modules/
+    policy: pull
+  only:
+    - master
+    - tags
+  except:
+    - schedules
+  script:
+    - yarn install
+    - yarn test
+test_commonjs_node_latest:
+  stage: test
+  image: node:latest
+  dependencies:
+    - build_commonjs
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+      - node_modules/
+    policy: pull
+  artifacts:
+    paths:
+      - .nyc_output/
+  only:
+    - master
+    - tags
+    - development
+  except:
+    - schedules
+  script:
+    - yarn install
+    - "./node_modules/.bin/nyc -x \"**/lib/es6/**/*.js\" -x \"**/src/**/*.js\" -x \"**/tests/**/*.js\" yarn test"
+code_coverage:
+  stage: deploy
+  image: node:latest
+  allow_failure: true
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+      - node_modules/
+    policy: pull
+  dependencies:
+    - test_commonjs_node_latest
+  artifacts:
+    paths:
+      - coverage/lcov-report/
+    expire_in: 1 day
+  coverage: '/^Statements\s*:\s*([^%]+)/'
+  only:
+    - master
+    - tags
+  except:
+    - schedules
+  script:
+    - "./node_modules/.bin/nyc report --reporter=\"text-summary\" --reporter=\"lcov\""
+code_quality:
+  image: docker:latest
+  stage: deploy
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  dependencies:
+    - build_quality
+  services:
+    - docker:stable-dind
+  artifacts:
+    paths: [gl-code-quality-report.json]
+  only:
+    - master
+    - tags
+  except:
+    - schedules
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env SOURCE_CODE="$PWD/quality"
+        --volume "$PWD":/code
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/codequality:$SP_VERSION" /code
+dependency_scanning:
+  image: docker:latest
+  stage: deploy
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  dependencies:
+    - build_commonjs
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}"
+    paths:
+      - node_modules/
+    policy: pull
+  artifacts:
+    paths: [gl-dependency-scanning-report.json]
+  only:
+    - master
+    - tags
+  except:
+    - schedules
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env DEP_SCAN_DISABLE_REMOTE_CHECKS="${DEP_SCAN_DISABLE_REMOTE_CHECKS:-false}"
+        --volume "$PWD:/code"
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/dependency-scanning:$SP_VERSION" /code
+publish_npm:
+  stage: deploy
+  only:
+    - tags
+    - triggers
+  except:
+    - schedules
+  dependencies:
+    - build_docs
+    - build_commonjs
+    - build_es6
+  script:
+    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+    - npm publish --scope=@openrailuk --access=public
+

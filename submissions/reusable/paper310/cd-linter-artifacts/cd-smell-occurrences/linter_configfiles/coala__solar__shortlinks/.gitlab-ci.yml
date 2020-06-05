@@ -1,0 +1,16 @@
+include:
+  - https://gitlab.com/coala/solar/common/raw/master/ci-config/base.yml
+  - https://gitlab.com/coala/solar/common/raw/master/ci-config/lint.yml
+  - https://gitlab.com/coala/solar/common/raw/master/ci-config/continuous-delivery.yml
+
+stages:
+  - test
+  - build
+  - release
+  - deploy
+
+test:template_sync:
+  stage: test
+  image: python:3
+  script: test_template_sync
+

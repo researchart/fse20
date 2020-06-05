@@ -1,0 +1,25 @@
+image: python:3.7-alpine
+
+pages:
+  stage: deploy
+  script:
+  - apk update && apk add make
+  - pip install -r requirements.txt
+  - make publish
+  artifacts:
+    paths:
+    - public/
+  only:
+  - master
+
+test:
+  stage: test
+  script:
+  - apk update && apk add make
+  - pip install -r requirements.txt
+  - make publish
+  only:
+  - branches
+  except:
+  - master
+

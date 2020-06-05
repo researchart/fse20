@@ -1,0 +1,33 @@
+stages:
+  - test
+
+job1:
+  stage: test
+  script:
+    - apt-get update
+    - apt-get install -y python-virtualenv python-psycopg2
+    - virtualenv --system-site-packages venv
+    - . venv/bin/activate
+    - pip install -r monyt/requirements.pip
+    - cd monyt ; python tests_influxdb.py
+
+job2:
+  stage: test
+  script:
+    - apt-get update
+    - apt-get install -y python-virtualenv python-psycopg2
+    - virtualenv --system-site-packages venv
+    - . venv/bin/activate
+    - pip install -r monyt/requirements.pip
+    - cd monyt ; python tests_grafana.py
+
+job3:
+  stage: test
+  script:
+    - apt-get update
+    - apt-get install -y python-virtualenv python-psycopg2
+    - virtualenv --system-site-packages venv
+    - . venv/bin/activate
+    - pip install -r pgstat/requirements.pip
+    - python pgstat/tests_pgstat.py
+

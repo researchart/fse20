@@ -1,0 +1,17 @@
+image: alpine
+
+pages:
+  script:
+  - apk --no-cache add py-pip python-dev cython
+  - pip install --upgrade pip
+  - pip install sphinx sphinx_rtd_theme numpydoc
+  - cd docs/
+  - apk --no-cache add make
+  - make html
+  - mv build/html/ ../public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,79 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  PACKAGE_NAME: gits
+
+build:
+  stage: build
+  image: fedora:29
+  before_script:
+    - dnf install gcc git mingw32-gcc mingw64-gcc unzip xz zip -y
+    - export CHOOSENIM_NO_ANALYTICS=1
+    - export CHOOSENIM_CHOOSE_VERSION="stable"
+    - curl https://nim-lang.org/choosenim/init.sh -sSf > init.sh
+    - sh init.sh -y
+  script:
+    - export PATH="$HOME/.nimble/bin:$PATH"
+    - mkdir -p dist/
+
+    # Linux x86 64-bit
+    - nimble build -d:release --passc:"-flto" -y
+    - strip "$PACKAGE_NAME"
+    - mkdir -p "$PACKAGE_NAME-linux-x86_64/"
+    - mv "$PACKAGE_NAME" "$PACKAGE_NAME-linux-x86_64/"
+    - cp README.md LICENSE.md "$PACKAGE_NAME-linux-x86_64/"
+    - tar cfJ "dist/$PACKAGE_NAME-linux-x86_64.tar.xz" "$PACKAGE_NAME-linux-x86_64/"
+
+    # Windows 64-bit
+    - nimble build -d:release --passc:"-flto" -d:crosswin
+    - strip "$PACKAGE_NAME.exe"
+    - mkdir -p "$PACKAGE_NAME-windows-x86_64/"
+    - mv "$PACKAGE_NAME.exe" "$PACKAGE_NAME-windows-x86_64/"
+    - cp README.md LICENSE.md "$PACKAGE_NAME-windows-x86_64/"
+    - zip -r9 "dist/$PACKAGE_NAME-windows-x86_64.zip" "$PACKAGE_NAME-windows-x86_64/"
+
+    # Windows 32-bit
+    # Pretend the 32-bit compiler is a 64-bit one since it's not using
+    # the right one for some reason
+    - rm /usr/bin/x86_64-w64-mingw32-gcc
+    - ln -s /usr/bin/i686-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc
+    - nimble build -d:release --passc:"-flto" -d:crosswin --cpu:i386
+    - strip "$PACKAGE_NAME.exe"
+    - mkdir -p "$PACKAGE_NAME-windows-x86/"
+    - mv "$PACKAGE_NAME.exe" "$PACKAGE_NAME-windows-x86/"
+    - cp README.md LICENSE.md "$PACKAGE_NAME-windows-x86/"
+    - zip -r9 "dist/$PACKAGE_NAME-windows-x86.zip" "$PACKAGE_NAME-windows-x86/"
+  artifacts:
+    expire_in: 30 days
+    paths:
+      - dist/
+
+deploy:
+  stage: deploy
+  image: fedora:29
+  dependencies:
+    - build
+  only:
+    - tags
+  before_script:
+    - curl -fsSLO "https://github.com/Calinou/gothub/releases/download/v0.7.1/gothub_0.7.1_linux_x86_64.tar.gz"
+    - tar xf "gothub_0.7.1_linux_x86_64.tar.gz"
+    - mv "gothub_0.7.1_linux_x86_64/gothub" "/usr/local/bin/gothub"
+  script:
+    - gothub release
+          --tag "$CI_COMMIT_TAG" || true
+    - gothub upload
+          --tag "$CI_COMMIT_TAG"
+          --name "$PACKAGE_NAME-$CI_COMMIT_TAG-linux-x86_64.tar.xz"
+          --file "dist/$PACKAGE_NAME-linux-x86_64.tar.xz"
+    - gothub upload
+          --tag "$CI_COMMIT_TAG"
+          --name "$PACKAGE_NAME-$CI_COMMIT_TAG-windows-x86_64.zip"
+          --file "dist/$PACKAGE_NAME-windows-x86_64.zip"
+    - gothub upload
+          --tag "$CI_COMMIT_TAG"
+          --name "$PACKAGE_NAME-$CI_COMMIT_TAG-windows-x86.zip"
+          --file "dist/$PACKAGE_NAME-windows-x86.zip"
+

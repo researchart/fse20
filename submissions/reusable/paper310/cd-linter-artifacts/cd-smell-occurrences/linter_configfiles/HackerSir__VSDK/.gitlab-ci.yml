@@ -1,0 +1,104 @@
+before_script:
+  # Try to fix #7
+  - if [[ $PHP_VERSION =~ "7.2" ]]; then sudo apt update && sudo apt install -y gcc make; fi
+  # Project
+  - yarn install
+  - composer install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts --no-suggest
+  - yarn run prod
+  - cp .env.example .env
+  - php artisan key:generate
+  - php artisan config:clear
+  - php artisan migrate:refresh --seed
+
+after_script:
+  # PHP Code Sniffier
+  - ./vendor/bin/phpcs --config-set ignore_errors_on_exit 1
+  - ./vendor/bin/phpcs --config-set ignore_warnings_on_exit 1
+  - ./vendor/bin/phpcs --standard=style_ruleset.xml app
+
+variables:
+  # MySQL Service
+  MYSQL_DATABASE: FCU_OIA
+  MYSQL_ROOT_PASSWORD: root_password
+  MYSQL_USER: db_user
+  MYSQL_PASSWORD: secret
+  # Connection Settings
+  DB_DATABASE: FCU_OIA
+  DB_USERNAME: db_user
+  DB_PASSWORD: secret
+  # Other settings for testing
+  CACHE_DRIVER: array
+  SESSION_DRIVER: array
+
+phpunit:php7.1:mysql5.6:
+  image: edbizarro/gitlab-ci-pipeline-php:7.1
+  services:
+    - mysql:5.6
+  variables:
+    DB_CONNECTION: mysql
+    DB_HOST: mysql
+    DB_PORT: '3306'
+  script:
+    - ./vendor/phpunit/phpunit/phpunit -v --coverage-text --colors=never --stderr
+
+phpunit:php7.1:mysql5.7:
+  image: edbizarro/gitlab-ci-pipeline-php:7.1
+  services:
+    - mysql:5.7
+  variables:
+    DB_CONNECTION: mysql
+    DB_HOST: mysql
+    DB_PORT: '3306'
+  script:
+    - ./vendor/phpunit/phpunit/phpunit -v --coverage-text --colors=never --stderr
+
+phpunit:php7.2:mysql5.6:
+  image: edbizarro/gitlab-ci-pipeline-php:7.2
+  services:
+    - mysql:5.6
+  variables:
+    DB_CONNECTION: mysql
+    DB_HOST: mysql
+    DB_PORT: '3306'
+  script:
+    - ./vendor/phpunit/phpunit/phpunit -v --coverage-text --colors=never --stderr
+
+phpunit:php7.2:mysql5.7:
+  image: edbizarro/gitlab-ci-pipeline-php:7.2
+  services:
+    - mysql:5.7
+  variables:
+    DB_CONNECTION: mysql
+    DB_HOST: mysql
+    DB_PORT: '3306'
+  script:
+    - ./vendor/phpunit/phpunit/phpunit -v --coverage-text --colors=never --coverage-html=coverage --stderr
+  artifacts:
+    paths:
+      - coverage/
+# 當建置失敗時，可以將所有檔案取出來看 log
+#  artifacts:
+#    when: on_failure
+#    name: "${CI_BUILD_STAGE}_${CI_BUILD_REF_NAME}_FAILED"
+#    paths:
+#      - "."
+#    untracked: false
+#    expire_in: 1 day
+
+
+pages:
+  stage: deploy
+  dependencies:
+    - phpunit:php7.2:mysql5.7
+  before_script:
+    - echo "before_script"
+  script:
+    - rm -r public
+    - mv coverage/ public/
+  after_script:
+    - echo "after_script"
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+

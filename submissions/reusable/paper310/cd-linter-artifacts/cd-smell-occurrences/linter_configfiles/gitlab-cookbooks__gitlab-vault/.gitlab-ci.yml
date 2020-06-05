@@ -1,0 +1,28 @@
+image: ruby:2.3
+
+stages:
+  - test
+  - publish
+
+before_script:
+  - ruby -v
+  - bundle install
+
+rspec:
+  stage: test
+  script:
+    - rspec -f d
+
+push-cookbook:
+  stage: publish
+  only:
+    refs:
+      - master
+    variables:
+      - $OPS_CLONE_USERNAME
+      - $OPS_CLONE_PASSWORD
+  script:
+    - git clone https://$OPS_CLONE_USERNAME:$OPS_CLONE_PASSWORD@ops.gitlab.net/gitlab-cookbooks/cookbook-publisher.git /tmp/cookbook-publisher
+    - cp /tmp/cookbook-publisher/publisher.rb .
+    - ruby publisher.rb
+

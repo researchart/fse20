@@ -1,0 +1,149 @@
+
+# Variables
+# STATE_GCS_BUCKET: bucket to store terraform state in
+# SSH_PRIVATE_KEY: private key for use of ansible to connect to hosts
+# SSH_PUBLIC_KEY: private key for use of ansible to connect to hosts
+# GCLOUD_CREDENTIALS_JSON: json block to use to connecto to gcloud
+# GCLOUD_ZONE: zone to deploy to
+# TF_VAR_prefix: prefix to use to uniquely identify resources created
+# TF_VAR_ssh_user: User to configure for ssh
+# TF_VAR_ssh_public_key: Public key for TF_VAR_ssh_user
+# postgresql_gitlab_consul_user_password: database password for consul user in HA cluster
+# postgresql_pgbouncer_user_password: database password for pgbouncer user in HA cluster
+# postgresql_sql_user_password: database password for gitlab user in HA cluster
+# PACKAGE_REPOSITORY_URL: Url to a custom repository to use to fetch the package
+# PACKAGE_REPOSITORY: packagecloud repository to use if not gitlab/gitlab-ee
+# PACKAGE_URL: URL to a custom package to download
+# QA_IMAGE: Image to use for QA
+# EE_LICENSE: EE License to install in the cluster for testing
+
+variables:
+  PUBLIC_BUILDER_IMAGE_REGISTRY: "registry.gitlab.com/gitlab-org/gitlab-omnibus-builder"
+  BUILDER_IMAGE_REVISION: "0.0.58"
+  TF_VAR_prefix: ""
+  TF_VAR_ssh_public_key: ""
+  ANSIBLE_BECOME_METHOD: "sudo"
+  PACKAGE_URL: "https://gitlab.com/api/v4/projects/14588374/jobs/${OMNIBUS_JOB_ID}/artifacts/pkg/ubuntu-xenial/gitlab.deb"
+  QA_CAN_TEST_GIT_PROTOCOL_V2: "false"
+  DOCKER_HOST: tcp://docker:2375
+  PIPELINE_ARTIFACTS_PATH: "pipeline_artifacts"
+
+image: "${PUBLIC_BUILDER_IMAGE_REGISTRY}/gitlab_provisioner:${BUILDER_IMAGE_REVISION}"
+
+stages:
+  - check
+  - create
+  - configure
+  - test
+  - cleanup-prep
+  - cleanup
+
+.env-init: &env-init
+  - export ORCHESTRATION_USER="ansible"
+  - export SRC_PATH="${CI_PROJECT_DIR}"
+  - export TERRAFORM_PREFIX="ci-pipeline-${CI_PIPELINE_ID}"
+  - export GCS_PREFIX="ci-pipeline-${CI_PIPELINE_ID}-terraform"
+  - export QA_IP_FILE="${SRC_PATH}/${PIPELINE_ARTIFACTS_PATH}/rc_gitlab_application_public_ip_address"
+  - export ANSIBLE_PATH="${SRC_PATH}/ansible"
+  - export TERRAFORM_PATH="${SRC_PATH}/terraform"
+  - export ANSIBLE_ASSETS="${SRC_PATH}/ci/ansible/"
+
+terraform-validate:
+  before_script:
+    - *env-init
+  stage: check
+  script:
+    - "${SRC_PATH}/scripts/deploy/validate-provisioner"
+  only:
+    - pushes
+    - merge_requests
+
+ansible-lint:
+  stage: check
+  script:
+    - cd ansible
+    - ansible-lint pg_ha.yml
+  only:
+    - pushes
+    - merge_requests
+
+.ansible-inventory:
+  before_script:
+    - *env-init
+    - mkdir -p "${HOME}/.ssh"
+    - chown 0700 "${HOME}/.ssh"
+    - export SSH_KNOWN_HOSTS_FILE="${HOME}/.ssh/known_hosts"
+    - "${SRC_PATH}/scripts/deploy/assemble-inventory"
+  only:
+    - triggers
+
+terraform-apply:
+  before_script:
+    - *env-init
+  stage: create
+  allow_failure: false
+  script:
+    - mkdir -p "${PIPELINE_ARTIFACTS_PATH}"
+    - "${SRC_PATH}/scripts/deploy/provision-cluster"
+  artifacts:
+    paths:
+    - "${PIPELINE_ARTIFACTS_PATH}"
+  only:
+    - triggers
+
+ansible-playbook:
+  extends: .ansible-inventory
+  stage: configure
+  script:
+    - "${SRC_PATH}/scripts/deploy/run-orchestration"
+  retry: 1
+
+gitlab-qa:
+  stage: test
+  image: registry.gitlab.com/gitlab-org/gitlab-build-images:gitlab-qa-alpine-ruby-2.6
+  variables:
+    DOCKER_DRIVER: overlay2
+    GITLAB_QA_GEM_VERSION: 4.19.0
+    QA_ARTIFACTS_DIR: $CI_PROJECT_DIR/qa
+  allow_failure: true
+  before_script:
+    - *env-init
+    - gem install gitlab-qa --no-document --version $GITLAB_QA_GEM_VERSION
+  script:
+    - . "${QA_IP_FILE}"
+    - '[[ -n "${QA_IMAGE##*dev.gitlab.org:5005*}" ]] || docker login --username "${DEV_REGISTRY_USERNAME}" --password "${DEV_REGISTRY_TOKEN}" dev.gitlab.org:5005'
+    - gitlab-qa Test::Instance::Any ${QA_IMAGE} http://${APPLICATION_PUBLIC_IP}/
+  services:
+      - docker:stable-dind
+  artifacts:
+    paths:
+      - qa
+    expire_in: 6 months
+    when: always
+  only:
+    - triggers
+  retry: 1
+
+# Fetch GitLab logs from the instance and make them available as artifacts
+fetch-logs:
+  extends: .ansible-inventory
+  stage: cleanup-prep
+  script:
+    - mkdir gitlab-logs
+    - "${SRC_PATH}/scripts/deploy/fetch-cluster-logs"
+  artifacts:
+    paths:
+      - ansible/gitlab-logs
+    expire_in: 1 week
+  when: always
+
+terraform-destroy:
+  before_script:
+    - *env-init
+  stage: cleanup
+  script:
+    - "${SRC_PATH}/scripts/deploy/deprovision-cluster"
+  when: always
+  only:
+    - triggers
+

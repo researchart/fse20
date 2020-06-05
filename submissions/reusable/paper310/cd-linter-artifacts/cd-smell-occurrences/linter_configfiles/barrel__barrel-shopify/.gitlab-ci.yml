@@ -1,0 +1,19 @@
+stages:
+  - test
+  - deploy
+test_git:
+  stage: test
+  script:
+    - bash scripts/git.sh
+  allow_failure: true
+image: barrelny/multipurpose-ci:0.0.14
+test_grammars:
+  stage: test
+  script:
+    - bash scripts/test_grammars.sh
+deploy:
+  stage: deploy
+  when: manual
+  script:
+    - bash scripts/deployments.sh
+

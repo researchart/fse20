@@ -1,0 +1,11 @@
+# This file is a template, and might need editing before it works on your project.
+# Unofficial language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/scorpil/rust/tags/
+image: "scorpil/rust:beta"
+
+# Use cargo to test the project
+test:cargo:
+  script:
+  - cargo build --verbose
+  - cargo test --verbose
+

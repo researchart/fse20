@@ -1,0 +1,20 @@
+image: java:8
+
+before_script:
+  - echo "deb [check-valid-until=no] http://cdn-fastly.deb.debian.org/debian jessie main" > /etc/apt/sources.list.d/jessie.list
+  - echo "deb [check-valid-until=no] http://archive.debian.org/debian jessie-backports main" > /etc/apt/sources.list.d/jessie-backports.list
+  - sed -i '/deb http:\/\/\(deb\|httpredir\).debian.org\/debian jessie.* main/d' /etc/apt/sources.list
+  - echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf
+  - apt-get update -y
+  - apt-get install apt-transport-https -y
+  # Install SBT
+  - echo "deb http://dl.bintray.com/sbt/debian /" | tee -a /etc/apt/sources.list.d/sbt.list
+  - apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 642AC823
+  - apt-get update -y
+  - apt-get install sbt=0.13.8 -y
+  - sbt sbt-version
+
+test:
+  script:
+    - sbt clean coverage verification-test:test scalastyle coverageReport
+

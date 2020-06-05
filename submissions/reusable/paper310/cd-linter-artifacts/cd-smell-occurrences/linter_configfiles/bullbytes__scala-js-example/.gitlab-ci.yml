@@ -1,0 +1,48 @@
+image: logimethods/docker-sbt-docker
+
+services:
+  # We start the Docker daemon to be able to pull and push images
+  # This should also include docker-compose: https://docs.gitlab.com/ce/ci/docker/using_docker_build.html#use-docker-in-docker-executor
+  - docker:dind
+
+variables:
+  # When using Docker in Docker, it's wise to use the overlayfs driver for improved performance.
+  # See https://docs.gitlab.com/ce/ci/docker/using_docker_build.html
+  DOCKER_DRIVER: overlay
+  # This should prevent SBT from running out of memory when compiling
+  SBT_OPTS: "-Xmx2G -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -Xss2M"
+
+# Jobs of a stage run in parallel. When all jobs of one stage have succeeded, the jobs of the next stage start
+stages:
+  - test
+#  - publish
+  - deploy
+
+# Provides utility functions for using Docker such as "docker_login" and "docker_retag_and_push"
+before_script:
+- source ci/docker_util.sh
+
+# GitLab Runner will run the jobs specified here
+run_specifications:
+  stage: test
+  script:
+    - sbt "project appJVM" test
+
+# We build the application, create a Docker image from it, and push it to GitLab's registry
+#build_image_and_push_to_registry:
+#  stage: publish
+#  script:
+#  # Log in to GitLab so we can push the image to the GitLab Docker registry
+#  - docker_login
+#  # In build.sbt we tag the image with the value of CI_BUILD_REF which is set by the GitLab Runner
+#  - sbt appJVM/dockerBuildAndPush
+#  # Retag the image with the "staging" tag
+#  - docker_retag_and_push $CI_BUILD_REF staging
+
+deploy_to_staging:
+  stage: deploy
+  script:
+  - echo "Pretending to deploy"
+  - curl google.com
+  when: manual
+

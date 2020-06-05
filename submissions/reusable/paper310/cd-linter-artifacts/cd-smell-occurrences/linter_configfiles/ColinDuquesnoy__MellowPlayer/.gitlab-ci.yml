@@ -1,0 +1,118 @@
+stages:
+    - build
+    - tests
+    - package
+    - deploy
+
+variables:
+    APP_VERSION: '3.6.0'
+
+.linux:
+    image: registry.gitlab.com/colinduquesnoy/mellowplayer/build-images/linux:latest
+    variables:
+        QT_QPA_PLATFORM: 'offscreen'
+        CMAKE_PREFIX_PATH: '/opt/qt/5.11.2/gcc_64'
+    tags:
+        - linux
+
+build:release:
+    extends: .linux
+    stage: build
+    script:
+        - ./scripts/ci/linux/build-release.sh
+    artifacts:
+        name: "build-release"
+        paths:
+            - build
+            - appdir
+
+build:debug:
+    extends: .linux
+    stage: build
+    script:
+        - ./scripts/ci/linux/build-debug.sh
+    artifacts:
+        name: "build-debug"
+        paths:
+            - build
+
+tests:
+    extends: .linux
+    stage: tests
+    dependencies:
+        - build:release
+    script:
+        - ./scripts/ci/linux/tests.sh
+
+coverage:
+    extends: .linux
+    stage: tests
+    dependencies:
+        - build:debug
+    script:
+        - ./scripts/ci/linux/coverage.sh
+    after_script:
+        - yum -y install curl
+        - bash <(curl -s https://codecov.io/bash) -t "${CODECOV_TOKEN}" -f build/coverage.info.cleaned
+
+appimage:
+    extends: .linux
+    stage: package
+    script:
+        - scripts/packaging/make_appimage.sh  ${CMAKE_PREFIX_PATH}
+    dependencies:
+        - build:release
+    artifacts:
+        name: "AppImage"
+        paths:
+            - MellowPlayer-x86_64.AppImage
+
+flatpak:
+    image: registry.gitlab.com/colinduquesnoy/mellowplayer/build-images/flatpak:latest
+    stage: package
+    tags:
+        - linux
+    script:
+        - ./scripts/packaging/make-flatpak.sh
+    artifacts:
+        name: "Flatpak"
+        paths:
+            - MellowPlayer.flatpak
+
+deploy:continuous:
+    image: alpine:latest
+    stage: deploy
+    only:
+        - master@ColinDuquesnoy/MellowPlayer
+    dependencies:
+        - appimage
+        - flatpak
+    script:
+        - apk add --no-cache curl git
+        - curl -T ./MellowPlayer-x86_64.AppImage -ucolinduquesnoy:${BINTRAY_API_KEY} "https://api.bintray.com/content/colinduquesnoy/MellowPlayer/Continuous/${APP_VERSION}.$(git rev-list HEAD --count)/continuous/${APP_VERSION}.$(git rev-list HEAD --count)/MellowPlayer-x86_64.AppImage?publish=1&override=1&explode=0"
+        - curl -T ./MellowPlayer.flatpak -ucolinduquesnoy:${BINTRAY_API_KEY} "https://api.bintray.com/content/colinduquesnoy/MellowPlayer/Continuous/${APP_VERSION}.$(git rev-list HEAD --count)/continuous/${APP_VERSION}.$(git rev-list HEAD --count)/MellowPlayer.flatpak?publish=1&override=1&explode=0"
+
+deploy:stable:
+    image: alpine:latest
+    stage: deploy
+    only:
+        - tags
+    dependencies:
+        - appimage
+        - flatpak
+    script:
+        - apk add --no-cache curl
+        - curl -v -T ./MellowPlayer-x86_64.AppImage -ucolinduquesnoy:${BINTRAY_API_KEY} "https://api.bintray.com/content/colinduquesnoy/MellowPlayer/Stable/${APP_VERSION}/stable/${APP_VERSION}/MellowPlayer-x86_64.AppImage?publish=1&override=1&explode=0"
+        - curl -v -T ./MellowPlayer.flatpak -ucolinduquesnoy:${BINTRAY_API_KEY} "https://api.bintray.com/content/colinduquesnoy/MellowPlayer/Stable/${APP_VERSION}/stable/${APP_VERSION}/MellowPlayer.flatpak?publish=1&override=1&explode=0"
+
+pages:
+    image: alpine:latest
+    stage: deploy
+    script:
+        - echo 'Nothing to do...'
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+

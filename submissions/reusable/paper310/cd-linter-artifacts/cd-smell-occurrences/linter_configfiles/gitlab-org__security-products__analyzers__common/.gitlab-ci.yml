@@ -1,0 +1,33 @@
+image: golang:1.13.7
+
+before_script:
+  - mkdir -p /go/src/gitlab.com/${CI_PROJECT_PATH}
+  - cp -r . /go/src/gitlab.com/${CI_PROJECT_PATH}
+  - cd /go/src/gitlab.com/${CI_PROJECT_PATH}
+  - echo $PWD
+  - echo $CI_PROJECT_PATH
+
+test:
+  script:
+    - go get -t ./...
+    - go test -race -cover -v ./...
+  coverage: '/coverage: \d+.\d+% of statements/'
+
+lint_code:
+  script:
+    # Workaround for broken 'go get golang.org/x/lint' due to Google hosting problems
+    - mkdir -p /go/src/golang.org/x
+    - git clone --quiet https://github.com/golang/lint /go/src/golang.org/x/lint
+    - cd /go/src/golang.org/x/lint
+    - go get ./...
+    - go install golang.org/x/lint/golint
+    - cd ${CI_PROJECT_DIR}
+    - golint -set_exit_status $(go list ./... | grep -v "vendor/")
+
+include:
+  - template: SAST.gitlab-ci.yml
+
+# TODO: Remove this overriding section when the top-level before_script is moved to either job test or lint_code
+sast:
+  before_script: []
+

@@ -1,0 +1,40 @@
+image: briandawn/clojurebridgemn:latest
+
+
+variables:
+  BOOT_AS_ROOT: "yes"
+  BOOT_HOME: ".boot/"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2"
+  LEIN_HOME: ".lein/"
+
+cache:
+  paths:
+    - .boot/
+    - .m2/
+    - .lein/
+
+test-build:
+  stage: build
+  except:
+    - master
+  script:
+    - boot build-prod
+
+pages:
+  stage: deploy
+  only:
+    - master
+  except:
+    - schedules
+  script:
+    - boot build-prod
+    - mv target/public ./public
+    - mkdir -p public/.well-known/acme-challenge
+    - mv letsencrypt/* public/.well-known/acme-challenge/
+
+  artifacts:
+    paths:
+      - public/
+
+
+

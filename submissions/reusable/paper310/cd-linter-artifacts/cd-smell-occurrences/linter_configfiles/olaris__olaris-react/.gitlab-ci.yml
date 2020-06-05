@@ -1,0 +1,19 @@
+image: node:10.9.0-alpine
+
+variables:
+
+before_script:
+  - apk add --no-cache git
+  - yarn install
+
+stages:
+    - build
+
+compile:
+    stage: build
+    script:
+      - yarn build
+    artifacts:
+      paths:
+        - build/
+

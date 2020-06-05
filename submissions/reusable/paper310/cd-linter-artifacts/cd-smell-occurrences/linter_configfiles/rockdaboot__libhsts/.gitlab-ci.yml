@@ -1,0 +1,161 @@
+variables:
+  BUILD_IMAGES_PROJECT: rockdaboot/build-images
+  DEBIAN_BUILD: buildenv-debian-sid
+  FEDORA_BUILD: buildenv-f27
+  CENTOS7_BUILD: buildenv-centos7
+  GET_SOURCES_ATTEMPTS: "3"
+
+# In this build we combine
+#  * fuzz/ building
+#  * build/valgrind-check
+Debian Valgrind:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
+  script:
+  - autoreconf -fi
+  - ./configure --disable-doc --enable-valgrind-tests
+  - make -j$(nproc) check
+#  - make -j$(nproc) -C fuzz
+  tags:
+  - shared
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - tests/*.log
+
+# In this build we combine
+#  * syntax-check
+#  * abi-check
+#  * distcheck
+# It is not run on tags
+Debian Distcheck:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
+  script:
+  - autoreconf -fi
+  - CFLAGS="-g -Og" ./configure --disable-doc
+  - make -j$(nproc)
+  - make clean
+  - CFLAGS="-g -Og" ./configure
+  - make -j$(nproc)
+  - DISTCHECK_CONFIGURE_FLAGS=--disable-gtk-doc make distcheck
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - tests/*.log
+      - compat_reports/
+
+# In this build we combine
+#  * build/asan-check
+#  * build w/Werror and ubsan-check
+Debian ASAN/UBSAN:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
+  script:
+  - autoreconf -fi
+  - export CC=clang
+  - export CFLAGS="-fsanitize=address -g -O0"
+  - ASAN_OPTIONS=detect_leaks=0 ./configure --disable-doc
+  - make -j$(nproc) check
+  - make clean
+  - export CFLAGS="-fsanitize=undefined,integer -fno-sanitize-recover=undefined,integer -g -O0 -Wall -Wextra -Werror"
+  - ./configure --disable-doc
+  - make -j$(nproc) check
+  tags:
+  - shared
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - tests/*.log
+      - ./*.log
+
+Centos7:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$CENTOS7_BUILD
+  script:
+  - autoreconf -fi && ./configure --disable-doc && make -j$(nproc) check
+  tags:
+  - shared
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - tests/*.log
+      - compat_reports/
+
+Fedora Clang-analyzer:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  script:
+  - autoreconf -fi
+  - scan-build ./configure --disable-doc
+  - scan-build --status-bugs -o scan-build-lib make -j$(nproc)
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - scan-build-lib/*
+
+pages:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
+  script:
+  - autoreconf -fi
+  - CFLAGS="-g -O0" ./configure --disable-doc
+  - make -j$(nproc) check
+  - make check-coverage
+  - mkdir -p public
+  - rm -rf public/coverage
+  - mv lcov public/coverage
+  - rm -rf public/reference
+  - mv docs/html public/reference
+  tags:
+  - shared
+  artifacts:
+    when: on_success
+    paths:
+      - public
+  only:
+    - master
+
+# Target to run code coverage on non-master branches. That is intended
+# to ensure that compilation in master will not break the pages rule.
+pages-test:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
+  script:
+  - autoreconf -fi
+  - CFLAGS="-g -O0" ./configure
+  - make -j$(nproc) check
+  - make check-coverage
+  tags:
+  - shared
+  except:
+    - master
+
+MinGW64:
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  before_script:
+  - mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc &&
+    echo ':DOSWin:M::MZ::/usr/bin/wine64:' > /proc/sys/fs/binfmt_misc/register
+  script:
+  - autoreconf -fi
+  - mingw64-configure --disable-valgrind-tests --disable-doc
+  - mingw64-make -j$(nproc)
+  - mingw64-make -j$(nproc) check
+  tags:
+  - shared
+  - docker
+  except:
+  - tags
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - ./*.log
+      - tests/*.log
+

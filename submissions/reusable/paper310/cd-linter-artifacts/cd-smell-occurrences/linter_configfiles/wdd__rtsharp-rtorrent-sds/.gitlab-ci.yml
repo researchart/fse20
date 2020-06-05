@@ -1,0 +1,31 @@
+stages:
+ - relay
+ - sds
+
+relay:
+  stage: relay
+  image: dutov/dmd
+  script: 
+    - 'cd RTSrtorrentRelay'
+    - 'apt-get update && apt-get -y install libssl-dev libevent-dev'
+    - 'dub -v build'
+  artifacts:
+    paths:
+      - RTSrtorrentRelay/rtsrtorrentrelay
+
+sds:
+  stage: sds
+  image: mono
+  script:
+    - 'apt-get update'
+    - 'apt-get -y install git'
+    - 'git clone https://gitlab.com/wdd/rt-sharp.git ../rtsharp'
+    - 'cd ../rtsharp/RTSharpPlugin'
+    - 'nuget install packages.config'
+    - 'cd ../../rtsharp-rtorrent-sds/RTSharp-rtorrent-SDS'
+    - 'nuget install packages.config'
+    - 'xbuild /t:Build /p:Configuration=Debug /p:Platform="AnyCPU" RTSharp-rtorrent-SDS.csproj'
+  artifacts:
+    paths:
+      - RTSharp-rtorrent-SDS/bin/Debug/RTSharp-rtorrent-SDS.dll
+

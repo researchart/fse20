@@ -1,0 +1,344 @@
+variables:
+  TERRAFORM_DIR: ${CI_PROJECT_DIR}/terraform
+  TERRAFORM_VERSION: 0.11.7
+  DOCKER_IMAGE_TAG: ${CI_REGISTRY}/gitlab-com/environments/client:${CI_COMMIT_TAG}
+
+stages:
+  - trigger
+  - terraform_check
+  - terraform_plan
+  - deploy_gke
+  - setup_gke
+  - deploy_pets
+  - deploy_gitlab
+
+### Start of the trigger phase
+
+build_client_image:
+  stage: trigger
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay2
+  services:
+    - docker:dind
+  script:
+    - echo ${CI_JOB_TOKEN} | docker login -u gitlab-ci-token --password-stdin ${CI_REGISTRY}
+    - docker pull ${DOCKER_IMAGE_TAG} && exit 0
+    - docker build --no-cache ${CI_PROJECT_DIR}/dockerfiles/environments_client -t ${DOCKER_IMAGE_TAG}
+    - docker push ${DOCKER_IMAGE_TAG}
+  only:
+    - tags
+  except:
+    - triggers
+    - pipeline
+
+# This sets the environment variable and triggers the pipeline. All other
+# variables will be set by Terraform when parsing the environment manifest.
+trigger:
+  stage: trigger
+  image: alpine:latest
+  script: |
+    #!/bin/sh
+    apk add --no-cache curl ca-certificates && update-ca-certificates
+    ENVIRONMENT=${CI_COMMIT_TAG%%_*}
+    test -z "${ENVIRONMENT}" && echo "No commit tag found" && exit 1
+    echo
+    echo ">>>>> Triggering a pipeline for ${ENVIRONMENT}"
+    echo
+    curl -s --request POST \
+    --form token=${TERRAFORM_TRIGGER} \
+    --form ref=${CI_COMMIT_REF_NAME} \
+    --form "variables[ENVIRONMENT]=${ENVIRONMENT}" \
+    https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/trigger/pipeline
+    echo
+    echo 'Done!'
+  only:
+    - tags
+  except:
+    - triggers
+    - pipeline
+
+### End of the trigger phase
+
+### Start of the deploy phase
+
+##### Templates
+
+.terraform: &terraform
+  image:
+    name: hashicorp/terraform:${TERRAFORM_VERSION}
+    entrypoint: ["/bin/sh", "-c"]  # See https://gitlab.com/gitlab-org/gitlab-runner/issues/2692#note_50147081
+  before_script:
+    # $GOOGLE_APPLICATION_CREDENTIALS is needed in the environment because it's
+    # what Terraform uses to locate the keyfile
+    - export GOOGLE_APPLICATION_CREDENTIALS="${TERRAFORM_DIR}/.google_keyfile.json"
+    - echo ${GOOGLE_CLOUD_KEYFILE_JSON} > ${GOOGLE_APPLICATION_CREDENTIALS}
+    # $CHEF_PRIVATE_KEY_FILE is needed in the environment because it's what
+    # the Chef provider in Terraform uses to locate the private key
+    - export CI_PRIVATE_CHEF_KEY_FILE="${TERRAFORM_DIR}/.chef.pem"
+    - echo "${CHEF_USER_PEMFILE_CONTENT}" > ${CI_PRIVATE_CHEF_KEY_FILE}
+    - cd ${TERRAFORM_DIR}
+    - terraform init -backend-config="bucket=gitlab-com-infrastructure" -backend-config="prefix=environments/terraform-states"
+    - terraform workspace select ${ENVIRONMENT} || terraform workspace new ${ENVIRONMENT}
+
+.environments_client: &environments_client
+  image:
+    name: ${DOCKER_IMAGE_TAG}
+  before_script:
+    - source ${CI_PROJECT_DIR}/environment_details-${ENVIRONMENT}-${CI_COMMIT_TAG}
+    - echo "Setting up GCloud"
+    - echo ${GOOGLE_CLOUD_KEYFILE_JSON} > /tmp/google.json
+    - gcloud auth activate-service-account --key-file /tmp/google.json
+    - rm /tmp/google.json
+    - export ZONE=`gcloud --project=${PROJECT} --format json container clusters list | jq -r --arg cluster_name "${CLUSTER_NAME}" '.[] | select( .name == $cluster_name ).zone'`
+    - export REGION=${ZONE%-*}
+    # Secrets coordinates for keys management
+    - export SECRETS_BUCKET_NAME="gitlab-${PROJECT}-secrets"
+    - export SECRETS_OBJECT_NAME="${CLUSTER_NAME}-consul-gossip-key"
+    # Set up Helm
+    - gcloud container clusters get-credentials ${CLUSTER_NAME} --zone ${ZONE} --project ${PROJECT}
+    - echo "Setting up Helm"
+    - echo "Checking Service Account..."
+    - kubectl --namespace kube-system get serviceaccount tiller &>/dev/null || kubectl --namespace kube-system create serviceaccount tiller
+    - kubectl get clusterrolebinding tiller-binding &>/dev/null || kubectl create clusterrolebinding tiller-binding --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+    - echo "Checking Tiller..."
+    - helm init --upgrade --service-account tiller
+    - kubectl rollout status -n "kube-system" -w "deployment/tiller-deploy"
+    - if ! helm version --debug; then echo "Failed to init Tiller."; return 1 ; fi
+    - echo "Tiller is ready. Moving on."
+
+##### Jobs
+
+format:
+  <<: *terraform
+  stage: terraform_check
+  script: |
+    #!/bin/sh
+    set -euo pipefail
+    fmt_diff=$(find . -name "*.tf" | xargs -I{} terraform fmt -write=false {} | sed '/^\s*$/d')
+    if test -n "$fmt_diff"
+    then
+      echo "******* Terraform formatting error:"
+      echo
+      echo $fmt_diff
+      exit 1
+    fi
+    echo "The configuration is correctly formatted"
+  only:
+    - triggers
+
+validate:
+  <<: *terraform
+  stage: terraform_check
+  # Validate every directory that contains terraform config
+  # (`terraform validate` does not do a full recurse)
+  script: |
+    #!/bin/sh
+    set -euo pipefail
+    tf_opts="-check-variables=false -var-file=../environments/${ENVIRONMENT}.tf"
+    terraform init -backend=false
+    dirs_to_check=$(find . -name "*.tf" -type f -exec dirname {} \; | sort | uniq)
+    for d in $dirs_to_check
+    do
+      echo -n "Validating ${d}... "
+      terraform validate $tf_opts "${d}"
+      echo "Done"
+    done
+    echo "Validation successful"
+  only:
+    - triggers
+
+plan:
+  <<: *terraform
+  stage: terraform_plan
+  script:
+    - terraform plan -input=false -var-file=../environments/${ENVIRONMENT}.tf
+  only:
+    - triggers
+
+deploy_gke:
+  <<: *terraform
+  stage: deploy_gke
+  script: |
+    terraform apply \
+      -input=false \
+      -auto-approve \
+      -var-file=../environments/${ENVIRONMENT}.tf \
+      -target=module.gke.google_container_cluster.cluster \
+      -target=module.gke.kubernetes_namespace.inf
+    export DNS_ZONE_NAME=$(echo "var.dns_zone_name" | terraform console -var-file ../environments/${ENVIRONMENT}.tf)
+    cat << EOF > ${CI_PROJECT_DIR}/environment_details-${ENVIRONMENT}-${CI_COMMIT_TAG}
+    export PROJECT=$(echo "var.project" | terraform console -var-file ../environments/${ENVIRONMENT}.tf)
+    export DNS_ZONE_NAME=$DNS_ZONE_NAME
+    export CLUSTER_NAME="${ENVIRONMENT}-${DNS_ZONE_NAME}"
+    export FQDN="${DNS_ZONE_NAME%*-*}.${DNS_ZONE_NAME##*-}"
+    EOF
+    echo "Coordinates:"
+    cat ${CI_PROJECT_DIR}/environment_details-${ENVIRONMENT}-${CI_COMMIT_TAG}
+  artifacts:
+    paths:
+      - ${CI_PROJECT_DIR}/environment_details-${ENVIRONMENT}-${CI_COMMIT_TAG}
+    when: on_success
+    expire_in: 1h
+  only:
+    - triggers
+
+# This job ensures that the GKMS keyring for this environment is present and
+# contains an encryption key to use for sharing secrets between GKE and pets.
+# It also ensures the GCS bucket where secrets will be stored is present.
+setup_gkms:
+  <<: *environments_client
+  stage: setup_gke
+  script: |
+    # Ensure the keyring is present
+    (gcloud kms keyrings list \
+      --project ${PROJECT} \
+      --location ${REGION} \
+      --filter "name:${CLUSTER_NAME}" \
+      --format json | \
+    jq '.[0].name' -e &>/dev/null) || (gcloud kms keyrings create \
+      --project ${PROJECT} \
+      ${CLUSTER_NAME} \
+      --location ${REGION} && echo "Keyring created")
+    # Ensure the encryption key is present
+    (gcloud kms keys list \
+      --project ${PROJECT} \
+      --location ${REGION} \
+      --keyring ${CLUSTER_NAME} \
+      --filter 'name:encryption_key' \
+      --format json | jq '.[0].name' -e &>/dev/null) || (gcloud kms keys create encryption_key \
+        --project ${PROJECT} \
+        --location ${REGION} \
+        --keyring ${CLUSTER_NAME} \
+        --purpose encryption && echo "Encryption key created")
+    # Ensure the secrets bucket is present
+    echo "Creating the secrets bucket"
+    gsutil mb gs://${SECRETS_BUCKET_NAME} 2>/dev/null || true
+    # Generate the Postgres passwords
+    echo "Generating the Postgres passwords"
+    PGBOUNCER_PASSWORD=$(echo -n "${PGBOUNCER_PASSWORD}pgbouncer" | md5sum - | cut -d ' ' -f 1)
+    ROOT_PASSWORD=$(echo -n "${ROOT_PASSWORD}gitlab" | md5sum - | cut -d ' ' -f 1)
+    echo "
+    {
+      \"omnibus-gitlab\": {
+        \"gitlab_rb\": {
+          \"pgbouncer\": {
+            \"databases\": {
+              \"gitlabhq_production\": {
+                \"password\": \"${PGBOUNCER_PASSWORD}\"
+              },
+              \"gitlabhq_production_sidekiq\": {
+                \"password\": \"${PGBOUNCER_PASSWORD}\"
+              }
+            }
+          },
+          \"postgresql\": {
+            \"pgbouncer_user_password\": \"${PGBOUNCER_PASSWORD}\",
+            \"sql_user_password\": \"${ROOT_PASSWORD}\"
+          }
+        }
+      }
+    }" | \
+      gcloud kms encrypt \
+        --project ${PROJECT} \
+        --keyring=${CLUSTER_NAME} \
+        --location=${REGION} \
+        --key=encryption_key \
+        --plaintext-file=- \
+        --ciphertext-file=- | gsutil cp - "gs://${SECRETS_BUCKET_NAME}/${CLUSTER_NAME}-postgres-secrets"
+    kubectl get secret postgres-secrets &>/dev/null || \
+      kubectl create secret generic postgres-secrets --from-literal=root_password="$ROOT_PASSWORD"
+    # Generate the Pgbouncer passwords (not needed in gke)
+    echo "Generating the Pgbouncer passwords"
+    GITLAB_CONSUL_PASSWORD=$(echo -n "${GITLAB_CONSUL_PASSWORD}gitlab-consul" | md5sum - | cut -d ' ' -f 1)
+    echo "
+    {
+      \"omnibus-gitlab\": {
+        \"gitlab_rb\": {
+          \"pgbouncer\": {
+            \"users\": {
+              \"pgbouncer\": {
+                \"password\": \"${PGBOUNCER_PASSWORD}\"
+              },
+              \"gitlab-consul\": {
+                \"password\": \"${GITLAB_CONSUL_PASSWORD}\"
+              }
+            }
+          }
+        }
+      }
+    }" | \
+      gcloud kms encrypt \
+        --project ${PROJECT} \
+        --keyring=${CLUSTER_NAME} \
+        --location=${REGION} \
+        --key=encryption_key \
+        --plaintext-file=- \
+        --ciphertext-file=- | gsutil cp - "gs://${SECRETS_BUCKET_NAME}/${CLUSTER_NAME}-pgbouncer-secrets"
+  only:
+    - triggers
+
+consul:
+  <<: *environments_client
+  stage: setup_gke
+  script: |
+    cd "${CI_PROJECT_DIR}/kubernetes"
+    GOSSIP_KEY=$(echo -n "${GOSSIP_SEED}${CLUSTER_NAME}" | md5sum - | cut -c -32)
+    kubectl -n inf get secret ${CLUSTER_NAME}-consul-gossip-key &>/dev/null || \
+      kubectl -n inf create secret generic ${CLUSTER_NAME}-consul-gossip-key --from-literal=gossip-key="$GOSSIP_KEY"
+    helm upgrade --install --wait ${CLUSTER_NAME}-consul consul -f consul/values.yaml --namespace inf
+    echo "Updating the shared Consul gossip key"
+    echo "
+      {\"omnibus-gitlab\":
+        {\"gitlab_rb\":
+          {\"consul\":
+            {\"configuration\":
+              {\"encrypt\": \"$(echo -n ${GOSSIP_KEY} | base64)\"}
+            }
+          }
+        }
+      }" | \
+      gcloud kms encrypt \
+        --project ${PROJECT} \
+        --keyring=${CLUSTER_NAME} \
+        --location=${REGION} \
+        --key=encryption_key \
+        --plaintext-file=- \
+        --ciphertext-file=- | gsutil cp - gs://${SECRETS_BUCKET_NAME}/${SECRETS_OBJECT_NAME}
+    echo "Configuring stub-domains"
+    CONSUL_IP=$(kubectl -n inf get service ${CLUSTER_NAME}-consul-dns --template '{{.spec.clusterIP}}')
+    kubectl -n kube-system get configmap kube-dns -o json | jq \
+      --arg stubDomains '{"service.inf.consul": ["'$CONSUL_IP'"], "node.inf.consul": ["'$CONSUL_IP'"]}' \
+      '.data.stubDomains = $stubDomains | del(.metadata.resourceVersion)' | kubectl -n kube-system apply -f -
+  only:
+    - triggers
+
+prometheus:
+  <<: *environments_client
+  stage: setup_gke
+  script: |
+    cd "${CI_PROJECT_DIR}/kubernetes"
+    sed 's/CONSUL_TEMPLATE_SERVICE/'"${CLUSTER_NAME}"'/g' -i prometheus/values.yaml
+    helm upgrade --install --wait ${CLUSTER_NAME}-prometheus prometheus -f prometheus/values.yaml --namespace inf
+  only:
+    - triggers
+
+
+deploy_pets:
+  <<: *terraform
+  stage: deploy_pets
+  script:
+    - terraform apply -input=false -auto-approve -var-file=../environments/${ENVIRONMENT}.tf
+  only:
+    - triggers
+
+deploy_gitlab:
+  <<: *environments_client
+  stage: deploy_gitlab
+  script:
+    - $CI_PROJECT_DIR/scripts/deploy-gitlab-charts.sh
+  only:
+    - triggers
+
+### End of the deploy phase
+

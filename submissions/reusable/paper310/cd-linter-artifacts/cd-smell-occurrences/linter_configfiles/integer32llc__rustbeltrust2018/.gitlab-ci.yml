@@ -1,0 +1,11 @@
+pages:
+  stage: deploy
+  script:
+  - curl -L https://github.com/getzola/zola/releases/download/v0.5.1/zola-v0.5.1-x86_64-unknown-linux-gnu.tar.gz | tar xzf -
+  - ./zola build
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

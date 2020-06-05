@@ -1,0 +1,40 @@
+cargo-test:
+  image: rust:latest
+  variables:
+    CARGO_HOME: "$CI_PROJECT_DIR/cache/"
+  cache:
+    paths:
+      - "cache"
+  before_script:
+    - rustc -V
+  script:
+    - cargo test
+
+cargo-lint:
+  image: rust:latest
+  variables:
+    CARGO_HOME: "$CI_PROJECT_DIR/cache/"
+  cache:
+    paths:
+      - "cache"
+  before_script:
+    - rustc -V
+    - rustup component add clippy
+  script:
+    - cargo clippy
+
+pages:
+  image: node:lts-stretch
+  cache:
+    paths:
+      - site/node_modules/
+  before_script:
+    - (cd site && yarn install)
+  script:
+    - (cd site && yarn run hexo generate)
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

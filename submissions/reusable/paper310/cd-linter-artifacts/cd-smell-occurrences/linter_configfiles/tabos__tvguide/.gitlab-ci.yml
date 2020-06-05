@@ -1,0 +1,42 @@
+stages:
+- test
+
+variables:
+    # Replace with your preferred file name of the resulting Flatpak bundle
+    BUNDLE: "tvguide-git.flatpak"
+
+flatpak:
+    image: 'registry.gitlab.gnome.org/gnome/gnome-runtime-images/gnome:master'
+    stage: test
+    variables:
+        # Replace with your manifest path
+        MANIFEST_PATH: "org.tabos.tvguide.json"
+        RUNTIME_REPO: "https://sdk.gnome.org/gnome-nightly.flatpakrepo"
+        # Replace with your application name, as written in the manifest
+        FLATPAK_MODULE: "tvguide"
+        # Make sure to keep this in sync with the Flatpak manifest, all arguments
+        # are passed except the config-args because we build it ourselves
+        MESON_ARGS: ""
+        DBUS_ID: "org.tabos.tvguide"
+
+    script:
+        - flatpak-builder --stop-at=${FLATPAK_MODULE} app ${MANIFEST_PATH}
+        # Make sure to keep this in sync with the Flatpak manifest, all arguments
+        # are passed except the config-args because we build it ourselves
+        - flatpak build app meson --prefix=/app ${MESON_ARGS} _build
+        - flatpak build app ninja -C _build install
+        - flatpak-builder --finish-only --repo=repo app ${MANIFEST_PATH}
+        # Generate a Flatpak bundle
+        - flatpak build-bundle repo ${BUNDLE} --runtime-repo=${RUNTIME_REPO} ${DBUS_ID}
+        # Run automatic tests inside the Flatpak env
+        - flatpak build app ninja -C _build test
+    artifacts:
+        paths:
+            - ${BUNDLE}
+            - _build/meson-logs/meson-log.txt
+            - _build/meson-logs/testlog.txt
+        expire_in: 30 days
+    cache:
+        paths:
+             - .flatpak-builder/cache
+

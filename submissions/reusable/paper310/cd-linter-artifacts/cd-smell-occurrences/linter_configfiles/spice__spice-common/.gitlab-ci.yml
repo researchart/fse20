@@ -1,0 +1,19 @@
+image: fedora:latest
+
+before_script:
+  - >
+    dnf install 'dnf-command(copr)' git libtool make libasan
+    python3 python3-six python3-pyparsing glib-networking
+    -y
+  - dnf copr enable @spice/nightly -y
+  - dnf builddep spice -y
+
+makecheck:
+  script:
+  - >
+    CFLAGS='-O2 -pipe -g -fsanitize=address -fno-omit-frame-pointer -Wframe-larger-than=40920'
+    LDFLAGS='-fsanitize=address -lasan'
+    ./autogen.sh --enable-extra-checks --enable-celt051
+  - make
+  - make check || (cat tests/test-suite.log && exit 1)
+

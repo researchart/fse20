@@ -1,0 +1,12 @@
+image: python:latest
+
+run:
+  script:
+  - apt-get update && apt-get install -y fortune-mod fortunes
+  - pip install toot
+  - mkdir -p ~/.config/toot/instances
+  - echo -e "$TOOT_LOGIN_INFORMATION" >~/.config/toot/user.cfg
+  - echo -e "$TOOT_INSTANCE_INFORMATION" >~/.config/toot/instances/$TOOT_INSTANCE
+  - toot auth
+  - if [ "$DO_TOOT" ]; then if toot auth | grep -vF "You are not logged in" ; then bash run.sh; else echo Login failure.; exit 1; fi; else echo DO_TOOT is not set, skipping.; fi
+

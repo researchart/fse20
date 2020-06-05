@@ -1,0 +1,298 @@
+image: registry.gitlab.com/offa/docker-images/docker-build:stable
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+services:
+  - docker:dind
+
+
+before_script:
+  - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+
+
+
+# ----------------------------------
+# Stm32-eth Image Build
+# ----------------------------------
+.stm32-eth_template: &stm32-eth_job_definition
+  variables:
+    DEPLOY_REGISTRY: ${CI_REGISTRY_IMAGE}/dist-stm32
+
+stm32-eth_gcc-9:
+  <<: *stm32-eth_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/stm32-eth stm32-eth
+    - cd stm32-eth
+    - ../script/build-image.sh gcc-9 .
+
+stm32-eth_gcc-8:
+  <<: *stm32-eth_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/stm32-eth stm32-eth
+    - cd stm32-eth
+    - ../script/build-image.sh gcc-8 .
+
+stm32-eth_gcc-7:
+  <<: *stm32-eth_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/stm32-eth stm32-eth
+    - cd stm32-eth
+    - ../script/build-image.sh gcc-7 .
+
+stm32-eth_gcc-6:
+  <<: *stm32-eth_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/stm32-eth stm32-eth
+    - cd stm32-eth
+    - ../script/build-image.sh gcc-6 .
+
+stm32-eth_clang-9:
+  <<: *stm32-eth_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/stm32-eth stm32-eth
+    - cd stm32-eth
+    - ../script/build-image.sh clang-9 .
+
+stm32-eth_clang-8:
+  <<: *stm32-eth_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/stm32-eth stm32-eth
+    - cd stm32-eth
+    - ../script/build-image.sh clang-8 .
+
+stm32-eth_clang-7:
+  <<: *stm32-eth_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/stm32-eth stm32-eth
+    - cd stm32-eth
+    - ../script/build-image.sh clang-7 .
+
+stm32-eth_clang-6:
+  <<: *stm32-eth_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/stm32-eth stm32-eth
+    - cd stm32-eth
+    - ../script/build-image.sh clang-6 .
+
+stm32-eth_clang-5:
+  <<: *stm32-eth_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/stm32-eth stm32-eth
+    - cd stm32-eth
+    - ../script/build-image.sh clang-5 .
+
+stm32-eth_arm-none-eabi-gcc:
+  <<: *stm32-eth_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/stm32-eth stm32-eth
+    - cd stm32-eth
+    - ../script/build-image.sh arm-none-eabi-gcc .
+
+
+# ----------------------------------
+# Danek Image Build
+# ----------------------------------
+.danek_template: &danek_job_definition
+  variables:
+    DEPLOY_REGISTRY: ${CI_REGISTRY_IMAGE}/dist-danek
+
+danek_gcc-9:
+  <<: *danek_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/danek danek
+    - cd danek
+    - ../script/build-image.sh gcc-9 .
+
+danek_gcc-8:
+  <<: *danek_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/danek danek
+    - cd danek
+    - ../script/build-image.sh gcc-8 .
+
+danek_gcc-7:
+  <<: *danek_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/danek danek
+    - cd danek
+    - ../script/build-image.sh gcc-7 .
+
+danek_clang-9:
+  <<: *danek_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/danek danek
+    - cd danek
+    - ../script/build-image.sh clang-9 .
+
+danek_clang-8:
+  <<: *danek_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/danek danek
+    - cd danek
+    - ../script/build-image.sh clang-8 .
+
+danek_clang-7:
+  <<: *danek_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/danek danek
+    - cd danek
+    - ../script/build-image.sh clang-7 .
+
+danek_clang-6:
+  <<: *danek_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/danek danek
+    - cd danek
+    - ../script/build-image.sh clang-6 .
+
+danek_clang-5:
+  <<: *danek_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/danek danek
+    - cd danek
+    - ../script/build-image.sh clang-5 .
+
+
+# ----------------------------------
+# Keygen Image Build
+# ----------------------------------
+.keygen_template: &keygen_job_definition
+  variables:
+    DEPLOY_REGISTRY: ${CI_REGISTRY_IMAGE}/dist-keygen
+
+keygen_gcc-9:
+  <<: *keygen_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/keygen keygen
+    - cd keygen
+    - ../script/build-image.sh gcc-9 .
+
+keygen_gcc-8:
+  <<: *keygen_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/keygen keygen
+    - cd keygen
+    - ../script/build-image.sh gcc-8 .
+
+keygen_gcc-7:
+  <<: *keygen_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/keygen keygen
+    - cd keygen
+    - ../script/build-image.sh gcc-7 .
+
+keygen_gcc-6:
+  <<: *keygen_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/keygen keygen
+    - cd keygen
+    - ../script/build-image.sh gcc-6 .
+
+keygen_clang-9:
+  <<: *keygen_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/keygen keygen
+    - cd keygen
+    - ../script/build-image.sh clang-9 .
+
+keygen_clang-8:
+  <<: *keygen_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/keygen keygen
+    - cd keygen
+    - ../script/build-image.sh clang-8 .
+
+keygen_clang-7:
+  <<: *keygen_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/keygen keygen
+    - cd keygen
+    - ../script/build-image.sh clang-7 .
+
+keygen_clang-6:
+  <<: *keygen_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/keygen keygen
+    - cd keygen
+    - ../script/build-image.sh clang-6 .
+
+keygen_clang-5:
+  <<: *keygen_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/keygen keygen
+    - cd keygen
+    - ../script/build-image.sh clang-5 .
+
+
+# ----------------------------------
+# Matcher Image Build
+# ----------------------------------
+.matcher_template: &matcher_job_definition
+  variables:
+    DEPLOY_REGISTRY: ${CI_REGISTRY_IMAGE}/dist-matcher
+
+matcher_gcc-9:
+  <<: *matcher_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/matcher matcher
+    - cd matcher
+    - ../script/build-image.sh gcc-9 .
+
+matcher_gcc-8:
+  <<: *matcher_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/matcher matcher
+    - cd matcher
+    - ../script/build-image.sh gcc-8 .
+
+matcher_gcc-7:
+  <<: *matcher_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/matcher matcher
+    - cd matcher
+    - ../script/build-image.sh gcc-7 .
+
+matcher_gcc-6:
+  <<: *matcher_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/matcher matcher
+    - cd matcher
+    - ../script/build-image.sh gcc-6 .
+
+matcher_clang-9:
+  <<: *matcher_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/matcher matcher
+    - cd matcher
+    - ../script/build-image.sh clang-9 .
+
+matcher_clang-8:
+  <<: *matcher_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/matcher matcher
+    - cd matcher
+    - ../script/build-image.sh clang-8 .
+
+matcher_clang-7:
+  <<: *matcher_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/matcher matcher
+    - cd matcher
+    - ../script/build-image.sh clang-7 .
+
+matcher_clang-6:
+  <<: *matcher_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/matcher matcher
+    - cd matcher
+    - ../script/build-image.sh clang-6 .
+
+matcher_clang-5:
+  <<: *matcher_job_definition
+  script:
+    - git clone --depth=1 https://github.com/offa/matcher matcher
+    - cd matcher
+    - ../script/build-image.sh clang-5 .
+
+

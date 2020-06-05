@@ -1,0 +1,9 @@
+image: node:8.9.4
+
+before_script:
+  - npm install
+
+tape:
+  script:
+    - npm run test
+

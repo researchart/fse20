@@ -1,0 +1,46 @@
+stages:
+  - tests
+  - selenium
+  - docs
+
+.qa:
+  stage: tests
+  before_script:
+    - pip install -e .[all]
+  script:
+    - pytest watchghost/tests/tests
+
+qa-3.6:
+  extends: .qa
+  image: python:3.6
+
+qa-3.7:
+  extends: .qa
+  image: python:3.7
+
+qa-3.8:
+  extends: .qa
+  image: python:3.8
+
+firefox:
+  stage: selenium
+  image: python:3.6
+  services:
+    - name: selenium/standalone-firefox
+      alias: selenium
+  before_script:
+    - pip install -e .[all]
+  script:
+    - export WATCHGHOST_HOST_TEST=$(hostname --ip-address)
+    - setsid nohup watchghost --host 0.0.0.0 > /dev/null 2>&1 &
+    - sleep 60
+    - python -m pytest watchghost/tests/ui_tests --driver Remote --capability browserName firefox --host selenium --port 4444
+
+doc:
+  stage: docs
+  image: python:3.6
+  script:
+    - pip install Sphinx
+    - sphinx-build -b html docs build/html
+
+

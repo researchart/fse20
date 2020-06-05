@@ -1,0 +1,45 @@
+# This file is a template, and might need editing before it works on your project.
+# use the official gcc image, based on debian
+# can use verions as well, like gcc:5.2
+# see https://hub.docker.com/_/gcc/
+image: registry.gitlab.com/johnnyzz/dev-build:base
+
+build:
+  stage: build
+  # instead of calling g++ directly you can also use some build toolkit like make
+  # install the necessary build tools when needed
+  before_script:
+    # install ssh-agent
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    # run ssh-agent
+    - eval $(ssh-agent -s)
+    # add ssh key stored in SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    # disable host key checking (NOTE: makes you susceptible to man-in-the-middle attacks) 
+    # WARNING: use only in docker container, if you use it with shell you will overwrite your user's ssh config 
+    - mkdir -p ~/.ssh 
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  script: 
+    - ssh git@gitlab.com
+    - git clone --depth=1 https://gitlab-ci-token:$CI_BUILD_TOKEN@gitlab.com/johnnyzz/pharo-vm.git pharo-vm/
+    - cd pharo-vm
+    - git submodule init
+    - git submodule update --recursive --remote
+    - cd ..
+    - mkdir pharo-nos-build
+    - cd pharo-nos-build
+    - cmake ../pharo-vm/ -DST_SCRIPT=gen-pharo-nos-stack -DST_PLATFORM_NAME=PharoNOS
+    - make
+  tags:
+    - linux
+    # - local
+  artifacts:
+    paths:
+      - pharo-nos-build/build/NOS.img
+      - pharo-nos-build/results/NOS.kernel
+  # depending on your build setup it's most likely a good idea to cache outputs to reduce the build time
+  # cache:
+  #   paths:
+  #     - "*.o"
+
+

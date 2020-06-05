@@ -1,0 +1,17 @@
+image: python:latest
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache"
+
+cache:
+  paths:
+    - .cache/pip
+
+before_script:
+  - python -V               # Print out python version for debugging
+  - pip install pyflakes
+
+test:
+  script:
+  - pyflakes main.py
+

@@ -1,0 +1,11 @@
+image: "ruby:2.3-alpine"
+
+
+before_script:
+  - apk add --update git alpine-sdk
+
+specs:
+  script:
+    - bundle install
+    - rake spec
+

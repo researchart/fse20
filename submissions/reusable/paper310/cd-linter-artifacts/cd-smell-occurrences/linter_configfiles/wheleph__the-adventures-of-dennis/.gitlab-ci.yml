@@ -1,0 +1,12 @@
+image: busybox:1.26.2
+
+pages:
+  stage: deploy
+  script:
+  - mkdir public && cp -R html_en/* public
+  artifacts:
+    paths:
+    - public # Should always be 'public'. See https://gitlab.com/gitlab-org/gitlab-ee/issues/660
+  only:
+  - master
+

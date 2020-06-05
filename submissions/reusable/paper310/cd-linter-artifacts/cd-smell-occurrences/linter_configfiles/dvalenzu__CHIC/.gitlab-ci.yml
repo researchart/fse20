@@ -1,0 +1,15 @@
+before_script:
+  - apt-get update -yq
+  - apt-get install -y zip
+  - apt-get install -y p7zip
+  - apt-get install -y unzip
+  - apt-get install -y cmake
+  - apt-get install -y valgrind
+  - apt-get install -y libtbb-dev
+  - make; cd src; make chico; cd ..;
+
+compile_and_test:
+  script:
+    - cd test_scripts; ./validate_all.sh; cd ..;
+    - sed  -i -e s/DNDEBUG/ggdb/ src/Makefile; sed  -i -e s/O9/O0/ src/Makefile; cd src; make clean;make all; cd ../test_scripts; ./validate_kernel_consistency.sh; cd ..;
+

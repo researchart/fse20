@@ -1,0 +1,43 @@
+image: node:8.11.4
+
+stages:
+  - test
+  - publish
+
+code quality:
+  stage: test
+  script:
+    - npm install
+    - npm run lint
+
+test & coverage:
+  stage: test
+  script:
+    - npm it
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    paths:
+      - coverage/
+
+package:
+  stage: publish
+  only:
+    - tags
+  script:
+    - npm pack
+  artifacts:
+    paths:
+      - ./*.tgz
+
+publish:
+  stage: publish
+  only:
+    - tags
+    - triggers
+  script:
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > .npmrc
+    - npm publish
+  environment:
+    name: npm
+    url: https://www.npmjs.com/package/vue-app-env
+

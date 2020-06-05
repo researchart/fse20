@@ -1,0 +1,26 @@
+variables:
+  FILE: "guia-documentos-tecnicos"
+
+before_script:
+  # Setup local texmf (use these variables in case you need to download something and place it in the local texmf home)
+  - TEXMFHOME=`kpsewhich -var-value TEXMFHOME`
+  - LOCALTEX=$TEXMFHOME/tex/latex
+  - LOCALBIB=$TEXMFHOME/bibtex/bib
+
+  - mkdir -p $LOCALTEX
+  - mkdir -p $LOCALBIB
+
+  
+  # process all images
+  - for x in $(find images/. -name \*.svg -print); do inkscape -A $(basename $x .svg).pdf $x; done
+
+build:
+  image: adnrv/texlive:tools
+  script:
+    # escape needed for gnuplot execution
+    - latexmk -pdf -pdflatex="pdflatex --shell-escape %O %S" $FILE
+    
+  artifacts:
+    paths:
+      - $FILE.pdf
+

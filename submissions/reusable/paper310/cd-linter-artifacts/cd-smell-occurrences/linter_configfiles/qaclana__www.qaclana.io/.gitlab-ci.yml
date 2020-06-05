@@ -1,0 +1,20 @@
+production:
+  stage: deploy
+  image: ruby:2.2
+  before_script:
+  - apt-get update -y && apt-get install rsync openssh-client -y
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo "$SSH_PRIVATE_KEY")
+  - mkdir -p ~/.ssh
+  - echo -e "cachoeira.kroehling.de,138.68.92.142 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBKsZ2XRgul5x82CYg3oEx4piyi+2lv7/L2Zo/9YXujxW6/TYOhNFoa05kWWVg5jz04u599A4IxaFj1tG87xogEM=\n" > ~/.ssh/known_hosts
+  - echo -e "cachoeira.kroehling.de,2a03:b0c0:3:d0::6f7:4001 ecdsa-sha2-nistp256 cachoeira.kroehling.de,138.68.92.142 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBKsZ2XRgul5x82CYg3oEx4piyi+2lv7/L2Zo/9YXujxW6/TYOhNFoa05kWWVg5jz04u599A4IxaFj1tG87xogEM=\n" >> ~/.ssh/known_hosts
+  script:
+  - gem install jekyll
+  - jekyll build
+  - rsync -av _site/ deployer@cachoeira.kroehling.de:/usr/share/nginx/html/www.qaclana.io/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

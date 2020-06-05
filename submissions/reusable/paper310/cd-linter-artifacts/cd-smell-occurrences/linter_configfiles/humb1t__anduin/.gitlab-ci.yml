@@ -1,0 +1,7 @@
+image: jimmycuadra/rust
+
+build:
+  script:
+    - sudo apt install libopenal-dev libsndfile1-dev -y
+    - cargo build --release --verbose
+

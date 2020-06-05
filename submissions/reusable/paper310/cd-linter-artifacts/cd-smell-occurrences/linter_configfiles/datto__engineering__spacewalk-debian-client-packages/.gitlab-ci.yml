@@ -1,0 +1,37 @@
+image: fedora:latest
+
+stages:
+    - prep
+    - build
+
+tito_prep:
+    stage: prep
+    script:
+        - ./.gitlab-ci/get-tarballs.sh
+    artifacts:
+        when: on_success
+        paths:
+            - ./*/*.tar.gz
+        expire_in: 1h
+    tags:
+        - docker
+
+pkg_build:
+    image: ubuntu:18.04
+    stage: build
+    dependencies:
+        - tito_prep
+    script:
+        - ./.gitlab-ci/setup-apt-sources.sh
+        - ./.gitlab-ci/get-debbuild.sh
+        - ./.gitlab-ci/get-deb-buildreqs.sh
+        - ./.gitlab-ci/build-packages.sh
+    artifacts:
+        when: on_success
+        paths:
+            - ./*/*/*.sdeb
+            - ./*/*/*/*.deb
+        expire_in: 5d
+    tags:
+        - docker
+

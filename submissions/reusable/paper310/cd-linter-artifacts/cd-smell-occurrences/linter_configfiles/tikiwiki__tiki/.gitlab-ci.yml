@@ -1,0 +1,343 @@
+image: rjsmelo/ubuntu-php:7.2-qa
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .composercache/files
+    - vendor_bundled/vendor/
+
+variables:
+  MYSQL_ROOT_PASSWORD: secret
+  MYSQL_DATABASE: tikitest
+  MYSQL_USER: tikiuser
+  MYSQL_PASSWORD: tikipass
+  ELASTICSEARCH_HOST: elasticsearch
+  COMPOSER_CACHE_DIR: "$CI_PROJECT_DIR/.composercache"
+
+stages:
+  - build
+  - lint
+  - vendors-security
+  - tiki-check
+  - unit-tests
+  - vendors_update
+
+composer:
+  stage: build
+  variables:
+    COMPOSER_DISCARD_CHANGES: "true"
+    COMPOSER_NO_INTERACTION: "1"
+  script:
+    - composer --ansi install -d vendor_bundled --no-progress --prefer-dist -n
+  artifacts:
+    paths:
+      - vendor_bundled/vendor/
+    expire_in: 1 days
+    when: on_success
+
+#
+# Lint
+#
+
+phpcs:
+  stage: lint
+  script:
+    - git log -m --first-parent -1 --name-only --diff-filter=d --pretty="format:" | grep -v "^$" | sort -u | grep '\.php$' - 2>&1 > /dev/null || { git log -m -1 --name-only && echo && echo 'No files to be processed. Skipping...' && echo && exit 0; }
+    - git log -m -1 --name-only
+    - git log -m --first-parent -1 --name-only --diff-filter=d --pretty="format:" | grep -v "^$" | sort -u | xargs php vendor_bundled/vendor/squizlabs/php_codesniffer/bin/phpcs -s --runtime-set ignore_warnings_on_exit true
+  allow_failure: true
+
+phplint:
+  stage: lint
+  variables:
+    TARGET: HEAD^
+  script:
+  - git diff --name-status $TARGET | grep -v "^D" | cut -c 3- | sort -u | grep '\.php$' - 2>&1 > /dev/null || { git diff --name-status $TARGET && echo && echo 'No files to be processed. Skipping...' && echo && exit 0; }
+  - composer --ansi install -d vendor_bundled --no-progress --prefer-dist -n
+  - git diff --name-status $TARGET
+  # Because we just lint changed files we need to filter by php extension before call bin/phplint
+  - git diff --name-status $TARGET | grep -v "^D" | cut -c 3- | sort -u | grep '\.php$' | xargs php bin/phplint -n
+  allow_failure: false
+
+smarty-lint:
+  stage: lint
+  variables:
+    TARGET: HEAD^
+  script:
+  - git diff --name-status $TARGET | grep -v "^D" | cut -c 3- | sort -u | grep '\.tpl$' - 2>&1 > /dev/null || { git diff --name-status $TARGET && echo && echo 'No files to be processed. Skipping...' && echo && exit 0; }
+  - composer --ansi install -d vendor_bundled --no-progress --prefer-dist -n
+  - git diff --name-status $TARGET
+  - git diff --name-status $TARGET | grep -v "^D" | cut -c 3- | sort -u | grep '\.tpl$' | xargs -I 0 php vendor_bundled/vendor/umakantp/smartylint/smartyl --files=0 --ignore-rules=doc/devtools/smartyl.rules.xml
+  allow_failure: true
+
+eslint:
+  image: docker:stable-git
+  stage: lint
+  variables:
+    TARGET: HEAD^
+  services:
+    - docker:stable-dind
+  script:
+    - git diff --name-status $TARGET | grep -v "^D" | cut -c 3- | sort -u | grep '\.js$' - 2>&1 > /dev/null || { git diff --name-status $TARGET && echo && echo 'No files to be processed. Skipping...' && echo && exit 0; }
+    - git diff --name-status $TARGET
+    - git diff --name-status $TARGET | grep -v "^D" | cut -c 3- | sort -u | grep '\.js$' | xargs docker run -v "$PWD":/data --volume /var/run/docker.sock:/var/run/docker.sock cytopia/eslint
+  allow_failure: true
+  tags:
+    - docker
+
+#
+# Check Tikiwiki development specific check (related also with release)
+#
+
+sql-engine:
+  stage: tiki-check
+  script:
+    - php -d display_errors=On doc/devtools/check_sql_engine.php
+  allow_failure: false
+
+schema-sql-drop:
+  stage: tiki-check
+  script:
+    - php -d display_errors=On doc/devtools/check_schema_sql_drop.php
+  allow_failure: false
+
+schema-naming-convention:
+  stage: tiki-check
+  script:
+    - php -d display_errors=On doc/devtools/check_schema_naming_convention.php
+  allow_failure: false
+
+translation:
+  stage: tiki-check
+  script:
+  - 'composer -Vvvv 2>&1 | grep -E "(Running|Composer)"'
+  - php -v
+  - git log --first-parent --pretty="format:%h" -1 --skip=1 | xargs -I gitHash php -d display_errors=On doc/devtools/translate.php --diff-command="git diff gitHash" --git --audit
+  allow_failure: true
+
+translation-standards:
+  stage: tiki-check
+  script:
+    - php doc/devtools/check_template_translation_standards.php --all
+  allow_failure: true
+
+check-bom-encoding:
+  stage: tiki-check
+  script:
+  - git log -m --first-parent -1 --name-only --diff-filter=d --pretty="format:" | grep -v "^$" | sort -u | xargs php doc/devtools/check_bom_encoding.php
+  allow_failure: true
+
+unix-ending-line:
+  stage: tiki-check
+  script:
+  - git log -m --first-parent -1 --name-only --diff-filter=d --pretty="format:" | grep -v "^$" | sort -u | xargs php doc/devtools/check_unix_ending_line.php
+  allow_failure: true
+
+check-directories:
+  stage: tiki-check
+  script:
+  - php doc/devtools/check_tiki_directories.php
+  allow_failure: true
+
+composer-lock:
+  stage: tiki-check
+  script:
+    - cp $(command -v composer) temp/composer.phar
+    - php doc/devtools/update_composer_lock.php
+  allow_failure: true
+
+.template-tiki-schema-upgrade: &template-tiki-schema-upgrade
+  stage: tiki-check
+  cache:
+    paths:
+      - .composercache/files
+      - doc/devtools/dbdiff/cache
+  services:
+    - name: $IMAGE
+      alias: mysql
+  script:
+    - 'mysql -u root --password=$MYSQL_ROOT_PASSWORD -h mysql --skip-column-names -B -e "SELECT CONCAT(''Version: '', VERSION(), CHAR(13), ''sql_mode: '', @@GLOBAL.sql_mode)"'
+    - 'composer -Vvvv 2>&1 | grep -E "(Running|Composer)"'
+    - php -v
+    - composer --ansi install -d doc/devtools/dbdiff/ --no-progress --prefer-dist -n
+    - echo "GRANT ALL ON tikiold.* TO '${MYSQL_USER}';" | mysql -u root --password=$MYSQL_ROOT_PASSWORD -h mysql
+    - echo "GRANT ALL ON tikinew.* TO '${MYSQL_USER}';" | mysql -u root --password=$MYSQL_ROOT_PASSWORD -h mysql
+    - '[ ! -d doc/devtools/dbdiff/cache ] && mkdir doc/devtools/dbdiff/cache'
+    - '[ ! -f doc/devtools/dbdiff/cache/$DBFILE ] && curl -sS https://gitlab.com/tikiwiki/tikiwiki-ci-databases/raw/master/$DBFILE.gz -o doc/devtools/dbdiff/cache/$DBFILE.gz && gzip -d doc/devtools/dbdiff/cache/$DBFILE.gz'
+    - php -d display_errors=On doc/devtools/check_schema_upgrade.php -m $DBVER -e $ENGINE --db1=$MYSQL_USER:$MYSQL_PASSWORD@mysql:tikiold --db2=$MYSQL_USER:$MYSQL_PASSWORD@mysql:tikinew
+  allow_failure: false
+
+db-upgrade-18-lts:
+  <<: *template-tiki-schema-upgrade
+  variables:
+    DBFILE: ci_18.sql
+    DBVER: 18
+    IMAGE: mysql:5.6
+    ENGINE: InnoDB
+
+db-upgrade-18-lts-myisam:
+  <<: *template-tiki-schema-upgrade
+  variables:
+    DBFILE: ci_18.sql
+    DBVER: 18
+    IMAGE: mysql:5.5
+    ENGINE: MyISAM
+
+db-upgrade-17:
+  <<: *template-tiki-schema-upgrade
+  variables:
+    DBFILE: ci_17.sql
+    DBVER: 17
+    IMAGE: mysql:5.7
+    ENGINE: InnoDB
+
+db-upgrade-15-lts:
+  <<: *template-tiki-schema-upgrade
+  variables:
+    DBFILE: ci_15.sql
+    DBVER: 15
+    IMAGE: mysql:5.6
+    ENGINE: InnoDB
+
+db-upgrade-15-lts-5.5-mariadb:
+  <<: *template-tiki-schema-upgrade
+  variables:
+    DBFILE: ci_15.sql
+    DBVER: 15
+    IMAGE: mariadb:5.5
+    ENGINE: MyISAM
+
+db-upgrade-15-lts-10.2-mariadb:
+  <<: *template-tiki-schema-upgrade
+  variables:
+    DBFILE: ci_15.sql
+    DBVER: 15
+    IMAGE: mariadb:10.2
+    ENGINE: InnoDB
+
+db-upgrade-12-lts:
+  <<: *template-tiki-schema-upgrade
+  variables:
+    DBFILE: ci_12.sql
+    DBVER: 12
+    IMAGE: mysql:5.5
+    ENGINE: MyISAM
+
+sql-engine-conversion:
+  stage: tiki-check
+  cache:
+    paths:
+    - .composercache/files
+    - doc/devtools/dbdiff/cache
+  services:
+  - mysql:5.6
+  script:
+  - 'mysql -u root --password=$MYSQL_ROOT_PASSWORD -h mysql --skip-column-names -B -e "SELECT CONCAT(''Version: '', VERSION(), CHAR(13), ''sql_mode: '', @@GLOBAL.sql_mode)"'
+  - 'composer -Vvvv 2>&1 | grep -E "(Running|Composer)"'
+  - php -v
+  - composer --ansi install -d doc/devtools/dbdiff/ --no-progress --prefer-dist -n
+  - echo "GRANT ALL ON tikiold.* TO '${MYSQL_USER}';" | mysql -u root --password=$MYSQL_ROOT_PASSWORD -h mysql
+  - echo "GRANT ALL ON tikinew.* TO '${MYSQL_USER}';" | mysql -u root --password=$MYSQL_ROOT_PASSWORD -h mysql
+  - php -d display_errors=On doc/devtools/check_sql_engine_conversion.php --db1=$MYSQL_USER:$MYSQL_PASSWORD@mysql:tikiold --db2=$MYSQL_USER:$MYSQL_PASSWORD@mysql:tikinew
+  allow_failure: false
+
+#
+# Unit Tests
+#
+
+.template-unit-tests: &template-unit-tests
+  stage: unit-tests
+  services:
+    - mysql:5.6
+    - elasticsearch:5
+  script:
+    - curl -sS -XGET 'http://elasticsearch:9200'
+    - mysql -u root --password=$MYSQL_ROOT_PASSWORD -h mysql --skip-column-names -B -e 'SELECT VERSION()'
+    - 'composer -Vvvv 2>&1 | grep -E "(Running|Composer)"'
+    - php -v
+    - echo '<?php $db_tiki = "mysqli"; $dbversion_tiki = "21.0"; $host_tiki = "mysql"; $user_tiki = "tikiuser"; $pass_tiki = "tikipass"; $dbs_tiki = "tikitest"; $client_charset = "utf8mb4"; ' > lib/test/local.php
+    - php -d display_errors=On vendor_bundled/vendor/phpunit/phpunit/phpunit --colors=always
+
+unit-tests-72:
+  <<: *template-unit-tests
+
+unit-tests-73:
+  <<: *template-unit-tests
+  image: rjsmelo/ubuntu-php:7.3-qa
+  allow_failure: true
+
+#
+# Vendors Security
+#
+
+sensiolabs-vendor-security-check:
+  stage: vendors-security
+  script:
+    - cp composer.json.dist composer.json
+    - composer require jerome-breton/casperjs-installer:dev-master --no-progress
+    - composer require enygma/expose:^3.0 --no-progress
+    - composer require fullcalendar/fullcalendar-scheduler ^1.9 --no-progress
+    - composer require fzaninotto/faker dev-master --no-progress
+    - composer require google/apiclient ^2.2.2 --no-progress
+    - composer require npm-asset/lozad ^1.6.0 --no-progress
+    - composer require mpdf/mpdf ^8.0.0 --no-progress
+    - composer require xorti/mxgraph-editor ^3.9.12.2 --no-progress
+    - composer require tikiwiki/diagram ^10 --no-progress
+    - composer require onelogin/php-saml ^2.10 --no-progress
+    - composer require thiagoalessio/tesseract_ocr ^2.7.0 --no-progress
+    - composer require mathjax/mathjax ^2.7 --no-progress
+    - composer require media-alchemyst/media-alchemyst ^0.5.1 --no-progress
+    - composer require npm-asset/pdfjs-dist ~2.0.487 --no-progress
+    - composer require bower-asset/wodo.texteditor ^0.5.9 --no-progress
+    - composer require j0k3r/php-readability ^1.1.10 --no-progress
+    - php bin/security-checker security:check composer.lock
+  allow_failure: false
+  only:
+    refs:
+      - schedules
+    variables:
+      - $SCHEDULER == "vendor_check"
+
+sensiolabs-vendor-bundled-security-check:
+  stage: vendors-security
+  script:
+    - php bin/security-checker security:check vendor_bundled/composer.lock
+  only:
+    refs:
+      - schedules
+    variables:
+      - $SCHEDULER == "vendor_check"
+
+update_vendor_bundled_dependencies:
+  stage: vendors_update
+  dependencies:
+    - composer
+  variables:
+    BRANCH_NAME: "${CI_COMMIT_REF_NAME}_vendor_bundled_update"
+    COMMIT_MESSAGE: "[UPD] Update ${CI_COMMIT_REF_NAME} vendor_bundled dependencies"
+    CI_REPOSITORY_URL: "https://${GITLAB_USER_LOGIN}:${GITLAB_USER_TOKEN}@gitlab.com/${CI_PROJECT_PATH}.git"
+    COMPOSER_DISCARD_CHANGES: "true"
+    COMPOSER_NO_INTERACTION: "1"
+  before_script:
+    - git config --global user.email "${GITLAB_USER_EMAIL}"
+    - git config --global user.name "${GITLAB_USER_NAME}"
+  script:
+    - DATE=`date +%Y%m%d`
+    - BRANCH_NAME="${BRANCH_NAME}_${DATE}"
+    - php doc/devtools/update_vendor_bundled.php
+    - |
+      if ! git diff --exit-code vendor_bundled/composer.lock; then \
+      if git rev-parse --verify ${BRANCH_NAME}; then git branch -D ${BRANCH_NAME}; fi; \
+      git checkout -b ${BRANCH_NAME} \
+      && git add vendor_bundled/composer.lock \
+      && git commit -m "${COMMIT_MESSAGE}" \
+      && git push ${CI_REPOSITORY_URL} HEAD:${BRANCH_NAME} --quiet \
+      && HOST=${CI_PROJECT_URL} CI_PROJECT_ID=${CI_PROJECT_ID} SOURCE_BRANCH=${BRANCH_NAME} TARGET_BRANCH=${CI_COMMIT_REF_NAME} GITLAB_USER_ID=${GITLAB_USER_ID} PRIVATE_TOKEN=${GITLAB_USER_TOKEN} \
+      /bin/bash ./doc/devtools/gitlab/auto_merge_request.sh "${COMMIT_MESSAGE} (${DATE})";\
+      fi;
+  only:
+    refs:
+      - schedules
+    variables:
+      - $SCHEDULER == "update_vendor_bundled"
+

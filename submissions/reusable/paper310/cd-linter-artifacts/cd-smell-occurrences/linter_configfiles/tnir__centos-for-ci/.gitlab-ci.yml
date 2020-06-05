@@ -1,0 +1,37 @@
+before_script:
+  - /bin/echo Testing... CentOS 6.6 x MySQL 5.6.17
+  - /bin/echo Testing... CentOS 7 latest x MySQL 5.7 latest
+  - /bin/echo Testing... CentOS 8 latest x MySQL 8 latest
+variables:
+  MYSQL_ROOT_PASSWORD: "wieSwlanIeG5aPro"
+
+test:centos6xmysql56:
+  image: centos:6.6
+  services:
+  - mysql:5.6.17
+  script:
+  - rpm -q centos-release
+  - yum install -y mysql
+  - mysql --version
+  - mysql -h mysql -u root -p${MYSQL_ROOT_PASSWORD} -e 'SELECT VERSION()'
+
+test:centos7xmysql57:
+  image: centos:7
+  services:
+  - mysql:5.7
+  script:
+  - rpm -q centos-release
+  - yum install -y mysql
+  - mysql --version
+  - mysql -h mysql -u root -p${MYSQL_ROOT_PASSWORD} -e 'SELECT VERSION()'
+
+test:centos8xmysql8:
+  image: centos:8
+  services:
+  - mysql:8
+  script:
+  - rpm -q centos-release
+  - dnf install -y mysql
+  - mysql --version
+  - mysql -h mysql -u root -p${MYSQL_ROOT_PASSWORD} -e 'SELECT VERSION()'
+

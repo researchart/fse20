@@ -1,0 +1,25 @@
+build:
+  stage: build
+  image: ruby:2
+  script:
+    - bundle install
+    - bundle exec jekyll build -d public
+  artifacts:
+    paths:
+      - public
+
+test:
+  image: 18fgsa/html-proofer:gitlab-ci
+  script:
+    - htmlproofer public --empty-alt-ignore
+
+pages:
+  stage: deploy
+  script:
+  - find public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

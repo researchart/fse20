@@ -1,0 +1,6 @@
+image: clojure:tools-deps-alpine
+
+test:
+  script:
+  - clj -A:test:runner
+

@@ -1,0 +1,21 @@
+image: ruby:2.1
+
+pages:
+  cache:
+    paths:
+    - build
+
+  script:
+  - apt-get update -yqqq
+  - apt-get install -y nodejs
+  - apt-get install -y npm
+  - ln -s /usr/bin/nodejs /usr/bin/node
+  - npm install hexo-cli -g
+  - npm install
+  - hexo deploy
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

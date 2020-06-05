@@ -1,0 +1,63 @@
+image: michaeltlombardi/documentarian
+
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+  - chmod +x ./build.ps1
+  - chmod +x ./psake.ps1
+
+test_documentation:
+  stage: test
+  script:
+  - pwsh
+  - ./build.ps1 -TaskList GenerateBoth
+  artifacts:
+    paths:
+    - documentarian.pdf
+    - public
+  except:
+  - master
+
+build_module:
+  stage: build
+  script:
+  - pwsh
+  - ./build.ps1 -TaskList BuildModule
+  artifacts:
+    paths:
+    - documentarian
+    name: documentarian
+
+publish_module:
+  stage: deploy
+  script:
+  - pwsh
+  - ./build.ps1 -TaskList PublishModule -ApiKey $ENV:gallerykey
+  only:
+    - tags@documentarian/documentarian
+    - /^v\d+\.\d+\.\d+/
+
+pdf:
+  stage: deploy
+  script:
+  - pwsh    
+  - ./build.ps1 -TaskList GeneratePdf
+  artifacts:
+    paths:
+    - documentarian.pdf
+  only:
+  - master
+
+pages:
+  stage: deploy
+  script:
+  - ./build.ps1 -TaskList GenerateSite
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

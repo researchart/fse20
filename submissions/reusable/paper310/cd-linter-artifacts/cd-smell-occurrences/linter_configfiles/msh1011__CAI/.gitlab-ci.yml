@@ -1,0 +1,20 @@
+test:
+  script:
+  - export PATH=$PATH:~/.nvm/versions/node/v10.9.0/bin/
+  - python3.6 -m venv env
+  - source env/bin/activate
+  - pip install -r requirements.txt
+  - export PYTHONPATH=`pwd`
+  - npm run postinstall
+  - pytest -vv --show-capture all -m commit_test || true
+
+deploy:
+  type: deploy
+  script:
+  - git remote add heroku https://heroku:$HEROKU_KEY@git.heroku.com/cards-against-inet.git  || true
+  - git checkout master
+  - git pull
+  - git push heroku master --force
+  only:
+  - master
+

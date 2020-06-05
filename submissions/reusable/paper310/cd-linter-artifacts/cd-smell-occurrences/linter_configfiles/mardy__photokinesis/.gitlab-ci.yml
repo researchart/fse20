@@ -1,0 +1,44 @@
+image: mardy/qt:5.9
+
+cache:
+  key: apt-cache
+  paths:
+  - apt-cache/
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+  - export APT_CACHE_DIR=`pwd`/apt-cache && mkdir -pv $APT_CACHE_DIR
+  - apt-get update -yq && apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y pkg-config libexiv2-dev
+  - apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y libegl1-mesa libgl1-mesa-dev libxss1 # Qt deps
+  - apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y lcov gcovr xvfb
+  - export PKG_CONFIG_PATH="$(qmake -query QT_INSTALL_LIBS)/pkgconfig":${PKG_CONFIG_PATH}
+
+build_desktop:
+  stage: build
+  script:
+    - cd libauthentication && mkdir build && cd build
+    - qmake CONFIG+=debug LIBDIR="lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)" ..
+    - make -j4 install
+    - cd ../..
+    - mkdir build
+    - cd build
+    - PREFIX=/opt/Photokinesis qmake CONFIG+=debug CONFIG+=coverage CONFIG+=desktop ..
+    - make -j4
+  artifacts:
+    paths:
+      - build/
+
+test_desktop:
+  stage: test
+  script:
+    - find build | xargs touch # Avoid rebuilding
+    - cd build
+    - make coverage-html
+  dependencies:
+    - build_desktop
+  artifacts:
+    paths:
+      - build/coverage-html/
+

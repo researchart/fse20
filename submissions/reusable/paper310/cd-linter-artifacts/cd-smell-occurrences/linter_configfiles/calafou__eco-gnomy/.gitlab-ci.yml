@@ -1,0 +1,9 @@
+before_script:
+  - apt-get update -qq && apt-get install -y -qq python3-pip
+  - pip install docker-compose
+  - docker-compose up -d
+
+unittest:
+  script:
+    - docker-compose exec ecognomy pytest
+

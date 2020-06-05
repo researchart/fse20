@@ -1,0 +1,64 @@
+
+before_script:
+  #- apt-get update -qq && apt-get upgrade -qq
+  #- apt-get install -y luajit lua5.1 lua5.2 lua5.3 luarocks make ncurses
+  #- luarocks install luafilesystem
+  #- luarocks install lua-cjson
+
+stages:
+  - smoke-test
+  - build
+  - test
+  - benchmark
+
+compile:
+  stage: smoke-test
+  script:
+    - echo -e "\033[36mValidating Lua syntax\033[0m"
+    - make compile
+
+lint:
+  stage: smoke-test
+  allow_failure: true
+  script:
+    - echo -e "\033[36mPerforming static analysis\033[0m"
+    - make lint
+
+test:
+  stage: test
+  script:
+    - echo -e "\033[36mRunning tests\033[0m"
+    - make test
+
+benchmark:
+  stage: benchmark
+  script:
+    - echo -e "\033[36mPerforming benchmarks\033[0m"
+    - make benchmark
+  artifacts:
+    name: benchmark_results_${CI_COMMIT_SHA}
+    paths:
+      - benchmark_results.json
+  cache:
+    paths:
+      - battleground/
+
+benchmark-foreign:
+  stage: benchmark
+  script:
+    - echo -e "\033[36mPerforming foreign benchmarks\033[0m"
+    - make benchmark-foreign
+  artifacts:
+    name: benchmark_results_f_${CI_COMMIT_SHA}
+    paths:
+      - benchmark_results_f.json
+  cache:
+    paths:
+      - battleground/
+
+wipe_cache:
+  when: on_failure
+  stage: benchmark
+  script:
+    - rm -r battleground
+

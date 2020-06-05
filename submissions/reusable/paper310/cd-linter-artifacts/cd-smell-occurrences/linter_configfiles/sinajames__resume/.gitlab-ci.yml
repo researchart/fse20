@@ -1,0 +1,73 @@
+image: docker:latest
+
+services:
+  - docker:19.03.5-dind
+
+variables:
+   DOCKER_DRIVER: overlay
+   IMAGE_TAG: $CI_REGISTRY_IMAGE:latest
+
+before_script:
+  - echo ${PWD}
+  - apk update
+  - apk upgrade
+  - apk add ruby
+  # Install CA certs, openssl to https downloads, python for gcloud sdk
+  #
+  - apk add --update make ca-certificates openssl python
+  - update-ca-certificates
+  # Write our GCP service account private key into a file
+  - echo $GCLOUD_SERVICE_KEY > ${HOME}/gcloud-service-key.json
+  # Download and install Google Cloud SDK
+  - sysctl -w net.ipv6.conf.default.disable_ipv6=1
+  - wget https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz
+  - tar zxvf google-cloud-sdk.tar.gz && ./google-cloud-sdk/install.sh --usage-reporting=false --path-update=true
+  - export PATH=$PATH:${PWD}/google-cloud-sdk/bin/
+  - google-cloud-sdk/bin/gcloud --quiet components update
+  - google-cloud-sdk/bin/gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+  - docker login -u _json_key --password-stdin https://us.gcr.io < ${HOME}/gcloud-service-key.json
+  - google-cloud-sdk/bin/gcloud components install gsutil
+  - google-cloud-sdk/bin/gcloud components install kubectl
+
+stages:
+  - Convert YAML to LaTeX
+  - Create Resume PDF
+  - Build and Publish Container
+
+Convert YAML:
+  stage: Convert YAML to LaTeX
+  script:
+    - ruby create-resume.rb
+  only:
+    - master
+  tags:
+    - docker
+
+Create PDF:
+  stage: Create Resume PDF
+  script:
+    - ruby create-resume.rb
+    - docker run --rm -t -v ${PWD}:/source schickling/latex pdflatex resume.tex
+  only:
+    - master
+  tags:
+    - docker
+
+Build and Publish Container:
+  stage: Build and Publish Container
+  script:
+    - ruby create-resume.rb
+    - docker run --rm -t -v ${PWD}:/source schickling/latex pdflatex resume.tex
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+    - docker tag registry.gitlab.com/sinajames/resume:latest us.gcr.io/resume-178118/resume:latest
+    - google-cloud-sdk/bin/gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+    - gcloud auth configure-docker --quiet
+    - docker push us.gcr.io/resume-178118/resume:latest
+
+  only:
+    - master
+  tags:
+    - docker
+

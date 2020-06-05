@@ -1,0 +1,33 @@
+stages:
+    - build_image
+    - build
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+build-docker-images:
+  stage: build_image
+  services:
+    - docker:dind
+  image: docker:latest
+  script:
+    - docker build --pull -t registry.gitlab.com/uqa3/firmware_esp32 .
+    - docker tag registry.gitlab.com/uqa3/firmware_esp32 registry.gitlab.com/uqa3/firmware_esp32:latest
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker push registry.gitlab.com/uqa3/firmware_esp32
+  only:
+    - master
+
+build app:
+  stage: build
+  image: registry.gitlab.com/uqa3/firmware_esp32
+  artifacts:
+      paths:
+          - ./build/bootloader/bootloader.bin
+          - ./build/partition_table/partition-table.bin
+          - ./build/uQA3.*
+  script:
+    - mkdir build && cd build
+    - cmake ..
+    - make
+

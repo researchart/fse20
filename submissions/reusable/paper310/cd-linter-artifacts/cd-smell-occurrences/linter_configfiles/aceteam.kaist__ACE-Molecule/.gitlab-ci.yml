@@ -1,0 +1,83 @@
+stages:
+    - build
+    - test
+    - docs
+
+.build-shell:
+    stage: build
+    script:
+        #- pwd
+        #- echo "TRILINOS_PATH = ${TRILINOS_PATH}"
+        #- echo "LIBXC_PATH = ${LIBXC_PATH}"
+        #- echo "GSL_PATH = ${GSL_PATH}"
+        #- echo "MPI_INCLUDE_PATH = ${MPI_INCLUDE_PATH}"
+        - cmake -D TRILINOS_PATH:PATH=$TRILINOS_PATH -D LIBXC_PATH:PATH=$LIBXC_PATH -D GSL_PATH:PATH=$GSL_PATH -D CMAKE_CXX_FLAGS:STRING="-std=c++11 -O2 -Wno-unused-parameter -Wno-sign-compare -I${MPI_INCLUDE_PATH}"  -D ENABLE_CI:BOOL=FALSE ./
+        - make -j2
+    artifacts:
+        paths:
+            - ace
+        expire_in: 1 day
+    tags:
+        - build
+        - shell
+
+build-docker:
+    stage: build
+    image: ace-molecule-build:latest
+    script:
+        - cmake -D TRILINOS_PATH:PATH=/usr/local -D LIBXC_PATH:PATH=/opt/etsf -D MKL_PATH:PATH=/opt/intel/mkl -D CMAKE_CXX_FLAGS:STRING="-std=c++11 -fopenmp -O3 -w" .
+        - make -j8
+    artifacts:
+        paths:
+            - ace
+        expire_in: 1 day
+    tags:
+        - build
+        - docker
+
+acceptance-test:
+    stage: test
+    image: ace-molecule-build:latest
+    script:
+        - cd test/acceptance-test
+        - python3 run-test.py --notemp
+    artifacts:
+        paths:
+            - test/acceptance-test/*.log
+        expire_in: 1 week
+        when: always
+    tags:
+        - test
+
+run-cpplint:
+    stage: test
+    image: ace-molecule-build:latest
+    script:
+        #- cpplint --recursive --exclude=source/Core/Diagonalize/Anasazi* --exclude=source/Core/Diagonalize/Anasazi*/*  --filter=-legal/copyright,-whitespace/line_length source/* >& cpplint.log
+        - cpplint --recursive --exclude=source/Core/Diagonalize/Anasazi* --exclude=source/Core/Diagonalize/Anasazi*/*  --filter=-build,-legal,-readability,-runtime,-whitespace,+whitespace/indent source/* >& cpplint.log
+    after_script:
+        - echo "Last 5 lines of cpplint output are:"
+        - tail -n 5 cpplint.log
+    dependencies: []
+    artifacts:
+        paths:
+            - cpplint.log
+        expire_in: 1 week
+        when: always
+    allow_failure: true
+    tags:
+        - test
+
+build-docs:
+    stage: docs
+    image: ace-molecule-build:latest
+    script:
+        - export GIT_NUMBER=$(git rev-parse HEAD ; git diff-index --quiet HEAD || echo 'dirty')
+        - doxygen Doxyfile
+    dependencies: []
+    artifacts:
+        paths:
+            - doxygen
+    tags:
+        - docs
+

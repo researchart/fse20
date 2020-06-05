@@ -1,0 +1,264 @@
+.build_job: &job_build
+  stage: build
+  script:
+     - ci-build-pkg
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - result/*
+  tags:
+    - docker
+
+stages:
+- build
+- sign
+- deploy
+- staging
+- production
+
+# You MUST not use cache for result & public artifacts !
+# https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/issues/336
+#cache:
+#  key: "$CI_COMMIT_REF_NAME"
+#  paths:
+#    - result/*
+#    - public/*
+
+before_script:
+  - unset http_proxy ; unset https_proxy
+  - env | grep ^CI_
+  # This package use himself to deploy :-)
+  - PATH="`pwd`/gitlab-buildpkg-tools/usr/bin/:$PATH"
+  - CI_BUILDPKG_BOOTSTRAP=yes
+  - export PATH CI_BUILDPKG_BOOTSTRAP
+  - ./gitlab-buildpkg-tools/install-dependencies.sh
+
+build_debian_jessie:
+  image: buildpkg/debian:jessie
+  extends: .build_job
+
+build_debian_stretch:
+  image: buildpkg/debian:stretch
+  extends: .build_job
+
+build_debian_buster:
+  image: buildpkg/debian:buster
+  extends: .build_job
+
+build_debian_bullseye:
+  image: buildpkg/debian:bullseye
+  extends: .build_job
+
+#build_debian_sid:
+#  image: buildpkg/debian:sid
+#  extends: .build_job
+
+build_ubuntu_trusty:
+  image: buildpkg/ubuntu:trusty
+  extends: .build_job
+
+build_ubuntu_xenial:
+  image: buildpkg/ubuntu:xenial
+  extends: .build_job
+
+build_ubuntu_zesty:
+  image: buildpkg/ubuntu:zesty
+  extends: .build_job
+
+build_ubuntu_artful:
+  image: buildpkg/ubuntu:artful
+  extends: .build_job
+  when: manual
+
+build_ubuntu_bionic:
+  image: buildpkg/ubuntu:bionic
+  extends: .build_job
+
+build_ubuntu_cosmic:
+  image: buildpkg/ubuntu:cosmic
+  extends: .build_job
+
+build_ubuntu_disco:
+  image: buildpkg/ubuntu:disco
+  extends: .build_job
+
+build_ubuntu_eoan:
+  image: buildpkg/ubuntu:eoan
+  extends: .build_job
+
+build_ubuntu_focal:
+  image: buildpkg/ubuntu:focal
+  extends: .build_job
+
+
+#build_ubuntu_devel:
+#  image: buildpkg/ubuntu:devel
+#  <<: *job_build
+
+build_centos_6:
+  image: buildpkg/centos:6
+  extends: .build_job
+
+build_centos_7:
+  image: buildpkg/centos:7
+  extends: .build_job
+
+build_centos_8:
+  image: buildpkg/centos:8
+  extends: .build_job
+
+build_fedora_24:
+  image: buildpkg/fedora:24
+  extends: .build_job
+
+build_fedora_25:
+  image: buildpkg/fedora:25
+  extends: .build_job
+
+build_fedora_26:
+  image: buildpkg/fedora:26
+  extends: .build_job
+
+build_fedora_27:
+  image: buildpkg/fedora:27
+  extends: .build_job
+
+build_fedora_28:
+  image: buildpkg/fedora:28
+  extends: .build_job
+
+build_fedora_29:
+  image: buildpkg/fedora:29
+  extends: .build_job
+
+build_fedora_30:
+  image: buildpkg/fedora:30
+  extends: .build_job
+
+
+
+sign:
+  image: buildpkg/debian:stretch
+  stage: sign
+#  variables:
+#    SIGN_USER: john.doe@example.com
+#    GPG_PRIVATE_KEY:
+  script:
+    - cd $CI_PROJECT_DIR
+    - ci-sign-pkg
+  dependencies:
+    - build_debian_jessie
+    - build_debian_stretch
+    - build_debian_buster
+    - build_debian_bullseye
+#    - build_debian_sid
+    - build_ubuntu_trusty
+    - build_ubuntu_xenial
+    - build_ubuntu_zesty
+    - build_ubuntu_artful
+    - build_ubuntu_bionic
+    - build_ubuntu_cosmic
+    - build_ubuntu_disco
+    - build_ubuntu_eoan    
+    - build_ubuntu_focal
+##    - build_ubuntu_devel
+    - build_centos_6
+    - build_centos_7
+    - build_centos_8
+    - build_fedora_24
+    - build_fedora_25
+    - build_fedora_26
+    - build_fedora_27
+    - build_fedora_28
+    - build_fedora_29
+    - build_fedora_30
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - result/*
+  tags:
+    - docker
+  only:
+    - master
+
+# default PAGES_DIR is public
+# 
+pages:
+  image: buildpkg/debian:stretch
+  stage: deploy
+  variables:
+    PAGES_DIR: public
+    PAGES_HOST: gitlab.io
+  environment:
+    name: PPA
+    url: http://${CI_PROJECT_NAMESPACE}.${PAGES_HOST}/${CI_PROJECT_NAME}
+  script:
+    - cd $CI_PROJECT_DIR
+    - ci-pages-ppa
+    - ci-pages-home
+    - ci-pages-tree
+  dependencies:
+    - sign
+  artifacts:
+    paths:
+      - public
+  tags:
+    - docker 
+  only:
+    - master
+  except:
+    changes:
+      - README.md
+      - LICENSE
+      - tests
+
+
+deploy_staging:
+  image: buildpkg/ubuntu:xenial
+  stage: staging
+#  variables:
+#    DEPLOY_USER: the username on remote host
+#    DEPLOY_HOST: the target hostname or ip
+#    DEPLOY_DIR: the target deploy dir (optional)
+#    DEPLOY_UPDATE: the target deploy program (optional)
+#    SSH_PRIVATE_KEY: the public key is to be declared on the target
+  environment:
+    name: Staging
+    url: http://www.example.com
+  script:
+    - cd $CI_PROJECT_DIR
+    - ci-deploy-pkg staging
+  dependencies:
+    - pages
+    - sign
+  tags:
+    - docker 
+  only:
+    - master
+  when: manual
+
+deploy_production:
+  image: buildpkg/debian:stretch
+  stage: production
+#  variables:
+#    DEPLOY_USER: the username on remote host
+#    DEPLOY_HOST: the target hostname or ip
+#    DEPLOY_DIR: the target deploy dir (optional)
+#    DEPLOY_UPDATE: the target deploy program (optional)
+#    SSH_PRIVATE_KEY: the public key is to be declared on the target
+  environment:
+    name: Production
+    url: http://www.example.com
+  script:
+    - cd $CI_PROJECT_DIR
+    - ci-deploy-pkg production
+  dependencies:
+    - deploy_staging
+    - sign
+  tags:
+    - docker 
+  only:
+    - master
+  when: manual
+
+

@@ -1,0 +1,95 @@
+stages:
+  # Test with alpine
+  - test
+  # Test with alpine, other version of the compiler
+  - other_version
+  # Real world distributions
+  - real
+
+# OCaml version 4.04
+ocaml_404:
+  before_script:
+    - sudo apk update && sudo apk add m4
+  stage: other_version
+  image: ocaml/opam:alpine_ocaml-4.04.0
+  script: "./gitlab-ci.sh"
+  allow_failure: true
+
+# OCaml version 4.04
+ocaml_404_flambda:
+  before_script:
+    - sudo apk update && sudo apk add m4
+  stage: other_version
+  image: ocaml/opam:alpine_ocaml-4.04.0_flambda
+  script: "./gitlab-ci.sh"
+  allow_failure: true
+
+# OCaml version 4.02
+ocaml_402:
+  before_script:
+    - sudo apk update && sudo apk add m4
+  stage: other_version
+  image: ocaml/opam:alpine_ocaml-4.02.3
+  script: "./gitlab-ci.sh"
+  allow_failure: true
+
+# OCaml version 4.03
+ocaml_403:
+  before_script:
+    - sudo apk update && sudo apk add m4
+  stage: test
+  image: ocaml/opam:alpine_ocaml-4.03.0
+  script: "./gitlab-ci.sh"
+  allow_failure: false
+
+# OCaml version 4.03, with flambda optimisation
+ocaml_403_flambda:
+  before_script:
+    - sudo apk update && sudo apk add m4
+  stage: other_version
+  image: ocaml/opam:alpine_ocaml-4.03.0_flambda
+  script: "./gitlab-ci.sh"
+  allow_failure: true
+
+# ---------------
+ubuntu:
+  before_script:
+    - sudo apt-get update && sudo apt-get install -y m4
+  stage: real
+  image: ocaml/opam:ubuntu
+  script: "export OC_NOTEST=true; ./gitlab-ci.sh system"
+  allow_failure: true
+
+
+debian:
+  before_script:
+    - sudo apt-get update && sudo apt-get install -y m4
+  stage: real
+  image: ocaml/opam:debian
+  script: "export OC_NOTEST=true; ./gitlab-ci.sh system"
+  allow_failure: true
+
+centos:
+  before_script:
+    - sudo yum install -y m4
+  stage: real
+  image: ocaml/opam:centos
+  script: "export OC_NOTEST=true; ./gitlab-ci.sh system"
+  allow_failure: true
+
+fedora:
+  before_script:
+    - sudo dnf install -y m4
+  stage: real
+  image: ocaml/opam:fedora
+  script: "export OC_NOTEST=true; ./gitlab-ci.sh system"
+  allow_failure: true
+
+opensuse:
+  before_script:
+    - sudo zypper --non-interactive up && sudo zypper --non-interactive in m4
+  stage: real
+  image: ocaml/opam:opensuse
+  script: "export OC_NOTEST=true; ./gitlab-ci.sh system"
+  allow_failure: true
+

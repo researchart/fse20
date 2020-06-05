@@ -1,0 +1,335 @@
+image: fedora:latest
+
+CentOS7/GnuTLS:
+  image: centos:7
+  script:
+  - yum update -y
+  - yum install -y epel-release
+  - yum install -y git autoconf automake libtool python gettext
+    'pkgconfig(openssl)' 'pkgconfig(libxml-2.0)' 'pkgconfig(liblz4)'
+    'pkgconfig(gnutls)' trousers-devel 'pkgconfig(libpcsclite)'
+    'pkgconfig(libproxy-1.0)' 'pkgconfig(liboath)' 'pkgconfig(stoken)'
+    ocserv softhsm 'pkgconfig(uid_wrapper)' 'pkgconfig(socket_wrapper)'
+    vpnc-script 'pkgconfig(libpskc)' 'pkgconfig(libpcsclite)' tss2-devel
+    java-devel-openjdk iproute iputils nuttcp
+  - ./autogen.sh
+  - ./configure --with-java CFLAGS=-g
+  - make -j4
+# UTF-8 support is not available
+  - make VERBOSE=1 XFAIL_TESTS="auth-nonascii" -j4 check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - tests/*.log
+
+CentOS7/OpenSSL:
+  image: centos:7
+  script:
+  - yum update -y
+  - yum install -y epel-release
+  - yum install -y git autoconf automake libtool python gettext
+    'pkgconfig(openssl)' 'pkgconfig(libxml-2.0)' 'pkgconfig(liblz4)'
+    'pkgconfig(gnutls)' trousers-devel 'pkgconfig(libpcsclite)'
+    'pkgconfig(libproxy-1.0)' 'pkgconfig(liboath)' 'pkgconfig(stoken)'
+    ocserv softhsm 'pkgconfig(uid_wrapper)' 'pkgconfig(socket_wrapper)'
+    vpnc-script 'pkgconfig(libpskc)' 'pkgconfig(libpcsclite)'
+    java-devel-openjdk 'pkgconfig(libp11)' iproute iputils nuttcp
+  - ./autogen.sh
+  - ./configure --without-gnutls --with-openssl --with-java --without-openssl-version-check --enable-dtls-xfail --disable-dsa-tests CFLAGS=-g
+  - make -j4
+# UTF-8 support is not available
+  - make VERBOSE=1 XFAIL_TESTS="auth-nonascii" -j4 check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - tests/*.log
+
+CentOS6/OpenSSL:
+  image: centos:6
+  script:
+  - yum update -y
+  - yum install -y epel-release
+  - yum -y reinstall glibc-common
+  - localedef -i cs_CZ -f UTF-8 cs_CZ.UTF-8
+  - localedef -i cs_CZ -f ISO-8859-2 cs_CZ.ISO8859-2
+  - yum install -y git autoconf automake libtool python gettext
+    'pkgconfig(openssl)' 'pkgconfig(libxml-2.0)' 'pkgconfig(liblz4)'
+    'pkgconfig(gnutls)' trousers-devel 'pkgconfig(libpcsclite)'
+    'pkgconfig(libproxy-1.0)' 'pkgconfig(liboath)' 'pkgconfig(stoken)'
+    ocserv softhsm 'pkgconfig(uid_wrapper)' 'pkgconfig(socket_wrapper)'
+    vpnc-script 'pkgconfig(libpskc)' 'pkgconfig(libpcsclite)'
+    java-devel-openjdk vpnc 'pkgconfig(libp11)' 'pkgconfig(p11-kit-1)'
+    iproute iputils nuttcp
+  - ./autogen.sh
+  - ./configure --with-java --without-openssl-version-check --enable-dtls-xfail CFLAGS=-g
+  - make -j4
+# UTF-8 support is not available
+  - make VERBOSE=1 XFAIL_TESTS="bad_dtls_test auth-nonascii" -j4 check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - tests/*.log
+
+Fedora/Coverity:
+  only:
+    refs:
+       - master
+       - coverity
+  script:
+  - dnf update -y
+  - dnf install -y git autoconf automake libtool python gettext make
+    'pkgconfig(openssl)' 'pkgconfig(libxml-2.0)' 'pkgconfig(liblz4)'
+    'pkgconfig(gnutls)' trousers-devel 'pkgconfig(libpcsclite)'
+    'pkgconfig(libproxy-1.0)' 'pkgconfig(liboath)' 'pkgconfig(stoken)'
+    ocserv softhsm 'pkgconfig(uid_wrapper)' 'pkgconfig(socket_wrapper)'
+    vpnc-script 'pkgconfig(libpskc)' 'pkgconfig(libpcsclite)' tss2-devel
+    java-devel-openjdk glibc-langpack-cs iproute iputils nuttcp
+    'pkgconfig(tss2-esys)' 'pkgconfig(krb5-gssapi)' 'pkgconfig(libp11)'
+    ant
+  - curl -o /tmp/cov-analysis-linux64.tgz https://scan.coverity.com/download/linux64
+    --form project=$COVERITY_SCAN_PROJECT_NAME --form token=$COVERITY_SCAN_TOKEN
+  - tar xfz /tmp/cov-analysis-linux64.tgz
+  - ./autogen.sh
+  - cd java
+  - ../cov-analysis-linux64-*/bin/cov-build --dir ../cov-int ant
+  - cd ..
+  - ./configure --with-java --without-gnutls --with-openssl --disable-dsa-tests
+  - cov-analysis-linux64-*/bin/cov-build --dir cov-int make -j4
+  - make clean
+  - ./configure --with-java --disable-dsa-tests
+  - cov-analysis-linux64-*/bin/cov-build --dir cov-int make -j4
+  - tar cfz cov-int.tar.gz cov-int
+  - curl https://scan.coverity.com/builds?project=$COVERITY_SCAN_PROJECT_NAME
+    --form token=$COVERITY_SCAN_TOKEN --form email=$GITLAB_USER_EMAIL
+    --form file=@cov-int.tar.gz --form version="`git describe --tags`"
+    --form description="`git describe --tags` / $CI_COMMIT_TITLE / $CI_COMMIT_REF_NAME:$CI_PIPELINE_ID "
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - cov-int/*.txt
+
+Fedora/GnuTLS:
+  script:
+  - dnf update -y
+  - dnf install -y git autoconf automake libtool python gettext make
+    'pkgconfig(openssl)' 'pkgconfig(libxml-2.0)' 'pkgconfig(liblz4)'
+    'pkgconfig(gnutls)' trousers-devel 'pkgconfig(libpcsclite)'
+    'pkgconfig(libproxy-1.0)' 'pkgconfig(liboath)' 'pkgconfig(stoken)'
+    ocserv softhsm 'pkgconfig(uid_wrapper)' 'pkgconfig(socket_wrapper)'
+    vpnc-script 'pkgconfig(libpskc)' 'pkgconfig(libpcsclite)' tss2-devel
+    java-devel-openjdk glibc-langpack-cs iproute iputils nuttcp
+    'pkgconfig(tss2-esys)' 'pkgconfig(krb5-gssapi)'
+  - ./autogen.sh
+  - ./configure --with-java --disable-dsa-tests CFLAGS=-g
+  - make tmp-distdir
+  - cd openconnect-$(git describe --tags | sed s/^v//)
+  - ./configure --with-java --disable-dsa-tests CFLAGS=-g
+  - make -j4
+  - make VERBOSE=1 -j4 check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - tests/*.log
+
+Fedora/GnuTLS/clang:
+  script:
+  - dnf update -y
+  - dnf install -y git autoconf automake libtool python gettext make
+    'pkgconfig(openssl)' 'pkgconfig(libxml-2.0)' 'pkgconfig(liblz4)'
+    'pkgconfig(gnutls)' trousers-devel 'pkgconfig(libpcsclite)'
+    'pkgconfig(libproxy-1.0)' 'pkgconfig(liboath)' 'pkgconfig(stoken)'
+    ocserv softhsm 'pkgconfig(uid_wrapper)' 'pkgconfig(socket_wrapper)'
+    vpnc-script 'pkgconfig(libpskc)' 'pkgconfig(libpcsclite)' tss2-devel
+    java-devel-openjdk clang glibc-langpack-cs iproute iputils nuttcp
+    'pkgconfig(tss2-esys)' 'pkgconfig(krb5-gssapi)'
+  - ./autogen.sh
+  - ./configure --with-java --disable-dsa-tests CC=clang CFLAGS=-g
+  - make tmp-distdir
+  - cd openconnect-$(git describe --tags | sed s/^v//)
+  - ./configure --with-java --disable-dsa-tests CC=clang CFLAGS=-g
+  - make -j4
+  - make VERBOSE=1 -j4 check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - tests/*.log
+
+Fedora/OpenSSL:
+  script:
+  - dnf update -y
+  - dnf install -y git autoconf automake libtool python gettext make
+    'pkgconfig(openssl)' 'pkgconfig(libxml-2.0)' 'pkgconfig(liblz4)'
+    'pkgconfig(gnutls)' trousers-devel 'pkgconfig(libpcsclite)'
+    'pkgconfig(libproxy-1.0)' 'pkgconfig(liboath)' 'pkgconfig(stoken)'
+    ocserv softhsm 'pkgconfig(uid_wrapper)' 'pkgconfig(socket_wrapper)'
+    vpnc-script 'pkgconfig(libpskc)' 'pkgconfig(libpcsclite)'
+    java-devel-openjdk glibc-langpack-cs iproute iputils nuttcp
+    'pkgconfig(krb5-gssapi)'
+# Re-enable DSA since we test it
+  - update-crypto-policies --set LEGACY
+  - ./autogen.sh
+  - ./configure --without-gnutls --with-openssl --without-openssl-version-check --disable-dsa-tests CFLAGS=-g
+  - make tmp-distdir
+  - cd openconnect-$(git describe --tags | sed s/^v//)
+  - ./configure --without-gnutls --with-openssl --without-openssl-version-check --disable-dsa-tests CFLAGS=-g
+  - make -j4
+  - make VERBOSE=1 -j4 check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - tests/*.log
+
+Fedora/OpenSSL/clang:
+  script:
+  - dnf update -y
+  - dnf install -y git autoconf automake libtool python gettext make
+    'pkgconfig(openssl)' 'pkgconfig(libxml-2.0)' 'pkgconfig(liblz4)'
+    'pkgconfig(gnutls)' trousers-devel 'pkgconfig(libpcsclite)'
+    'pkgconfig(libproxy-1.0)' 'pkgconfig(liboath)' 'pkgconfig(stoken)'
+    ocserv softhsm 'pkgconfig(uid_wrapper)' 'pkgconfig(socket_wrapper)'
+    vpnc-script 'pkgconfig(libpskc)' 'pkgconfig(libpcsclite)'
+    java-devel-openjdk clang glibc-langpack-cs iproute iputils nuttcp
+    'pkgconfig(krb5-gssapi)'
+# Re-enable DSA since we test it
+  - update-crypto-policies --set LEGACY
+  - ./autogen.sh
+  - ./configure CC=clang --without-gnutls --with-openssl --without-openssl-version-check --disable-dsa-tests CFLAGS=-g
+  - make tmp-distdir
+  - cd openconnect-$(git describe --tags | sed s/^v//)
+  - ./configure CC=clang --without-gnutls --with-openssl --without-openssl-version-check --disable-dsa-tests CFLAGS=-g
+  - make -j4
+  - make VERBOSE=1 -j4 check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - tests/*.log
+
+MinGW32/GnuTLS:
+  script:
+  - dnf update -y
+  - dnf install -y git autoconf automake libtool python gettext make
+    mingw32-gnutls mingw32-openssl mingw32-libxml2 mingw32-zlib
+    mingw32-gcc wine.i686 make iproute iputils nuttcp
+  - mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
+  - echo ':DOSWin:M::MZ::/usr/bin/wine:' > /proc/sys/fs/binfmt_misc/register
+  - ./autogen.sh
+  - mingw32-configure CFLAGS=-g
+  - make -j4
+  - make VERBOSE=1 -j4 check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - tests/*.log
+
+MinGW32/OpenSSL:
+  script:
+  - dnf update -y
+  - dnf install -y git autoconf automake libtool python gettext make
+    mingw32-gnutls mingw32-openssl mingw32-libxml2 mingw32-zlib
+    mingw32-gcc wine.i686 make iproute iputils nuttcp
+  - mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
+  - echo ':DOSWin:M::MZ::/usr/bin/wine:' > /proc/sys/fs/binfmt_misc/register
+  - ./autogen.sh
+  - mingw32-configure --without-gnutls --with-openssl --without-openssl-version-check CFLAGS=-g
+  - make -j4
+  - make VERBOSE=1 -j4 check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - tests/*.log
+
+MinGW64/GnuTLS:
+  script:
+  - dnf update -y
+  - dnf install -y git autoconf automake libtool python gettext make
+    mingw64-gnutls mingw64-openssl mingw64-libxml2 mingw64-zlib
+    mingw64-gcc wine.i686 make iproute iputils nuttcp
+  - mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
+  - echo ':DOSWin:M::MZ::/usr/bin/wine:' > /proc/sys/fs/binfmt_misc/register
+  - ./autogen.sh
+  - mingw64-configure CFLAGS=-g
+  - make -j4
+  - make VERBOSE=1 -j4 check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - tests/*.log
+
+MinGW64/OpenSSL:
+  script:
+  - dnf update -y
+  - dnf install -y git autoconf automake libtool python gettext make
+    mingw64-gnutls mingw64-openssl mingw64-libxml2 mingw64-zlib
+    mingw64-gcc wine.x86_64 make iproute iputils nuttcp
+  - mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
+  - echo ':DOSWin:M::MZ::/usr/bin/wine:' > /proc/sys/fs/binfmt_misc/register
+  - ./autogen.sh
+  - mingw64-configure --without-gnutls --with-openssl --without-openssl-version-check CFLAGS=-g
+  - make -j4
+  - make VERBOSE=1 -j4 check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 1 week
+    when: on_failure
+    paths:
+      - tests/*.log
+
+

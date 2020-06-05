@@ -1,0 +1,59 @@
+image: registry.gitlab.com/materials-modeling/dynasor:latest
+
+build_linux:
+  stage: build
+  tags:
+    - linux
+  script:
+    - INSTDIR=$PWD/opt/lib/python
+    - mkdir -p $INSTDIR
+    - export PYTHONPATH=$INSTDIR:$PYTHONPATH
+    - python3 ./setup.py install --home=$PWD/opt
+  artifacts:
+    paths:
+      - opt
+    expire_in: 14 days
+
+run_tests:
+  stage: test
+  tags:
+    - linux
+  dependencies:
+    - build_linux
+  script:
+    - export PATH=${PATH}:${HOME}/.local/bin
+    # Python path used throughout
+    - INSTDIR=$PWD/opt/lib/python
+    - export PYTHONPATH=$INSTDIR:$PYTHONPATH
+    # run tests
+    - cd tests
+    - echo Do stuff, e.g.,
+    - echo PYTHONPATH=$PWD/../opt python run-tests.py
+  only:
+    - master__
+  allow_failure: true
+
+pages:
+  stage: deploy
+  dependencies:
+    - build_linux
+  script:
+    # build documentation
+    - INSTDIR=$PWD/opt/lib/python
+    - export PYTHONPATH=$INSTDIR:$PYTHONPATH
+    - sphinx-build doc/ public/
+    # site verification
+    - mkdir -p public/.well-known/acme-challenge/
+    - fname=`awk '{split($0, s, "."); print s[1]}' doc/letsencrypt-setup.html`
+    - mv doc/letsencrypt-setup.html public/.well-known/acme-challenge/$fname
+    # output for error tracking
+    - ls -l public/.well-known/acme-challenge/
+    - ls -l public/
+    # check settings on public directory
+    - chmod go-rwX -R public/
+  artifacts:
+      paths:
+        - public
+  only:
+    - master
+

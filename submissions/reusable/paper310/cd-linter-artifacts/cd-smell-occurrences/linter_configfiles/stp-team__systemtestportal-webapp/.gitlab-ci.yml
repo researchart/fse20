@@ -1,0 +1,524 @@
+image: silentstorm/golang-coverage
+
+variables:
+  GIT_STRATEGY: none
+  PROJECT_PATH: gitlab.com/stp-team/systemtestportal-webapp
+  NAME: systemtestportal
+
+before_script:
+  - go version
+  - export GO_PROJECT_DIR="$GOPATH/src/$PROJECT_PATH"
+  - time git clone $CI_REPOSITORY_URL $GO_PROJECT_DIR
+  - cd $GO_PROJECT_DIR
+  - git checkout $CI_COMMIT_REF_NAME
+  - deps="$(./_scripts/list_deps.sh)"
+  - echo "${deps}"
+  - go get -d ${deps}
+
+stages:
+  - test
+  - compile
+  - package
+  - save-to-cubi
+  - analysis
+  - review
+  - cleanup-review
+  - staging
+  - cleanup-staging
+
+# -----  Test  ------
+.test_template: &test_template
+  stage: test
+  dependencies: [] # Prevent download of artifacts
+
+build-project:
+  <<: *test_template
+  script:
+    - go build ./...
+
+lint-source:
+  <<: *test_template
+  script:
+    - "gometalinter --config='gometalinter.conf' --deadline=600s $GO_PROJECT_DIR/... | sort -t: -k '1,1' -k '2,2g' -k '3,3g' > $CI_PROJECT_DIR/linter.log"
+  # after_script:
+  #  - cat $CI_PROJECT_DIR/linter.log | GREP_COLOR='01;31' egrep --color=always ':error:|$' | GREP_COLOR='01;33' egrep --color=always ':warning:|$'
+  allow_failure: true
+  artifacts:
+    when: always
+    expire_in: 2 weeks
+    paths:
+      - linter.log
+
+test-project:
+  <<: *test_template
+  script:
+    - goverage -coverprofile=coverage.out ./...
+    - go tool cover -html coverage.out -o coverage.html
+    - go tool cover -func=coverage.out
+    - cp coverage.out coverage.html $CI_PROJECT_DIR
+  coverage: '/total:\s+\(statements\)\s+\d+\.\d+%/'
+  artifacts:
+    paths:
+      - coverage.out
+      - coverage.html
+    when: always
+    
+# ----- Compile ------
+
+.compile_artifact_template: &compile_artifact_template
+  artifacts: 
+    name: $FILE_NAME
+    paths:
+      - $FILE_NAME
+      - ${FILE_NAME}.sig
+
+.trigger_restrictions_signed: &trigger_restrictions_signed
+  only:
+    - tags
+    - schedules
+  
+.runner_restriction_signed: &runner_restriction_signed
+  tags:
+    - cubietruck
+  <<: *trigger_restrictions_signed
+
+.runner_restriction_signed_FOR_TESTING: &runner_restriction_signed_FOR_TESTING
+  tags:
+    - cubietruck
+
+.runner_restriction_unsigned: &runner_restriction_unsigned
+  except:
+    - tags
+
+save-to-cubi:
+  image: golang:1.10
+  stage: save-to-cubi
+  dependencies:
+    - xgo
+    - package-source
+  variables:
+    GIT_STRATEGY: clone
+  before_script:
+    - ls
+  script:
+    - NIGHTLY="$(./_scripts/ci/test_if_nightly_build_required.sh)"
+    - if [[ $NIGHTLY == "abort" ]]; then exit 0; fi
+    - ./_scripts/ci/save_to_cubi.sh
+  <<: *runner_restriction_signed
+
+
+xgo: 
+  image: docker:stable-git
+  tags:
+    - cubietruck
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay2
+  stage: compile
+  script: 
+    - NIGHTLY="$(./_scripts/ci/test_if_nightly_build_required.sh)"
+    - if [[ $NIGHTLY == "abort" ]]; then exit 0; fi
+    - pwd
+    - RELEASE_TAG=$(git describe --tags)
+    - BUILD_NAME="systemtestportal-$RELEASE_TAG"
+    - echo $GOPATH
+    - cd $GOPATH
+    - cd src
+    - cd gitlab.com/stp-team/systemtestportal-webapp/cmd/stp
+    - time ~/go/bin/xgo -out $BUILD_NAME -tags 'netgo' -tag $RELEASE_TAG -ldflags="-X gitlab.com/stp-team/systemtestportal-webapp/config.version=$(./../../_scripts/ci/get_version.sh) -linkmode external -extldflags "-static"" --dest=/builds/stp-team/systemtestportal-webapp/binaries/ --targets=windows/*,linux/* gitlab.com/stp-team/systemtestportal-webapp/cmd/stp
+    - time ~/go/bin/xgo -out $BUILD_NAME -tags 'netgo' -tag $RELEASE_TAG -ldflags="-X gitlab.com/stp-team/systemtestportal-webapp/config.version=$(./../../_scripts/ci/get_version.sh)" --dest=/builds/stp-team/systemtestportal-webapp/binaries/ --targets=darwin/* gitlab.com/stp-team/systemtestportal-webapp/cmd/stp
+    - ./../../_scripts/ci/pack_binary.sh
+    - cd /builds/stp-team/systemtestportal-webapp/binaries/
+    - ls -l
+  before_script:
+    - docker info
+    - apk add --no-cache bash gpgme go musl-dev zip
+    - go get github.com/niklaskhf/xgo # use forked xgo to allow the use of the "-tag" flag and checkout a specific tag during the build
+    - export GOPATH=~/go
+    - export PATH=$PATH:$GOPATH/bin
+    - go version
+    - export GO_PROJECT_DIR="$GOPATH/src/$PROJECT_PATH"
+    - time git clone $CI_REPOSITORY_URL $GO_PROJECT_DIR
+    - cd $GO_PROJECT_DIR
+    - git checkout $CI_COMMIT_REF_NAME
+    - deps="$(./_scripts/list_deps.sh)"
+    - echo "${deps}"
+    - go get -d ${deps}
+  artifacts:
+    name: "stp-binaries"
+    paths:
+      - binaries/
+  <<: *runner_restriction_signed
+
+.install_template_signed: &install_template_signed
+  script:
+    - NIGHTLY="$(./_scripts/ci/test_if_nightly_build_required.sh)"
+    - if [[ $NIGHTLY == "abort" ]]; then exit 0; fi
+    - if [[ $GOOS == "windows" ]]; then apt-get update && apt install -y zip; fi
+    - time go build -ldflags "-X gitlab.com/stp-team/systemtestportal-webapp/config.version=$(./_scripts/ci/get_version.sh)" -o $BIN_NAME ./cmd/stp
+    - chmod u+x $BIN_NAME
+    - pack_cmd=$(if [[ $GOOS == "windows" ]]; then echo "zip -r"; else echo "tar -cvzf"; fi)
+    - $pack_cmd $CI_PROJECT_DIR/$FILE_NAME templates static migrations data $BIN_NAME README.md
+    - echo "$STP_GPG_PRIVATE" > stp-private.key
+    - gpg --allow-secret-key-import --import stp-private.key
+    - gpg --detach-sign $CI_PROJECT_DIR/$FILE_NAME
+    - echo "$STP_GPG_PUBLIC" > stp-public.key
+    - gpg --import stp-public.key
+    - gpg --verify $CI_PROJECT_DIR/${FILE_NAME}.sig $CI_PROJECT_DIR/$FILE_NAME
+
+.install_template_unsigned: &install_template_unsigned
+  script:
+    - echo $BIN_NAME
+    - echo $FILE_NAME
+    - time go build -ldflags "-X gitlab.com/stp-team/systemtestportal-webapp/config.version=$(./_scripts/ci/get_version.sh)" -o stp ./cmd/stp
+    - chmod u+x stp
+    - pack_cmd=$(if [[ $GOOS == "windows" ]]; then echo "zip -r"; else echo "tar -cvzf"; fi)
+    - mkdir $BIN_NAME
+    - mv templates $BIN_NAME/
+    - mv static $BIN_NAME/
+    - mv migrations $BIN_NAME/
+    - mv data $BIN_NAME/
+    - mv stp $BIN_NAME/$BIN_NAME
+    - mv README.md $BIN_NAME/
+    - mv LICENSE $BIN_NAME/
+    - $pack_cmd $CI_PROJECT_DIR/$FILE_NAME $BIN_NAME
+    - rm -R $BIN_NAME
+
+.compile_template: &compile_template
+  image: golang:1.10
+  stage: compile
+  <<: *compile_artifact_template
+  dependencies: [] # Prevent download of artifacts
+
+.compile_template_signed: &compile_template_signed
+  <<: *compile_template
+  <<: *install_template_signed
+  <<: *runner_restriction_signed
+
+.compile_template_unsigned: &compile_template_unsigned
+  <<: *compile_template
+  <<: *install_template_unsigned
+  <<: *runner_restriction_unsigned
+
+# linux - amd64
+
+.linux-amd64_template: &linux-amd64_template
+  variables:
+    BIN_NAME: "systemtestportal-linux-amd64_${CI_COMMIT_REF_NAME}"
+    FILE_NAME: "systemtestportal-linux-amd64_${CI_COMMIT_REF_NAME}.tar.gz"
+    GOOS: "linux"
+    GOARCH: "amd64"
+  
+.linux-amd64-signed:
+  <<: *compile_template_signed
+  <<: *linux-amd64_template
+
+linux-amd64-unsigned:
+  <<: *compile_template_unsigned
+  <<: *linux-amd64_template
+
+# linux - armel
+
+.linux-armel_template: &linux-armel_template
+  variables:
+    BIN_NAME: "stp"
+    FILE_NAME: "${NAME}-linux-armel_${CI_COMMIT_REF_NAME}.tar.gz"
+    GOOS: "linux"
+    GOARCH: "arm"
+    GOARM: "6"
+  
+.linux-armel-signed:
+  <<: *compile_template_signed
+  <<: *linux-armel_template
+
+# linux - armhf
+
+.linux-armhf_template: &linux-armhf_template
+  variables:
+    BIN_NAME: "stp"
+    FILE_NAME: "${NAME}-linux-armhf_${CI_COMMIT_REF_NAME}.tar.gz"
+    GOOS: "linux"
+    GOARCH: "arm"
+    GOARM: "7"
+  
+.linux-armhf-signed:
+  <<: *compile_template_signed
+  <<: *linux-armhf_template
+
+# linux - 386
+
+.linux-386_template: &linux-386_template
+  variables:
+    BIN_NAME: "stp"
+    FILE_NAME: "${NAME}-linux-386_${CI_COMMIT_REF_NAME}.tar.gz"
+    GOOS: "linux"
+    GOARCH: "386"
+  
+.linux-386-signed:
+  <<: *compile_template_signed
+  <<: *linux-386_template
+
+# windows - amd64
+
+.windows-amd64_template: &windows-amd64_template
+  variables:
+    BIN_NAME: "stp.exe"
+    FILE_NAME: "${NAME}-windows-amd64_${CI_COMMIT_REF_NAME}.zip"
+    GOOS: "windows"
+    GOARCH: "amd64"
+
+.windows-amd64-signed:
+  <<: *compile_template_signed
+  <<: *windows-amd64_template
+
+# windows - 386
+
+.windows-386_template: &windows-386_template
+  variables:
+    BIN_NAME: "stp.exe"
+    FILE_NAME: "${NAME}-windows-386_${CI_COMMIT_REF_NAME}.zip"
+    GOOS: "windows"
+    GOARCH: "386"
+
+.windows-386-signed:
+  <<: *compile_template_signed
+  <<: *windows-386_template
+
+
+# -----  Package  ------
+
+.package_template: &package_template
+  stage: package
+  image: golang:1.10
+
+.package_template_signed: &package_template_signed
+  <<: *package_template
+  <<: *runner_restriction_signed
+
+.package_source_artifact_template: &package_source_artifact_template
+  artifacts:
+    name: "$FILE_NAME"
+    paths:
+      - "$FILE_NAME"
+      - "$FILE_NAME.sig"
+
+package-source:
+  <<: *package_template_signed
+  <<: *package_source_artifact_template
+  variables:
+    FILE_NAME: "stp-src_${CI_COMMIT_REF_NAME}.tar.gz"
+  script:
+    - NIGHTLY="$(./_scripts/ci/test_if_nightly_build_required.sh)"
+    - if [[ $NIGHTLY == "abort" ]]; then exit 0; fi
+    - chmod +x ./_scripts/ci/pack_source.sh
+    - mkdir /builds/stp-team/systemtestportal-webapp/source/
+    - ./_scripts/ci/pack_source.sh
+  artifacts:
+    name: "stp-source"
+    paths:
+      - source/
+
+.pkg-deb_template: &package-deb_template
+  script:
+    - NIGHTLY="$(./_scripts/ci/test_if_nightly_build_required.sh)"
+    - if [[ $NIGHTLY == "abort" ]]; then exit 0; fi
+    # copy over needed files
+    - VERSION=$(./_scripts/ci/get_version.sh)
+    - SUITE=$(./_scripts/ci/get_suite.sh $CI_COMMIT_TAG)
+    - ls -l ./_scripts/ci/
+    - cp ./_scripts/ci/service_tmpl.sh $CI_PROJECT_DIR
+    - cp ./_scripts/ci/deb_control_tmpl.sh $CI_PROJECT_DIR
+    - cp ./_scripts/ci/config_tmpl.sh $CI_PROJECT_DIR
+    - cp ./_scripts/install_stp.sh $CI_PROJECT_DIR
+    # package directly in project path it contains compiled artifacts
+    - cd $CI_PROJECT_DIR
+    - ls -l
+    - mkdir -p "$NAME/DEBIAN"
+    - tar -xvzf "${NAME}-linux-${ARCH}_${CI_COMMIT_REF_NAME}.tar.gz"
+    - ./service_tmpl.sh /usr/bin /usr/share/stp  > stp.service
+    - ./config_tmpl.sh /usr/share/stp /var/stp  > config.ini
+    - mkdir -p ${NAME}/var/stp
+    - ./deb_control_tmpl.sh $NAME $VERSION ${ARCH} > "${NAME}/DEBIAN/control"
+    - ./install_stp.sh . ${NAME}/usr/bin ${NAME}/usr/share/stp ${NAME}/etc/systemd/system ${NAME}/etc/stp
+    - time dpkg-deb --build $NAME
+    - echo $SUITE > suite
+    - echo "$STP_GPG_PRIVATE" > stp-private.key
+    - gpg --allow-secret-key-import --import stp-private.key
+    - gpg --detach-sign $NAME.deb
+
+.package_artifact_deb_template: &package_artifact_deb_template
+  artifacts: 
+    name: "${NAME}_${ARCH}-deb"
+    paths:
+      - "$NAME.deb"
+      - "$NAME.deb.sig"
+      - "suite"
+
+.package_template_debian: &package_template_debian
+  <<: *package_template_signed
+  <<: *package_artifact_deb_template
+  <<: *package-deb_template
+
+.deb-amd64:
+  dependencies:
+    - xgo
+  variables:
+    ARCH: "amd64"
+  <<: *package_template_debian
+
+.deb-armel:
+  dependencies:
+    - xgo
+  variables:
+    ARCH: "armel"
+  <<: *package_template_debian
+
+.deb-armhf:
+  dependencies:
+    - xgo
+  variables:
+    ARCH: "armhf"
+  <<: *package_template_debian
+
+.deb-386:
+  dependencies:
+    - xgo
+  variables:
+    ARCH: "386"
+  <<: *package_template_debian
+
+# --------- Analysis --------------
+
+sonar-cloud: 
+    image: niklaskhf/sonar-runner-docker
+    stage: analysis
+    dependencies: 
+      - test-project
+      - lint-source
+    before_script: 
+      - export GO_PROJECT_DIR="$GOPATH/src/$PROJECT_PATH"
+      - time git clone $CI_REPOSITORY_URL $GO_PROJECT_DIR
+      - cd $GO_PROJECT_DIR
+      - git checkout $CI_COMMIT_REF_NAME
+    script:
+      - VERSION=$(./_scripts/ci/get_version.sh)    
+      - sonar-scanner -Dsonar.projectVersion=$VERSION -Dsonar.projectKey=systemtestportal-gitlab   -Dsonar.organization=systemtestportal-gitlab   -Dsonar.sources=.   -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$SONAR_CLOUD -Dsonar.go.coverage.reportPaths=$CI_PROJECT_DIR/coverage.out -Dsonar.coverage.exclusions=**/*.js,**/*_test.go,**/*bootstrap*,**/libraries/**,**/bootstrap*.css,**/bootstrap*,**/*.sql -Dsonar.branch.name=$CI_COMMIT_REF_NAME -Dsonar.go.gometalinter.reportPaths=$CI_PROJECT_DIR/linter.log -Dsonar.test.exclusions=**/*_test.go
+
+
+
+# -----  Docker  ------
+
+.docker-template: &docker-template
+  image: docker:stable # to run docker in docker
+  stage: package
+  services:
+  - docker:dind
+  before_script:
+    - docker info
+    - apk add --no-cache bash gpgme git
+  tags:
+    - docker
+  variables:
+    GIT_STRATEGY: clone
+
+docker-signed:
+  <<: *docker-template
+  dependencies:
+    - xgo
+  script:
+    - NIGHTLY="$(./_scripts/ci/test_if_nightly_build_required.sh)"
+    - if [[ $NIGHTLY == "abort" ]]; then exit 0; fi
+    - ./_scripts/ci/build_docker.sh
+  <<: *trigger_restrictions_signed
+   
+
+docker-unsigned:
+  <<: *docker-template
+  dependencies:
+    - linux-amd64-unsigned
+  script:
+    - cp "${CI_PROJECT_DIR}/systemtestportal-linux-amd64_${CI_COMMIT_REF_NAME}.tar.gz" ./stp.tar.gz
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build --build-arg BINARY_NAME="systemtestportal-linux-amd64_${CI_COMMIT_REF_NAME}" -t $CI_REGISTRY_IMAGE/unsigned:$CI_COMMIT_REF_SLUG .
+    - docker push $CI_REGISTRY_IMAGE/unsigned:$CI_COMMIT_REF_SLUG
+  except:
+    - tags
+
+.kubernetes_template: &kubernetes_template
+  image: google/cloud-sdk
+  dependencies: [] # Prevent download of artifacts
+  variables:
+    GIT_STRATEGY: clone
+  before_script: 
+    - apt-get -y install gettext-base
+    - echo "$GOOGLE_KEY" > key.json
+    - gcloud auth activate-service-account --key-file key.json
+    - gcloud config set compute/zone europe-west1-b
+    - gcloud config set project gce-project
+    - gcloud config set container/use_client_certificate True
+    - gcloud container clusters get-credentials gce-cluster --zone europe-west1-b --project gce-project-200607 # has to be the name of the cluster, command will configure kubectl to point to the named cluster
+
+.review_runner_restriction: &review_runner_restriction
+  when: manual
+  only:
+    refs: 
+      - branches
+    kubernetes: active
+  except:
+    - master 
+
+.review_template: &review_template
+  <<: *kubernetes_template
+  <<: *review_runner_restriction
+
+.start_deploy_script: &start_deploy_script
+  script:
+    - envsubst < deployment/stp-review-deploy.yml | kubectl apply -f -
+
+.stop_deploy_script: &stop_deploy_script
+  script:
+    - envsubst < deployment/stp-review-deploy.yml | kubectl delete -f -
+
+start_review:
+  <<: *review_template
+  <<: *start_deploy_script
+  stage: review
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: http://$CI_ENVIRONMENT_SLUG.reviews.kammhoff.com
+    on_stop: stop_review
+
+stop_review:
+  <<: *review_template
+  <<: *stop_deploy_script
+  stage: cleanup-review
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+
+.demo_template: &demo_template
+  <<: *kubernetes_template
+  only:
+    refs:
+      - master
+    kubernetes: active
+
+demo_master:
+  <<: *demo_template
+  <<: *start_deploy_script
+  stage: staging  
+  environment:
+    name: $CI_COMMIT_REF_NAME
+    url: http://$CI_ENVIRONMENT_SLUG.reviews.kammhoff.com
+    on_stop: stop_demo
+
+stop_demo:
+  <<: *demo_template
+  <<: *stop_deploy_script
+  stage: cleanup-staging
+  environment:
+    name: $CI_COMMIT_REF_NAME
+    action: stop
+  when: manual
+

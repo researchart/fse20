@@ -1,0 +1,91 @@
+image: atomfrede/gitlab-ci-jhipster-stack
+
+cache:
+  key: "$CI_BUILD_REF_NAME"
+  paths:
+    - node_modules
+    - .gradle/wrapper
+    - .gradle/caches
+    - .maven
+
+services:
+    - docker:dind
+
+stages:
+  - build
+  - test
+  - package
+#  - release
+#  - deploy
+
+before_script:
+    - export GRADLE_USER_HOME=`pwd`/.gradle
+    - export MAVEN_USER_HOME=`pwd`/.maven
+    - npm install -g typings
+    - curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
+    - echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+    - apt-get update && apt-get install yarn
+
+maven-build:
+    stage: build
+    script:
+        - ./mvnw compile -Dmaven.repo.local=$MAVEN_USER_HOME
+
+yarn-build:
+    stage: build
+    script:
+        - yarn install
+
+maven-test:
+    stage: test
+    script:
+        - ./mvnw test -Dmaven.repo.local=$MAVEN_USER_HOME
+    artifacts:
+        paths:
+            - target/surefire-reports/*
+
+yarn-test:
+    stage: test
+    script:
+        - yarn test
+
+#protractor-test:
+#    stage: test
+#    script:
+#        - gulp protractor
+
+gatling-test:
+    stage: test
+    allow_failure: true
+    script:
+        - ./mvnw gatling:execute -Dmaven.repo.local=$MAVEN_USER_HOME
+    before_script:
+        - npm install -g typings
+        - yarn install
+        - export MAVEN_USER_HOME=`pwd`/.maven
+        - ./mvnw spring-boot:run -Dmaven.repo.local=$MAVEN_USER_HOME &
+    artifacts:
+        paths:
+            - target/gatling/*
+
+maven-repackage:
+    stage: package
+    script:
+        - ./mvnw package -DskipTests -Dmaven.repo.local=$MAVEN_USER_HOME
+    artifacts:
+        paths:
+            - target/*.war
+
+#docker-build:
+#    image: docker:latest
+#    stage: release
+#    dependencies:
+#        - maven-repackage
+#    before_script:
+#        - docker info
+#        - cp target/*.war src/main/docker
+#    script:
+#        - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" registry.gitlab.com
+#        - docker build -f src/main/docker/Dockerfile -t registry.gitlab.com/atomfrede/jhipster-ci-example-maven src/main/docker
+#        - docker push registry.gitlab.com/atomfrede/jhipster-ci-example-maven
+

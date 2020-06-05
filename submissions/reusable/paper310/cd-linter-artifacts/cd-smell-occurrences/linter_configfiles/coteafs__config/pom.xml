@@ -1,0 +1,93 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<artifactId>configs</artifactId>
+	<description>YAML based config file parser.</description>
+	<name>${project.groupId}:${project.artifactId}</name>
+	<url>https://gitlab.com/coteafs/config</url>
+	<version>2.0.0-SNAPSHOT</version>
+
+	<parent>
+		<groupId>com.github.wasiqb.coteafs</groupId>
+		<artifactId>parent</artifactId>
+		<version>2.0.0</version>
+	</parent>
+
+	<scm>
+		<connection>scm:git:git@gitlab.com:coteafs/config.git</connection>
+		<developerConnection>scm:git:git@gitlab.com:coteafs/config.git</developerConnection>
+		<url>git@gitlab.com:coteafs/config.git</url>
+	</scm>
+
+	<issueManagement>
+		<system>GitLab</system>
+		<url>https://gitlab.com/coteafs/config/issues</url>
+	</issueManagement>
+
+	<ciManagement>
+		<system>GitLab CI</system>
+		<url>https://gitlab.com/coteafs/config/pipelines</url>
+	</ciManagement>
+
+	<properties>
+		<coteafs.error.version>1.4.0</coteafs.error.version>
+		<common.config>2.2</common.config>
+		<beanutils>1.9.3</beanutils>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-configuration2</artifactId>
+			<version>${common.config}</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-beanutils</groupId>
+			<artifactId>commons-beanutils</artifactId>
+			<version>${beanutils}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.wasiqb.coteafs</groupId>
+			<artifactId>error</artifactId>
+			<version>${coteafs.error.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.testng</groupId>
+			<artifactId>testng</artifactId>
+			<version>${testng.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.yaml</groupId>
+					<artifactId>snakeyaml</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.google.truth</groupId>
+			<artifactId>truth</artifactId>
+			<version>${truth.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.yaml</groupId>
+			<artifactId>snakeyaml</artifactId>
+			<version>${yaml-version}</version>
+		</dependency>
+	</dependencies>
+</project>
+

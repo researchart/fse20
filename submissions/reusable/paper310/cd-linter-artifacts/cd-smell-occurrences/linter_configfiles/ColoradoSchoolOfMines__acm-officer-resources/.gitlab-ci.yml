@@ -1,0 +1,21 @@
+# Deploy documenation to GitLab Pages
+pages:
+  image: python:3.6-alpine
+  stage: deploy
+  only:
+    - master
+  before_script:
+    # Requirements
+    - apk update && apk upgrade && apk add make
+    - pip install -r requirements.txt
+  script:
+    # Compile the Sphinx documenation
+    - make html
+    - cd pdfs; make; cd ..;
+
+    # Required for GitLab pages
+    - mv _build/html public
+  artifacts:
+      paths:
+        - public
+

@@ -1,0 +1,46 @@
+services:
+    - docker:dind
+
+stages:
+    - build
+    - test
+    - publish
+    - deploy
+
+include:
+  - template: Container-Scanning.gitlab-ci.yml
+
+docker build:
+    stage: build
+    image: docker:latest
+    script:
+        - docker login --username gitlab-ci-token --password "$CI_JOB_TOKEN" "$CI_REGISTRY"
+        - docker build --tag $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA .
+        - docker push $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
+    only: [master]
+
+test:
+    stage: test
+    image: python:latest
+    before_script:
+        - python --version
+        - pip install tox
+    script:
+        - tox
+
+docker promote:
+    stage: publish
+    image: docker:latest
+    script:
+        - docker login --username gitlab-ci-token --password "$CI_JOB_TOKEN" "$CI_REGISTRY"
+        - docker pull $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
+        - docker tag $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:latest
+        - docker push $CI_REGISTRY_IMAGE:latest
+    only: [master]
+
+kwilco:
+    stage: deploy
+    script:
+        - "curl --silent --show-error --fail -X POST -F token=$TRIGGER_TOKEN -F ref=master https://gitlab.com/api/v4/projects/3492000/trigger/pipeline >/dev/null"
+    only: [master]
+

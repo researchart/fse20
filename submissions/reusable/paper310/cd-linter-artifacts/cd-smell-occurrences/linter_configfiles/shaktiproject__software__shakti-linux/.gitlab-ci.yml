@@ -1,0 +1,12 @@
+linux-rv64imafd-build:
+    variables:
+        GIT_SUBMODULE_STRATEGY: recursive
+    script:
+      - unset LD_LIBRARY_PATH
+      - export SHAKTI_LINUX=$PWD
+      - make -j16 ISA=rv64imafd
+    only:
+        - master 
+    tags:
+        - sw-runner
+

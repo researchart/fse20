@@ -1,0 +1,88 @@
+stages:
+  - build
+  - containers
+  - test
+  - deploy
+
+make:engine:
+  stage: build
+  image: golang:1.13-buster
+  script:
+    - apt update
+    - apt install -y protobuf-compiler
+    - export GOBIN=/tmp/engine/tools
+    - export GOPROXY=https://proxy.golang.org
+    - mkdir -p $GOBIN
+    - export PATH=$GOBIN:$PATH
+    - go install github.com/golang/protobuf/protoc-gen-go
+    - make distclean
+    # rebuild the swagger generated files so `go mod vendor` finds
+    # the local build.
+    - make api/portal/{restapi,client}/operations/*.go
+    - go mod vendor
+    - make
+  artifacts:
+    paths:
+      - build/*
+      - api/portal/cmd/*/*
+      - api/portal/client
+      - api/portal/models
+      - api/*/spec.pb.go
+      - api/portal/restapi/operations/* 
+      - .tools
+    expire_in: "2 hrs"
+  tags:
+    - merge
+    - docker
+
+make:containers:
+  stage: containers
+  dependencies:
+    - make:engine
+  script:
+    - TAG=ci_testing BUILD_ARGS=--no-cache make registry='quay.io' containers -j`nproc`
+    - docker login -u $CI_QUAY_LOGIN -p $CI_MERGETB_TOKEN quay.io
+    - TAG=ci_testing PUSH=1 make registry='quay.io' containers -j`nproc`
+  after_script:
+    - sudo docker system prune -f
+    
+  tags:
+    - merge
+    - shell
+
+test:prototype:
+  stage: test
+  dependencies:
+    - make:containers
+  before_script:
+    - git clone https://gitlab.com/mergetb/prototypes.git $CI_PROJECT_DIR/prototypes
+  script:
+    - pushd $CI_PROJECT_DIR/prototypes/integrated
+    - sudo ./run_tests.sh $MERGE_USER1 $MERGE_PASSWD1 $MERGE_USER2 $MERGE_PASSWD2
+    - popd
+  after_script:
+    - pushd $CI_PROJECT_DIR/prototypes/integrated
+    - sudo rvn destroy
+    - popd 
+    - sudo rm -rf $CI_PROJECT_DIR/prototypes
+  tags:
+    - merge
+    - shell
+      
+deploy:containers:
+  stage: deploy
+  dependencies:
+    - make:engine
+  script:
+    - docker login -u $CI_QUAY_LOGIN -p $CI_MERGETB_TOKEN quay.io
+    - find . -name "*.pb.go" | xargs -n 1 touch
+    - touch build/*
+    - TAG=latest BUILD_ARGS=--no-cache PUSH=1 make registry='quay.io' containers -j`nproc`
+  tags:
+    - merge
+    - shell
+  after_script:
+    - sudo docker system prune -f
+  only:
+    - tags
+

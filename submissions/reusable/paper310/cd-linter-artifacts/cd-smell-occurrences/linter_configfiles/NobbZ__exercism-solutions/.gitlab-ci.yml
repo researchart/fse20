@@ -1,0 +1,144 @@
+## Declare stages
+#################
+
+stages:
+  - docker
+  - test
+
+## Prepare the anchors
+######################
+
+.runner: &runner
+  stage: test
+  script:
+    - _runner/run
+
+.dind: &dind
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - echo ${CI_JOB_TOKEN} | docker login -u gitlab-ci-token --password-stdin registry.gitlab.com
+    - apk add --no-cache bash findutils
+  only:
+    - schedule
+    - web
+    - docker
+
+.docker: &docker
+  <<: *dind
+  stage: docker
+  script:
+    - _runner/docker-tester
+
+## Build actual images
+######################
+
+docker:bash:
+  <<: *docker
+
+docker:c:
+  <<: *docker
+
+docker:clojure:
+  <<: *docker
+
+docker:coffeescript:
+  <<: *docker
+
+docker:cpp:
+  <<: *docker
+
+docker:elisp:
+  <<: *docker
+
+docker:elixir:
+  <<: *docker
+
+docker:erlang:
+  <<: *docker
+
+docker:haskell:
+  <<: *docker
+
+docker:java:
+  <<: *docker
+
+docker:lfe:
+  <<: *docker
+
+docker:python:
+  <<: *docker
+
+docker:racket:
+  <<: *docker
+
+docker:ruby:
+  <<: *docker
+
+docker:rust:
+  <<: *docker
+
+## Run the tests
+################
+
+test:bash:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/bash:latest
+
+test:c:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/c:latest
+
+test:clojure:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/clojure:latest
+
+test:coffeescript:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/coffeescript:latest
+
+test:cpp:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/cpp:latest
+
+test:elisp:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/elisp:latest
+
+test:elixir:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/elixir:latest
+
+test:erlang:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/erlang:latest
+
+test:haskell:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/haskell:latest
+
+test:java:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/java:latest
+
+test:lfe:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/lfe:latest
+
+test:python:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/python:latest
+
+test:racket:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/racket:latest
+
+test:ruby:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/ruby:latest
+
+test:rust:
+  <<: *runner
+  image: registry.gitlab.com/nobbz/exercism-solutions/rust:latest
+

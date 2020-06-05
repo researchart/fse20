@@ -1,0 +1,58 @@
+image: node:latest
+
+cache:
+  paths:
+    - node_modules/
+
+variables:
+  DATABASE_URL: mysql://root@localhost:3306/auto-personalia
+  MYSQL_USERNAME: root
+  HEROKU_API_KEY: f88b3a4e-e1b4-461f-a855-2d0e6fb8ebe3
+
+test:
+  script:
+    - npm install
+    - npm run-script report
+
+test-with-artifact:
+  script:
+    - npm install
+    - npm run-script test-coverage
+  artifacts:
+    paths:
+      - coverage/
+  only:
+    - master
+
+pages:
+  type: deploy
+  dependencies:
+    - test-with-artifact
+  script:
+    - mv coverage/lcov-report/ public/
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master
+
+develop:
+  type: deploy
+  script:
+    - apt-get update -qy
+    - apt-get install -y rubygems
+    - gem install dpl
+    - dpl --provider=heroku --app=auto-personalia-development --api-key=$HEROKU_API_KEY
+  only:
+    - develop
+
+staging:
+  type: deploy
+  script:
+    - apt-get update -qy
+    - apt-get install -y rubygems
+    - gem install dpl
+    - dpl --provider=heroku --app=auto-personalia-staging --api-key=$HEROKU_API_KEY
+  only:
+    - master
+

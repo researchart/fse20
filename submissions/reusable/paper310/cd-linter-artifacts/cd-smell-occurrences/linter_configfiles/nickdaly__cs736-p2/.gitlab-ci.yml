@@ -1,0 +1,23 @@
+image: debian:stretch
+
+html:
+  script:
+    - apt-get update -qq && apt-get install --no-install-recommends -qq -y emacs-nox org-mode
+    - emacs --batch -l src/init.el --visit nakamoto-malos.org --eval "(org-html-export-to-html)"
+  artifacts:
+    paths:
+      - nakamoto-malos.html
+
+pages:
+  stage: deploy
+  dependencies:
+    - html
+  script:
+    - mkdir -p public
+    - mv nakamoto-malos.html public/index.html
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master
+

@@ -1,0 +1,110 @@
+variables:
+  TWINE_USERNAME: SECURE
+  TWINE_PASSWORD: SECURE
+  TWINE_REPOSITORY_URL: https://upload.pypi.org/legacy/
+  DOCKER_PASSWORD: SECURE
+  DOCKER_USERNAME: SECURE
+
+
+stages:
+  - test
+  - deploy
+  - docs
+
+test:
+  image: costrouc/lammps:patch_11May2018-debian-mpi-none
+  stage: test
+  script:
+    - apt update; apt install python3.5 python3-pip -y
+    - pip3 install cython numpy mpi4py
+    - pip3 install .[all]
+    - python3.5 setup.py test --addopts "--cov=lammps"
+
+
+deploy_pypi:
+  image: costrouc/lammps:patch_11May2018-debian-mpi-none
+  stage: deploy
+  script:
+    - apt update; apt install python3.5 python3-pip -y
+    - pip3 install -U cython numpy mpi4py twine setuptools
+    - pip3 install .
+    - python3.5 setup.py build_ext
+    - python3.5 setup.py sdist
+    - twine upload dist/*.tar.gz
+  only:
+    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+
+deploy_lammps_conda:
+  image: continuumio/miniconda:latest
+  stage: deploy
+  script:
+    - apt update; apt install build-essential -y
+    - conda create -n py36 python=3.6 conda-build anaconda-client -y
+    - source activate py36
+    - conda build -c conda-forge --user $ANACONDA_USERNAME --token $ANACONDA_TOKEN .conda/lammps
+  only:
+    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+
+.deploy_lammps-cython_conda_template: &deploy_lammps-cython_conda_definition
+  image: continuumio/miniconda:latest
+  stage: deploy
+  script:
+    - apt update; apt install build-essential -y
+    - conda create -n venv python=$PYTHON_VERSION conda-build anaconda-client -y
+    - source activate venv
+    - conda build -c costrouc -c conda-forge --user $ANACONDA_USERNAME --token $ANACONDA_TOKEN .conda/lammps-cython
+  only:
+    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+
+deploy_lammps-cython_conda_py35:
+  <<: *deploy_lammps-cython_conda_definition
+  variables:
+    PYTHON_VERSION: "3.5"
+
+deploy_lammps-cython_conda_py36:
+  <<: *deploy_lammps-cython_conda_definition
+  variables:
+    PYTHON_VERSION: "3.6"
+
+
+deploy_docker:
+  image: docker:git
+  stage: deploy
+  services:
+    - docker:dind
+  script:
+    - export DOCKER_IMAGE="costrouc/lammps-cython"
+    - export GITLAB_IMAGE="registry.gitlab.com/costrouc/lammps-cython"
+    - export BUILD_DIR="."
+    - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t $DOCKER_IMAGE:$CI_COMMIT_TAG --build-arg VERSION=$CI_COMMIT_TAG $BUILD_DIR
+    - docker tag $DOCKER_IMAGE:$CI_COMMIT_TAG $DOCKER_IMAGE:latest
+    - docker tag $DOCKER_IMAGE:$CI_COMMIT_TAG $GITLAB_IMAGE:$CI_COMMIT_TAG
+    - docker tag $DOCKER_IMAGE:$CI_COMMIT_TAG $GITLAB_IMAGE:latest
+    - docker push $DOCKER_IMAGE:$CI_COMMIT_TAG
+    - docker push $DOCKER_IMAGE:latest
+    - docker push $GITLAB_IMAGE:$CI_COMMIT_TAG
+    - docker push $GITLAB_IMAGE:latest
+  only:
+    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant version (tags)
+
+
+pages:
+  image: costrouc/lammps:patch_11May2018-debian-mpi-none
+  stage: docs
+  script:
+    - apt update; apt install python3.5 python3-pip -y
+    - pip3 install cython numpy mpi4py sphinx sphinx_rtd_theme
+    - pip3 install -e .
+    - mkdir public
+    - cd docs
+    - make apidocs
+    - make html
+    - cp -r _build/html/* ../public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

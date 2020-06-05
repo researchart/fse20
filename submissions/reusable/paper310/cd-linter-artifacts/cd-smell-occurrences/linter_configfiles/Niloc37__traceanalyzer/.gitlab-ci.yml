@@ -1,0 +1,65 @@
+image: ubuntu:cosmic
+
+stages:
+  - get_deps
+  - build
+  - test
+
+#---------------------------------------------
+# get_depts
+#---------------------------------------------
+
+get dependencies:
+  stage: get_deps
+  script:
+    - apt update -qq && apt install -y -qq git
+    - utils/updateDependencies
+  artifacts:
+    paths:
+      - ./extlib/
+
+#---------------------------------------------
+# Building
+#---------------------------------------------
+
+.build:
+  stage: build
+  before_script:
+    - apt update -qq && apt install -y -qq cmake make git
+
+build for tests:
+  extends: .build
+  script:
+    - apt install -y -qq g++
+    - test/run -v build_for_tests
+  artifacts:
+    paths:
+      - ./bin/test/install/
+
+all builds gcc:
+  extends: .build
+  allow_failure: true
+  script:
+    - apt install -y -qq g++
+    - test/run -v compilation
+
+all builds clang:
+  extends: .build
+  allow_failure: true
+  script:
+    - apt install -y -qq clang
+    - test/run -v compilation
+
+#---------------------------------------------
+# Tests
+#---------------------------------------------
+
+cmake sanity:
+  stage: test
+  before_script:
+    - apt update -qq && apt install -y -qq make cmake
+  script:
+    - test/run -v cmake
+
+
+

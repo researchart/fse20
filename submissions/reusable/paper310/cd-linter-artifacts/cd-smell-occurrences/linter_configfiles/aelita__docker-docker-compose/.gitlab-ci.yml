@@ -1,0 +1,31 @@
+image: docker:latest
+services:
+  - docker:dind
+
+stages:
+  - build
+  - rebuild
+
+variables:
+  PROJECT_NAME: "${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}"
+  REGISTRY: "registry.gitlab.com"
+  CANONICAL_NAME: "${REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}"
+
+.template:build: &template
+  script:
+    - "docker login -u gitlab-ci-token -p ${CI_BUILD_TOKEN} ${REGISTRY}"
+    - "docker build . -t ${CANONICAL_NAME}:latest -t ${CANONICAL_NAME}"
+    - "docker push ${CANONICAL_NAME}:latest"
+    - VERSION=$(docker run ${CANONICAL_NAME} docker-compose -v | grep -o '\d\+\.\d\+\.\d\+')
+    - "docker tag ${CANONICAL_NAME} ${CANONICAL_NAME}:${VERSION}"
+    - "docker push ${CANONICAL_NAME}:${VERSION}"
+
+docker:build:
+  stage: build
+  <<: *template
+
+docker:rebuild:
+  stage: rebuild
+  when: manual
+  <<: *template
+

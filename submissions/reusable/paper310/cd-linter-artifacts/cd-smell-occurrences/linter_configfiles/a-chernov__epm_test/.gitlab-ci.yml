@@ -1,0 +1,43 @@
+stages:
+    - build
+    - test
+
+build:
+    stage: build
+    image: fedora
+    before_script:
+        - dnf install -y gcc make dpkg rpm-build
+    script:
+        # EMP build
+        - ./configure && make && make install
+        # Fix env paths in emp.list
+        - sed -i 's/NONE/\/usr/' epm.list
+        # Build deb packages
+        - epm -v -f deb epm-deb epm.list
+        # Build rpm packages
+        - epm -v -f rpm epm-rpm epm.list
+    artifacts:
+        #untracked: true
+        paths:
+            - $CI_PROJECT_DIR/lin*/*
+
+test_deb:
+    stage: test
+    image: ubuntu
+    script:
+        # Install deb packages
+        - cd lin*/ && tar zxvf epm-deb*.tgz
+        - dpkg -i epm-deb*.deb
+        # Test installed EPM
+        - epm --version
+
+test_rpm:
+    stage: test
+    image: fedora
+    script:
+        # Install rpm packages
+        - cd lin*/ && tar zxvf epm-rpm*.tgz
+        - dnf install -y epm-rpm*.rpm
+        # Test installed EPM
+        - epm --version
+

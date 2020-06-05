@@ -1,0 +1,124 @@
+image: registry.gitlab.com/kimlab/linux-anvil:latest
+
+stages:
+  - build
+  - test
+  - deploy
+
+cache:
+  paths:
+    - .conda_packages
+
+# === Variables ===
+
+variables:
+  PACKAGE_VERSION: 0.1.3
+
+.conda_configure: &conda_configure
+  before_script:
+    # Cargo
+    - curl -sSf https://static.rust-lang.org/rustup.sh | sudo sh 2>/dev/null
+    # Conda environment variables
+    - export CONDA_PKGS_DIRS="${CI_PROJECT_DIR}/.conda_packages"
+    # Make conda cache and bld folders
+    - mkdir -p "${CI_PROJECT_DIR}/conda-bld" "${CONDA_PKGS_DIRS}"
+    # Conda configure
+    - conda config --append channels ostrokach-forge
+    - conda config --append channels conda-forge
+    - conda update -yq conda
+
+# === Build ===
+
+.build: &build
+  stage: build
+  <<: [*conda_configure]
+  script:
+    - cd "${CI_PROJECT_DIR}/.conda"
+    - conda build .
+      --no-test
+      --output-folder "${CI_PROJECT_DIR}/conda-bld"
+  artifacts:
+    paths:
+    - conda-bld
+
+build:
+  <<: *build
+
+# === Test ===
+
+.test: &test
+  stage: test
+  script:
+    # Restore built packages
+    - cp -r $CI_PROJECT_DIR/conda-bld/* /opt/conda/conda-bld/
+    - conda index /opt/conda/conda-bld/
+    # Run tests
+    - cd $CI_PROJECT_DIR/.conda
+    - conda build .
+      --test
+
+test:
+  <<: [*conda_configure, *test]
+  dependencies:
+    - build
+
+# === Pages ===
+
+.docs: &docs
+  stage: test
+  script:
+    # Conda install
+    - cp -r $CI_PROJECT_DIR/conda-bld/* /opt/conda/conda-bld/
+    - conda index /opt/conda/conda-bld/
+    - conda install -yq --use-local "python=$PYTHON_VERSION" $CI_PROJECT_NAME
+    # Build docs
+    - conda install -yq nbconvert ipython ipykernel pandoc
+    - pip install -q sphinx sphinx_rtd_theme recommonmark nbsphinx
+    - sphinx-build docs public
+  allow_failure: true
+
+test-pages:
+  <<: [*conda_configure, *docs]
+  dependencies:
+    - build
+  except:
+    - master
+    - tags
+
+pages:
+  <<: [*conda_configure, *docs]
+  dependencies:
+    - build
+  only:
+    - master
+    - tags
+  except:
+    - triggers
+  artifacts:
+    paths:
+    - public
+
+# === Deploy ===
+
+.deploy: &deploy
+  stage: deploy
+  script:
+    # Conda configure
+    - case "${PACKAGE_VERSION}" in
+      *dev*)
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u ${CI_PROJECT_NAMESPACE} --label dev --force
+      ;;
+      *)
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u ${CI_PROJECT_NAMESPACE}
+      ;;
+      esac
+  only:
+    - master
+  except:
+    - triggers
+
+deploy:
+  <<: *deploy
+  dependencies:
+    - build
+

@@ -1,0 +1,59 @@
+stages:
+  - build
+  - deploy
+
+image: openjdk:8-jdk
+
+variables:
+  ANDROID_COMPILE_SDK: "27"
+  ANDROID_BUILD_TOOLS: "27.0.1"
+
+cache:
+  key: "uber"
+  paths:
+     - .gradle/caches
+     - .gradle/wrapper
+
+.sdk_apt: &before_docker
+  before_script:
+    - set -euo pipefail
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+    - apt-get --quiet update --yes
+      && apt-get --quiet install --yes --no-install-recommends wget
+                                                               tar
+                                                               unzip
+                                                               lib32stdc++6
+                                                               lib32z1
+                                                               file
+                                                               mesa-utils
+                                                               pciutils
+      && rm -rf /var/lib/apt/lists/*
+    - export GRADLE_USER_HOME="$(pwd)/.gradle"
+    - export ANDROID_HOME="$(pwd)/.androidhome"
+    - export PATH="${ANDROID_HOME}/emulator/:${ANDROID_HOME}/tools/bin/:${ANDROID_HOME}/tools/:${ANDROID_HOME}/platform-tools/:${PATH}"
+    - ci/before
+    - chmod +x ./gradlew
+
+check:
+  <<: *before_docker
+  stage: build
+  script:
+    - ./gradlew assembleDebug check -PdisablePreDex
+  artifacts:
+    paths:
+    - app/build/outputs/
+    - build/logs/
+
+deploy_playstore:
+  <<: *before_docker
+  stage: deploy
+  script:
+    - ./deploy_playstore.sh
+  only:
+    - tags
+    - /^\d+\.\d+\.\d+$/
+  environment:
+    name: Play
+    url: https://play.google.com/store/apps/details?id=com.nononsenseapps.feeder.play
+

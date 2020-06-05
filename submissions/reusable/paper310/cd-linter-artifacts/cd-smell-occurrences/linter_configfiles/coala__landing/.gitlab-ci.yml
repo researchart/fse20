@@ -1,0 +1,42 @@
+stages:
+ - build
+ - release
+
+variables:
+  DOCKER_DRIVER: overlay
+
+before_script:
+ - CI_PROJECT_PATH=`echo "${CI_PROJECT_PATH}" | tr '[:upper:]' '[:lower:]'`
+ - export TEST_IMAGE_NAME=registry.gitlab.com/$CI_PROJECT_PATH:${CI_BUILD_REF_NAME/\//-}-$CI_BUILD_REF
+ - export IMAGE_NAME=registry.gitlab.com/$CI_PROJECT_PATH:latest
+
+image: docker:1.10.3
+services:
+ - docker:dind
+
+code-analysis-container:
+  stage: build
+  image: python:3
+  script:
+   - pip install 'coala-bears[alldeps]'
+   - coala --ci
+  except:
+   - master
+
+build-container:
+  stage: build
+  script:
+   - docker build -t $TEST_IMAGE_NAME .
+   - docker login -e gitlab-ci@gitlab.com -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+   - docker push $TEST_IMAGE_NAME
+
+release:
+  stage: release
+  script:
+   - docker login -e gitlab-ci@gitlab.com -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+   - docker pull $TEST_IMAGE_NAME
+   - docker tag $TEST_IMAGE_NAME $IMAGE_NAME
+   - docker push $IMAGE_NAME
+  only:
+   - master
+

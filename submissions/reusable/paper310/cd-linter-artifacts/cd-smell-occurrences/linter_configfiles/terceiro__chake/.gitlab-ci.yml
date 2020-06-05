@@ -1,0 +1,13 @@
+before_script:
+  - pwd
+  - echo $USER
+  - bundle install --path .bundle
+
+tests:
+  script:
+    - bundle exec rake
+    - bundle exec rake -f man/Rakefile
+  cache:
+    paths:
+      - .bundle
+

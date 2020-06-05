@@ -1,0 +1,119 @@
+image: node:10.13-alpine
+
+variables:
+  GCP_PROJECT_ID: alan-demos
+  GCP_ZONE: us-central1-a
+  GCP_BUCKET: alan_test_bucket
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+before_script:
+  - export CI_APPLICATION_REPOSITORY=$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG
+  - export CI_APPLICATION_TAG=$CI_COMMIT_SHA
+  - export CI_BRANCH=$CI_COMMIT_REF_NAME
+  - apk add --update nodejs nodejs-npm zip
+  - apk --no-cache add --virtual native-deps \ g++ gcc libgcc libstdc++ linux-headers make python && pm install --quiet node-gyp -g && npm install --quiet &&  apk del native-deps
+
+  # Install CA certs, openssl to https downloads, python for gcloud sdk
+  - apk add --update make ca-certificates openssl python
+  - update-ca-certificates
+
+  # Download and install Google Cloud SDK
+  - wget https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz
+  - tar zxvf google-cloud-sdk.tar.gz && ./google-cloud-sdk/install.sh --usage-reporting=false --path-update=true
+  - PATH="google-cloud-sdk/bin:${PATH}"
+  - gcloud --quiet components update
+  - gcloud components install beta
+
+  # Authenticate gcloud
+  - echo $GCLOUD_SERVICE_KEY > ${HOME}/gcloud-service-key.json
+  - gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+  - gcloud config set project $GCP_PROJECT_ID
+
+stages:
+  - test_unit
+  - test_eslint
+  - test_prettier
+  - build
+  - dev_deploy
+  - deploy
+
+test_unit:
+  stage: test_unit
+  before_script:
+    - apk add --update nodejs nodejs-npm
+    - npm install
+  environment:
+    name: dev
+  script:
+    - npm test
+
+test_eslint:
+  stage: test_eslint
+  before_script:
+    - apk add --update nodejs nodejs-npm
+    - npm install
+    - yarn config set cache-folder .yarn
+  environment:
+    name: dev
+  script:
+    - yarn lint-ci
+
+test_prettier:
+  stage: test_prettier
+  before_script:
+    - apk add --update nodejs nodejs-npm
+    - npm install
+    - yarn config set cache-folder .yarn
+  environment:
+    name: dev
+  script:
+    - yarn prettier-ci
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - npm install
+    - npm install copyfiles -g
+    - npm run build
+      #- cp -r node_modules dist
+    - cp deploy_index.js index.js
+    - mv index.js dist
+    - cp package.json dist
+
+    # Zip for uploading to bucket
+    - cd dist
+    - zip -r ../app.zip ./* ../node_modules
+    - cd ..
+    - gsutil cp app.zip gs://$GCP_BUCKET/"$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG".zip
+
+dev_deploy:
+  stage: dev_deploy
+  environment:
+    name: dev
+  script:
+    - gcloud beta functions deploy api"-$CI_BRANCH" --entry-point api
+      --runtime nodejs6 --trigger-http --set-env-vars APP_ENV=development,DEV_DB_USERNAME=$DEV_DB_USERNAME,DEV_DB_PASSWORD=$DEV_DB_PASSWORD,DEV_DB_NAME=$DEV_DB_NAME,DEV_DB_HOSTNAME=$DEV_DB_HOSTNAME
+      --source gs://$GCP_BUCKET/"$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG".zip
+  only:
+    - branches
+  except:
+    - master
+
+deploy:
+  stage: deploy
+  environment:
+    name: prod
+  script:
+    - gcloud beta functions deploy api
+      --runtime nodejs6 --trigger-http --set-env-vars APP_ENV=production,PROD_DB_USERNAME=$PROD_DB_USERNAME,PROD_DB_PASSWORD=$PROD_DB_PASSWORD,PROD_DB_NAME=$PROD_DB_NAME,PROD_DB_HOSTNAME=$PROD_DB_HOSTNAME
+      --source gs://$GCP_BUCKET/"$CI_APPLICATION_REPOSITORY:$CI_APPLICATION_TAG".zip
+  only:
+    - master
+

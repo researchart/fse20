@@ -1,0 +1,27 @@
+build:
+  image: docker:stable
+  variables:
+    CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH:latest
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+  services:
+    - docker:dind
+  script: |
+    docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    docker pull ${CONTAINER_IMAGE} || true
+
+    export CACHE_FROM="--cache-from ${CONTAINER_IMAGE}"
+
+    apk add git
+    git checkout ${CI_COMMIT_REF_NAME}
+
+    ./build/build.sh dist
+
+    mv dist/*.zip .
+
+    docker tag crankykernel/cryptoxscanner:builder ${CONTAINER_IMAGE}
+    #docker push ${CONTAINER_IMAGE}
+  artifacts:
+    paths:
+      - "*.zip"
+

@@ -1,0 +1,77 @@
+image: python:2.7
+
+variables:
+  GOOGLE_CLOUD_PROJECT_ID: SECURE
+  GOOGLE_CLOUD_SERVICE_ACCOUNT: SECURE
+  GOOGLE_CLOUD_KEYFILE_PATH: SECURE
+  GOOGLE_API_SECRETS: SECURE
+  PYPI_USER: SECURE
+  PYPI_PASSWORD: SECURE
+  DEBIAN_FRONTEND: noninteractive
+  CLOUDSDK_CORE_DISABLE_PROMPTS: "1"
+
+
+cache:
+  paths:
+    - .coverage
+    - /usr/local/google-cloud-sdk/
+
+
+
+stages:
+  - test
+  - coverage
+  - deploy
+  - cleanup
+
+unittest:
+  stage: test
+  image: mgood/appengine-python
+  script:
+    - apt-get -q update && apt-get -q install -y libffi-dev libssl-dev libjpeg62-turbo-dev
+    - pip -q install --upgrade pip
+    - pip -q install Pillow
+    - pip -q install -r requirements.txt
+    - pip -q install -r requirements_test.txt
+    - gcloud components update   # end test env setup
+    - python -m webapptitude.test --coverage -f -vvvv -t ./ test/
+  except:
+    - /^notest/
+  artifacts:
+    paths:
+      - .coverage
+
+coverage:
+  stage: coverage
+  script:
+    - pip -q install coverage
+    - coverage report '--include=webapptitude/*'
+  dependencies:
+    - unittest
+  except:
+    - /^notest/
+
+deploy_pypi:
+  stage: deploy
+  script:
+    - echo "[server-login]" >> ~/.pypirc
+    - echo "username=" ${PYPI_USER} >> ~/.pypirc
+    - echo "password=" ${PYPI_PASSWORD} >> ~/.pypirc
+    - python setup.py check sdist bdist upload
+    - echo "" > ~/.pypirc && rm ~/.pypirc
+  only:
+    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant
+  except:
+    - branches
+
+
+cleanup_deploy:
+  stage: cleanup
+  when: always
+  script:
+    - rm -vf ~/.pypirc
+  only:
+    - /^v\d+\.\d+\.\d+([abc]\d*)?$/  # PEP-440 compliant
+  except:
+    - branches
+

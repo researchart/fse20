@@ -1,0 +1,113 @@
+# GitLab CI configuration for Advanced Programming lab exercises
+# Adapted from: https://gitlab.com/gitlab-org/gitlab-ci.yml/blog/master/Gradle.gitlab-ci.yml
+image: gradle:4.6-jdk8-alpine
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+before_script:
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+
+stages:
+  - test
+
+# Tutorial 1 CI jobs
+test:t1:
+  stage: test
+  script: gradle :tutorial-1:check
+  only:
+    - /.*tutorial[_-].*1$/
+  except:
+    - branches@csui-advprog-2018/lab
+
+# Tutorial 2 CI jobs
+test:t2:
+  stage: test
+  script: gradle :tutorial-2:check
+  only:
+    - /.*tutorial[_-].*2$/
+  except:
+    - branches@csui-advprog-2018/lab
+
+# Tutorial 3 CI jobs
+test:t3:
+  stage: test
+  script: gradle :tutorial-3:check
+  only:
+    - /.*tutorial[_-].*3$/
+  except:
+    - branches@csui-advprog-2018/lab
+
+# Tutorial 4 CI jobs
+test:t4:
+  stage: test
+  script: gradle :tutorial-4:check
+  only:
+    - /.*tutorial[_-].*4$/
+  except:
+    - branches@csui-advprog-2018/lab
+
+# Tutorial 5 CI jobs
+test:t5:
+  stage: test
+  script: gradle :tutorial-5:check
+  only:
+    - /.*tutorial[_-].*5$/
+  except:
+    - branches@csui-advprog-2018/lab
+  artifacts:
+      paths:
+      - /tutorial-5/build/*
+
+# Tutorial 6 CI jobs
+test:t6:
+  stage: test
+  script: gradle :tutorial-6:check
+  only:
+    - /.*tutorial[_-].*6$/
+  except:
+    - branches@csui-advprog-2018/lab
+  artifacts:
+      paths:
+      - /tutorial-6/build/*
+
+# Tutorial 7 CI jobs
+test:t7:
+  stage: test
+  script:
+  - gradle :tutorial-7:check
+  - gradle :tutorial-7:jacocoTestReport
+  only:
+    - /.*tutorial[_-].*7$/
+  except:
+    - branches@csui-advprog-2018/lab
+  artifacts:
+      paths:
+      - /tutorial-7/build/*
+
+# Tutorial 8 CI jobs
+test:t8:
+  stage: test
+  script:
+  - gradle :tutorial-8:check
+  only:
+    - /.*tutorial[_-].*8$/
+  except:
+    - branches@csui-advprog-2018/lab
+  artifacts:
+      paths:
+      - /tutorial-8/build/*
+
+# Tutorial 10 CI jobs
+test:t10:
+  stage: test
+  script:
+  - gradle :tutorial-10:check
+  only:
+    - /.*tutorial[_-].*10$/
+  except:
+    - branches@csui-advprog-2018/lab
+  artifacts:
+      paths:
+      - /tutorial-10/build/*
+

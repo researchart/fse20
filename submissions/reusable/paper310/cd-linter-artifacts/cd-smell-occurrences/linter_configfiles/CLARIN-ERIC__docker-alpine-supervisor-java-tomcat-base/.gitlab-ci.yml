@@ -1,0 +1,44 @@
+image: docker:17.05.0
+services:
+  - docker:17.05.0-dind
+
+variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - build
+  - test
+  - release
+
+build:
+  artifacts:
+    untracked: true
+  script: timeout -t 1440 sh -x ./build.sh --build
+  stage: build
+  tags:
+    - docker
+
+test:
+  artifacts:
+    untracked: true
+  dependencies:
+    - build
+  script: timeout -t 1440 sh -x ./build.sh --test
+  stage: test
+  tags:
+    - docker
+
+release:
+  artifacts:
+    untracked: true
+  dependencies:
+    - test
+  only:
+    - tags
+    - triggers
+  script: timeout -t 1440 sh -x ./build.sh --release
+  stage: release
+  tags:
+    - docker
+
+

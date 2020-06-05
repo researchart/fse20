@@ -1,0 +1,53 @@
+image: gcc
+
+variables:
+    PREFIX: "$HOME/prefix"
+    MY_CMAKE_OPTIONS: "-DCMAKE_PREFIX_PATH=$PREFIX -DCMAKE_INSTALL_PREFIX=$HOME/install"
+    CTEST_OUTPUT_ON_FAILURE: "1"
+    cmake_apt: "deb http://ppa.launchpad.net/george-edison55/cmake-3.x/ubuntu/ trusty main"
+    llvm_apt: "deb http://apt.llvm.org/jessie/ llvm-toolchain-jessie-3.8 main"
+    LINUX: "true"
+    gcov: "gcov"
+    coverage: "OFF"
+
+style:
+  stage: build
+  before_script:
+    - echo "$llvm_apt" >> /etc/apt/sources.list
+    - wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+    - apt-get update
+    - apt-get -y install clang-format-3.8
+  script:
+    - ci/format.sh
+
+gcc:
+  stage: build
+  variables:
+    coverage: "ON"
+
+  before_script:
+    - echo "$cmake_apt" >> /etc/apt/sources.list
+    - apt-key adv --keyserver keyserver.ubuntu.com --recv B118CD3C377DF930EDD06C67084ECFC5828AB726
+    - apt-get update
+    - apt-get -y install cmake libxml2-dev valgrind catch libasio-dev python-dev python3-dev swig
+  script:
+    - ci/build.sh
+    - ci/coverage.sh
+
+clang:
+  stage: build
+
+  before_script:
+    - echo "$cmake_apt" >> /etc/apt/sources.list
+    - apt-key adv --keyserver keyserver.ubuntu.com --recv B118CD3C377DF930EDD06C67084ECFC5828AB726
+    - echo "$llvm_apt" >> /etc/apt/sources.list
+    - wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+    - apt-get update
+    - apt-get -y install cmake libxml2-dev catch libasio-dev python-dev python3-dev swig clang-3.8 valgrind
+  script:
+    - ci/build.sh
+
+# TODO: test w/ gcc 4.8 and with latest?
+# TODO: install and cache .ccache
+# TODO: push our own docker image
+

@@ -1,0 +1,15 @@
+image: jangorecki/r-base-dev
+
+before_script:
+    - apt-get update -qq
+    - apt-get install -y --no-install-recommends libxml2-dev pandoc
+
+test:
+  script:
+    - Rscript -e 'install.packages(c("xml2", "openxlsx", "devtools", "roxygen2", "testthat", "covr"))'
+    - Rscript -e 'devtools::install_dev_deps()'
+    - R CMD build . --no-build-vignettes --no-manual
+    - PKG_FILE_NAME=$(ls -1t *.tar.gz | head -n 1)
+    - R CMD check "${PKG_FILE_NAME}" --no-build-vignettes --no-manual --as-cran 
+    - Rscript -e 'covr::codecov(token = "bd5cfa37-91c5-4f29-a8f5-bf942ae22f55")'
+

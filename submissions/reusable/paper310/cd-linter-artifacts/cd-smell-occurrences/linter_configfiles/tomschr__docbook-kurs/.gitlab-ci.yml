@@ -1,0 +1,31 @@
+image: opensuse:latest
+
+variables:
+   MAIN_CATALOG: /etc/xml/catalog
+
+before_script:
+   - ./.gitlab/opensuse-install.sh
+   - cp .gitlab/jing.conf /etc/java/
+
+cache:
+   key: zypper
+   paths:
+   - /var/cache/zypper/**
+   - /var/cache/zypp/**
+
+stages:
+   - build
+
+Build Output:
+   stage: build
+   script:
+   - ./.gitlab/build.sh
+   # - mv docbook-tutorial.pdf docbook-tutorial.pdf
+   artifacts:
+      name: DocBook-Tutorial
+      when: on_success
+      paths:
+      - build/docbook-tutorial.pdf
+      - build/docbook-tutorial.html
+   
+

@@ -1,0 +1,30 @@
+image: docker:latest
+
+stages:
+- build
+
+before_script:
+  - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+  - export IMAGE=${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG:-$CI_COMMIT_REF_SLUG}
+  - export IMAGEWITHPLUGINS=${IMAGE}-pluginset
+
+build:
+  stage: build
+  script:
+  - docker build -t ${IMAGE} .
+  - docker push ${IMAGE}
+  - docker build --no-cache -t ${IMAGEWITHPLUGINS} --build-arg NODEBB_BUILD_PLUGINLIST="
+    nodebb-plugin-s3-uploads-updated@0.3.15
+    nodebb-plugin-gravatar@2.1.0
+    nodebb-plugin-topic-tags@0.1.3
+    nodebb-plugin-question-and-answer@0.1.4
+    nodebb-plugin-sso-github@2.1.0
+    nodebb-plugin-sso-twitter@2.3.2
+    nodebb-plugin-sso-google@2.0.2
+    nodebb-plugin-sso-facebook@3.0.8
+    nodebb-plugin-ns-custom-fields@5.0.1
+    nodebb-plugin-ns-awards-next@4.1.0
+    nodebb-plugin-google-analytics@0.5.9
+    nodebb-plugin-2factor@2.3.1" .
+  - docker push ${IMAGEWITHPLUGINS}
+

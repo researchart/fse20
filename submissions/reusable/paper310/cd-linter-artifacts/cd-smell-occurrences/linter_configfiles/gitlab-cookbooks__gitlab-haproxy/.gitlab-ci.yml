@@ -1,0 +1,61 @@
+image: ruby:2.5
+
+variables:
+  DEBIAN_FRONTEND: "noninteractive"
+  KITCHEN_YAML: ".kitchen.ci.yml"
+  BUNDLE_PATH: "$CI_PROJECT_DIR/.bundle"
+  DIGITALOCEAN_TESTBOX_FQDN: "template.${CI_PROJECT_NAMESPACE}.ci.gitlab.test"
+
+stages:
+  - tests
+  - publish
+
+before_script:
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo $CI_PRIVATE_KEY |base64 -d)
+  - mkdir -p ~/.ssh
+  - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  - apt-get -qq update && apt-get -yqq install openssh-client rsync make jq
+  - make gems
+
+rspec-test-job:
+  stage: tests
+  cache:
+    paths:
+      - $BUNDLE_PATH
+  script:
+    - make rspec
+  only:
+    variables:
+      - $CI_PRIVATE_KEY
+
+kitchen-test-job:
+  stage: tests
+  artifacts:
+    expire_in: '2d'
+    when: on_failure
+    paths:
+      - .kitchen/
+
+  cache:
+    paths:
+      - $BUNDLE_PATH
+  script:
+    - make kitchen
+  only:
+    variables:
+      - $CI_PRIVATE_KEY
+
+push-cookbook:
+  stage: publish
+  only:
+    refs:
+      - master
+    variables:
+      - $OPS_CLONE_USERNAME
+      - $OPS_CLONE_PASSWORD
+  script:
+    - git clone https://$OPS_CLONE_USERNAME:$OPS_CLONE_PASSWORD@ops.gitlab.net/gitlab-cookbooks/cookbook-publisher.git /tmp/cookbook-publisher
+    - cp /tmp/cookbook-publisher/publisher.rb .
+    - ruby publisher.rb
+

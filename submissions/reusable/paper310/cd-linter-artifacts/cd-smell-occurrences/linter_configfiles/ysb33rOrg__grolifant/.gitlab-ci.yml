@@ -1,0 +1,147 @@
+stages:
+  - build
+  - test
+  - release
+
+cache:
+  paths:
+  - $HOME/.gradle
+
+jdk8:
+  stage: build
+  image: openjdk:8
+  script: ./gradlew build -i -s -x gradleTest
+  artifacts:
+    paths:
+    - .gradle/
+    - build/
+    expire_in: 60 min
+    when: always
+  except:
+  - pages
+  - tags
+
+jdk11:
+  stage: build
+  image: openjdk:11
+  script: ./gradlew build -i -s -x gradleTest
+  artifacts:
+    paths:
+    - .gradle/
+    - build/
+    expire_in: 60 min
+    when: always
+  except:
+  - pages
+  - tags
+
+jdk12:
+  stage: build
+  image: openjdk:12
+  script: ./gradlew build -i -s -x gradleTest
+  artifacts:
+    paths:
+    - .gradle/
+    - build/
+    expire_in: 60 min
+    when: always
+  except:
+  - pages
+  - tags
+
+test:gradle4a:
+  stage: test
+  image: openjdk:8
+  except:
+  - pages
+  - tags
+  dependencies:
+  - jdk8
+  script: ./gradlew -i -s gradleTest -DgradleTest.versions=4.0.2,4.1,4.2.1
+
+test:gradle4b:
+  stage: test
+  image: openjdk:8
+  except:
+  - pages
+  - tags
+  dependencies:
+  - jdk8
+  script: ./gradlew -i -s gradleTest -DgradleTest.versions=4.3.1,4.4.1,4.5.1
+
+test:gradle4c:
+  stage: test
+  image: openjdk:8
+  except:
+  - pages
+  - tags
+  dependencies:
+  - jdk8
+  script: ./gradlew -i -s gradleTest -DgradleTest.versions=4.6,4.7,4.8.1
+
+test:gradle4d:
+  stage: test
+  image: openjdk:8
+  except:
+  - pages
+  - tags
+  dependencies:
+  - jdk8
+  script: ./gradlew -i -s gradleTest -DgradleTest.versions=4.9,4.10.2
+
+test:gradle5a:
+  stage: test
+  image: openjdk:11
+  except:
+  - pages
+  - tags
+  dependencies:
+  - jdk8
+  script: ./gradlew -i -s gradleTest -DgradleTest.versions=5.0,5.1.1,5.3.1
+
+test:gradle5b:
+  stage: test
+  image: openjdk:12
+  except:
+  - pages
+  - tags
+  dependencies:
+  - jdk8
+  script: ./gradlew -i -s gradleTest -DgradleTest.versions=5.4.1,5.5.1,5.6.3
+
+test:gradle6a:
+  stage: test
+  image: openjdk:12
+  except:
+    - pages
+    - tags
+  dependencies:
+    - jdk8
+  script: ./gradlew -i -s gradleTest -DgradleTest.versions=6.0-rc-2
+
+publish:
+  stage: release
+  image: openjdk:8
+  script: ./gradlew installDocs uploadArchives gitPublishPush -i -PbintrayUserName=$BINTRAY_PUBLISH_USER -PbintrayApiKey=$BINTRAY_PUBLISH_KEY -Dorg.ajoberstar.grgit.auth.username=$PAGES_PUBLISH_USER -Dorg.ajoberstar.grgit.auth.password=$PAGES_PUBLISH_KEY -Dorg.ajoberstar.grgit.auth.force=hardcoded
+  dependencies:
+  - jdk8
+  only:
+  - release
+  except:
+  - tags
+
+pages:
+  stage: release
+  script: ls -la
+  artifacts:
+    paths:
+    - public
+  cache:
+    paths:
+    - .gradle/
+  only:
+  - pages
+  except:
+  - tags
+
+

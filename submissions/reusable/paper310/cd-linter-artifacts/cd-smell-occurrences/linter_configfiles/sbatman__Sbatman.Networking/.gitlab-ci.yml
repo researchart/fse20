@@ -1,0 +1,33 @@
+variables:
+  DOCKER_DRIVER: overlay2
+
+stages:
+  - build
+  - publish
+
+build:
+  image: microsoft/dotnet:latest
+  stage: build
+  script:
+  - cd Sbatman.Networking
+  - "dotnet build -c release"
+  artifacts:
+    paths:
+    - Sbatman.Networking/bin/Release
+    - Sbatman.Networking/bin/Debug
+
+nuget:
+  image: microsoft/dotnet:latest
+  stage: publish
+  script:
+  - cd Sbatman.Networking
+  - "dotnet pack -c release"
+  - cd bin/release/
+  - "dotnet nuget push *.nupkg -k $NUGETKEY -s https://api.nuget.org/v3/index.json"
+  artifacts:
+    paths:
+    - Sbatman.Networking/bin/Release
+    - Sbatman.Networking/bin/Debug
+  only:
+  - master
+

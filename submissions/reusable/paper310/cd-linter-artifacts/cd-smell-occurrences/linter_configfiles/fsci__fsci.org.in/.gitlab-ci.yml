@@ -1,0 +1,16 @@
+image: node:6.6.0
+pages:
+  stage: deploy
+  script:
+  - npm install
+  - npm run install
+  artifacts:
+    paths:
+    - public
+  cache:
+    paths:
+      - node_modules
+    key: project
+  only:
+  - master
+

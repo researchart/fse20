@@ -1,0 +1,11 @@
+stages:
+  - build
+
+createpdf:
+  stage: build
+  image: tianon/latex
+  script: rm -rf output/ && ./build.sh
+  artifacts:
+    paths:
+      - output/drills.pdf
+

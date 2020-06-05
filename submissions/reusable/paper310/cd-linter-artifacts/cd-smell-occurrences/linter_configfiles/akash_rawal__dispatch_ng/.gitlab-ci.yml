@@ -1,0 +1,41 @@
+
+image: $CI_REGISTRY/akash_rawal/buildenv:dispatch_ng
+
+linux:
+    script:
+        - libtoolize
+        - aclocal
+        - automake --add-missing
+        - autoconf
+        - mkdir build
+        - cd build
+        - ../configure CFLAGS="-Wall"
+        - make -j`nproc` check-valgrind
+        - make -j`nproc` distcheck
+        - ../deploy.sh
+    artifacts:
+        expire_in: 2 weeks
+        when: always
+        paths:
+            - build/*.log
+            - build/tests/*.log
+
+mingw-w64:
+    script:
+        - libtoolize
+        - aclocal
+        - automake --add-missing
+        - autoconf
+        - mkdir build
+        - cd build
+        - x86_64-w64-mingw32-configure CFLAGS="-Wall"
+        - make -j`nproc` LOG_COMPILER=wine check
+        - ../deploy.sh
+    artifacts:
+        expire_in: 2 weeks
+        when: always
+        paths:
+            - build/*.log
+            - build/tests/*.log
+            - build/src/dispatch-ng.exe
+

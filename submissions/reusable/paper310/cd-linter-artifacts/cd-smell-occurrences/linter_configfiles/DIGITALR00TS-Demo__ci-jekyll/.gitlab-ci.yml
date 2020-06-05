@@ -1,0 +1,91 @@
+# .gitlab-ci.yml for ci-jekyll
+
+# Builds
+generate:
+  stage: build
+  # Docker container image
+  # Pre-build with Ruby and required Gems installed to speed up pipeline
+  image: digitalr00tsdemo/ruby-jekyll
+  script:
+  - jekyll doctor # Verify Jekyll configuration
+  - jekyll build --verbose --baseurl '/ci-jekyll' --destination _site/ci-jekyll # Generate site
+  artifacts: # Saves build to be used later in pipeline
+    paths: # Paths to archive
+    - _site/
+    when: on_success # only save when build is successful
+    expire_in: 1 week # remove artifact in time specified
+
+# Tests
+html_verify:
+  stage: test
+  image: digitalr00tsdemo/ruby-jekyll
+  script:
+  - htmlproofer _site --check-html --allow-hash-href --empty-alt-ignore --disable-external # Checks syntax, images, links
+  dependencies:
+  - generate
+
+spell_check:
+  stage: test
+  image: alpine:latest # plain Alpine Linux Docker image
+  script:
+  - apk add --no-cache hunspell hunspell-en coreutils # Installs required packages
+  # Checks .html files for spelling
+  # Hunspell exits 0 when misspelled words are found. Workaround: pass to `tee` and check log file.
+  - >-
+    for file in $(find _site/ -name \*.html | awk '/_site\/(posts|tags|categories|collections|sitemap)\/index.html/' ); do
+    hunspell -u3 -d en_US -p custom.dic -H $file | tee -a spellcheck.log; done;
+    test ! -s spellcheck.log
+  dependencies:
+  - generate
+
+# Delivery of Release
+pages:
+  stage: delivery
+  image: alpine:latest
+  script:
+  - cp -av _site/ci-jekyll/ public # Copy site to public (requirement for GitLab Pages)
+  artifacts:
+    paths: # Paths to save
+    - public
+  environment:
+    name: staging
+    url: http://${CI_PROJECT_NAMESPACE}.gitlab.io/${CI_PROJECT_NAME}/
+  dependencies:
+  - generate
+  only: # Only run on listed branches
+  - master
+
+# Deploy to Production
+edgecast:
+  stage: deploy
+  image: alpine:latest # plain Alpine Linux Docker image
+  when: manual
+  script:
+  - apk add --no-cache rsync sshpass curl openssh # Installs required packages
+  - >- # Rsync site to CDN
+    rsync --delete -rtie "sshpass -e ssh -p22 -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -oLogLevel=ERROR"
+    _site/ci-jekyll ${VDMS_USER}@rsync.${VDMS_STORE}.${VDMS_NUMBER}.systemcdn.net:/com.digitalr00ts.demo.ec/
+  - >- # Purge CDN cache
+    curl -sSki -X PUT
+    -H "Authorization: TOK:$VDMS_TOKEN" -H "Content-Type: application/json" -H "Accept: application/json"
+    -d "{ \"MediaPath\":\"http:\/\/ec.demo.digitalr00ts.com\/ci-jekyll\/\", \"MediaType\":8}"
+    https://api.edgecast.com/v2/mcc/customers/$VDMS_NUMBER/edge/purge
+  - >- # Purge CDN cache
+    curl -sSki -X PUT
+    -H "Authorization: TOK:$VDMS_TOKEN" -H "Content-Type: application/json" -H "Accept: application/json"
+    -d "{ \"MediaPath\":\"http:\/\/ec.demo.digitalr00ts.com\/ci-jekyll\/\", \"MediaType\":3}"
+    https://api.edgecast.com/v2/mcc/customers/$VDMS_NUMBER/edge/purge
+  environment:
+    name: production
+    url: http://ec.demo.digitalr00ts.com/ci-jekyll/
+  dependencies:
+  - generate
+  only: # Only run on listed branches
+  - master
+
+stages:
+  - build
+  - test
+  - delivery
+  - deploy
+

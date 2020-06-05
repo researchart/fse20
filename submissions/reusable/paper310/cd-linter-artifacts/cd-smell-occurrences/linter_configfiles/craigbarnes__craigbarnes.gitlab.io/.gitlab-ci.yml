@@ -1,0 +1,9 @@
+pages:
+    stage: build
+    image: alpine:latest
+    artifacts: {paths: [public]}
+    only: [master]
+    script:
+        - apk --update add make gnupg
+        - make check
+

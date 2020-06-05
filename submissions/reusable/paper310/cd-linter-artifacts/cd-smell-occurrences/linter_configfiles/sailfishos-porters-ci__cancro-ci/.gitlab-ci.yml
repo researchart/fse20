@@ -1,0 +1,21 @@
+image: coderus/sailfishos-platform-sdk-base:latest
+
+before_script:
+ - source cancro.env
+
+stages:
+ - build
+
+run-build:
+  stage: build
+  script:
+  - ./run-mic.sh 
+
+  only:
+   - web
+   - tags
+
+  artifacts:
+    paths:
+    - sfe-*/*.zip
+

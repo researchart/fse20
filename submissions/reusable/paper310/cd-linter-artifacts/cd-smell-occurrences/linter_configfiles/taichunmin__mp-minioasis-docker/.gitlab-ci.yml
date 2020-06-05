@@ -1,0 +1,19 @@
+image: registry.gitlab.com/taichunmin/docker-compose-git:latest
+
+services:
+  - docker:dind
+
+stages:
+  - docker
+
+build-docker:
+  stage: docker
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  tags:
+    - docker
+  script:
+    - docker-compose -f docker-build.yml build
+    - docker-compose -f docker-build.yml push
+    - docker-compose -f docker-build.yml down --rmi all
+

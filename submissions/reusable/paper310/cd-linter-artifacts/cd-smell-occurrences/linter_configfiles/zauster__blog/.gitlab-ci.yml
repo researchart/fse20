@@ -1,0 +1,29 @@
+# image: debian:buster-slim
+
+# before_script:
+#   - apt-get update
+#   - apt-get -y install pandoc pandoc-citeproc r-base
+#   - R -e "install.packages('blogdown', repos='https://cran.rstudio.com/')"
+#   - R -e "install.packages('tufte')"
+#   - R -e "blogdown::install_hugo()"
+
+# pages:
+#   script:
+#   - R -e "blogdown::build_site()"
+#   artifacts:
+#     paths:
+#     - public
+#   only:
+#   - master
+image: zauster/r-blogdown:latest
+
+pages:
+  script:
+  - R -e "blogdown::build_site()"
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+

@@ -1,0 +1,101 @@
+image: golang:latest
+
+# The problem is that to be able to use go get, one needs to put
+# the repository in the $GOPATH. So for example if your gitlab domain
+# is mydomainperso.com, and that your repository is repos/projectname, and
+# the default GOPATH being /go, then you'd need to have your
+# repository in /go/src/mydomainperso.com/repos/projectname 
+# Thus, making a symbolic link corrects this.
+before_script:
+    - ln -s /builds /go/src/gitlab.com
+    - cd /go/src/gitlab.com/goern/oe2k
+
+stages:
+    - compile
+    - package
+    - deploy_test
+
+
+compile:
+    stage: compile
+    script:
+        - go get -u github.com/Masterminds/glide
+        - make vendoring
+        - make
+    artifacts:
+        paths:
+            - bin/oe2k
+            - bin/build-finder
+            - bin/buildlog2hdfs
+            - bin/rest-gw
+            - bin/git-enricher
+
+
+build:event-pubisher-image:
+    stage: package
+    image: "docker:latest"
+    before_script:
+        - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com"
+    after_script:
+        - "docker logout registry.gitlab.com"
+    services:
+        - docker:dind
+    script:
+        - "docker build -f Dockerfile.oe2k -t registry.gitlab.com/goern/oe2k/event-publisher:latest --pull ."
+        - "docker push registry.gitlab.com/goern/oe2k/event-publisher:latest"
+    tags:
+        - docker
+
+build:build-finder-image:
+    stage: package
+    image: "docker:latest"
+    before_script:
+        - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com"
+    after_script:
+        - "docker logout registry.gitlab.com"
+    services:
+        - docker:dind
+    script:
+        - "docker build -f Dockerfile.build-finder -t registry.gitlab.com/goern/oe2k/build-finder:latest --pull ."
+        - "docker push registry.gitlab.com/goern/oe2k/build-finder:latest"
+    tags:
+        - docker
+
+build:git-enricher-image:
+    stage: package
+    image: "docker:latest"
+    before_script:
+        - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com"
+    after_script:
+        - "docker logout registry.gitlab.com"
+    services:
+        - docker:dind
+    script:
+        - "docker build -f Dockerfile.git-enricher -t registry.gitlab.com/goern/oe2k/git-enricher:latest --pull ."
+        - "docker push registry.gitlab.com/goern/oe2k/git-enricher:latest"
+    tags:
+        - docker
+
+build:rest-gw-image:
+    stage: package
+    image: "docker:latest"
+    before_script:
+        - "docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com"
+    after_script:
+        - "docker logout registry.gitlab.com"
+    services:
+        - docker:dind
+    script:
+        - "docker build -f Dockerfile.rest-gw -t registry.gitlab.com/goern/oe2k/rest-gw:latest --pull ."
+        - "docker push registry.gitlab.com/goern/oe2k/rest-gw:latest"
+    tags:
+        - docker
+
+deploy_test:
+    stage: deploy_test
+    environment:
+        name: test
+    script:
+        - echo "Deploy to 'test' environment"
+
+

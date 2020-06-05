@@ -1,0 +1,22 @@
+image: openjdk:8-jdk
+
+image: npetrovsky/docker-android-sdk-ndk
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+  - chmod +x ./gradlew # Here using private env variable also possible to pass signature to make signed APK
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - ./gradlew assembleDebug
+  artifacts:
+    paths:
+    - app/build/outputs/
+
+

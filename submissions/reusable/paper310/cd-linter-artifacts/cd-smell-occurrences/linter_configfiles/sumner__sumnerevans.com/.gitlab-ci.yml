@@ -1,0 +1,19 @@
+# Build and deploy the pelican site.
+pages:
+  image: python:3.8-alpine
+  stage: deploy
+  only:
+    - master
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  before_script:
+    - apk add git gcc make musl-dev nodejs nodejs-npm
+    - pip install pipenv
+    - pipenv install --dev
+    - npm install -g sass
+  script:
+    - pipenv run make publish
+  artifacts:
+    paths:
+      - public
+

@@ -1,0 +1,9 @@
+image: registry.gitlab.com/samantha.ai/samantha.jl/julia:nightly
+
+default:
+  script: 
+    - apt-get -y update
+    - apt-get -y upgrade
+    - apt-get -y install make gcc
+    - julia -e "Pkg.update();Pkg.clone(\"https://gitlab.com/Samantha.ai/Samantha.jl\");Pkg.checkout(\"Samantha\", \"\$(ENV[\"CI_COMMIT_REF_NAME\"])\");Pkg.test(\"Samantha\")"
+

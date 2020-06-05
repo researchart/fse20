@@ -1,0 +1,35 @@
+image: gcc:9
+
+before_script: 
+    - apt update 
+    - update-alternatives --install /usr/bin/gfortran gfortran /usr/local/bin/gfortran 999
+    - apt -y install cmake libconfig++-dev libfftw3-dev libnetcdf-dev libcurl4-openssl-dev libopenmpi-dev openmpi-bin libgsl-dev
+
+build:
+  stage: build
+  script: 
+    - mkdir -p build
+    - cd build
+    - cmake -LA ..
+    - make VERBOSE=yes
+  artifacts:
+    paths:
+      - build/src/libstemsalabim_lib.so
+      - build/src/stemsalabim
+      - build/tests/ssb-test
+      - build/src/ssb-mkin
+      - build/src/ssb-chk
+      - build/src/ssb-run
+    expire_in: 2h
+  cache:
+    paths:
+      - build/
+
+test:
+  stage: test
+  script:
+    - mpirun --allow-run-as-root -np 2 ./build/tests/stemsalabim_test
+  dependencies:
+    - build
+
+

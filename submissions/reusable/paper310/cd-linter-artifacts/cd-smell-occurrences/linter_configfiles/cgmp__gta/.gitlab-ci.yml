@@ -1,0 +1,20 @@
+image: microsoft/dotnet:latest
+
+stages:
+    - build
+    
+before_script:
+    - "apt-get update -qq && apt-get install -y -qq zip"
+    - "cd gtaserver.core"
+    - "dotnet restore"
+    
+build:
+    stage: build
+    script:
+        - "chmod +x publish.sh"
+        - "./publish.sh"
+    artifacts:
+        paths:
+            - "gtaserver.core/publish/windows-Release.zip"
+            - "gtaserver.core/publish/linux-Release.zip"
+

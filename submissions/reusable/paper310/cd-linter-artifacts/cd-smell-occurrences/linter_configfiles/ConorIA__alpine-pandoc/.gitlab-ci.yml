@@ -1,0 +1,54 @@
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: alpine:edge
+  script:
+    - "echo '@testing http://nl.alpinelinux.org/alpine/edge/testing' >> /etc/apk/repositories"
+    - apk update && apk upgrade
+    - apk add abuild build-base cabal cmark@testing ghc git gmp-dev icu libffi linux-headers musl-dev pcre zlib zlib-dev
+    - cp 'conor@conr.ca-584aeee5.rsa.pub' /etc/apk/keys
+    - adduser -D -s /bin/sh -G abuild maker
+    - "chown -R maker:abuild $PWD"
+    - "echo 'maker ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers"
+    - mkdir -p /home/maker/.abuild/
+    - touch /home/maker/.abuild/abuild.conf
+    - echo "PACKAGER_PRIVKEY=\"/keys/conor@conr.ca-584aeee5.rsa\"" >> /home/maker/.abuild/abuild.conf
+    - mkdir -p /home/maker/packages
+    - "chown -R maker:abuild /home/maker/packages"
+    - mkdir -p /keys
+    - cp 'conor@conr.ca-584aeee5.rsa.pub' /keys
+    - echo "${abuild_key}" > '/keys/conor@conr.ca-584aeee5.rsa'
+    - "chown -R maker:abuild /keys"
+    - |
+      for dir in $(ls -d */); do
+        dir="${dir%/}"
+        echo "Building ${dir}"
+        cd "${dir}"
+        sudo -u maker abuild checksum
+        sudo -u maker abuild -d
+        cd ..
+      done
+    - mkdir -p $PWD/apks
+    - cp -R /home/maker/packages/alpine-pandoc/* $PWD/apks
+  artifacts:
+    expire_in: 1d
+    paths:
+    - apks
+
+pages:
+  stage: deploy
+  image: alpine
+  dependencies:
+    - build
+  script:
+    - mv apks/ public/
+  artifacts:
+    expire_in: 1h
+    paths:
+      - public
+  only:
+    - master
+

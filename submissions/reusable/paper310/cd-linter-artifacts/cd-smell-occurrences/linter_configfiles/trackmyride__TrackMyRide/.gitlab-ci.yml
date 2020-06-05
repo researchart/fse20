@@ -1,0 +1,164 @@
+stages:
+  - build
+  - test
+  - deploy
+
+build-frontend:  # job for frontend
+  image: node:8.9.4 # docker image to use
+
+  stage: build
+
+  cache:
+    paths:
+      - frontend/node_modules/
+
+  script:
+    - cd frontend
+    - npm install
+    - npm run build
+
+  artifacts:
+    paths:
+      - frontend/build
+
+  only:
+    - master
+
+build-backend:  # job for backend
+  image: node:8.9.4 # docker image to use
+
+  stage: build
+
+  script:
+    - cd backend
+    - npm install
+    - npm run build
+
+  artifacts:
+    paths:
+      - backend/track-my-ride-backend
+
+  only:
+    - master
+
+build-mobile:  # job for mobile
+  # source https://gitlab.com/motorica-org/telemetry-ga-android/blob/dev/.gitlab-ci.yml
+  image: registry.gitlab.com/motorica-org/gitlab-ci-react-native-android:master
+
+  stage: build
+
+  cache:
+    key: ${CI_PROJECT_ID}
+    paths:
+      - mobile/node_modules/
+      - mobile/.gradle/
+
+  before_script:
+    - cp --recursive ./mobile/licenses /opt/android-sdk/
+    - chmod +x ./mobile/android/gradlew
+    - 'echo "$MOBILE_KEYSTORE" | sed "s/\r\$//" | base64 -d > ./mobile/android/app/tmr_release.keystore
+        && echo "$MOBILE_SIGNING_INFO" | sed "s/\r\$//" >> ./mobile/android/gradle.properties
+        || echo "Signing configuration failed"'
+    - cd mobile
+
+  script:
+    - npm run build
+
+  artifacts:
+    paths:
+      - mobile/android/app/build/outputs/apk
+
+  only:
+    - master
+
+test-webservices:  # job for frontend & backend test
+  image: registry.gitlab.com/trackmyride/psit4-docker:8.9.4 # docker image to use
+
+  stage: test
+
+  dependencies:
+    - build-frontend # download artifacts of fronted build
+    - build-backend # download artifacts of backend build
+
+  cache:
+    paths:
+      - backend/node_modules/
+      - frontend/node_modules/
+
+  before_script:
+    - export REPO=$(pwd)
+
+  script:
+    - cd backend
+    - npm install
+    - npm test
+    - 'echo "{\"HttpPort\":3000,\"Webroot\":\"$REPO/frontend/build\",\"Database\":{\"host\":\"$TEST_DB_HOST\",\"user\":\"$TEST_DB_USER\",\"password\":\"$TEST_DB_PASSWORD\",\"database\":\"$TEST_DB_DB\"}}" > config.json'
+    - $REPO/backend/track-my-ride-backend $REPO/backend/config.json &
+    - sleep 5 # give backend some time
+    - cd ../frontend
+    - npm install
+    - npm test
+    - sleep 2
+    - kill -kill $(pidof track-my-ride-backend) || echo "could not kill backend"
+
+  only:
+    - master
+
+test-mobile:  # job for mobile test
+  image: registry.gitlab.com/motorica-org/gitlab-ci-react-native-android:master # docker image to use
+
+  stage: test
+
+  cache:
+    paths:
+      - mobile/node_modules/
+
+  script:
+    - cd mobile
+    - npm install
+    - npm test
+
+  only:
+    - master
+
+deployment:
+  image: node:8.9.4 # docker image to use
+
+  stage: deploy
+
+  dependencies:
+    - build-frontend # download artifacts of fronted build
+    - build-backend # download artifacts of backend build
+    - build-mobile # download artifacts of mobile for downloading app in website
+
+  before_script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_DEPLOYMENT_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+
+  script:
+    - 'ssh trackmyride@$SSH_DEPLOYMENT_SERVER "rm -rf /home/trackmyride/frontend/*" || echo "Could not remove frontend folder - moving on anyway"'
+    - 'scp -r -B frontend/build/* trackmyride@$SSH_DEPLOYMENT_SERVER:/home/trackmyride/frontend/'
+    - 'ssh trackmyride@$SSH_DEPLOYMENT_SERVER "kill -9 \$(pidof track-my-ride-backend) && sleep 2 || echo Could not stop backend process - moving on anyway"'
+    - 'ssh trackmyride@$SSH_DEPLOYMENT_SERVER "rm -rf /home/trackmyride/backend/*" || "echo Could not remove backend folder - moving on anyway"'
+    #db copy and execute
+    - 'ssh trackmyride@$SSH_DEPLOYMENT_SERVER "mkdir /home/trackmyride/backend/sql"'
+    - 'scp -B backend/src/sql/db/init_db.sql trackmyride@$SSH_DEPLOYMENT_SERVER:/home/trackmyride/backend/sql/'
+    - 'scp -B backend/src/sql/db/update_db.sql trackmyride@$SSH_DEPLOYMENT_SERVER:/home/trackmyride/backend/sql/'
+    - 'ssh trackmyride@$SSH_DEPLOYMENT_SERVER "mysql -utrackmyride < /home/trackmyride/backend/sql/init_db.sql"'
+    - 'ssh trackmyride@$SSH_DEPLOYMENT_SERVER "mysql -utrackmyride < /home/trackmyride/backend/sql/update_db.sql"'
+
+    - 'scp -B backend/track-my-ride-backend trackmyride@$SSH_DEPLOYMENT_SERVER:/home/trackmyride/backend/'
+    - 'ssh trackmyride@$SSH_DEPLOYMENT_SERVER "chmod +x /home/trackmyride/backend/track-my-ride-backend"'
+    - 'ssh trackmyride@$SSH_DEPLOYMENT_SERVER "nohup /home/trackmyride/backend/track-my-ride-backend </dev/null >command.log 2>&1 &"'
+
+    #copy app apk to backend
+    - 'ssh trackmyride@$SSH_DEPLOYMENT_SERVER "mkdir /home/trackmyride/backend/download"'
+    - 'scp -B mobile/android/app/build/outputs/apk/app-release.apk trackmyride@$SSH_DEPLOYMENT_SERVER:/home/trackmyride/backend/download/'
+  only:
+    - master
+

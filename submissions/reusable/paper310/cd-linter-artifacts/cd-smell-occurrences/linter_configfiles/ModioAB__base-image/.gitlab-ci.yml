@@ -1,0 +1,228 @@
+---
+image: registry.gitlab.com/modioab/base-image/fedora-31/container:master
+stages:
+  - first
+  - second
+  - build
+  - publish
+  - deploy
+
+variables:
+    # Podman defaults to OCI images, since 2019-02-15+ onwards, gitlab registry
+    # fails to work properly with the default `oci` images.
+    # TODO: Test & bug-report this
+    BUILDAH_FORMAT: docker
+
+before_script:
+  - make -f build.mk login
+  - 'docker info ||:'
+  - 'podman info ||:'
+
+
+container:29:
+  stage: second
+  tags:
+    - x86_64
+  variables:
+    FEDORA_ROOT_RELEASE: '29'
+  script:
+    - make -C container build test publish
+
+
+container:f31:
+  stage: second
+  tags:
+    - x86_64
+  variables:
+    FEDORA_ROOT_RELEASE: '31'
+  script:
+    - make -C container build test publish
+
+
+build-image-29:
+  stage: build
+  tags:
+    - x86_64
+  script:
+    - make -C build-fedora-29 build-publish
+
+
+build-image:f31:
+  stage: build
+  tags:
+    - x86_64
+  script:
+    - make -C build-fedora-31 build-publish
+
+
+python3-image:29:
+  stage: second
+  tags:
+    - x86_64
+  variables:
+    FEDORA_ROOT_RELEASE: '29'
+  script:
+    - make -C python3-image build-publish
+
+
+python3:f31:
+  stage: second
+  tags:
+    - x86_64
+  variables:
+    FEDORA_ROOT_RELEASE: '31'
+  script:
+    - make -C python3-image build-publish
+
+jstest:f31:
+  stage: second
+  tags:
+    - x86_64
+  script:
+    - make -C jstest build-publish
+
+
+debian9-firmware:
+  stage: build
+  tags:
+    - x86_64
+  script:
+    - make -C debian9-firmware build-publish
+
+
+debian10-firmware:
+  stage: build
+  tags:
+    - x86_64
+  script:
+    - make -C debian10-firmware build-publish
+
+nodejs-image:29:
+  stage: second
+  variables:
+    FEDORA_ROOT_RELEASE: '29'
+  tags:
+    - x86_64
+  script:
+    - make -C nodejs-image build-publish
+
+
+nodejs:f31:
+  stage: second
+  variables:
+    FEDORA_ROOT_RELEASE: '31'
+  tags:
+    - x86_64
+  script:
+    - make -C nodejs-image build-publish
+
+
+nginx:29:
+  stage: second
+  tags:
+    - x86_64
+  variables:
+    FEDORA_ROOT_RELEASE: '29'
+  script:
+    - make -C nginx build-publish
+
+
+nginx:f31:
+  stage: second
+  tags:
+    - x86_64
+  variables:
+    FEDORA_ROOT_RELEASE: '31'
+  script:
+    - make -C nginx build-publish
+
+
+mongodb:
+  stage: build
+  tags:
+    - x86_64
+  script:
+    - make -C mongodb build-publish
+
+
+meteor-image-29:
+  stage: second
+  tags:
+    - x86_64
+  script:
+    - make -C meteor-fedora-29 build-publish
+
+
+meteor:f31:
+  stage: second
+  tags:
+    - x86_64
+  variables:
+    FEDORA_ROOT_RELEASE: '31'
+  script:
+    - make -C meteor-image build-publish
+
+
+c-image-29:
+  variables:
+    FEDORA_ROOT_RELEASE: '29'
+  stage: second
+  tags:
+    - x86_64
+  script:
+    - make -C c-image build-publish
+
+
+c-image:f31:
+  variables:
+    FEDORA_ROOT_RELEASE: '31'
+  stage: second
+  tags:
+    - x86_64
+  script:
+    - make -C c-image build-publish
+
+
+go-image:29:
+  stage: second
+  variables:
+    FEDORA_ROOT_RELEASE: '29'
+  tags:
+    - x86_64
+  script:
+    - make -C go-image build-publish
+
+
+go-image:f31:
+  stage: second
+  variables:
+    FEDORA_ROOT_RELEASE: '31'
+  tags:
+    - x86_64
+  script:
+    - make -C go-image build-publish
+
+
+rust-cross:
+  stage: build
+  tags:
+    - x86_64
+  script:
+    - make -C rust-cross build-publish
+
+
+trigger_build:
+  before_script:
+    - 'true'
+  stage: deploy
+  only:
+    - master
+  dependencies: []
+  script:
+    - curl -X POST -F token=$API_KEY        -F ref=master https://gitlab.com/api/v3/projects/1282148/trigger/builds
+    - curl -X POST -F token=$SUBMIT_KEY     -F ref=master https://gitlab.com/api/v3/projects/1282147/trigger/builds
+    - curl -X POST -F token=$CONTAINER_KEY  -F ref=master https://gitlab.com/api/v3/projects/1528552/trigger/builds
+    - curl -X POST -F token=$HOUSEKEEPER_KEY -F ref=master https://gitlab.com/api/v4/projects/5299264/trigger/pipeline
+    - curl -X POST -F token=$SSHCA_KEY      -F ref=master https://gitlab.com/api/v4/projects/7519281/trigger/pipeline
+    - curl -X POST -F token=$JOURNAL_GELF_KEY -F ref=master https://gitlab.com/api/v4/projects/9359556/trigger/pipeline
+

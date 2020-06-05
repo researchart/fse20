@@ -1,0 +1,35 @@
+image: php:7.2
+
+stages:
+  - test
+
+# Get all required services to tests run.
+services:
+  - name: mariadb:10.3
+    alias: db
+  - name: redis:latest
+    alias: cache
+
+variables:
+  MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+  GET_SOURCES_ATTEMPTS: "2"
+
+cache:
+  paths:
+  - vendor/
+
+before_script:
+  - bin/ci
+  - composer install --quiet
+  - chmod 777 var/cache
+  - chmod 777 var/log
+
+php:
+  stage: test
+  artifacts:
+    untracked: true  
+    paths:
+    - public
+  script:
+  - vendor/bin/phpunit --coverage-text --colors=never --coverage-html ../public
+

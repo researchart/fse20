@@ -1,0 +1,26 @@
+image: node:latest
+
+cache:
+  paths:
+    - node_modules/
+    - .yarn
+
+pages:
+  stage: deploy
+  script:
+    - mkdir .public
+    - ls -la
+    - yarn config set cache-folder .yarn
+    - yarn install
+    - ./node_modules/@angular/cli/bin/ng build --progress false --prod --base-href /ci-wallboard/
+    - ls -la
+    - cp -r ./dist/* .public
+    - cp .public/index.html .public/404.html
+    - mv .public public
+    - ls -la public
+  artifacts:
+    paths:
+      - public
+  only:
+    - pages
+

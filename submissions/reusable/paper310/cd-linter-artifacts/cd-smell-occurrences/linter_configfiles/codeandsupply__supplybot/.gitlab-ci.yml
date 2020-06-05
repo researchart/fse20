@@ -1,0 +1,8 @@
+production:
+  type: deploy
+  script:
+  - gem install dpl
+  - dpl --provider=heroku --app=codeandsupplybot --api-key=$HEROKU_PRODUCTION_API_KEY
+  only:
+  - master
+

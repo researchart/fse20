@@ -1,0 +1,126 @@
+image: ubuntu:16.04
+
+stages:
+  - test
+  - package
+  - unit_tests
+
+variables:
+  APP: archimedes
+  PIP_CACHE: pip_cache
+  WHEELHOUSE: wheels
+  VENV_DIR: venv
+  POSTGRES_DB: 'mataara_test'
+  POSTGRES_USER: 'postgres'
+  POSTGRES_PASSWORD: 'postgres'
+
+services:
+  - redis:latest
+  - postgres:9.5
+
+# Ensure we have the Python virtual env activated for each job
+before_script:
+  - apt-get clean
+  - apt-get update
+  - apt-get install -y python3 python3-pip
+  - mkdir -p ${PIP_CACHE}
+  - python3 bin/get-pip.py
+  - pip3 install virtualenv
+  - virtualenv ${VENV_DIR}
+  - source ${VENV_DIR}/bin/activate
+
+cache:
+  paths:
+    - ${PIP_CACHE}
+    - ${APP}/frontend/node_modules
+    - ${VENV_DIR}
+
+python_lint:
+  stage: test
+  allow_failure: true
+  script:
+    - pip3 --cache-dir=${PIP_CACHE} install flake8
+    - flake8
+
+security_checks:
+  stage: test
+  script:
+    - pip3 --cache-dir=${PIP_CACHE} install bandit
+    - bandit -r ${APP} -x ${APP}/*/migrations,${APP}/frontend
+
+javascript_lint:
+  image: node:12
+  stage: test
+  before_script:
+    - cd ${APP}/frontend
+    - npm install
+  script:
+    - npm run lint
+
+buildwheels:
+  stage: package
+  script:
+    # Install LTS NPM/NodeJS
+    - apt-get update
+    # Install support for NodeJS repository and obtaining its key
+    - apt-get install -y apt-transport-https wget
+    # Install NodeJS Repository
+    - wget -qO - https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
+    - echo 'deb https://deb.nodesource.com/node_6.x trusty main' > /etc/apt/sources.list.d/nodejs.list
+    - apt-get update
+    # Install npm via NodeJS package
+    - apt-get install -y nodejs
+
+    # Install Python build dependencies
+    - apt-get install -y python3-dev libpq-dev libldap2-dev libsasl2-dev libssl-dev libffi-dev libxml2 libxslt1.1
+    # If any extra build dependencies exist, install them
+    - if [ -d requirements/build.txt ] ; then pip3 --cache-dir=${PIP_CACHE} install -r requirements/build.txt; fi
+
+    # Build wheels of the app and its dependencies
+    - pip3 wheel --wheel-dir=${WHEELHOUSE} .
+  artifacts:
+    name: "packaged-wheels"
+    paths:
+      - ${WHEELHOUSE}
+    expire_in: 1 hour
+
+djangotests:
+  variables:
+    DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/mataara_test"
+  stage: test
+  script:
+    - apt-get update
+    # Install dependencies
+    - apt-get install -y python3-dev libpq-dev libldap2-dev libsasl2-dev libssl-dev libffi-dev libxml2 libxslt1.1 openssl locales
+    # Required otherwise unicode in test files causes the tests to die
+    - locale-gen "en_US.UTF-8"
+    - dpkg-reconfigure -fnoninteractive locales
+    - update-locale LANG=en_US.UTF-8
+    - export LANG=en_US.UTF-8
+    - export LC_ALL=en_US.UTF-8
+    # Activate CI configuration file
+    - mkdir -p /etc/${APP}
+    - cp conf/${APP}.ini.gitlab-ci /etc/${APP}/${APP}.ini
+    # Create public/private key pair used for reports
+    - mkdir -p /vagrant/reportkey
+    - /usr/bin/openssl genrsa -out /vagrant/reportkey/private.pem
+    - /usr/bin/openssl rsa -in /vagrant/reportkey/private.pem -outform PEM -pubout -out /vagrant/reportkey/public.pem
+    - /usr/bin/printf "\n\n\n\n\n\n\n" | openssl req -new -x509 -key /vagrant/reportkey/private.pem -out /vagrant/reportkey/public.cer
+    # Installing requirements as we do for developemnt
+    - pip3 install -r ./requirements/dev.txt
+    # Configure Python environment for development mode
+    - python3 ./setup.py develop
+    # Run basic Django application tests
+    - ${APP} test
+
+javascript_test:
+  stage: test
+  image: node:12
+  before_script:
+    - ln -fs /usr/share/zoneinfo/Pacific/Auckland /etc/localtime
+    - dpkg-reconfigure -f noninteractive tzdata
+    - cd ${APP}/frontend
+    - npm install
+  script:
+    - npm test
+

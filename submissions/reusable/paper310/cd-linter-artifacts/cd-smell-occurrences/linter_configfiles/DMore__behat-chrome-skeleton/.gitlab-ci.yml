@@ -1,0 +1,29 @@
+variables:
+  COMPOSER_CACHE_DIR: ".cache/composer"
+  DOCROOT: "${CI_PROJECT_DIR}/web"
+
+.behat_template: &behat_template
+  stage: test
+  image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+  script:
+    - composer install -o --ansi --no-progress
+    - vendor/bin/behat --colors
+  tags: [docker]
+  cache:
+    key: common
+    paths:
+      - .cache
+      - vendor
+
+Behat PHP 5.6:
+  <<: *behat_template
+  image: registry.gitlab.com/dmore/docker-chrome-headless:5.6
+
+Behat PHP 7.0:
+  <<: *behat_template
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.0
+
+Behat PHP 7.1:
+  <<: *behat_template
+  image: registry.gitlab.com/dmore/docker-chrome-headless:7.1
+

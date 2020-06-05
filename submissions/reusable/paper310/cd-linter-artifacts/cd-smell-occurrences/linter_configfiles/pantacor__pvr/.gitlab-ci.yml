@@ -1,0 +1,104 @@
+image: docker:stable
+
+services:
+  - docker:dind
+
+variables:
+  CONTAINER_IMAGE: registry.gitlab.com/$CI_PROJECT_PATH
+  DOCKER_DRIVER: overlay2
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+  - apk update
+  - apk add zip
+  - docker run --rm -v $PWD:/src -w /src golang:alpine sh -c "apk update && apk add git && go mod download && go mod vendor"
+  - tar -cvzf "vendor.tar.gz" ./vendor/
+
+build-tags:
+  stage: build
+  script:
+    - docker pull $CONTAINER_IMAGE:stable || true
+    - docker build --build-arg DOCKERTAG=stable --cache-from $CONTAINER_IMAGE:stable --tag $CONTAINER_IMAGE:$CI_BUILD_REF --tag $CONTAINER_IMAGE:stable .
+    - test -n "$CI_BUILD_TAG" && docker tag $CONTAINER_IMAGE:$CI_BUILD_REF $CONTAINER_IMAGE:$CI_BUILD_TAG || true
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE:stable
+    - test -n "$CI_BUILD_TAG" && docker push $CONTAINER_IMAGE:$CI_BUILD_TAG || true
+    - tempdir=`mktemp -d`
+    - docker run --rm $CONTAINER_IMAGE:$CI_BUILD_REF | tar -C $tempdir -x
+    - tar -cvzf pvr-$CI_BUILD_TAG.linux.amd64.tar.gz -C $tempdir/bin/linux_amd64 pvr
+    - tar -cvzf pvr-$CI_BUILD_TAG.linux.armv6.tar.gz -C $tempdir/bin/linux_armv6 pvr
+    - tar -cvzf pvr-$CI_BUILD_TAG.darwin.amd64.tar.gz -C $tempdir/bin/darwin_amd64 pvr
+    - echo CWD `pwd`
+    - sh -c "cd $tempdir/bin/windows_386/; zip pvr-$CI_BUILD_TAG.windows.x32.zip pvr.exe"
+    - cp $tempdir/bin/windows_386/pvr-$CI_BUILD_TAG.windows.x32.zip .
+    - sh -c "cd $tempdir/bin/windows_amd64/; zip pvr-$CI_BUILD_TAG.windows.x64.zip pvr.exe"
+    - cp $tempdir/bin/windows_amd64/pvr-$CI_BUILD_TAG.windows.x64.zip .
+  artifacts:
+    paths:
+    - pvr-$CI_BUILD_TAG.linux.amd64.tar.gz
+    - pvr-$CI_BUILD_TAG.linux.armv6.tar.gz
+    - pvr-$CI_BUILD_TAG.darwin.amd64.tar.gz
+    - pvr-$CI_BUILD_TAG.windows.x32.zip
+    - pvr-$CI_BUILD_TAG.windows.x64.zip
+    - vendor.tar.gz
+  only:
+    - tags
+
+build-master:
+  stage: build
+  script:
+    - docker pull $CONTAINER_IMAGE:latest || true
+    - docker build --build-arg DOCKERTAG=latest --cache-from $CONTAINER_IMAGE:latest --tag $CONTAINER_IMAGE:$CI_BUILD_REF --tag $CONTAINER_IMAGE:latest .
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE:latest
+    - tempdir=`mktemp -d`
+    - docker run --rm $CONTAINER_IMAGE:$CI_BUILD_REF | tar -C $tempdir -x
+    - tar -cvzf pvr.linux.amd64.tar.gz -C $tempdir/bin/linux_amd64 pvr
+    - tar -cvzf pvr.linux.armv6.tar.gz -C $tempdir/bin/linux_armv6 pvr
+    - tar -cvzf pvr.darwin.amd64.tar.gz -C $tempdir/bin/darwin_amd64 pvr
+    - echo CWD `pwd`
+    - sh -c "cd $tempdir/bin/windows_386/; zip pvr.windows.x32.zip pvr.exe"
+    - cp $tempdir/bin/windows_386/pvr.windows.x32.zip .
+    - sh -c "cd $tempdir/bin/windows_amd64/; zip pvr.windows.x64.zip pvr.exe"
+    - cp $tempdir/bin/windows_amd64/pvr.windows.x64.zip .
+  artifacts:
+    paths:
+    - pvr.linux.amd64.tar.gz
+    - pvr.linux.armv6.tar.gz
+    - pvr.darwin.amd64.tar.gz
+    - pvr.windows.x32.zip
+    - pvr.windows.x64.zip
+    - vendor.tar.gz
+  only:
+    - master
+
+build:
+  stage: build
+  script:
+    - docker pull $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG || true
+    - docker build --build-arg DOCKERTAG=$CI_BUILD_REF_SLUG --cache-from $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG --tag $CONTAINER_IMAGE:$CI_BUILD_REF --tag $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG .
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF
+    - docker push $CONTAINER_IMAGE:$CI_BUILD_REF_SLUG
+    - tempdir=`mktemp -d`
+    - docker run --rm $CONTAINER_IMAGE:$CI_BUILD_REF | tar -C $tempdir -x
+    - tar -cvzf pvr.linux.amd64.tar.gz -C $tempdir/bin/linux_amd64 pvr
+    - tar -cvzf pvr.linux.armv6.tar.gz -C $tempdir/bin/linux_armv6 pvr
+    - tar -cvzf pvr.darwin.amd64.tar.gz -C $tempdir/bin/darwin_amd64 pvr
+    - echo CWD `pwd`
+    - sh -c "cd $tempdir/bin/windows_386/; zip pvr.windows.x32.zip pvr.exe"
+    - cp $tempdir/bin/windows_386/pvr.windows.x32.zip .
+    - sh -c "cd $tempdir/bin/windows_amd64/; zip pvr.windows.x64.zip pvr.exe"
+    - cp $tempdir/bin/windows_amd64/pvr.windows.x64.zip .
+  artifacts:
+    paths:
+    - pvr.linux.amd64.tar.gz
+    - pvr.linux.armv6.tar.gz
+    - pvr.darwin.amd64.tar.gz
+    - pvr.windows.x32.zip
+    - pvr.windows.x64.zip
+    - vendor.tar.gz
+  only:
+    - branches
+  except:
+    - master
+

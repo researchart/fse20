@@ -1,0 +1,15 @@
+image: python:2.7
+
+pages:
+  script:
+    - pip install lektor
+    - lektor build --output-path public
+    - rm -rf public/.lektor
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 hour
+  only:
+    - master
+  when: manual
+

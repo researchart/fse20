@@ -1,0 +1,85 @@
+image: node:latest
+
+build-and-check:
+  stage: build
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - yarn install --frozen-lockfile
+    - echo "Starting SVG Build"
+    - yarn run svg
+    - echo "Starting Checks"
+    - bash ./build_scripts/svg-lint.sh
+    - bash ./build_scripts/dist-check.sh
+    - yarn run lint
+    - yarn run generate
+  artifacts:
+    paths:
+      - public
+
+publish:
+  stage: deploy
+  script:
+    - |
+      yarn global add 'semantic-release@15' '@semantic-release/exec@3' \
+      '@semantic-release/git@7' '@semantic-release/gitlab@3' '@semantic-release/npm@5'
+    - $(yarn global bin)/semantic-release
+  only:
+    - master@gitlab-org/gitlab-svgs
+
+review:
+  stage: deploy
+  dependencies:
+    - build-and-check
+  script:
+    # We need to move the contents of the public folder from ./ to ./gitlab-svgs/, so it matches
+    # gitlab-pages. Nuxt is not that smart when it comes to static links.
+    # See this comment: https://gitlab.com/gitlab-org/gitlab-svgs/merge_requests/158/diffs#note_111939228
+    # Hopefully this can be resolved once https://gitlab.com/gitlab-org/gitlab-svgs/issues/30 is fixed
+    # and we include the CSS properly
+    - mv public gitlab-svgs
+    - mkdir -p /srv/nginx/pages/$CI_COMMIT_REF_SLUG/public
+    - rsync -av --delete gitlab-svgs /srv/nginx/pages/$CI_COMMIT_REF_SLUG/public
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: http://$CI_COMMIT_REF_SLUG.$APPS_DOMAIN/gitlab-svgs/
+    on_stop: review_stop
+  only:
+    - branches@gitlab-org/gitlab-svgs
+  except:
+    - master@gitlab-org/gitlab-svgs
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+review_stop:
+  stage: deploy
+  script:
+    - rm -rf public /srv/nginx/pages/$CI_COMMIT_REF_SLUG
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+  only:
+    - branches@gitlab-org/gitlab-svgs
+  except:
+    - master@gitlab-org/gitlab-svgs
+  tags:
+    - nginx
+    - review-apps
+    - deploy
+
+pages:
+  stage: deploy
+  dependencies:
+    - build-and-check
+  script:
+    - echo "Deploying to Pages"
+  artifacts:
+    paths:
+      - public
+  only:
+    - master@gitlab-org/gitlab-svgs
+

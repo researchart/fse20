@@ -1,0 +1,10 @@
+image: ruby:alpine
+
+aptly:
+  script:
+  - apk --no-cache add bash curl jq
+  - gem install aptly_cli --no-rdoc --no-ri
+  - ${CI_PROJECT_DIR}/.gitlab-ci/upload.sh
+  only:
+  - triggers
+

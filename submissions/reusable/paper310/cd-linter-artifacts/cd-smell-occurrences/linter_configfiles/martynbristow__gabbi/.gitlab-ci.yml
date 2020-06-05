@@ -1,0 +1,149 @@
+before_script:
+  - apt-get update -qq && apt-get upgrade -y -qq && apt-get install -y -qq python-pip
+
+stages:
+  - lint
+  - test
+
+lint_job:
+  stage: lint
+  script:
+    - pip install pylint
+    - pylint
+  allow_failure: true
+
+test:2.7:
+  image: python:2.7
+  stage: test
+  script:
+    - pip install tox
+    - make test
+  variables:
+    TOXENV: "py27"
+
+test:pep8:
+  image: python:2.7
+  stage: test
+  script:
+    - pip install tox
+    - make test
+  variables:
+    TOXENV: "pep8"
+
+test:pypy:
+  image: pypy:2
+  stage: test
+  script:
+    - pip install tox
+    - make test
+  variables:
+    TOXENV: "pypy"
+
+test:pypy3:
+  image: pypy:3
+  stage: test
+  script:
+    - pip install tox
+    - make test
+  variables:
+    TOXENV: "pypy3"
+
+test:3.3:
+    image: python:3.3
+    script:
+        - pip install tox
+        - make test
+    variables:
+      TOXENV: py33
+
+test:3.4:
+    image: python:3.4
+    script:
+      - pip install tox
+      - make test
+    variables:
+      TOXENV: "py34"
+
+test:3.5:
+    image: python:3.5
+    script:
+        - pip install tox
+        - make test
+    variables:
+      TOXENV: "py35"
+
+test:pep8py35:
+    image: python:3.5
+    script:
+        - pip install tox
+        - make test
+    variables:
+      TOXENV: "pep8"
+
+test:pytest27:
+    image: python:2.7
+    script:
+        - pip install tox
+        - make test
+    variables:
+      TOXENV: "py27-pytest"
+
+test:pytest35:
+    image: python:3.5
+    script:
+        - pip install tox
+        - make test
+    variables:
+      TOXENV: "py35-pytest"
+
+test:py35failskip:
+    image: python:3.5
+    script:
+        - pip install tox
+        - make test
+    variables:
+      TOXENV: "py35-failskip"
+
+test:py35limit:
+    image: python:3.5
+    script:
+        - pip install tox
+        - make test
+    variables:
+      TOXENV: "py35-limit"
+
+test:py35prefix:
+    image: python:3.5
+    script:
+        - pip install tox
+        - make test
+    variables:
+      TOXENV: "py35-prefix"
+
+test_cov:
+    image: ubuntu:14.04
+    script:
+        - apt-get install -y software-properties-common
+        - add-apt-repository -y ppa:fkrull/deadsnakes
+        - apt-get update -y
+        - apt-get upgrade -y
+        - apt-get install -y python3.5 python2.7 python-pip
+        - pip install tox
+    variables:
+      TOXENV: "py2-cover,py3-cover,coverage"
+
+pages:
+    image: python:3.5
+    script:
+      - apt-get install make
+      - pip install tox
+      - tox
+      - mv docs/build/html public
+    variables:
+      TOXENV: "docs"
+    artifacts:
+      paths:
+        - public
+    tags:
+      - docker
+

@@ -1,0 +1,86 @@
+#
+# npm packaged library default CI/CD
+#
+image: node:10
+cache:
+  paths:
+    - node_modules
+
+before_script:
+  - git config --global user.email "mail@antlike.tech"
+  - npm install
+  - npm run build
+
+stages:
+  - test
+  - deploy
+
+
+#
+# test suites and code quality control
+#
+# latest
+run_tests_latest:
+  image: node:10
+  stage: test
+  script: npm test
+
+# Maintenance
+run_tests_maintenance:
+  image: node:9
+  stage: test
+  script: npm test
+
+# Active LTS
+run_tests_lts:
+  image: node:8
+  stage: test
+  script: npm test
+
+# Maintenance LTS
+run_tests_maintenance_lts:
+  image: node:6
+  stage: test
+  script: npm test
+
+lint_code:
+  stage: test
+  script: npm run lint
+
+#
+# pre-release tests
+#
+check_for_vulnerable_dependencies:
+  stage: test
+  script:
+    - npm i -g snyk
+    - snyk test
+  only:
+    - master
+
+check_for_outdated_dependencies:
+  stage: test
+  script:
+    - npx npm-check -ps
+  only:
+    - master
+
+
+#
+# release/deployment
+#
+create_release_file:
+  stage: deploy
+  script:
+    - >
+      npm i --no-save
+      semantic-release
+      @semantic-release/gitlab
+      @semantic-release/changelog
+      @semantic-release/npm
+      @semantic-release/git
+      @semantic-release/gitlab-config
+    - npx semantic-release
+  only:
+    - master
+

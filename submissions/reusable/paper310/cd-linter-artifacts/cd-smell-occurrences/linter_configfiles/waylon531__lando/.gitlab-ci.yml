@@ -1,0 +1,80 @@
+# Use nightly version of rust for compiler plugins
+image: "rustlang/rust:nightly"
+
+services:
+    - postgres:latest
+
+variables:
+    POSTGRES_DB: lando
+    POSTGRES_USER: lando
+    POSTGRES_PASSWORD: ""
+
+# Cache compiled code to speed up CI times
+cache:
+  paths:
+    - target/
+    - cargo/
+
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  script:
+    - export CARGO_HOME="$CI_PROJECT_DIR/cargo"
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - cargo build
+
+test:
+  stage: test
+  script:
+    - export CARGO_HOME="$CI_PROJECT_DIR/cargo"
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - export DATABASE_URL="postgres://lando@postgres/lando"
+    - apt-get install libpq-dev -yqq
+    - export WANTED_VERSION=`cargo search diesel_cli | grep -oe '[0-9]*\.[0-9]*\.[0-9]*' | head -n 1`
+    - if [ ! `which diesel` ] || [ `diesel --version | grep -oe '[0-9]*\.[0-9]*\.[0-9]*'` != $WANTED_VERSION ]; then cargo install --no-default-features --features "postgres" diesel_cli --force; else echo "Diesel is already version $WANTED_VERSION"; fi
+    - diesel setup 
+    - diesel migration run
+    - cargo test
+
+deploy:
+  stage: deploy
+  tags: 
+    - deploy
+  environment:
+    name: lando
+    url: https://lando.firechicken.net
+    on_stop: stop_deploy
+  only:
+    - master
+  script:
+      # Make sure the path is set up correctly
+    - export PATH=$PATH:$HOME/.cargo/bin
+      # Use the nightly compiler
+    - rustup override set nightly
+      # Create the database if it doesn't already exist
+    - diesel setup 
+      # and then run the migrations on it
+    - diesel migration run
+    - cargo build --release
+    - supervisorctl stop lando
+    - cp target/release/lando /opt/lando/lando
+    - cp -r templates/* /opt/lando/templates
+    - cp -r static/* /opt/lando/static
+    - supervisorctl start lando
+
+stop_deploy:
+  stage: deploy
+  tags: 
+    - deploy
+  when: manual
+  script: supervisorctl stop lando
+  environment:
+    name: lando
+    url: https://lando.firechicken.net
+    action: stop
+
+

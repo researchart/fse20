@@ -1,0 +1,38 @@
+stages:
+    - test
+    - deploy
+
+before_script:
+    - echo "deb http://deb.debian.org/debian stretch-backports main" > /etc/apt/sources.list.d/backports.list
+    - apt-get update -qq && apt-get install -y -qq git stow
+    - apt-get -y -qq -t stretch-backports install ansible
+    - echo $ANSIBLE_VAULT_PASSWORD > ~/ansible_vault_password.txt
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir ~/.ssh && chmod 700 ~/.ssh
+    - echo $SSH_PUBLIC_KEY > ~/.ssh/id_rsa.pub
+    - git clone https://gitlab.com/paddatrapper/dotfiles ~/dotfiles
+    - cd ~/dotfiles && stow ansible && cd $CI_PROJECT_DIR
+    - sed -i '/ask_vault_pass = yes/d' ~/.ansible.cfg
+    - ansible-galaxy install Datadog.datadog
+
+test:syntax:
+    script:
+        - pwd
+        - cat ~/.ansible/hosts
+        - ansible-playbook cloud.yml --syntax-check --vault-password-file=~/ansible_vault_password.txt --inventory=~/.ansible/hosts
+        - ansible-playbook home.yml --syntax-check --vault-password-file=~/ansible_vault_password.txt --inventory=~/.ansible/hosts
+
+deploy:cloud:
+    stage: deploy
+    script:
+        - apt-get install -y -qq python-pip python-yaml
+        - pip install datadog
+        - ansible-playbook cloud.yml --vault-password-file=~/ansible_vault_password.txt --inventory=~/.ansible/hosts
+    only:
+        - master
+    environment:
+        name: cloud
+        url: ams1.paddatrapper.com
+

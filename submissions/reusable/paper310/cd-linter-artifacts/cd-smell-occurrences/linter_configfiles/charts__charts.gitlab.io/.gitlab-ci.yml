@@ -1,0 +1,112 @@
+image: "registry.gitlab.com/gitlab-org/gitlab-build-images:alpine-helm"
+
+before_script:
+  - ruby -v
+  - helm init --client-only
+  - helm repo add gitlab https://charts.gitlab.io
+  - helm repo add jetstack https://charts.jetstack.io
+
+test:
+  script:
+    - mkdir -p public
+    - aws s3 cp s3://$S3_BUCKET/index.yaml public/index.yaml || true
+    - bundle install --jobs 4 --path vendor
+    - bundle exec kramdown --input GFM --template document --syntax-highlighter rouge README.md > public/index.html
+    # TODO: Once charts are in gitlab-org/charts namespace, remove the branching
+    # inside while loop and pull from that canonical source.
+    - while read chart; do
+        if ! $(git clone https://gitlab.com/gitlab-org/charts/$chart.git charts/$chart); then
+          echo "Chart $chart not found in gitlab-org/charts group, trying top level charts group.";
+          git clone https://gitlab.com/charts/$chart.git charts/$chart;
+        fi;
+      done < CHARTS_LIST
+    - helm lint charts/*
+    - for chart in charts/*; do helm dep up $chart; done
+    - (cd public; helm package ../charts/*)
+    - helm repo index public --merge public/index.yaml --url https://$S3_BUCKET.s3.amazonaws.com
+  artifacts:
+    expire_in: 3d
+    paths:
+    - public
+  except:
+    - master
+
+release_chart:
+  script:
+    - mkdir -p public
+    - aws s3 cp s3://$S3_BUCKET/index.yaml public/index.yaml
+    # TODO: Once charts are in gitlab-org/charts namespace, remove this
+    # branching and pull from that canonical source.
+    - if ! $(git clone https://gitlab.com/gitlab-org/charts/$CHART_NAME.git -b $RELEASE_REF --depth 10 charts/$CHART_NAME); then
+        echo "Chart not found in gitlab-org/charts group, trying top level charts group.";
+        git clone https://gitlab.com/charts/$CHART_NAME.git -b $RELEASE_REF --depth 10 charts/$CHART_NAME;
+      fi
+    - helm dep up charts/$CHART_NAME
+    - (cd public; helm package ../charts/$CHART_NAME)
+    - helm repo index public --merge public/index.yaml --url https://$S3_BUCKET.s3.amazonaws.com
+    - aws s3 sync public s3://$S3_BUCKET --acl public-read
+  only:
+    refs:
+      - pipelines
+      - master
+    variables:
+      - $CHART_NAME
+      - $RELEASE_REF
+  except:
+    variables:
+      - $UNSTABLE == "true"
+
+release_unstable_chart:
+  script:
+    - mkdir -p public/unstable
+    - aws s3 cp s3://$S3_BUCKET/unstable/index.yaml public/unstable/index.yaml || true
+    # TODO: Once charts are in gitlab-org/charts namespace, remove this
+    # branching and pull from that canonical source.
+    - if ! $(git clone https://gitlab.com/gitlab-org/charts/$CHART_NAME.git -b $RELEASE_REF --depth 10 charts/$CHART_NAME); then
+        echo "Chart not found in gitlab-org/charts group, trying top level charts group.";
+        git clone https://gitlab.com/charts/$CHART_NAME.git -b $RELEASE_REF --depth 10 charts/$CHART_NAME;
+      fi
+    - helm dep up charts/$CHART_NAME
+    - (cd public/unstable; helm package ../../charts/$CHART_NAME)
+    - helm repo index public/unstable --merge public/unstable/index.yaml --url https://$S3_BUCKET.s3.amazonaws.com/unstable
+    - aws s3 sync public/unstable s3://$S3_BUCKET/unstable --acl public-read
+  only:
+    refs:
+      - pipelines
+      - master
+    variables:
+      - $UNSTABLE == "true"
+
+pages:
+  stage: deploy
+  script:
+    - mkdir -p public/unstable
+    - aws s3 cp s3://$S3_BUCKET/index.yaml public/index.yaml || true
+    - aws s3 cp s3://$S3_BUCKET/unstable/index.yaml public/unstable/index.yaml || true
+    - bundle install --jobs 4 --path vendor
+    - bundle exec kramdown --input GFM --template document --syntax-highlighter rouge README.md > public/index.html
+    # TODO: Once charts are in gitlab-org/charts namespace, remove the branching
+    # inside while loop and pull from that canonical source.
+    - while read chart; do
+        if ! $(git clone https://gitlab.com/gitlab-org/charts/$chart.git charts/$chart); then
+          echo "Chart not found in gitlab-org/charts group, trying top level charts group.";
+          git clone https://gitlab.com/charts/$chart.git charts/$chart;
+        fi;
+      done < CHARTS_LIST
+    - helm lint charts/*
+    - for chart in charts/*; do helm dep up $chart; done
+    - (cd public; helm package ../charts/*)
+    - helm repo index public --merge public/index.yaml --url https://$S3_BUCKET.s3.amazonaws.com
+    - aws s3 sync public s3://$S3_BUCKET --acl public-read
+    - rm -f public/*tgz
+  artifacts:
+    paths:
+    - public
+  cache:
+    key: "$CI_BUILD_NAME.$CI_BUILD_REF_NAME"
+    paths:
+      - vendor/ruby
+  only:
+  - master
+  - triggers
+

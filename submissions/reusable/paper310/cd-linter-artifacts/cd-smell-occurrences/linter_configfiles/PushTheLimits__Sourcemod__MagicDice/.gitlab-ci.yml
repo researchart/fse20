@@ -1,0 +1,78 @@
+image: rays3t/sourcemod-plugins-builder-ci
+stages:
+  - build
+  - compress-fdl
+build:core:
+    stage: build
+    variables:
+        AUTO_VERSION_REPLACE: '1'
+    script: 
+    - spcomp
+    # create a package dir
+    - mkdir package
+    # Copy all resources to the package
+    - cp -r resources/* package
+    # Create package dirs for scripting, include and plugins
+    - mkdir -p package/addons/sourcemod/scripting/include
+    - mkdir -p package/addons/sourcemod/plugins
+    # copy compiled plugins, includes and scripts to package
+    - cp compiled/*.smx package/addons/sourcemod/plugins
+    - cp *.sp package/addons/sourcemod/scripting
+    - cp include/*.inc package/addons/sourcemod/scripting/include
+    # remove all readme files from package
+    - cd package && rm -rf *.md
+    artifacts:
+        name: "${CI_PROJECT_NAME}_core_${CI_COMMIT_REF_NAME}"
+        paths:
+        - package/*
+        
+build:modules:
+    stage: build
+    variables: 
+        # Build plugins in sub dir
+        BUILD_DIR: '${CI_PROJECT_DIR}/magicdice'
+        AUTO_VERSION_REPLACE: '1'
+    script: 
+    - spcomp
+    # create a package dir
+    - mkdir package
+    # Copy all resources from magicdice modules to the package
+    - cp -r magicdice/resources/* package
+    # Create package dirs for scripting, include and plugins
+    - mkdir -p package/addons/sourcemod/scripting/include
+    - mkdir -p package/addons/sourcemod/plugins
+    # copy compiled plugins, includes and scripts to package
+    - cp magicdice/compiled/*.smx package/addons/sourcemod/plugins
+    - cp magicdice/*.sp package/addons/sourcemod/scripting
+    - cp include/*.inc package/addons/sourcemod/scripting/include
+    # remove all readme files from package
+    - cd package && rm -rf *.md
+    artifacts:
+        name: "${CI_PROJECT_NAME}_modules_${CI_COMMIT_REF_NAME}"
+        paths:
+        - package/*
+ 
+build:scripts:
+    stage: build
+    image: sklemmer/gitlab-shellcheck
+    script:
+    - shellcheck scripts/updater.sh
+    
+compress-fdl:
+    stage: compress-fdl
+    image: alpine:latest
+    before_script:
+    - apk update
+    - apk add bzip2
+    script:
+    - mkdir fastdl
+    - mkdir -p fastdl/sound
+    - cp -r magicdice/resources/sound/* fastdl/sound/
+    - for f in $(find fastdl -name '*.md'); do rm -rf "$f"; done
+    - for f in $(find fastdl -name '*.*'); do bzip2 -v -z "$f"; done
+    artifacts:
+        name: "${CI_PROJECT_NAME}_fastdl_${CI_COMMIT_REF_NAME}"
+        paths:
+        - fastdl/*
+        
+

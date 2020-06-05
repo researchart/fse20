@@ -1,0 +1,25 @@
+test:python2:
+  image: 'python:2.7'
+  script:
+  - pip install -r requirements.txt
+  - flake8
+  # - pytest
+
+
+test:python3:
+  image: 'python:3.7-stretch'
+  coverage: '/^TOTAL +\d+ +\d+ +(\d+%)$/'
+  script:
+  - pip install -r requirements.txt
+  - flake8
+  # - pytest --cov=plugin/
+
+
+test:vim:
+  image: 'python:3.6-stretch'
+  script:
+  - apt-get update -qy && apt-get install -y vim-nox neovim
+  - pip install --upgrade neovim
+  - ./run_vim_tests.sh
+  - VIM_CMD=nvim ./run_vim_tests.sh
+

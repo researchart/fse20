@@ -1,0 +1,31 @@
+---
+stages:
+  - test
+  - deploy
+
+staging:
+  tags:
+    - staging
+  before_script:
+    - cd automation
+  stage: test
+  script:
+    - "ansible-playbook playbooks/deploy.yaml --tags update"
+    - sleep 15 
+    - netq check bgp
+    - netq check evpn
+    - netq check mtu
+
+production:
+  tags:
+    - production
+  before_script:
+    - cd automation
+  stage: deploy
+  script:
+    - "ansible-playbook playbooks/deploy.yaml --tags update"
+    - sleep 15 
+    - netq check bgp
+    - netq check evpn
+    - netq check mtu
+

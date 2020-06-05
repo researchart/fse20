@@ -1,0 +1,16 @@
+stages:
+  - build
+
+make-go:
+  stage: build
+  script:
+    - make clean
+    - make
+  artifacts:
+    paths:
+      - build
+  tags:
+    - merge
+    - docker
+    - go
+

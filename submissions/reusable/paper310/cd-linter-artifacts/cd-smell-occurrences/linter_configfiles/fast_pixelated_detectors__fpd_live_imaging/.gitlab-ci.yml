@@ -1,0 +1,64 @@
+run_test_docstrings_and_unit_tests:
+    image: debian:stable
+    script:
+    - apt-get update -q
+    - apt-get install -qy python3-matplotlib python3-numpy python3-pyqt5 python3-scipy python3-h5py python3-psutil python3-pip
+    - apt-get install -qy python3-pytest python3-pytest-cov xvfb
+    - pip3 install .
+    - xvfb-run python3 -m pytest --doctest-modules --cov=fpd_live_imaging fpd_live_imaging/
+
+test_documentation:
+    image: debian:stable
+    script:
+    - apt-get update -q
+    - apt-get install -qy python3-matplotlib python3-numpy python3-pyqt5 python3-scipy python3-h5py python3-psutil python3-pip
+    - apt-get install -qy python3-pytest xvfb
+    - pip3 install .
+    - xvfb-run python3 -m pytest --doctest-glob="*.rst" doc/
+
+style_checks:
+    image: debian:stable
+    script:
+    - apt-get update -q
+    - apt-get install -qy python3-flake8
+    - python3 -m flake8 fpd_live_imaging/
+    allow_failure: true
+
+pages:
+    image: debian:stable
+    stage: deploy
+    script:
+    - apt-get update -q
+    - apt-get install -qy python3-pip python3-pyqt5 python3-h5py python3-scipy python3-psutil python3-numpy python3-matplotlib
+    - apt-get install -qy python3-sphinx python3-sphinx-rtd-theme build-essential xvfb
+    - pip3 install .
+    - cd doc
+    - xvfb-run -a python3 images/make_debug_process_class_image.py
+    - make html
+    - cd ..
+    - mv doc/_build/html public
+    artifacts:
+        paths:
+        - public
+    only:
+    - release
+
+pages_development:
+    image: debian:stable
+    stage: deploy
+    script:
+    - apt-get update -q
+    - apt-get install -qy python3-pip python3-pyqt5 python3-h5py python3-scipy python3-psutil python3-numpy python3-matplotlib
+    - apt-get install -qy python3-sphinx python3-sphinx-rtd-theme build-essential xvfb
+    - pip3 install .
+    - cd doc
+    - xvfb-run -a python3 images/make_debug_process_class_image.py
+    - make html
+    - cd ..
+    - mv doc/_build/html pages_development
+    artifacts:
+        paths:
+        - pages_development
+    only:
+    - master
+

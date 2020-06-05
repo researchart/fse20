@@ -1,0 +1,30 @@
+
+
+stages:
+#- build
+- test
+
+#build:
+#  stage: build
+#  image: maven:3.5-jdk-8
+#  script: mvn compile package
+#  artifacts:
+#    paths:
+#    - target/*
+##  variables:
+##    CI_DEBUG_TRACE: "true"
+
+unittest:
+  stage: test
+  image: maven:3.5-jdk-8
+  script: mvn test
+  artifacts:
+    #Retrieve report output inclusion of results and for display
+    paths:
+    - target/surefire-reports/TEST-*.html
+    reports:
+      junit:
+      - target/surefire-reports/TEST-*.xml
+      - target/failsafe-reports/TEST-*.xml
+
+

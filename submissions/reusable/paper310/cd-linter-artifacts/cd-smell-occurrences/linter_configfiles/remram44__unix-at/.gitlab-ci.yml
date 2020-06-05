@@ -1,0 +1,27 @@
+stages:
+  - unittest
+  - functest
+
+py27:
+  image: python:2.7
+  stage: unittest
+  script:
+    - pip install .
+    - python tests.py TestUnit
+
+py35:
+  image: python:3.5
+  stage: unittest
+  script:
+    - pip install .
+    - python tests.py TestUnit
+
+docker:
+  image: python:3.5
+  stage: functest
+  services:
+    - docker:dind
+  script:
+    - curl -Lo /tmp/docker.tgz https://get.docker.com/builds/Linux/x86_64/docker-17.05.0-ce.tgz && tar -xf /tmp/docker.tgz -C /usr/local && rm /tmp/docker.tgz && export PATH=/usr/local/docker:$PATH && export DOCKER_HOST=tcp://docker:2375
+    - ./run_docker_tests.sh
+

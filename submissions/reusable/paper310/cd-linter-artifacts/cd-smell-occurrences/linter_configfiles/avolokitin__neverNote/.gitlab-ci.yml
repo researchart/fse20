@@ -1,0 +1,38 @@
+
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t nevernote/rest .
+
+test:
+  stage: test
+  # put python:3.6 to variables???
+  image: python:3.6
+  script:
+    - pip install -r requirements.txt
+    - pip install -r test-requirements.txt
+    - pytest
+
+deploy-stage:
+  stage: deploy
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/avolokitin/nevernote:$CI_COMMIT_REF_NAME .
+    - docker push registry.gitlab.com/avolokitin/nevernote:$CI_COMMIT_REF_NAME
+  only:
+    - /^staging.*$/
+    # - master
+  environment:
+    name: staging
+

@@ -1,0 +1,33 @@
+image: maven:3-jdk-11-slim
+
+cache:
+  paths:
+  - .m2/
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  script:
+  - cd plugin
+  - java -version
+  - mvn -v
+  - mvn -B clean
+  - mvn -B package -s settings.xml
+  artifacts:
+    paths:
+    - plugin/target/*.jar
+
+deploy:
+  stage: deploy
+  script:
+  - cd plugin
+  - java -version
+  - mvn -v
+  - mvn -B clean
+  - mvn -B deploy -s settings.xml
+  only:
+  - master
+

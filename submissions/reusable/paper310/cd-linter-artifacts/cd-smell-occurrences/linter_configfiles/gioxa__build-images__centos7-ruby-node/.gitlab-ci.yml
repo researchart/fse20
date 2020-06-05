@@ -1,0 +1,157 @@
+stages:
+  - build
+  - install
+  - test
+  - deploy
+  - cleanup
+
+variables:
+  # for auto-labeling META Data of the docker image
+  ODAGRUN_IMAGE_LICENSES: MIT
+  ODAGRUN_IMAGE_VENDOR: Gioxa Ltd
+  ODAGRUN_IMAGE_TITLE: BuildImage CentOS-7 node ruby bundle npm yarn with locale and i18n for CI with odagrun.
+  ODAGRUN_IMAGE_REFNAME: centos7-ruby-node
+  # release of the distro for caches and make_os
+  DISTRO_RELEASE: 7
+  DOCKER_NAMESPACE: gioxa
+  GIT_CACHE_STRATEGY: pull
+  
+# append to base image the base for our application
+build_base:
+  image: gioxa/imagebuilder-c7
+  stage: build
+  retry: 1
+  variables:
+    ODAGRUN_POD_SIZE: medium
+    GIT_CACHE_STRATEGY: push-pull
+    WORK_SPACES: |
+          - name: repocache C$DISTRO_RELEASE
+            key: x86_64
+            scope: global
+            path:
+              - cache/yum/x86_64/$DISTRO_RELEASE/base
+              - cache/yum/x86_64/$DISTRO_RELEASE/updates
+            strategy: push-pull
+            threshold:
+              path:
+                - cache/yum/x86_64/$DISTRO_RELEASE/base/packages/*.rpm
+                - cache/yum/x86_64/$DISTRO_RELEASE/updates/packages/*.rpm
+  script:
+    - export OS_CONFIG=make_os.conf
+    - make_os
+    - registry_push --rootfs --config --ISR --name=$CI_PIPELINE_ID --reference=base
+  tags:
+    - odagrun
+
+install_bundle:
+  image: ImageStream/$CI_PIPELINE_ID:base
+  stage: install
+  retry: 1
+  dependencies: []
+  variables:
+    ODAGRUN_POD_SIZE: medium
+    WORK_SPACES: |
+                   - name: dock_info
+                     strategy: push
+                     environment: ODAGRUN_IMAGE_VERSION,ODAGRUN_IMAGE_DESCRIPTION
+  script:
+    - gem env
+    - gem install bundler --no-ri --no-rdoc
+    - gem install pkg-config  --no-ri --no-rdoc
+    - gem install nokogiri --no-ri --no-rdoc -- --use-system-libs
+    - gem install ffi --no-ri --no-rdoc -- --use-system-libs
+    - gem install concurrent-ruby --no-ri --no-rdoc -- --use-system-libs
+    - gem install thread_safe --no-ri --no-rdoc -- --use-system-libs
+    - gem install eventmachine --no-ri --no-rdoc -- --use-system-libs
+    - gem install fspath --no-ri --no-rdoc -- --use-system-libs
+    - gem install rb-fsevent --no-ri --no-rdoc -- --use-system-libs
+    - gem install rb-inotify --no-ri --no-rdoc -- --use-system-libs
+    - gem install ruby_dep --no-ri --no-rdoc -- --use-system-libs
+    - gem install listen --no-ri --no-rdoc -- --use-system-libs
+    - gem install rake --no-ri --no-rdoc  -- --use-system-libs
+    - export GEM_LIST=$(gem list)
+    - copy --from_text="${ODAGRUN_SHORT_DATE}" --to_var=ODAGRUN_IMAGE_VERSION
+    - echo $ODAGRUN_IMAGE_VERSION
+    - copy --from_file=docker_config.yml --to_var=DOCKER_CONFIG_YML
+    # generate ODAGRUN_IMAGE_DESCRIPTION
+    - copy --substitute --from_file=./image_description.md --to_var=ODAGRUN_IMAGE_DESCRIPTION 
+    - registry_push --rootfs=/ --from_ISR --from_name=$CI_PIPELINE_ID --from_reference=base --ISR --name=$CI_PIPELINE_ID --reference=bundle --u2g /builds/.gems
+  tags:
+    - odagrun
+  
+test:
+  image: ImageStream/$CI_PIPELINE_ID:bundle
+  stage: test
+  retry: 1
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - echo $PATH
+    - gem env
+    - ruby --version
+    - node --version
+    - npm --version
+    - gem --version
+    - bundle --version
+    - yarn --version
+    - npm install -g hello-world-server
+    - ls -laC /builds/.npm-packages/bin
+    - echo -e "source \"https://rubygems.org\"\nruby RUBY_VERSION\n\ngem \"hello_world_gem\"" > Gemfile
+    - bundle install
+    - ls -laC /builds/.gems/bin
+  tags:
+    - odagrun
+
+# push image to registry with tag
+push-image:
+  stage: deploy
+  image: scratch
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+    WORK_SPACES: |
+                   - name: dock_info
+                     strategy: pull
+  retry: 1
+  environment: production
+  script:
+     - copy --from_text="${ODAGRUN_IMAGE_VERSION}" --to_term --quiet
+     - copy --from_text="${ODAGRUN_IMAGE_DESCRIPTION}" --to_term --quiet
+     - >-
+        DockerHub_set_description
+        --allow-fail
+        --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME
+        --set-private=no
+     - >-
+        registry_push
+        --from_image=ImageStream/$CI_PIPELINE_ID:bundle
+        --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME:${ODAGRUN_IMAGE_VERSION}
+        --skip_label
+     - >-
+        registry_tag_image
+        --image=${DOCKER_NAMESPACE}/${ODAGRUN_IMAGE_REFNAME}:${ODAGRUN_IMAGE_VERSION}
+        --tag=latest
+     - MicroBadger_Update --allow-fail --image=$DOCKER_NAMESPACE/$ODAGRUN_IMAGE_REFNAME
+  only:
+    - master
+    - tags
+  tags:
+     - odagrun
+
+cleanup:
+  image: scratch
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+    WORK_SPACES: |
+                   - name: dock_info
+                     strategy: clean
+  script:
+   - ImageStream_delete --name=$CI_PIPELINE_ID --allow-fail
+  stage: cleanup
+  allow_failure: true
+  when: always
+  tags:
+     - odagrun
+

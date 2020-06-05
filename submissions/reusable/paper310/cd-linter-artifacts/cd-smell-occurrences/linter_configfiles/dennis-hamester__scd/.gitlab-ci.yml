@@ -1,0 +1,30 @@
+image: ubuntu:xenial
+
+before_script:
+  - apt-get -y update >/dev/null
+  - apt-get -y install build-essential pkg-config cmake libusb-1.0-0-dev git libboost-dev libboost-filesystem-dev libboost-program-options-dev >/dev/null
+  - git clone https://gitlab.com/dennis-hamester/scraw.git
+  - mkdir build_scraw
+  - cd build_scraw
+  - cmake -DBUILD_DOCS=OFF -DCMAKE_INSTALL_PREFIX=/usr ../scraw
+  - make
+  - make install
+  - cd ..
+  - git clone https://gitlab.com/dennis-hamester/scrawpp.git
+  - mkdir build_scrawpp
+  - cd build_scrawpp
+  - cmake -DCMAKE_INSTALL_PREFIX=/usr ../scrawpp
+  - make install
+  - cd ..
+
+stages:
+  - build
+
+build_job:
+  stage: build
+  script:
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make
+

@@ -1,0 +1,48 @@
+include:
+  - project: 'Cacophony/gitlab-ci'
+    ref: master
+    file: '/go-service.yml'
+  - project: 'Cacophony/gitlab-ci'
+    ref: master
+    file: '/sentry.yml'
+
+variables:
+  DEPLOYMENT_NAME: "gateway"
+
+stages:
+  - Prepare
+  - Image
+  - Release
+  - Staging
+  - Finalise Staging
+
+Go Lint:
+  stage: Prepare
+  extends: .Go Service - Go Lint
+
+Go Build:
+  stage: Prepare
+  extends: .Go Service - Binary Build
+
+Docker Build:
+  stage: Image
+  extends: .Go Service - Docker Build
+
+Docker Release:
+  stage: Release
+  extends: .Go Service - Docker Release
+
+Sentry Release:
+  stage: Release
+  extends: .Sentry - Sentry Release
+
+Deploy:
+  stage: Staging
+  extends: .Go Service - Deploy Staging
+
+Sentry Deploy:
+  stage: Finalise Staging
+  extends: .Sentry - Sentry Deploy
+  variables:
+    SENTRY_ENV: "staging"
+

@@ -1,0 +1,25 @@
+pages:
+  stage: build
+  image: $CI_REGISTRY_IMAGE
+  script:
+    - python3 ./waf configure --prefix=`pwd`/public/ build install
+    - find public -type f -iregex '.*\.\(htm\|html\|txt\|text\|js\|css\)$' -execdir gzip -f --keep {} \;
+  artifacts:
+    paths:
+       - public
+  tags:
+    - gitlab-org
+
+build_image:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:stable-dind
+  script:
+    - echo $REGISTRY_PASSWORD | docker login -u $REGISTRY_USERNAME --password-stdin $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE .
+    - docker push $CI_REGISTRY_IMAGE
+  allow_failure: true
+  only:
+    - schedules
+

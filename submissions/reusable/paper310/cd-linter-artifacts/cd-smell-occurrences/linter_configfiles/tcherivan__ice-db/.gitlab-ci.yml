@@ -1,0 +1,39 @@
+image: node:8-alpine
+
+stages:
+  - test
+  - pre-release
+  - release
+
+cache:
+  paths:
+  - node_modules/
+
+test_db:
+  stage: test
+  script:
+   - npm install
+   - sh tests/run-tests.sh
+
+get_version:
+  stage: pre-release
+  script:
+    - node ./ci/create-version.js > VERSION
+  artifacts:
+    paths:
+      - VERSION  
+    expire_in: 10 minute
+  only:
+   - master  
+
+# tag:
+#   stage: release
+#   # Not alpine because alpine does not contain git
+#   image: node:8
+#   script:
+#     - git remote add repo http://gitlab.com/tcherivan/ice-db
+#     - git config user.email $GIT_EMAIL
+#     - git config user.name $GIT_USER 
+#     - git tag -a `cat VERSION` -m `cat VERSION`
+#     - git push --tags -q repo
+

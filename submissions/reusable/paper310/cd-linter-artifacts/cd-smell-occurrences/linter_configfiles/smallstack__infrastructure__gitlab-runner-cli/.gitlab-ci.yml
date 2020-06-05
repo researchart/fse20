@@ -1,0 +1,9 @@
+image: node:latest
+
+execute:
+  script:
+   - npm install
+   - npm run compile
+   - node RunnerCLI
+  when: manual
+

@@ -1,0 +1,54 @@
+image: java:8-jdk
+image: gradle:alpine
+image: sonarqube
+
+stages:
+- build
+- test
+
+
+build:
+
+  stage: build
+
+  script:
+    - set +e
+    - ls -la
+    - ./gradlew --build-cache assemble
+    - ./gradlew sonarqube -Dsonar.projectKey=projet_yottayocto -Dsonar.organization=bferoudj-github -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=be152c1b80340fca0716414d8a5d4c89bfdf762d
+
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: push
+    paths:
+      - build
+      - .gradle
+
+
+before_script:
+- export GRADLE_USER_HOME=`pwd`/.gradle
+
+cache:
+  paths:
+  - .gradle/wrapper
+  - .gradle/caches
+
+build:
+  stage: build
+  script:
+  - ./gradlew assemble
+  artifacts:
+    paths:
+    - build/libs/*.jar
+    expire_in: 1 week
+  only:
+  - master
+
+test:
+  stage: test
+  script:
+  - ./gradlew check
+
+after_script:
+- echo "End CI"
+

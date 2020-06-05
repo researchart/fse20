@@ -1,0 +1,34 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  BROADCASTER_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+
+build service:
+  services:
+  - docker:dind
+  stage: build
+  before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+  - docker build -t ${BROADCASTER_IMAGE} .
+  - docker push ${BROADCASTER_IMAGE}
+  only:
+  - master
+
+deploy float:
+  image: alpine:latest
+  stage: deploy
+  script:
+  - mkdir -p /root/.ssh
+  - echo "${LOOT_HERE}" > ~/.ssh/id_rsa
+  - chmod 600 ~/.ssh/id_rsa
+  - apk add --update openssh-client
+  - ssh -o StrictHostKeyChecking=no deploy@float.cf "docker pull ${BROADCASTER_IMAGE} && 
+    docker stop broadcaster || true &&
+    docker rm --force broadcaster || true &&
+    docker run --name broadcaster -d -p 8099:8099 -v /deploy/status:/code/status ${BROADCASTER_IMAGE}"
+  only:
+  - master
+

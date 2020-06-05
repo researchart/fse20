@@ -1,0 +1,36 @@
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.songoda</groupId>
+        <artifactId>EpicBuckets-Parent</artifactId>
+        <version>maven-version-number</version>
+    </parent>
+    <artifactId>EpicBuckets-Legacy-Hooks</artifactId>
+    <build>
+        <defaultGoal>clean install</defaultGoal>
+        <finalName>EpicBuckets-Legacy-Hooks</finalName>
+    </build>
+    <repositories>
+        <repository>
+            <id>private</id>
+            <url>http://repo.songoda.com/artifactory/private/</url>
+        </repository>
+    </repositories>
+    <dependencies>
+        <dependency>
+            <groupId>com.sk89q</groupId>
+            <artifactId>worldguard</artifactId>
+            <version>6.2.2</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com</groupId>
+            <artifactId>plotsquared</artifactId>
+            <version>3.5.0</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>
+

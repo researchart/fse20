@@ -1,0 +1,27 @@
+image: rubdos/python3-clang
+before_script:
+    - pip3 install -r requirements.txt
+stages:
+    - build
+    - test
+    - deploy
+build:
+    stage: build
+    script:
+        - which nosetests
+        - python3 setup.py install --user
+unit-tests:
+    stage: test
+    script:
+        - nosetests
+static-analysis:
+    stage: test
+    script:
+        - coala-ci
+deploy:
+    stage: deploy
+    script:
+        - bash push_pypi.sh
+    only:
+        - master
+

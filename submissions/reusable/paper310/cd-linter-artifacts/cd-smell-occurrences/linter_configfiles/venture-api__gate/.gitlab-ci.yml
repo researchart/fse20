@@ -1,0 +1,31 @@
+image: node:8
+
+variables:
+  NODE_ENV: ci
+  LOG_LEVEL: error
+
+services:
+  - nats:latest
+  - nats-streaming:latest
+
+before_script:
+  - npm i
+
+test:
+  script:
+    - node_modules/.bin/nyc npm test && node_modules/.bin/nyc report --reporter=html --reporter=text-summary
+  artifacts:
+    paths:
+      - coverage/
+
+pages:
+  stage: deploy
+  dependencies:
+    - test
+  script:
+    - mv coverage/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+

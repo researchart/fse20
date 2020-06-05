@@ -1,0 +1,21 @@
+
+image: node:8-slim
+
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - build
+
+before_script:
+  - npm install
+
+pages:
+  stage: build
+  script:
+   - npm run build
+  artifacts:
+    paths:
+    - public
+

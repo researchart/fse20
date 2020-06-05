@@ -1,0 +1,17 @@
+# adapted gratefully from
+# https://gitlab.com/tkpapp/GitlabJuliaDemo.jl/blob/master/.gitlab-ci.yml
+before_script:
+  - apt update -qq && apt install -y git
+
+pages:
+  image: julia
+  script:
+    - julia -e "using Pkg; Pkg.add(\"Documenter\"); Pkg.update(); Pkg.clone(pwd()); Pkg.build(\"LexicalCharacteristics\")"
+    - julia docs/make.jl
+    - mv docs/build public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

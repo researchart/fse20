@@ -1,0 +1,102 @@
+image: clojure:lein-2.8.1
+
+stages:
+  - test
+  - uberjar
+  - docker_image
+  - staging_deploy
+  - production_deploy
+
+variables:
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME-$CI_COMMIT_SHA
+
+cache:
+  paths:
+    - .m2
+
+test:
+  stage: test
+  services:
+    - postgres:9.6-alpine
+  variables:
+    POSTGRES_DB: relay_ci
+    POSTGRES_USER: runner
+    POSTGRES_PASSWORD: ""
+    DB_SERVER_NAME: "postgres"
+    DB_DATABASE_NAME: relay_ci
+    DB_USERNAME: runner
+    DB_PASSWORD: ""
+  script:
+    - lein test
+
+uberjar:
+  stage: uberjar
+  variables:
+    UBERJAR_TARGETS: "${CI_PROJECT_DIR}/target/relay-backend-*-standalone.jar"
+  script:
+    - apt-get update
+    - apt-get install -y build-essential
+    - make uberjar
+  artifacts:
+    paths:
+      - ${UBERJAR_TARGETS}
+  only:
+    - master
+
+docker_image:
+  image: docker
+  services:
+    - docker:dind
+  stage: docker_image
+  dependencies:
+    - uberjar
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+  only:
+    - master
+
+staging_deploy:
+  image: alpine:latest
+  stage: staging_deploy
+  environment:
+    name: staging
+    url: https://relay-chat.in
+  variables:
+    RELAY_OPS_DIR: "${HOME}/relay-ops"
+    RELAY_VAULT_DIR: "${HOME}/relay-vault"
+    DEPLOY_SCRIPT: "${RELAY_OPS_DIR}/bin/deploy-relay-backend"
+    ENV: "staging"
+  script:
+    - 'which ssh-agent || ( apk add --no-cache openssh-client )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - echo "$SSH_SERVER_HOSTKEYS" > ~/.ssh/known_hosts
+    - ssh ${DEPLOY_USER}@${DEPLOY_SERVER} "ENV=${ENV} IMAGE_TAG=${IMAGE_TAG} CI_JOB_TOKEN=${CI_JOB_TOKEN} CI_REGISTRY=${CI_REGISTRY} RELAY_VAULT_DIR=${RELAY_VAULT_DIR} ${DEPLOY_SCRIPT}"
+  only:
+    - master
+
+production_deploy:
+  image: alpine:latest
+  stage: production_deploy
+  environment:
+    name: production
+    url: https://relay-chat.com
+  variables:
+    RELAY_OPS_DIR: "${HOME}/relay-ops"
+    RELAY_VAULT_DIR: "${HOME}/relay-vault"
+    DEPLOY_SCRIPT: "${RELAY_OPS_DIR}/bin/deploy-relay-backend"
+    ENV: "production"
+  script:
+    - 'which ssh-agent || ( apk add --no-cache openssh-client )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - echo "$SSH_SERVER_HOSTKEYS" > ~/.ssh/known_hosts
+    - ssh ${DEPLOY_USER}@${DEPLOY_SERVER} "ENV=${ENV} IMAGE_TAG=${IMAGE_TAG} CI_JOB_TOKEN=${CI_JOB_TOKEN} CI_REGISTRY=${CI_REGISTRY} RELAY_VAULT_DIR=${RELAY_VAULT_DIR} ${DEPLOY_SCRIPT}"
+  only:
+    - master
+  when: manual
+

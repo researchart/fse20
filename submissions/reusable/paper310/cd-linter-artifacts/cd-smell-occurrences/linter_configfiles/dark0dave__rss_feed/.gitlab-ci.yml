@@ -1,0 +1,9 @@
+image: python:3.7-slim
+
+test:
+  script:
+   - pip install pipenv
+   - pipenv install --three --dev
+   - pipenv run mypy test.py --ignore-missing-imports
+   - pipenv run python test.py
+

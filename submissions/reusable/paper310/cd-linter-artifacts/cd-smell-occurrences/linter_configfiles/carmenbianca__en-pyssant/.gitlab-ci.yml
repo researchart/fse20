@@ -1,0 +1,140 @@
+# Copyright (C) 2017-2018  Carmen Bianca Bakker <carmen@carmenbianca.eu>
+#
+# This file is part of En Pyssant, available from its original location:
+# <https://gitlab.com/carmenbianca/en-pyssant>.
+#
+# En Pyssant is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# En Pyssant is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with En Pyssant.  If not, see <http://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: GPL-3.0+
+
+stages:
+    - test
+    - benchmark
+    - deploy
+
+# Dear maintainers of the pypy image...
+before_script:
+    - test -f /usr/local/bin/pypy && ln -s pypy /usr/local/bin/python
+    - test -f /usr/local/bin/pypy3 && ln -s pypy3 /usr/local/bin/python
+
+.run_tox: &tox_definition
+    stage: test
+    script:
+        - pip install tox
+        - tox
+    tags:
+        - docker
+
+.run_benchmark: &benchmark_definition
+    stage: benchmark
+    script:
+        - apt-get -qq update
+        - apt-get -y -qq install graphviz inxi > /dev/null
+        - inxi -c0 -v3
+        - pip install tox
+        - tox
+    artifacts:
+        paths:
+            - .benchmarks
+            - prof
+    tags:
+        - docker
+
+py34-test:
+    <<: *tox_definition
+    image: python:3.4
+    variables:
+        TOXENV: py34-test
+
+py35-test:
+    <<: *tox_definition
+    image: python:3.5
+    variables:
+        TOXENV: py35-test
+
+py36-test:
+    <<: *tox_definition
+    image: python:3.6
+    variables:
+        TOXENV: py36-test
+
+py37-test:
+    <<: *tox_definition
+    image: python:3.7
+    variables:
+        TOXENV: py37-test
+
+pypy3-test:
+    <<: *tox_definition
+    image: pypy:3
+    variables:
+        TOXENV: pypy3-test
+
+lint:
+    <<: *tox_definition
+    image: python:3.6
+    variables:
+        TOXENV: lint
+
+docs:
+    <<: *tox_definition
+    image: python:3.6
+    variables:
+        TOXENV: docs
+    artifacts:
+        paths:
+            - docs/_build/html
+
+py34-benchmark:
+    <<: *benchmark_definition
+    image: python:3.4
+    variables:
+        TOXENV: py34-benchmark
+
+py35-benchmark:
+    <<: *benchmark_definition
+    image: python:3.5
+    variables:
+        TOXENV: py35-benchmark
+
+py36-benchmark:
+    <<: *benchmark_definition
+    image: python:3.6
+    variables:
+        TOXENV: py36-benchmark
+
+py37-benchmark:
+    <<: *benchmark_definition
+    image: python:3.7
+    variables:
+        TOXENV: py37-benchmark
+
+pypy3-benchmark:
+    <<: *benchmark_definition
+    image: pypy:3
+    variables:
+        TOXENV: pypy3-benchmark
+
+pages:
+    stage: deploy
+    only:
+        - /^v[0-9]+.*/
+    dependencies:
+        - docs
+    script:
+        - mv docs/_build/html public
+    artifacts:
+        paths:
+            - public
+

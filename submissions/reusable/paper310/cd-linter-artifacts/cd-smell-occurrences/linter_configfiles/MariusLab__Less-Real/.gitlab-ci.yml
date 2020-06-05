@@ -1,0 +1,12 @@
+# Select image from https://hub.docker.com/r/_/php/
+image: ubuntu:16.04
+
+# Before Script
+before_script:
+  - bash ./ci/gitlab-ci.sh
+  - composer install
+
+test:app:
+  script:
+  - ./vendor/bin/phpunit
+

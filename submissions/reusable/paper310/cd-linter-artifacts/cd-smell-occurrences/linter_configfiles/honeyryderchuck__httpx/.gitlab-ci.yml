@@ -1,0 +1,88 @@
+image: tmaier/docker-compose
+
+variables:
+  JEKYLL_ENV: production
+
+services:
+  - docker:dind
+
+# Cache gems in between builds
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - vendor/ruby
+    - vendor/jruby
+
+before_script:
+  - docker info
+  - docker-compose --version
+
+test_jruby:
+  stage: test
+  script:
+    ./spec.sh jruby 9.0.0.0
+  allow_failure: true
+test_ruby21:
+  stage: test
+  script:
+    ./spec.sh ruby 2.1
+test_ruby22:
+  only:
+    - master
+  stage: test
+  script:
+    ./spec.sh ruby 2.2
+test_ruby23:
+  only:
+    - master
+  stage: test
+  script:
+    ./spec.sh ruby 2.3
+test_ruby24:
+  only:
+    - master
+  stage: test
+  script:
+    ./spec.sh ruby 2.4
+test_ruby25:
+  only:
+    - master
+  stage: test
+  script:
+    ./spec.sh ruby 2.5
+test_ruby26:
+  only:
+    - master
+  stage: test
+  script:
+    ./spec.sh ruby 2.6
+test_ruby27:
+  stage: test
+  script:
+    ./spec.sh ruby 2.7
+  artifacts:
+    paths:
+      - www/coverage/
+      - www/rdoc/
+      - www/public/
+
+pages:
+  stage: deploy 
+  dependencies:
+    - test_ruby27
+  script:
+    - mv www/public .
+    - ls public
+    - echo "#"
+    - ls public/rdoc
+    - echo "#"
+    - ls public/coverage
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - master
+
+
+

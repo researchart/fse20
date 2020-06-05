@@ -1,0 +1,61 @@
+image: jamesdbloom/docker-java8-maven
+
+variables:
+  K8S_CLUSTER: cluster-1
+  K8S_ZONE: us-central1-a
+  K8S_PROJECT: jhipster-playground
+  APP_NAME: registry
+  DOCKER_IMAGE: gcr.io/${K8S_PROJECT}/${APP_NAME}:${CI_COMMIT_SHA}
+
+stages:
+ - build
+ - release
+ - deploy
+
+build:
+  stage: build
+  script:
+    - ./mvnw -Pprod package
+  artifacts:
+    expire_in: 1h
+    paths:
+      - target/*.war
+
+docker:push:
+  stage: release
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - mv target/*.war ./jhipster-registry.war
+    - docker login -u _json_key -p "$GCLOUD_KEY" https://gcr.io
+    - docker build -t ${DOCKER_IMAGE} .
+    - docker push ${DOCKER_IMAGE}
+  dependencies:
+    - build
+  artifacts:
+    expire_in: 1h
+  only:
+    - master
+
+kubernetes:deploy:
+  stage: deploy
+  image: google/cloud-sdk:latest
+  before_script:
+    - apt-get update
+    - apt-get --assume-yes install gettext
+  script:
+    - echo "$GCLOUD_KEY" > key.json
+    - gcloud auth activate-service-account --key-file key.json
+    - gcloud container clusters get-credentials ${K8S_CLUSTER} --zone ${K8S_ZONE} --project ${K8S_PROJECT}
+    - cp -rf k8s/* .
+    - ./deploy.sh ${APP_NAME} prod ${DOCKER_IMAGE} prod
+  dependencies:
+    - docker:push
+  environment:
+    name: prod
+  artifacts:
+    expire_in: 1h
+  only:
+    - master
+

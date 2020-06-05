@@ -1,0 +1,150 @@
+image: registry.gitlab.com/ostrokach-docker/conda:latest
+
+stages:
+  - build
+  - test
+  - deploy
+
+# === Variables ===
+
+.py27: &py27
+  PYTHON_VERSION: "2.7"
+
+.py36: &py36
+  PYTHON_VERSION: "3.6"
+
+.py37: &py37
+  PYTHON_VERSION: "3.7"
+
+# === Configuration ===
+
+.configure: &configure
+  before_script:
+    # System packages
+    - sudo yum update -y -q
+    - sudo yum install -y -q
+      bzip2 make patch sudo tar which
+      libXext-devel libXrender-devel libSM-devel libX11-devel mesa-libGL-devel
+    # Compiler toolchain
+    - sudo yum install -y -q
+      centos-release-scl yum-utils
+    - sudo yum-config-manager --enable rhel-server-rhscl-7-rpms
+    - sudo yum install -y -q
+      devtoolset-7-binutils devtoolset-7-gcc devtoolset-7-gcc-gfortran devtoolset-7-gcc-c++
+    - export PATH="/opt/rh/devtoolset-7/root/usr/bin:$PATH"
+    # Conda channels
+    - conda config --add channels pkgw-forge
+    - conda config --add channels defaults
+    - conda config --add channels conda-forge/label/cf201901
+    - conda config --add channels conda-forge
+    # Update conda and conda-build
+    - conda update -y -q --no-channel-priority conda conda-build
+    # Pin dependency versions
+    # - conda install -y -q conda-forge::conda-forge-pinning=2018.06.19
+
+# === Build ===
+
+.build: &build
+  stage: build
+  script:
+    # Build conda package
+    - cd "${CI_PROJECT_DIR}/recipe"
+    - export CF_COMPILER_STACK="comp4"
+    - sudo ln -s /usr/lib64/libssl.so.1.0.1e /usr/lib64/libssl.so.1.0.0
+    - sudo ln -s /usr/lib64/libcrypto.so.1.0.1e /usr/lib64/libcrypto.so.1.0.0
+    - conda build .
+      --variant-config-files conda_build_config.yaml
+      --python ${PYTHON_VERSION}
+      --output-folder "${CI_PROJECT_DIR}/conda-bld" 
+      --no-test
+      2>&1 | tee "${CI_PROJECT_DIR}/build-log.txt"
+  artifacts:
+    when: always
+    paths:
+      - conda-bld
+      - config.log
+      - build.log
+
+build-py27:
+  <<: [*configure, *build]
+  variables:
+    <<: [*py27]
+
+build-py36:
+  <<: [*configure, *build]
+  variables:
+    <<: [*py36]
+
+build-py37:
+  <<: [*configure, *build]
+  variables:
+    <<: [*py37]
+
+# === Test ===
+
+.test: &test
+  stage: test
+  script:
+    # Restore built packages
+    - cp -r $CI_PROJECT_DIR/conda-bld/* /opt/conda/conda-bld/
+    - conda index /opt/conda/conda-bld/
+    # Run tests
+    - cd "${CI_PROJECT_DIR}/recipe"
+    - export CF_COMPILER_STACK="comp4"
+    - conda build .
+      --variant-config-files conda_build_config.yaml
+      --python ${PYTHON_VERSION}
+      --test
+  artifacts:
+    paths:
+      - environment-py${PYTHON_VERSION/./}.yml
+
+test-py27:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py27
+  variables:
+    <<: [*py27]
+
+test-py36:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py36
+  variables:
+    <<: [*py36]
+
+test-py37:
+  <<: [*configure, *test]
+  dependencies:
+    - build-py37
+  variables:
+    <<: [*py37]
+
+# === Deploy ===
+
+.deploy: &deploy
+  stage: deploy
+  script:
+    - if [[ ${CI_COMMIT_REF_NAME} = 'master' ]] ; then
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u ${CI_PROJECT_NAMESPACE} --force --no-progress ;
+      else
+        anaconda -t $ANACONDA_TOKEN upload $CI_PROJECT_DIR/conda-bld/linux-64/*.tar.bz2 -u ${CI_PROJECT_NAMESPACE} --label dev --force --no-progress ;
+      fi
+  except:
+    - triggers
+
+deploy-py27:
+  <<: *deploy
+  dependencies:
+    - build-py27
+
+deploy-py36:
+  <<: *deploy
+  dependencies:
+    - build-py36
+
+deploy-py37:
+  <<: *deploy
+  dependencies:
+    - build-py37
+

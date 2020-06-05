@@ -1,0 +1,29 @@
+# .gitlab-ci.yml -- to build source tarball snapshots
+# Copyright (C) 2017  Olaf Meeuwissen
+#
+# License: GPL-3.0+
+
+variables:
+  REGISTRY_HUB: "registry.gitlab.com/sane-project/ci-envs"
+
+stages:
+  - archive
+
+archive:
+  stage: archive
+  image: $REGISTRY_HUB:debian-8-full
+  before_script:
+  - apt-get update --quiet
+  - apt-get install --quiet --assume-yes libsane-dev
+  script:
+  - build=$(git describe --match '1.*' | sed 's/.*\.//; s/-.*//');
+    sed -i "/^V_BUILD/s/=.*/=$build/" configure.in;
+    extra=$(git describe --dirty --match '1.*' | sed 's/^[^-]*//');
+    sed -i "/^V_EXTRA/s/=.*/=$extra/" configure.in
+  - autoconf --force
+  - ./configure
+  - make dist
+  artifacts:
+    paths:
+    - sane-frontends-*.tar.gz
+

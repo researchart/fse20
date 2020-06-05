@@ -1,0 +1,51 @@
+variables:
+  ADVERTISED_HOST: 'spotify__kafka'
+  ADVERTISED_PORT: '9092'
+  AUTO_CREATE_TOPICS: 'true'
+  POSTGRES_HOST_AUTH_METHOD: 'trust'
+
+stages:
+  - lint
+  - test
+
+services:
+  - spotify/kafka
+  - postgres:latest
+
+cache:
+  key: "$CI_PROJECT_NAME"
+  paths:
+    - $HOME/.cache/pip
+
+include:
+  - project: thelabnyc/gitlab-ci-templates
+    file: /ci/sast.gitlab-ci.yml
+
+test_python36:
+  stage: test
+  image: python:3.6
+  script:
+    - pip install tox
+    - tox -e 'py36-django{111,220,300}-drf{310}'
+
+test_python37:
+  stage: test
+  image: python:3.7
+  script:
+    - pip install tox
+    - tox -e 'py37-django{220,300}-drf{310}'
+
+test_python38:
+  stage: test
+  image: python:3.8
+  script:
+    - pip install tox
+    - tox -e 'py38-django{220,300}-drf{310}'
+
+test_pypy3:
+  stage: test
+  image: pypy:3
+  script:
+    - pip install tox
+    - tox -e 'pypy3-django{111,220,300}-drf{310}'
+

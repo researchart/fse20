@@ -1,0 +1,14 @@
+image: alpine:latest
+
+pages:
+    stage: deploy
+    script:
+    - echo 'Nothing to do...'      
+    environment:
+        name: production
+        url: https://piratsky-institut.cz
+    artifacts:
+        paths:
+        - public
+        expire_in: 1h
+

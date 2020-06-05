@@ -1,0 +1,40 @@
+---
+variables:
+    TWINE_USERNAME: SECURE
+    TWINE_PASSWORD: SECURE
+    AWS_ACCESS_KEY_ID: SECURE
+    AWS_SECRET_ACCESS_KEY: SECURE
+
+image: "python:3.5"
+
+before_script:
+    - apt-get update
+    - apt-get install --yes ruby-dev ruby
+    - gem install bundler
+    - pip install tox==2.3
+    - bundle install --path vendor --binstubs vendor/bin
+    - make bootstrap
+
+stages:
+  - test
+  - publish
+
+feature:
+  stage: test
+  script:
+    - make feature
+
+publish_pypi:
+  stage: publish
+  script:
+    - make publish-pypi
+  only:
+    - master
+
+publish_binary:
+  stage: publish
+  script:
+    - make publish-binary
+  only:
+    - master
+

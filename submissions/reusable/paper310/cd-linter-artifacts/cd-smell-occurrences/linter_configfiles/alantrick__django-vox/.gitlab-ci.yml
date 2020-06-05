@@ -1,0 +1,32 @@
+image: python:3.6
+
+cache:
+  paths:
+  - ~/.cache/pip/
+
+before_script:
+  - apt-get update -qy
+  # old versions of sqlite cause testing problems with Django 2.2
+  - apt-get install sqlite3>=3.20.0 -qy
+  - python -V
+
+test:
+  script:
+  - pip install -U pip setuptools
+  - pip install -e .[test]
+  # new versions of sqlite problems with Django < 2
+  - tox -e "py36-django{20,21,22},style"
+
+pages:
+  stage: deploy
+  script:
+  - pip install -U pip setuptools
+  - pip install -e .[docs]
+  - make docs
+  - mv build/sphinx/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

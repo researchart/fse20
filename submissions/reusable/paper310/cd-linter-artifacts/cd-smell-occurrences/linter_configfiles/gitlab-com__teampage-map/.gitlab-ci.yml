@@ -1,0 +1,23 @@
+image: node:12-alpine
+
+build_page:
+  stage: build
+  script:
+    - apk update
+    - apk add curl bash gzip
+    - bash ./build.sh
+    - ls public/
+  artifacts:
+    paths:
+      - public
+
+pages:
+  stage: deploy
+  script:
+    - ls public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

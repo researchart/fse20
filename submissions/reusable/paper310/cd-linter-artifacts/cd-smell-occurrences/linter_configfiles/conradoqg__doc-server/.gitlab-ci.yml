@@ -1,0 +1,9 @@
+test:
+  script:
+  - apt-get update -qy
+  - curl --silent --location https://deb.nodesource.com/setup_0.12 | bash -
+  - apt-get install -y nodejs
+  - npm install gulp -g
+  - npm install
+  - gulp test
+

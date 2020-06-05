@@ -1,0 +1,179 @@
+image: docker:latest
+
+before_script:
+- export VERSION="${CI_COMMIT_TAG:-$CI_COMMIT_REF_SLUG}"
+- export IMAGE="${CI_REGISTRY_IMAGE}:${VERSION}"
+- export STACK="${CI_PROJECT_NAME}-${CI_COMMIT_REF_SLUG}"
+- docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+stages:
+- build
+- kitano
+- deploy
+
+build go:
+  stage: build
+  script:
+  - cd candidates/go
+  - mkdir dist
+  - docker build -t go-builder .
+  - docker run --rm --entrypoint cat go-builder /go/bin/httpserver > dist/httpserver
+  - chmod +x dist/httpserver
+  - docker build -f Dockerfile.prod -t "${CI_REGISTRY_IMAGE}/go:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/go:${VERSION}"
+
+build java:
+  stage: build
+  script:
+  - cd candidates/java
+  - mkdir dist
+  - docker build -t java-builder .
+  - docker run --rm --entrypoint cat java-builder /src/target/msroyale-java.jar > dist/msroyale-java.jar
+  - docker build -f Dockerfile.prod -t "${CI_REGISTRY_IMAGE}/java:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/java:${VERSION}"
+
+build java-springboot:
+  stage: build
+  script:
+  - cd candidates/java-springboot
+  - mkdir dist
+  - docker build -t java-springboot-builder .
+  - docker run --rm --entrypoint cat java-springboot-builder /src/target/msroyale-java-springboot.jar > dist/msroyale-java-springboot.jar
+  - docker build -f Dockerfile.prod -t "${CI_REGISTRY_IMAGE}/java-springboot:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/java-springboot:${VERSION}"
+
+build java-vertx:
+  stage: build
+  script:
+  - cd candidates/java-vertx
+  - mkdir dist
+  - docker build -t java-vertx-builder .
+  - docker run --rm --entrypoint cat java-vertx-builder /src/target/msroyale-java-vertx.jar > dist/msroyale-java-vertx.jar
+  - docker build -f Dockerfile.prod -t "${CI_REGISTRY_IMAGE}/java-vertx:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/java-vertx:${VERSION}"
+
+build kotlin-micronaut:
+  stage: build
+  script:
+  - cd candidates/kotlin-micronaut
+  - docker build -t "${CI_REGISTRY_IMAGE}/kotlin-micronaut:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/kotlin-micronaut:${VERSION}"
+
+build ktor:
+  stage: build
+  script:
+  - cd candidates/ktor
+  - docker build -t "${CI_REGISTRY_IMAGE}/ktor:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/ktor:${VERSION}"
+
+build java9:
+  stage: build
+  script:
+  - cd candidates/java9
+  - mkdir dist
+  - docker build -t java9-builder .
+  - docker run --rm --entrypoint cat java9-builder /src/target/msroyale-java9.jar > dist/msroyale-java9.jar
+  - docker build -f Dockerfile.prod -t "${CI_REGISTRY_IMAGE}/java9:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/java9:${VERSION}"
+
+build scala-akka:
+  stage: build
+  script:
+  - cd candidates/scala-akka
+  - mkdir dist
+  - docker build -t scala-akka-builder .
+  - docker run --rm --entrypoint cat scala-akka-builder /src/target/scala-2.12/msroyale-scala-akka.jar > dist/msroyale-scala-akka.jar
+  - docker build -f Dockerfile.prod -t "${CI_REGISTRY_IMAGE}/scala-akka:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/scala-akka:${VERSION}"
+
+build nodejs:
+  stage: build
+  script:
+  - cd candidates/nodejs
+  - docker build -t "${CI_REGISTRY_IMAGE}/nodejs:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/nodejs:${VERSION}"
+
+build python:
+  stage: build
+  script:
+  - cd candidates/python
+  - docker build -t "${CI_REGISTRY_IMAGE}/python:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/python:${VERSION}"
+
+build php-apache:
+  stage: build
+  script:
+  - cd candidates/php-apache
+  - docker build -t "${CI_REGISTRY_IMAGE}/php-apache:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/php-apache:${VERSION}"
+
+build nginx-raw:
+  stage: build
+  script:
+  - cd candidates/nginx-raw
+  - docker build -t "${CI_REGISTRY_IMAGE}/nginx-raw:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/nginx-raw:${VERSION}"
+
+build rust-iron:
+  stage: build
+  script:
+  - cd candidates/rust-iron
+  - docker build -t "${CI_REGISTRY_IMAGE}/rust-iron:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/rust-iron:${VERSION}"
+
+build rust-rocket:
+  stage: build
+  script:
+  - cd candidates/rust-rocket
+  - docker build -t "${CI_REGISTRY_IMAGE}/rust-rocket:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/rust-rocket:${VERSION}"
+
+build rust-hyper:
+  stage: build
+  script:
+  - cd candidates/rust-hyper
+  - docker build -t "${CI_REGISTRY_IMAGE}/rust-hyper:${VERSION}" .
+  - docker push "${CI_REGISTRY_IMAGE}/rust-hyper:${VERSION}"
+
+build kitano:
+  stage: build
+  script:
+  - mkdir bin
+  - cd kitano
+  - docker build -t "${CI_REGISTRY_IMAGE}/kitano-builder:${VERSION}" .
+  - docker run --rm --entrypoint cat "${CI_REGISTRY_IMAGE}/kitano-builder:${VERSION}" /go/bin/kitano > ../bin/kitano
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - bin
+
+kitano:
+  stage: kitano
+  script:
+  - chmod +x bin/kitano
+  - for image in $(ls candidates/); do export images="${CI_REGISTRY_IMAGE}/$image:${VERSION} $images"; done
+  - echo $images
+  - ./bin/kitano --images "$images" --timeout 120 --nanocpu 500000000 --healthcheckExpected '{"State":"OK"}' --healthcheckEndpoint "/healthcheck" --pull --loadEndpoint "/healthcheck" --loadExpected '{"State":"OK"}' --loadThreads 4 --charge 3000 > public/kitano.json
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - public
+
+build board:
+  stage: build
+  script:
+  - mkdir -p public
+  - cp board/index.html public
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - public
+
+pages:
+  stage: deploy
+  script:
+  - echo "Deploying to pages"
+  artifacts:
+    paths:
+    - public
+

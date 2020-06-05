@@ -1,0 +1,71 @@
+image: elixir:1.6
+
+stages:
+  - Pre-Checks
+  - setup
+  - compile
+  - test
+  - build
+  - publish
+  - deploy
+
+before_script:
+  - make init
+
+Code Style:
+  stage: Pre-Checks
+  script:
+    - make format-check
+
+get-dependencies:
+  stage: setup
+  script:
+    - make deps
+  artifacts:
+    expire_in: 30 minutes
+    paths:
+      - deps
+      - mix.lock
+
+compile-for-test:
+  stage: compile
+  dependencies:
+    - get-dependencies
+  variables:
+    MIX_ENV: test
+  script:
+    - make compile
+  artifacts:
+    expire_in: 30 minutes
+    untracked: true
+
+compile-for-production:
+  stage: compile
+  dependencies:
+    - get-dependencies
+  variables:
+    MIX_ENV: prod
+  script:
+    - make compile
+  artifacts:
+    expire_in: 30 minutes
+    untracked: true
+
+tests:
+  stage: test
+  dependencies:
+    - get-dependencies
+    - compile-for-test
+  services:
+    - elasticsearch:5
+    - spotify/kafka:latest
+    - mongo:3.4
+  variables:
+    MIX_ENV: test
+  coverage: '/\[TOTAL\]\s+(\d+\.\d+)%/'
+  script:
+    - mkdir -p /run/secrets/space-service
+    - export $(cat .env | xargs)
+    - export SPACE_SERVICE_KAFKA_HOSTS="spotify__kafka:9092"
+    - make test
+

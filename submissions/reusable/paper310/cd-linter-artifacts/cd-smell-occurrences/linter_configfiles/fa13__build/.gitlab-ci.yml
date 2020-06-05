@@ -1,0 +1,60 @@
+#
+# Build distribution artifact
+#
+
+.buildDist: &buildDist
+  image: frekele/java:jdk8
+  stage: build
+  artifacts:
+    expire_in: 3 month
+    paths:
+      - bundle/target/distributions/*.tar.gz
+      - bundle/target/distributions/*.zip
+
+build:linux:light:
+  <<: *buildDist
+  script:
+    - ./gradlew --info distLinux
+build:linux:withJava32:
+  <<: *buildDist
+  script:
+    - ./gradlew --info distLinuxWithJava32
+build:linux:withJava64:
+  <<: *buildDist
+  script:
+    - ./gradlew --info distLinuxWithJava64
+build:windows:light:
+  <<: *buildDist
+  script:
+    - ./gradlew --info distWindows
+build:windows:withJava:
+  <<: *buildDist
+  script:
+    - ./gradlew --info distWindowsWithJava
+build:mac:
+  <<: *buildDist
+  script:
+    - ./gradlew --info distMac
+
+#
+# Deploy to the repository
+#
+
+deploy:
+  stage: deploy
+  image: debian
+  environment: production
+  only:
+    - master
+  before_script:
+    # Install ssh-agent if not already installed, it is required by Docker.
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client rsync -y )'
+    # Run ssh-agent (inside the build environment)
+    - eval $(ssh-agent -s)
+    # Add the SSH key stored in SSH_RELEASE_KEY variable to the agent store
+    - ssh-add <(echo "$SSH_RELEASE_KEY")
+  script:
+    - ls bundle/target/distributions
+    - rsync --include="*.zip" --include="*.tar.gz" --exclude="*" --whole-file -e "ssh -o 'StrictHostKeyChecking no' -p $PUBLISH_PORT" bundle/target/distributions/* $PUBLISH_SSH_USER@$PUBLISH_HOST:$PUBLISH_BASE_DIR
+    - ssh -o 'StrictHostKeyChecking no' -p $PUBLISH_PORT $PUBLISH_SSH_USER@$PUBLISH_HOST $PUBLISH_POST_SCRIPT $CI_BUILD_REF
+

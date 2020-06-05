@@ -1,0 +1,19 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+job1:
+  tags:
+    - docker
+  stage: build
+  script:
+    - docker build -t taisun/dyndns:$CI_BUILD_REF .
+    - docker tag taisun/dyndns:$CI_BUILD_REF taisun/dyndns:latest
+    - echo $DOCKERPASS | docker login -u taisun --password-stdin
+    - docker push taisun/dyndns:$CI_BUILD_REF
+    - docker push taisun/dyndns:latest
+

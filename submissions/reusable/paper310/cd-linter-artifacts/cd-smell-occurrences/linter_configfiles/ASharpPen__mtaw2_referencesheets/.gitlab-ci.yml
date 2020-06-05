@@ -1,0 +1,20 @@
+compile-pdfs:
+  image: miktex/miktex
+  stage: build
+
+  before_script:
+    - mv -v ${CI_PROJECT_DIR}/* /miktex/work/
+  
+  script:
+    - cd /miktex/work
+    - bash compile.sh
+
+  after_script:
+    - cd /miktex/work
+    - cp -r ./Bin $CI_PROJECT_DIR
+
+  artifacts:
+    paths: 
+      - Bin/
+    expire_in: 60 days
+

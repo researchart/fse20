@@ -1,0 +1,49 @@
+cache:
+  paths:
+  - vendor/
+
+stages:
+  - test
+
+test:7.2:
+  stage: test
+  image: php:7.2
+  before_script:
+  - apt-get update -yqq
+  - apt-get install git -yqq
+  - apt-get install wget -yqq
+  - apt-get install unzip -yqq
+  - docker-php-ext-install bcmath
+  - pecl install xdebug && docker-php-ext-enable xdebug
+  - curl --location --output /usr/local/bin/phpunit https://phar.phpunit.de/phpunit.phar
+  - chmod +x /usr/local/bin/phpunit
+  - wget https://composer.github.io/installer.sig -O - -q | tr -d '\n' > installer.sig
+  - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+  - php -r "if (hash_file('SHA384', 'composer-setup.php') === file_get_contents('installer.sig')) { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
+  - php composer-setup.php
+  - php -r "unlink('composer-setup.php'); unlink('installer.sig');"
+  - php composer.phar install
+  script:
+  - phpunit --configuration phpunit.xml  --coverage-text --colors=never
+
+dependency_scanning:
+  stage: test
+  image: docker:stable
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:stable-dind
+  script:
+    - export SP_VERSION=$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')
+    - docker run
+        --env DEP_SCAN_DISABLE_REMOTE_CHECKS="${DEP_SCAN_DISABLE_REMOTE_CHECKS:-false}"
+        --volume "$PWD:/code"
+        --volume /var/run/docker.sock:/var/run/docker.sock
+        "registry.gitlab.com/gitlab-org/security-products/dependency-scanning:$SP_VERSION" /code
+  artifacts:
+    paths: [gl-dependency-scanning-report.json]
+  except:
+    variables:
+      - $DEPENDENCY_SCANNING_DISABLED
+

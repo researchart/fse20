@@ -1,0 +1,54 @@
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:latest
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+    - node_modules/
+
+stages:
+  - test
+  - build
+  - deploy
+  
+before_script:
+  - npm install
+
+lint:
+  stage: test
+  script:
+    - npm run lint
+   
+# pages:
+#   stage: build
+#   script:
+#     - npm run build-docs
+#   artifacts:
+#     paths:
+#       - public/
+#   only:
+#     - master
+
+dist:
+  stage: build
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+  only:
+    - tags
+
+publish:
+  stage: deploy
+  script:
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > .npmrc
+    - cp src/proxy.js .
+    - npm publish
+  dependencies:
+    - dist
+  only:
+    - tags
+

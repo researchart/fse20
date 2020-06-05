@@ -1,0 +1,103 @@
+variables:
+  PANDOC_VERSION: "2.2"
+
+stages:
+  - build
+  - post-build
+
+.ruby_setup: &ruby_setup
+  image: ruby:2.5
+  cache:
+    key: ruby
+    paths:
+    - vendor/ruby
+  before_script:
+  - ruby -v
+  - bundle install --path vendor
+
+build-html:
+  <<: *ruby_setup
+  stage: build
+  script:
+  - cd article-sciences-du-design
+  - bundle exec asciidoctor -b html5 --doctype article
+      -r asciidoctor-bibliography
+      --trace --timings --verbose
+      -a toc=left
+      -a toclevels=3
+      -a toc-title="Table des matières"
+      -a webfonts
+      -a linkattrs
+      -a idprefix
+      -D ../build
+      index.adoc
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+    - build/*.html
+
+build-docbook:
+  <<: *ruby_setup
+  stage: build
+  script:
+  - cd article-sciences-du-design
+  - bundle exec asciidoctor -b docbook --doctype article
+      -r asciidoctor-bibliography
+      -a toclevels=3
+      -a toc-title="Table des matières"
+      -a webfonts!
+      -a stylesheet!
+      -a linkattrs
+      -a idprefix
+      -D ../build
+      index.adoc
+  - bundle exec asciidoctor -b docbook --doctype article
+      -a toc-title="Table des matières"
+      -a webfonts!
+      -a stylesheet!
+      -a linkattrs
+      -a idprefix
+      -D ../build
+      authors.adoc
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+    - build/*.xml
+
+build-docx:
+  stage: post-build
+  cache:
+    key: pandoc
+    paths:
+    - pandoc-${PANDOC_VERSION}-1-amd64.deb
+  before_script:
+  - wget --no-clobber https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb
+  - dpkg -i pandoc-${PANDOC_VERSION}-1-amd64.deb
+  script:
+  - cd article-sciences-du-design
+  - cp *.jpg ../build
+  - pandoc --from docbook --to docx -o ../build/index.docx
+      --data-dir=vendor --standalone
+      ../build/index.xml
+  - pandoc --from docbook --to docx -o ../build/authors.docx
+      --data-dir=vendor --standalone
+      ../build/authors.xml
+  artifacts:
+    paths:
+    - build/*.docx
+    - build/*.jpg
+
+pages:
+  image: alpine:latest
+  stage: post-build
+  script:
+  - mkdir -p public
+  - cp build/*.html public
+  - cp article-sciences-du-design/*.jpg public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+    - 20-reduction
+

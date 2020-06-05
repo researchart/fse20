@@ -1,0 +1,8 @@
+test:
+  image: clojure:lein
+  stage: test
+  tags:
+    - docker
+  script:
+    - lein test :once
+

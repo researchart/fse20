@@ -1,0 +1,209 @@
+image: docker:git
+
+stages:
+  - build
+  - test
+  - automation
+
+services:
+- docker:dind
+
+variables:
+  DOCKER_DRIVER: overlay
+
+before_script:
+  - docker login -u "gitlab-ci-token" -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+
+.test_build: &test_build
+  stage: test
+  script:
+    # Hack to set an array in /bin/sh
+    # http://unix.stackexchange.com/a/137571
+    - set -- $CI_JOB_NAME
+    - docker build -f "Dockerfile.$1" .
+  except:
+    - master
+
+.build_and_deploy: &build_and_deploy
+  stage: build
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_JOB_NAME" -f "Dockerfile.$CI_JOB_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_JOB_NAME"
+  only:
+    - master
+
+.test_custom: &test_custom
+  stage: test
+  script:
+    # Hack to set an array in /bin/sh
+    # http://unix.stackexchange.com/a/137571
+    - set -- $CI_JOB_NAME
+    - ./scripts/custom-docker-build $1
+  except:
+    - master
+
+.build_and_deploy_custom: &build_and_deploy_custom
+  stage: build
+  script:
+    - ./scripts/custom-docker-build $CI_JOB_NAME -t "$CI_REGISTRY_IMAGE:$CI_JOB_NAME"
+    - docker push "$CI_REGISTRY_IMAGE:$CI_JOB_NAME"
+  only:
+    - master
+
+# Tests
+
+# Used by GDK verify step: https://gitlab.com/gitlab-org/gitlab-development-kit
+node-10 test: *test_custom
+
+# Used by Gitaly: https://gitlab.com/gitlab-org/gitaly/blob/master/.gitlab-ci.yml
+ruby-2.6-golang-1.13-git-2.21 test: *test_custom
+ruby-2.6-golang-1.12-git-2.22 test: *test_custom
+ruby-2.6-golang-1.13-git-2.22 test: *test_custom
+ruby-2.6-golang-1.12-git-2.24 test: *test_custom
+ruby-2.6-golang-1.13-git-2.24 test: *test_custom
+
+# Used by GitLab: https://gitlab.com/gitlab-org/gitlab/blob/master/.gitlab-ci.yml
+ruby-2.6.3-golang-1.12-git-2.22-chrome-73.0-node-12.x-yarn-1.21-postgresql-9.6-graphicsmagick-1.3.34 test: *test_custom
+ruby-2.6.3-golang-1.12-git-2.22-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-postgresql-9.6-graphicsmagick-1.3.34 test: *test_custom
+ruby-2.6.3-golang-1.12-git-2.22-chrome-73.0-node-12.x-yarn-1.21-postgresql-10-graphicsmagick-1.3.34 test: *test_custom
+ruby-2.6.3-golang-1.12-git-2.22-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-postgresql-10-graphicsmagick-1.3.34 test: *test_custom
+ruby-2.6.3-golang-1.12-git-2.22-chrome-73.0-node-12.x-yarn-1.21-postgresql-11-graphicsmagick-1.3.34 test: *test_custom
+ruby-2.6.5-golang-1.12-git-2.24-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-postgresql-9.6-graphicsmagick-1.3.34 test: *test_custom
+ruby-2.6.5-golang-1.12-git-2.24-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-postgresql-10-graphicsmagick-1.3.34 test: *test_custom
+ruby-2.6.5-golang-1.12-git-2.24-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-postgresql-11-graphicsmagick-1.3.34 test: *test_custom
+
+# gitlab:assets:compile step
+ruby-2.6.3-git-2.22-chrome-73.0-node-12.x-yarn-1.21-graphicsmagick-1.3.34-docker-19.03.1 test: *test_custom
+ruby-2.6.3-git-2.22-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-graphicsmagick-1.3.34-docker-19.03.1 test: *test_custom
+ruby-2.6.5-git-2.24-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-graphicsmagick-1.3.34-docker-19.03.1 test: *test_custom
+
+# Used by www-gitlab-com's rspec job: https://gitlab.com/gitlab-com/www-gitlab-com/blob/master/.gitlab-ci.yml
+ruby-2.6.5-git-2.22-chrome-74.0-node-12.x-yarn-1.21-docker-19.03.1 test: *test_custom
+
+# Used by https://gitlab.com/gitlab-org/distribution/gitlab-provisioner/
+ruby-2.3-ansible-2.5.1-terraform-0.11 test: *test_custom
+
+danger test: *test_build
+alpine-aws test: *test_build
+alpine-helm test: *test_build
+ruby-alpine-aws test: *test_build
+gitlab-charts-build-base test: *test_build
+gitlab-qa-ruby-2.6 test: *test_build
+gitlab-qa-alpine-ruby-2.6 test: *test_build
+gitlab-puppeteer test: *test_build
+omnibus-gitlab-bionic test: *test_build
+omnibus-gitlab-centos6 test: *test_build
+omnibus-gitlab-centos7 test: *test_build
+omnibus-gitlab-centos8 test: *test_build
+omnibus-gitlab-jessie test: *test_build
+omnibus-gitlab-opensuse15.1 test: *test_build
+omnibus-gitlab-stretch test: *test_build
+omnibus-gitlab-buster test: *test_build
+omnibus-gitlab-xenial test: *test_build
+omnibus-gitlab-depscan test: *test_build
+release-tools test: *test_build
+sitespeed-gitlab test: *test_build
+ubi-release test: *test_build
+www-gitlab-com-2.6 test: *test_build
+build-git: *test_build
+# Used by gitlab-docs: https://gitlab.com/gitlab-org/gitlab-docs/blob/master/.gitlab-ci.yml
+gitlab-docs test: *test_build
+gitlab-docs-lint test: *test_build
+# Used by go projects for linting https://gitlab.com/gitlab-org/gitlab/blob/master/doc/development/go_guide/index.md#automatic-linting
+golangci-lint-alpine test: *test_build
+
+# Builds
+
+# Used by GDK verify step: https://gitlab.com/gitlab-org/gitlab-development-kit
+node-10: *build_and_deploy_custom
+
+# Used by Gitaly: https://gitlab.com/gitlab-org/gitaly/blob/master/.gitlab-ci.yml
+ruby-2.6-golang-1.13-git-2.21: *build_and_deploy_custom
+ruby-2.6-golang-1.12-git-2.22: *build_and_deploy_custom
+ruby-2.6-golang-1.13-git-2.22: *build_and_deploy_custom
+ruby-2.6-golang-1.12-git-2.24: *build_and_deploy_custom
+ruby-2.6-golang-1.13-git-2.24: *build_and_deploy_custom
+
+# Used by GitLab CE/EE: https://gitlab.com/gitlab-org/gitlab-ee/blob/master/.gitlab-ci.yml
+ruby-2.6.3-golang-1.12-git-2.22-chrome-73.0-node-12.x-yarn-1.21-postgresql-9.6-graphicsmagick-1.3.34: *build_and_deploy_custom
+ruby-2.6.3-golang-1.12-git-2.22-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-postgresql-9.6-graphicsmagick-1.3.34: *build_and_deploy_custom
+ruby-2.6.3-golang-1.12-git-2.22-chrome-73.0-node-12.x-yarn-1.21-postgresql-10-graphicsmagick-1.3.34: *build_and_deploy_custom
+ruby-2.6.3-golang-1.12-git-2.22-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-postgresql-10-graphicsmagick-1.3.34: *build_and_deploy_custom
+ruby-2.6.3-golang-1.12-git-2.22-chrome-73.0-node-12.x-yarn-1.21-postgresql-11-graphicsmagick-1.3.34: *build_and_deploy_custom
+ruby-2.6.5-golang-1.12-git-2.24-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-postgresql-9.6-graphicsmagick-1.3.34: *build_and_deploy_custom
+ruby-2.6.5-golang-1.12-git-2.24-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-postgresql-10-graphicsmagick-1.3.34: *build_and_deploy_custom
+ruby-2.6.5-golang-1.12-git-2.24-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-postgresql-11-graphicsmagick-1.3.34: *build_and_deploy_custom
+
+# gitlab:assets:compile step
+ruby-2.6.3-git-2.22-chrome-73.0-node-12.x-yarn-1.21-graphicsmagick-1.3.34-docker-19.03.1: *build_and_deploy_custom
+ruby-2.6.3-git-2.22-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-graphicsmagick-1.3.34-docker-19.03.1: *build_and_deploy_custom
+ruby-2.6.5-git-2.24-lfs-2.9-chrome-73.0-node-12.x-yarn-1.21-graphicsmagick-1.3.34-docker-19.03.1: *build_and_deploy_custom
+
+# Used by www-gitlab-com's rspec job: https://gitlab.com/gitlab-com/www-gitlab-com/blob/master/.gitlab-ci.yml
+ruby-2.6.5-git-2.22-chrome-74.0-node-12.x-yarn-1.21-docker-19.03.1: *build_and_deploy_custom
+
+# Used by https://gitlab.com/gitlab-org/distribution/gitlab-provisioner/
+ruby-2.3-ansible-2.5.1-terraform-0.11: *build_and_deploy_custom
+
+danger: *build_and_deploy
+alpine-aws: *build_and_deploy
+alpine-helm: *build_and_deploy
+ruby-alpine-aws: *build_and_deploy
+gitlab-charts-build-base: *build_and_deploy
+gitlab-qa-ruby-2.6: *build_and_deploy
+gitlab-qa-alpine-ruby-2.6: *build_and_deploy
+gitlab-puppeteer: *build_and_deploy
+omnibus-gitlab-bionic: *build_and_deploy
+omnibus-gitlab-centos6: *build_and_deploy
+omnibus-gitlab-centos7: *build_and_deploy
+omnibus-gitlab-centos8: *build_and_deploy
+omnibus-gitlab-jessie: *build_and_deploy
+omnibus-gitlab-opensuse15.1: *build_and_deploy
+omnibus-gitlab-stretch: *build_and_deploy
+omnibus-gitlab-buster: *build_and_deploy
+omnibus-gitlab-xenial: *build_and_deploy
+omnibus-gitlab-depscan: *build_and_deploy
+release-tools: *build_and_deploy
+sitespeed-gitlab: *build_and_deploy
+ubi-release: *build_and_deploy
+www-gitlab-com-2.6: *build_and_deploy
+build-git: *build_and_deploy
+# Used by gitlab-docs: https://gitlab.com/gitlab-org/gitlab-docs/blob/master/.gitlab-ci.yml
+gitlab-docs: *build_and_deploy
+gitlab-docs-lint: *build_and_deploy
+# Used by go projects for linting https://gitlab.com/gitlab-org/gitlab/blob/master/doc/development/go_guide/index.md#automatic-linting
+golangci-lint-alpine: *build_and_deploy
+
+cache-google-chrome:
+  stage: automation
+  variables:
+    MOUNT_POINT: /builds/$CI_PROJECT_PATH/mnt
+  script:
+    - mkdir -p "$MOUNT_POINT"
+    - cp scripts/cache-google-chrome $MOUNT_POINT
+    - docker run -e "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" -e "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" -v "$MOUNT_POINT:/mnt" ubuntu:16.04 /mnt/cache-google-chrome
+
+# Old Google Chrome images are listed here for reference:
+
+# These still exist in our docker repisotiry, but they cannot be built anymore since
+# Google yanks them from their PPA.  To build variations of these requires an image based on
+# one of the images below.
+
+# See https://gitlab.com/gitlab-org/gitlab-build-images/merge_requests/54 for an example
+
+# ruby-2.3.3-golang-1.8-git-2.7-chrome-59.0-node-7.1-postgresql-9.6: *test_custom
+# ruby-2.3.3-golang-1.8-git-2.7-chrome-60.0-node-7.1-postgresql-9.6: *test_custom
+# ruby-2.3.3-golang-1.8-git-2.13-chrome-59.0-node-7.1-postgresql-9.6: *test_custom
+# ruby-2.3.3-golang-1.8-git-2.13-chrome-60.0-node-7.1-postgresql-9.6: *test_custom
+# ruby-2.3.3-golang-1.8-git-2.13-chrome-61.0-node-8.x-yarn-1.0-postgresql-9.6 test: *test_custom
+# ruby-2.3.5-golang-1.8-git-2.13-chrome-61.0-node-8.x-yarn-1.0-postgresql-9.6 test: *test_custom
+# ruby-2.3.5-golang-1.8-git-2.13-chrome-62.0-node-8.x-yarn-1.2-postgresql-9.6 test: *test_custom
+
+# ruby-2.3.3-golang-1.8-git-2.7-chrome-59.0-node-7.1-postgresql-9.6: *build_and_deploy_custom
+# ruby-2.3.3-golang-1.8-git-2.7-chrome-60.0-node-7.1-postgresql-9.6: *build_and_deploy_custom
+# ruby-2.3.3-golang-1.8-git-2.13-chrome-59.0-node-7.1-postgresql-9.6: *build_and_deploy_custom
+# ruby-2.3.3-golang-1.8-git-2.13-chrome-60.0-node-7.1-postgresql-9.6: *build_and_deploy_custom
+# ruby-2.3.3-golang-1.8-git-2.13-chrome-61.0-node-8.x-yarn-1.0-postgresql-9.6: *build_and_deploy_custom
+# ruby-2.3.5-golang-1.8-git-2.13-chrome-61.0-node-8.x-yarn-1.0-postgresql-9.6: *build_and_deploy_custom
+# ruby-2.3.5-golang-1.8-git-2.13-chrome-62.0-node-8.x-yarn-1.2-postgresql-9.6: *build_and_deploy_custom
+

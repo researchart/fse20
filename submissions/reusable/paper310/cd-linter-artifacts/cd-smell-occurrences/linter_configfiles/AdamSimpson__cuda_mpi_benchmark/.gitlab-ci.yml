@@ -1,0 +1,6 @@
+build:
+    script:
+        - module switch PrgEnv-pgi PrgEnv-gnu
+        - module load cudatoolkit
+        - make all
+

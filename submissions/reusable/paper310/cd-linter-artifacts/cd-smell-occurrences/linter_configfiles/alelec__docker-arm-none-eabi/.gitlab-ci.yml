@@ -1,0 +1,23 @@
+image: docker:git
+services:
+  - docker:dind
+
+
+before_script:
+  - echo "Logging into $CI_REGISTRY"
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+
+build_image:
+  script:
+    - echo "Building from $CI_REGISTRY_IMAGE"
+    - docker build -t "${CI_REGISTRY_IMAGE}:${CI_BUILD_REF}" . | tee build.log
+    - VERSION=$(grep "^VERSION=" build.log | cut -d"=" -f2)
+    - echo "GCC ${VERSION}"
+    - echo "tagging ${CI_REGISTRY_IMAGE}:${CI_BUILD_REF} => ${CI_REGISTRY_IMAGE}:${VERSION}"
+    - docker tag "${CI_REGISTRY_IMAGE}:${CI_BUILD_REF}" "${CI_REGISTRY_IMAGE}:${VERSION}"
+    - docker push "${CI_REGISTRY_IMAGE}:${VERSION}"
+    - docker tag "${CI_REGISTRY_IMAGE}:${VERSION}" "${CI_REGISTRY_IMAGE}:latest"
+    - docker push "${CI_REGISTRY_IMAGE}:latest"
+  only:
+    - master
+

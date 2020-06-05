@@ -1,0 +1,53 @@
+image: "gableroux/unity3d:2018.3.14f1"
+
+stages:
+- build
+- deploy
+
+variables:
+  BUILD_NAME: RRCS
+
+.unity_before_script: &unity_before_script
+  before_script:
+  - chmod +x ./ci/before_script.sh && ./ci/before_script.sh
+
+.build: &build
+  stage: build
+  #tip: you can reuse same stage to do everything in parallel and reduce overall time
+  # stage: test
+  <<: *unity_before_script
+  script:
+  - chmod +x ./ci/build.sh && ./ci/build.sh
+
+  artifacts:
+    paths:
+    - ./src/Builds/
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == "ci"
+    - $CI_COMMIT_REF_NAME == $PAGES_BRANCH
+
+build-StandaloneWindows64:
+  <<: *build
+  variables:
+    BUILD_TARGET: StandaloneWindows64
+
+build-WebGL:
+  <<: *build
+  variables:
+    BUILD_TARGET: WebGL
+
+pages:
+  image: alpine:latest
+  stage: deploy
+  script:
+  - apk update
+  - apk add zip
+  - chmod +x ./ci/pages.sh && ./ci/pages.sh
+  artifacts:
+    paths:
+    - public
+  only:
+    variables:
+    - $CI_COMMIT_REF_NAME == $PAGES_BRANCH
+

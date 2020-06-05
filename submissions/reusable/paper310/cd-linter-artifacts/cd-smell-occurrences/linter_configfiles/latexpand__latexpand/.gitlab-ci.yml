@@ -1,0 +1,19 @@
+latex:
+  script:
+    - apt-get update -qy
+    - apt-get install -y shellcheck
+    - shellcheck -e SC2140 $(git ls-files '*.sh')
+    - apt-get install -y libperl-critic-perl
+    - perlcritic latexpand
+    # texlive-latex-extra for \usepackage[utf8x]{inputenc}
+    # poppler-utils for pdftotext
+    # texlive-bibtex-extra for biblatex
+    - apt-get install -y texlive-latex-base texlive-bibtex-extra biber texlive-latex-extra poppler-utils perl-doc
+    - ./tests/autotest.sh
+    - apt-get install -y zip
+    - make dist/latexpand.zip && test -f dist/latexpand.zip
+  artifacts:
+    paths:
+    - dist/latexpand.zip
+    expire_in: 1 year
+

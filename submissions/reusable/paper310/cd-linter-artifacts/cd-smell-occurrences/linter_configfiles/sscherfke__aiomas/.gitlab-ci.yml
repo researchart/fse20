@@ -1,0 +1,52 @@
+image: python:3.6
+
+before_script:
+  - pip install tox
+
+stages:
+  - test
+  - build
+
+test-py35:
+  stage: test
+  image: python:3.5
+  script:
+    - tox -e py35
+
+test-py36:
+  stage: test
+  script:
+    - tox -e py36
+
+# Installing blosc on Pypy3 via pip pip seems to be broken
+# test-pypy3:
+#   stage: test
+#   image: pypy:3-5.10.0
+#   script:
+#     - tox -e pypy3
+
+coverage:
+  stage: test
+  script:
+    - tox -e coverage
+  coverage: '/^TOTAL.*\s+(\d+\%)\s*$/'
+
+docs:
+  stage: test
+  script:
+    - tox -e docs
+
+flake8:
+  stage: test
+  script:
+    - tox -e flake8
+
+build:
+  stage: build
+  script:
+    - python setup.py sdist bdist_wheel
+  artifacts:
+    paths:
+      - dist/*
+    expire_in: 1 week
+

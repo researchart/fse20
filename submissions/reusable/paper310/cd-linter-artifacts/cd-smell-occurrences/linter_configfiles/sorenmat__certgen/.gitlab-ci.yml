@@ -1,0 +1,32 @@
+before_script:
+  - ls -la
+  - pwd
+  - mkdir -p /go/src/gitlab.com/sorenmat/certgen
+  - cp -r * /go/src/gitlab.com/sorenmat/certgen
+  - cd /go/src/gitlab.com/sorenmat/certgen
+  - export CUR_WD=`pwd`
+stages:
+ - build
+ - deploy
+ 
+build-and-test:
+  stage: build
+  image: golang:1.8
+  artifacts:
+    paths:
+      - certgen
+  script:
+    - cd $CUR_WD
+    - make setup
+    - make ci
+    
+build-docker:
+  image: golang:1.8
+  stage: deploy
+  dependencies:
+    - build-and-test
+  script:
+    - cd $CUR_WD
+    - go get -v github.com/goreleaser/goreleaser
+  
+

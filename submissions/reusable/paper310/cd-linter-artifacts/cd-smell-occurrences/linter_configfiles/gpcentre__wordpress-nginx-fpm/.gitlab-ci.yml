@@ -1,0 +1,41 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - release
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+
+variables:
+  DOCKER_DRIVER: overlay
+
+cache:
+  key: "$CI_BUILD_REF"
+  paths:
+    - src/static/dist
+
+variables:
+  CONTAINER_TEST_IMAGE: ${CI_REGISTRY_IMAGE}:${CI_BUILD_REF_NAME}_${CI_BUILD_REF}_test
+  CONTAINER_RELEASE_IMAGE: ${CI_REGISTRY_IMAGE}:latest
+  
+build:
+  stage: build
+  # variables:
+  #  CI_DEBUG_TRACE: "true"
+  script:
+    - docker build --pull -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+release:
+  stage: release
+  tags:
+    - docker
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+

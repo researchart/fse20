@@ -1,0 +1,39 @@
+image: docker:latest
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+.build:
+  stage: build
+  script:
+    - docker build --build-arg=coq_image="coqorg/${CI_JOB_NAME}" --pull -t demo .
+
+# TODO: remove unneeded versions below
+#
+# coq:8.4:
+#   extends: .build
+
+# coq:8.5:
+#   extends: .build
+
+# coq:8.6:
+#   extends: .build
+
+# coq:8.7:
+#   extends: .build
+
+# coq:8.8:
+#   extends: .build
+
+coq:8.9:
+  extends: .build
+
+coq:8.10:
+  extends: .build
+
+coq:dev:
+  extends: .build
+

@@ -1,0 +1,33 @@
+image: alpine:latest
+
+before_script:
+- apk add --update make
+
+stages:
+  - test
+  - deploy
+
+size-check:
+  stage: test
+  script:
+  - make size-check
+
+.web: &web
+  stage: deploy
+  image: conoria/alpine-pandoc:latest
+  script:
+  - make
+  artifacts:
+    paths:
+    - public
+
+pages:
+  <<: *web
+  only:
+  - master
+
+preview:
+  <<: *web
+  except:
+  - master
+

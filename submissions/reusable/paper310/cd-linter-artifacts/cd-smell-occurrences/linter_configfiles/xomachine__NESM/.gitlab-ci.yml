@@ -1,0 +1,63 @@
+image: nimlang/nim:latest
+
+.build:compiler: &nimbuild
+  cache:
+    key: nim-${NIMBRANCH}
+    paths:
+    - nim-${NIMBRANCH}
+  before_script:
+  - |
+    if [ ! -x nim-${NIMBRANCH}/bin/nim ]; then
+      git clone -b ${NIMBRANCH} --depth 5 git://github.com/nim-lang/nim nim-${NIMBRANCH}/
+      cd nim-${NIMBRANCH}
+      git clone --depth 5 git://github.com/nim-lang/csources csources/
+      cd csources
+      sh build.sh
+      cd ..
+      rm -rf csources
+      bin/nim c koch
+      ./koch boot -d:release
+      ./koch nimble
+    else
+      cd nim-${NIMBRANCH}
+      git fetch origin
+      if ! git merge FETCH_HEAD | grep "Already up-to-date"; then
+        bin/nim c koch
+        ./koch boot -d:release
+        ./koch nimble
+      fi
+    fi
+    cd ..
+    export PATH="nim-${NIMBRANCH}/bin${PATH:+:$PATH}"
+
+.test: &testscript
+  stage: test
+  except:
+  - gh-pages
+  script:
+  - nimble -v
+  - nim -v
+  - nimble tests
+
+test:devel:
+  variables:
+    NIMBRANCH: devel
+  allow_failure: true
+  <<: *nimbuild
+  <<: *testscript
+
+test:master:
+  <<: *testscript
+
+pages:
+  stage: deploy
+  script:
+  - mkdir -p public
+  - nimble docs
+  - cp index.html public/index.html
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

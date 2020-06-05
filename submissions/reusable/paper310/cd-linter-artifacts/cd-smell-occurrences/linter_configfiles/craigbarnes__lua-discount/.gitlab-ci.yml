@@ -1,0 +1,25 @@
+stages: [test, dist]
+
+tests:
+    stage: test
+    image: registry.gitlab.com/craigbarnes/dockerfiles/lua-testing
+    script:
+        - apt-get update && apt-get -y install libmarkdown2-dev
+        - for v in 5.3 5.2 5.1; do
+              luarocks-$v make
+                  DISCOUNT_INCDIR=/usr/include/x86_64-linux-gnu
+                  DISCOUNT_LIBDIR=/usr/lib/x86_64-linux-gnu
+              && lua$v test.lua ;
+          done
+
+pages:
+    stage: dist
+    image: debian:stable
+    artifacts: {paths: [public]}
+    only: [master]
+    script:
+        - apt-get update && apt-get -y install make git
+        - git fetch --tags
+        - make -j"$(nproc)" dist
+        - make check-dist
+

@@ -1,0 +1,52 @@
+image: node:10-alpine
+
+stages:
+  - test
+  - publish
+
+before_script:
+  - npm ci
+
+dependency scanning:
+  allow_failure: true
+  script: npm audit --json | npx gitlab-npm-audit-parser -o gl-dependency-scanning.json
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-scanning.json
+
+eslint:
+  script: npx eslint --format ./ .
+  artifacts:
+    reports:
+      codequality: gl-codequality.json
+
+publish:
+  stage: publish
+  only:
+    - tags
+  script:
+    - npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+    - npm publish
+
+test:node:8:
+  image: node:8-alpine
+  script: npm test -- --reporters default --reporters jest-junit
+  artifacts:
+    reports:
+      junit: junit.xml
+
+test:node:10:
+  script:
+    - npm test -- --coverage --reporters default --reporters jest-junit
+    - npx codecov
+  artifacts:
+    reports:
+      junit: junit.xml
+
+test:node:12:
+  image: node:11-alpine
+  script: npm test -- --reporters default --reporters jest-junit
+  artifacts:
+    reports:
+      junit: junit.xml
+

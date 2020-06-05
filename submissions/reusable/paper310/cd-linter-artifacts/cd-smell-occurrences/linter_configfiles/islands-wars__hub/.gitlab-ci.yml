@@ -1,0 +1,26 @@
+stages:
+  - deploy
+  - javadoc
+
+deploy:
+  stage: deploy
+  script:
+   - chmod +x gradlew
+   - ./gradlew clean build artifactoryPublish --stacktrace
+  only:
+    - master
+  allow_failure: false
+
+pages:
+  stage: javadoc
+  script:
+    - chmod +x gradlew
+    - ./gradlew Javadoc --stacktrace
+    - mv build/docs/javadoc public
+  only:
+    - master
+  allow_failure: false
+  artifacts:
+    paths:
+      - public
+

@@ -1,0 +1,23 @@
+test:eslintstandard:
+  image: registry.gitlab.com/zingo-labs/webextension/eslintstandard:latest 
+  script:
+      - eslint ./src --ext .js
+
+test:eslintplugin:
+  image: registry.gitlab.com/zingo-labs/webextension/eslintplugin:latest 
+  script:
+      - eslint ./src --ext .js
+
+test:htmlhint:
+  image: registry.gitlab.com/zingo-labs/webextension/htmlhint:latest 
+  script:
+      - htmlhint
+
+test:ava:
+  image: registry.gitlab.com/zingo-labs/webextension/ava:latest 
+  script:
+      - npm test ./test --verbose
+
+variables:
+  GIT_STRATEGY: clone
+

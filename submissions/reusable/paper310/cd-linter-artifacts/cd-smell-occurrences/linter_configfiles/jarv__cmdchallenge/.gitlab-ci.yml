@@ -1,0 +1,52 @@
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+  - docker info
+  - pip install -r requirements.txt
+  - export PATH=$PATH:/usr/local/go/bin
+
+build_runcmd:
+  image: registry.gitlab.com/jarv/cmdchallenge/ci-image
+  stage: build
+  script:
+    - make build-runcmd
+
+build_docker_image:
+  image: registry.gitlab.com/jarv/cmdchallenge/ci-image
+  stage: build
+  script:
+    - make build-docker
+
+######################
+# TEST
+######################
+test_runcmd:
+  image: registry.gitlab.com/jarv/cmdchallenge/ci-image
+  stage: test
+  script:
+    - make test-runcmd
+
+test_challenges:
+  image: registry.gitlab.com/jarv/cmdchallenge/ci-image
+  stage: test
+  script:
+    - make build-docker
+    - make test-challenges
+
+######################
+# DEPLOY
+######################
+
+deploy:
+  stage: deploy
+  image: registry.gitlab.com/jarv/cmdchallenge/ci-image
+  script:
+    - make build-docker-prod
+    - docker login -u jarv -p $REGISTRY_ACCESS_TOKEN registry.gitlab.com
+    - docker push registry.gitlab.com/jarv/cmdchallenge
+  only:
+    - master
+

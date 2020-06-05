@@ -1,0 +1,44 @@
+# https://docs.gitlab.com/ce/ci/yaml/
+
+stages:
+  - install
+  - test
+  - build # !!!!
+  - deploy
+  - cleanup
+
+image: node:8
+
+npm:install:
+  stage: install
+  script:
+    - npm install
+  artifacts:
+    paths:
+      - node_modules
+
+test:
+  stage: test
+  script:
+    - npm run test
+
+lint:
+  stage: test
+  script:
+    - npm run lint
+
+deploy_job:
+  stage: deploy
+  script:
+    - echo "deploy"
+  when: manual
+  environment:
+    name: production
+    url: https://example.com
+
+cleanup_job:
+  stage: cleanup
+  script:
+    - echo "cleanup"
+  when: always    
+

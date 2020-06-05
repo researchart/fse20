@@ -1,0 +1,11 @@
+image: shru/arch-love-release:latest
+
+build:
+  script:
+    # Create releases
+    - love-release -W -M
+  artifacts:
+    paths:
+    - releases/the-john-game-win64.zip
+    - releases/the-john-game-macosx.zip
+

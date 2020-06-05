@@ -1,0 +1,111 @@
+.test_job_definition: &test_job_definition
+  before_script:
+    - pip install tox setuptools
+
+cache:
+  paths:
+  - /root/.cache
+
+stages:
+  - style
+  - test
+  - package
+  - dockerize
+  - documentation
+
+py27:
+  <<: *test_job_definition
+  stage: test
+  image: python:2.7
+  script:
+    - tox -e py27
+
+py33:
+  <<: *test_job_definition
+  stage: test
+  image: python:3.3
+  script:
+    - tox -e py33
+
+py34:
+  <<: *test_job_definition
+  stage: test
+  image: python:3.4
+  script:
+    - tox -e py34
+
+py35:
+  <<: *test_job_definition
+  stage: test
+  image: python:3.5
+  script:
+    - tox -e py35
+
+py36:
+  <<: *test_job_definition
+  stage: test
+  image: python:3.6
+  script:
+    - tox -e py36
+
+flake8:
+  <<: *test_job_definition
+  image: python:latest
+  stage: style
+  script:
+    - tox -e flake8
+
+isort:
+  <<: *test_job_definition
+  image: python:latest
+  stage: style
+  script:
+    - tox -e isort
+
+wheel:
+  <<: *test_job_definition
+  image: python:3.5
+  stage: package
+  script:
+    tox -e wheel
+  artifacts:
+    paths:
+      - dist/
+
+sdist:
+  <<: *test_job_definition
+  image: python:3.5
+  stage: package
+  script:
+    tox -e sdist
+  artifacts:
+    paths:
+      - dist/
+
+build:
+  image: docker:latest
+  services:
+  - docker:dind
+  stage: dockerize
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:latest --no-cache .
+    - docker push $CI_REGISTRY_IMAGE:latest
+  dependencies:
+    - sdist
+
+pages:
+  image: python:3.5
+  stage: documentation
+  script:
+    - pip install Sphinx
+    - cd docs
+    - make html
+    - cd ..
+    - mv docs/_build/html public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

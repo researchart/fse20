@@ -1,0 +1,16 @@
+# requiring the environment of NodeJS 8
+image: node:8
+
+# add cache to 'node_modules' for speeding up builds
+cache:
+  paths:
+    - node_modules/ # Node modules and dependencies
+
+before_script:
+  - npm install
+
+
+test:
+  script:
+    - npm run unit-cov
+

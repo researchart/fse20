@@ -1,0 +1,42 @@
+### * Stages
+
+stages:
+  - build
+  - deploy
+
+### * installAndRender
+
+installAndRender:
+  image: rocker/tidyverse
+  stage: build
+  script:
+    # Install Debian dependencies
+    - apt-get update
+    - apt-get install -y libxslt1-dev
+    - R -e 'devtools::install_github("ropenscilabs/tinkr")'
+    # Install missing R packages
+    - Rscript -e 'install.packages(c("lme4", "sticky", "here", "tidyverse", "roxygen2", "car", "stargazer", "rmarkdown", "knitr", "RColorBrewer", "wesanderson", "hexbin", "MASS", "broom.mixed", "kableExtra"))'
+    # Build and install our package
+    - make install
+    # Run pkgdown
+    - Rscript -e "install.packages('pkgdown')"
+    - make pkgdown
+  artifacts:
+    paths:
+    - docs
+  only:
+    - master
+
+### * pages a second job
+
+pages:
+  stage: deploy
+  script:
+    # Prepare folders for pages
+    - mv docs public
+  artifacts:
+    paths:
+    - public
+  only:
+    - master
+

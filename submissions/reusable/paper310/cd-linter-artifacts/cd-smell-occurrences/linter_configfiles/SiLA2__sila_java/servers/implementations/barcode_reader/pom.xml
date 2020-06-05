@@ -1,0 +1,70 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>org.sila-standard.sila_java.servers</groupId>
+        <artifactId>implementations</artifactId>
+        <version>0.0.3-SNAPSHOT</version>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.sila-standard.sila_java.servers.implementations</groupId>
+    <artifactId>barcode_reader</artifactId>
+    <packaging>jar</packaging>
+    <version>0.0.3-SNAPSHOT</version>
+
+    <dependencies>
+        <!-- For Raspberry Pi Hardware Access -->
+        <dependency>
+            <groupId>com.pi4j</groupId>
+            <artifactId>pi4j-core</artifactId>
+            <version>1.2</version>
+        </dependency>
+        <!-- For Hex Conversion of Barcode -->
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>1.9</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>2.27.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.sila-standard.sila_java.library</groupId>
+                <artifactId>maven_plugin</artifactId>
+                <version>0.0.3-SNAPSHOT</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <protobufVersion>${protobuf.version}</protobufVersion>
+                            <grpcVersion>${grpc.version}</grpcVersion>
+                            <features>
+                                <param>${basedir}/src/main/resources/BarcodeProvider.sila.xml</param>
+                            </features>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>sila_java.servers.implementations.barcode_reader.sila.BarcodeReaderServer</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+

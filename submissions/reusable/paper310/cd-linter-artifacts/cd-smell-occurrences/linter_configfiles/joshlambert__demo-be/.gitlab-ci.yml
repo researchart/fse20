@@ -1,0 +1,89 @@
+image: maven:latest
+
+variables:
+  MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+
+stages:
+  - build
+  - test
+  - doc
+  - deploy
+  - trigger
+
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS compile
+
+test:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS jacoco:prepare-agent test
+    - echo -n "Code coverage is "; grep -m1 -Po '(?<=<td class="ctr2">).*?(?=</td>)' target/site/jacoco-ut/index.html | head -n1
+  artifacts:
+    paths:
+      - target/site/jacoco-ut
+
+codeclimate:
+  stage: test
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  script:
+    - docker pull codeclimate/codeclimate
+    - docker run --env CODECLIMATE_CODE="$PWD" --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock --volume /tmp/cc:/tmp/cc codeclimate/codeclimate init
+    - docker run --env CODECLIMATE_CODE="$PWD" --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock --volume /tmp/cc:/tmp/cc codeclimate/codeclimate analyze -f json src/ > codeclimate.json
+    - docker run --env CODECLIMATE_CODE="$PWD" --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock --volume /tmp/cc:/tmp/cc codeclimate/codeclimate analyze -f html src/ > codeclimate.html
+  artifacts:
+    paths: 
+      - codeclimate.json
+      - codeclimate.html
+
+doc:
+  stage: doc
+  script:
+    - javadoc -d target/site/javadoc -sourcepath src/main/java com.example.dep
+  artifacts:
+    paths:
+      - target/site/javadoc
+
+deploy:
+  stage: deploy
+  script:
+    - curl -u "$PACKAGECLOUD_TOKEN:" -X DELETE https://packagecloud.io/api/v1/repos/i835864/release/java/maven2/com.example.dep/demo-dep-1.0.jar
+    - mvn $MAVEN_CLI_OPTS deploy
+  only:
+    - master
+
+pages:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - cp -r target/site/jacoco-ut pages/codecoverage
+    - mkdir pages/codequality && cp codeclimate.html pages/codequality/index.html
+    - cp -r target/site/javadoc pages/javadoc
+    - mv pages public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+trigger:
+  stage: trigger
+  image: alpine:latest
+  script:
+    - apk update
+    - apk add curl
+    - curl --request POST --form "token=$CI_JOB_TOKEN" --form ref=master https://gitlab.com/api/v4/projects/3647448/trigger/pipeline
+  only:
+    - master
+

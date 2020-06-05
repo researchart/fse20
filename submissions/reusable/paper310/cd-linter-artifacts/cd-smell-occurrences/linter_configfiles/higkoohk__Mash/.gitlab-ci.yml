@@ -1,0 +1,26 @@
+before_script:
+  - date +"Before @ %F %T"
+   
+after_script:
+  - date +"After @ %F %T"
+   
+build1:
+  stage: build
+  script:
+    - date +"Build-1 @ %F %T"
+   
+test1:
+  stage: test
+  script: 
+    - date +"Test-1 @ %F %T"
+
+test2:
+  stage: test
+  script: 
+    - date +"Test-2 @ %F %T"
+
+deploy1:
+  stage: deploy
+  script:
+    - date +"Deploy-1 @ %F %T"
+

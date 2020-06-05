@@ -1,0 +1,52 @@
+# This file is a template, and might need editing before it works on your project.
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:latest
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - src/node_modules/
+
+stages:
+  - build
+  - test
+  - deploy
+
+prepare:
+  stage: build
+  script:
+    - cd src
+    - npm install
+
+eslint:
+  stage: test
+  script:
+    - cd src
+    - npm run lint
+
+test:
+  stage: test
+  script:
+    - cd src
+    - npm run test
+
+deploy:
+   image: docker:latest
+   services:
+    - docker:dind
+   stage: deploy
+   script:
+    - apk -Uuv add python py-pip 
+    - pip install --upgrade awscli
+    - mkdir ~/.aws/
+    - printf "[default]\noutput = json\nregion=us-east-2" > ~/.aws/config
+    - printf "[default]\naws_access_key_id = $AMAZON_ACCESS_KEY_ID\naws_secret_access_key=$AMAZON_SECRET_ACCESS_KEY" > ~/.aws/credentials
+    - $(aws ecr get-login | sed -e 's/-e none//g')
+    - docker build -t betterwmu:latest .
+    - docker tag betterwmu:latest 541220531460.dkr.ecr.us-east-2.amazonaws.com/betterwmu:latest
+    - docker push 541220531460.dkr.ecr.us-east-2.amazonaws.com/betterwmu:latest
+   only:
+    - master
+

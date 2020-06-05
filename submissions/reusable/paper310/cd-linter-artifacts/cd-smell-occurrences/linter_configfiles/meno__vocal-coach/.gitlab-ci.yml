@@ -1,0 +1,25 @@
+image: google/dart
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq ruby-full
+  - ruby -v
+  - gem install sass
+
+pages:
+  stage: deploy
+  script:
+  - echo "Getting dependencies"
+  - pub get
+  - echo "Building page"
+  - pub build
+  - echo "Setting proper base href"
+  - dart tool/set_base_href.dart
+  - echo "Moving build/web to public"
+  - mv build/web public
+  - echo "Deploy to pages"
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

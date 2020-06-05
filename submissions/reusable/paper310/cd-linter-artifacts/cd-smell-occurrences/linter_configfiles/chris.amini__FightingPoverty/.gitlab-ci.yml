@@ -1,0 +1,73 @@
+variables:
+    AWS_DEFAULT_REGION: us-east-2	
+
+stages:
+    - staging
+    - deployment
+
+#Production stage
+staging:   
+    stage: staging  
+    image: python:3.6 
+    before_script:
+    # run tests
+    - cd backend/
+    - make install
+    - cd ..
+    # generate ssh key   
+    - mkdir -p ~/.ssh     
+    - echo -e "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa     
+    - chmod 600 ~/.ssh/id_rsa     
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'   
+    script:   
+    - pwd
+    - ls -al
+    - apt-get update 
+    - apt-get install -y rsync
+    - bash .gitlab-stage.sh   
+    after_script:
+    - pwd
+    - cd backend
+    - pip install -r requirements.txt
+    - chmod 774 datasets/python_utils/*
+    # - ls -al datasets/python_utils/
+    - make test
+    - echo "***ALL BACKEND TESTS PASSING***"
+    only:
+    - deployment
+    #environment:     
+    #   name: production     
+    #   url: https://your.url.com   
+    when: manual
+
+deploy:
+    stage: deployment
+    image: ubuntu:18.04
+    before_script: 
+    #generate ssh key   
+    - mkdir -p ~/.ssh     
+    - echo -e "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa     
+    - chmod 600 ~/.ssh/id_rsa     
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'   
+    script:
+    - pwd
+    - ls -al
+    - apt-get update 
+    - apt-get install -y rsync openssh-client
+    - bash .gitlab-deploy.sh
+    after_script:
+    - pwd
+    - apt-get update
+    - apt-get install -y nodejs npm mocha
+    #- apt-get install -y chromium-browser chromium-chromedriver
+    #- which chromium-chromedriver
+    # - npm install --global mocha
+    - cd frontend/react-app/
+    - npm install --save-dev babel-loader babel-core babel-preset-env babel-preset-es2015 babel-preset-stage-2 babel-cli webpack
+    - mocha --compilers js:babel-core/register tests.js
+    #- pip install -r requirements.txt
+    #- python guitests.py
+    - echo "***ALL FRONTEND TESTS PASSING***"
+    only:
+    - deployment
+

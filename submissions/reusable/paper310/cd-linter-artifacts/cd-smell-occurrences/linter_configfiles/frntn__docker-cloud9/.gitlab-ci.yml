@@ -1,0 +1,19 @@
+stages:
+  - build
+  - test
+
+BuildContainer:
+  stage: build
+  script:
+    - hostname
+    - docker build -t ci/cloud9 .
+
+StartContainer:
+  stage: test
+  script:
+    - hostname
+    - docker ps | grep -q cloud9_test && docker kill cloud9_test 
+    - docker ps -a | grep -q cloud9_test && docker rm cloud9_test
+    - docker run --detach --name cloud9_test ci/cloud9
+    - docker ps -a
+

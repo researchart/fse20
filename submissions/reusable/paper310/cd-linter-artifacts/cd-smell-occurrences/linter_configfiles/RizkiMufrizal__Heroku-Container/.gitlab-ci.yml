@@ -1,0 +1,55 @@
+image: docker:latest
+
+stages:
+ - build
+ - publish-image
+ - deploy-heroku-container
+
+build:
+ stage: build
+ image: gradle:alpine
+ variables:
+  POSTGRES_DB: heroku_container_test
+  POSTGRES_USER: postgresqldb
+  POSTGRES_PASSWORD: postgresqldb
+ services:
+   - postgres:alpine
+ script:
+  - gradle clean test build
+ artifacts:
+  paths:
+    - build/libs/*.jar
+
+publish-image:
+ stage: publish-image
+ variables:
+  POSTGRES_DB: heroku_container_test
+  POSTGRES_USER: postgresqldb
+  POSTGRES_PASSWORD: postgresqldb
+  DOCKER_DRIVER: overlay2
+ services:
+  - docker:dind
+  - postgres:alpine
+ before_script:
+  - docker info
+ script:
+ - echo $DOCKER_PASSWORD | docker login --username $DOCKER_USERNAME --password-stdin
+ - apk add --no-cache openjdk8
+ - java -version
+ - ./gradlew clean test build docker dockerPush
+
+deploy-heroku-container:
+ stage: deploy-heroku-container
+ image: rizkimufrizal/docker-node
+ variables:
+  DOCKER_DRIVER: overlay2
+ services:
+  - docker:dind
+ before_script:
+  - docker info
+ script:
+   - npm install -g heroku-cli
+   - cd heroku-docker
+   - echo $HEROKU_API_KEY | docker login --username=$HEROKU_USERNAME --password-stdin registry.heroku.com
+   - heroku container:push web --app heroku-docker
+

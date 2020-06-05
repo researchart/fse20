@@ -1,0 +1,52 @@
+# This file is a template, and might need editing before it works on your project.
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:latest
+
+before_script:
+- apt-get update -qq && apt-get install -y -qq sshpass
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+stages:
+  - preparation
+  - build
+  - test
+  - deploy
+
+staging:
+  stage: preparation
+  script:
+  - npm install
+
+run tests:
+  stage: test
+  script: npm run test
+  
+build app:
+  stage: build
+  script:
+  - npm run build
+  - rm -rf public
+  - mv build public
+  artifacts:
+    paths:
+    - public # mandatory, other folder won't work
+
+deploy to reseptisovellus:
+  stage: deploy
+  script:
+  - cd public/
+  - ls
+  - rm api/utils/environment.php
+  - echo "<?php \$servername = \"${SQL_SERVER_IP}\"; \$username = \"${SQL_USERNAME}\"; \$password = \"${SQL_PASSWORD}\"; \$database = \"${SQL_DATABASE_NAME}\"; ?>" > api/utils/environment.php
+  - sshpass -V
+  - export SSHPASS=$SSH_PASSWORD
+  - sshpass -e scp -o stricthostkeychecking=no -r . grfzhffh@hotelli01.domainhotelli.fi:/home3/grfzhffh/test-deploy
+  only:
+  - production
+

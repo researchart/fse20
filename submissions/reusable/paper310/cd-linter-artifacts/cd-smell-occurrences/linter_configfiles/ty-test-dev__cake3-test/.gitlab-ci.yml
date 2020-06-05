@@ -1,0 +1,36 @@
+image : alpine:latest
+
+stages:
+ - test
+
+variables:
+ MYSQL_ROOT_PASSWORD: test
+ MYSQL_USER: test
+ MYSQL_PASSWORD: test
+ MYSQL_DATABASE: cake_test
+
+phpunit:
+ stage: test
+ image: php:7.2-alpine
+ services:
+  - mysql:5.5
+ tags:
+  - test
+ except:
+  - /^.*-no-test$/
+  - master
+ cache:
+  paths:
+   - vendor
+ before_script:
+  - ash ci/before_phpunit.sh > /dev/null
+ script:
+  - php composer.phar global require hirak/prestissimo
+  - php composer.phar install --dev
+  - cp -p config/app.ci.php config/app.php
+  - vendor/bin/phpunit --coverage-html coverage/
+ artifacts:
+  paths:
+   - coverage/
+  expire_in: 1 weeks
+

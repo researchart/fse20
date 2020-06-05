@@ -1,0 +1,35 @@
+image: node:10
+
+cache:
+    paths:
+        - node_modules/
+
+stages:
+    - test
+    - package
+
+before_script:
+    - src/scripts/prepare-environment.sh
+
+test:
+    stage: test
+    script:
+        # Add Google Chrome to aptitude's (package manager) sources
+        - echo "deb http://dl.google.com/linux/chrome/deb/ stable main" | tee -a /etc/apt/sources.list
+        # Fetch Chrome's PGP keys for secure installation
+        - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+        # Update aptitude's package sources
+        - apt-get -qq update -y
+        # Install latest Chrome stable, Xvfb packages
+        - apt-get -qq install -y google-chrome-stable
+        - ./node_modules/@angular/cli/bin/ng test --watch=false --code-coverage
+
+package:
+    stage: package
+    script:
+        - node --max_old_space_size=8192 node_modules/@angular/cli/bin/ng build --prod --source-map
+        - src/scripts/package.sh
+    artifacts:
+        paths:
+            - dist/band-manager-frontend.tar.gz
+

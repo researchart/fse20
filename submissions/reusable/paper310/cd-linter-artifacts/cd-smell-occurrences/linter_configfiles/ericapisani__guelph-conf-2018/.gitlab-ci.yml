@@ -1,0 +1,30 @@
+image: node:10.11.0 # can be upgraded, depending on your node version used
+
+stages:
+  - test
+  - deploy
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+  - node_modules/
+
+before_script:
+  - npm install
+
+tests:
+  stage: test
+  script:
+  - npm run test
+
+pages:
+  stage: deploy
+  script:
+  - npm run build
+  - mv build/* public/
+  artifacts:
+    paths:
+    - public # mandatory, other folder won't work
+  only:
+  - master # or dev, the branch you want to publish
+

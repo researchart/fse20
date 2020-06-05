@@ -1,0 +1,93 @@
+variables:
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  CONTAINER_LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
+  CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+  DOCKER_TLS_CERTDIR: ""
+
+stages:
+  - build
+  - testlint
+  - release
+  - deploy
+
+build:
+  image: docker:latest
+  stage: build
+  services:
+  - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build --pull -t $CONTAINER_TEST_IMAGE --build-arg git_tag=$CI_COMMIT_REF_NAME .
+    - docker push $CONTAINER_TEST_IMAGE
+
+lint:
+   stage: testlint
+   variables:
+      GIT_STRATEGY: none
+   image:
+      name: $CONTAINER_TEST_IMAGE
+      entrypoint: ["/bin/bash", "-c", "pylint classifier tests"]
+   script:
+     - echo ""
+
+test:
+   stage: testlint
+   variables:
+     GIT_STRATEGY: none
+   image:
+      name: $CONTAINER_TEST_IMAGE
+      entrypoint: ["/bin/bash", "-c",  "pytest"]
+   script:
+        - echo ""
+
+latest:
+  image: docker:latest
+  stage: release
+  services:
+  - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_LATEST_IMAGE
+    - docker push $CONTAINER_LATEST_IMAGE
+  only:
+    - master
+
+tag:
+  image: docker:latest
+  stage: release
+  services:
+  - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - tags
+
+pages:
+  stage: release
+  variables:
+    GIT_STRATEGY: none
+  image:
+    name: $CONTAINER_TEST_IMAGE
+    entrypoint: ["/bin/bash", "-c", "mkdir -p $CI_PROJECT_DIR/public && make -C docs html && cp -r /app/docs/_build/html/* $CI_PROJECT_DIR/public/"]
+  script:
+    echo "PROJECT_DIR" + $CI_PROJECT_DIR
+  artifacts:
+    paths:
+    - public
+  only:
+    - tags
+
+
+pypi:
+  stage: release
+  tags:
+    - shell
+  script:
+    - sh release-to-pypi.sh RELEASE $PYPI_USERNAME $PYPI_PASSWORD
+  only:
+    - tags
+

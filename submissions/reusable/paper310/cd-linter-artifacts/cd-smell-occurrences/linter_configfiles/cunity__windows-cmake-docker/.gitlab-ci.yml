@@ -1,0 +1,36 @@
+stages:
+  - build
+  - upload
+
+
+build-vs2015-win2019-image:
+  tags:
+    - cunity-windows-2019-docker
+  stage: build
+
+  script:
+    - set IMAGE=registry.gitlab.com/%CI_PROJECT_PATH%/win2019-vs2015:%CI_COMMIT_REF_NAME%
+    - docker login -u gitlab-ci-token -p %CI_JOB_TOKEN% registry.gitlab.com || exit /b
+    - docker build --no-cache --tag %IMAGE% . -f win2019-vs2015\Dockerfile || exit /b
+    - docker login -u gitlab-ci-token -p %CI_JOB_TOKEN% registry.gitlab.com  || exit /b
+    - docker run --rm -w c:\vc -v %CD%\validation_cmake:c:\vc %IMAGE% build.bat || exit /b
+    - docker push %IMAGE%  || exit /b
+
+publish-vs2015-win2019-image:
+  tags:
+    - cunity-windows-2019-docker
+  stage: upload
+  
+  script:
+    - set IMAGE=registry.gitlab.com/%CI_PROJECT_PATH%/win2019-vs2015:%CI_COMMIT_REF_NAME%
+    - set PUBLIC=cunity/windows-2019-vs2015-cmake:%CI_COMMIT_REF_NAME%
+    - docker login -u gitlab-ci-token -p %CI_JOB_TOKEN% registry.gitlab.com || exit /b
+    - docker pull %IMAGE% || exit /b
+    - docker tag %IMAGE% %PUBLIC% || exit /b
+    - docker login -u %DOCKER_HUB_USERNAME% -p %DOCKER_HUB_PASSWORD% docker.io || exit /b
+    - docker push %PUBLIC% || exit /b
+  
+  only:
+    refs:
+      - master
+

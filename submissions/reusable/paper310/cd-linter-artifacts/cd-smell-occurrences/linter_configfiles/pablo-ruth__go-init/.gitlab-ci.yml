@@ -1,0 +1,88 @@
+image: golang:1.9
+
+stages:
+  - test
+  - build
+  - package
+
+before_script:
+  - ln -s /builds /go/src/gitlab.com
+  - cd /go/src/gitlab.com/pablo-ruth/go-init
+
+unit_tests:
+  stage: test
+  script:
+    - make test
+  tags:
+    - docker
+
+race_detector:
+  stage: test
+  script:
+    - make race
+  tags:
+    - docker
+
+lint_code:
+  stage: test
+  script:
+    - make lint
+  tags:
+    - docker
+
+compile_master:
+  stage: build
+  only:
+    refs:
+      - master
+  script:
+    - make build VERSION=$CI_JOB_ID
+  artifacts:
+    paths:
+      - go-init
+    expire_in: 1 day
+  tags:
+    - docker
+
+package_master:
+  stage: package
+  only:
+    refs:
+      - master
+  variables:
+    VERSION: $CI_JOB_ID
+  before_script: []
+  script:
+    - make fpm_install
+    - make fpm
+    - make fpm_upload_dev
+  tags:
+    - docker
+
+compile_tags:
+  stage: build
+  only:
+    - tags
+  script:
+    - make build VERSION=$CI_COMMIT_TAG
+    - make upx
+  artifacts:
+    paths:
+      - go-init
+  tags:
+    - docker
+
+package_tags:
+  stage: package
+  only:
+    - tags
+  variables:
+    VERSION: $CI_COMMIT_TAG
+  before_script: []
+  script:
+    - make fpm_install
+    - make fpm
+    - make fpm_upload_tag
+  tags:
+    - docker
+

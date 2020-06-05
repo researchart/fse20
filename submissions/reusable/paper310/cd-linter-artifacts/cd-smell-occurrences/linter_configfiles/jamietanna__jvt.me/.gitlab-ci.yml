@@ -1,0 +1,105 @@
+image: docker:latest
+
+variables:
+  CONTAINER_IMAGE_BASE_URL: registry.gitlab.com/jamietanna/jvt.me
+  CONTAINER_BUILT_IMAGE: $CONTAINER_IMAGE_BASE_URL:$CI_COMMIT_REF_SLUG
+  DOCKER_DRIVER: overlay
+  URL_PRODUCTION: https://www.jvt.me
+  URL_REVIEW_SUFFIX: www.review.jvt.me
+  GIT_SUBMODULE_STRATEGY: normal
+
+stages:
+  - build
+  - review
+  - production
+
+build_test_site:
+  services:
+    - docker:dind
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker build -t $CONTAINER_BUILT_IMAGE -f Dockerfile.branch .
+    - docker push $CONTAINER_BUILT_IMAGE
+    # }}}
+  only:
+    - branches
+  except:
+    - master
+
+theme_branch:
+  image: alpine:latest
+  stage: build
+  script:
+    - apk add --update git ruby
+    - ruby .ci/theme-branch.rb
+  only:
+    - branches
+  except:
+    - master
+# }}}
+
+# Review Apps {{{
+review_deploy:
+  image: ruby:2.5-alpine
+  stage: review
+  script:
+    - apk --update add git openssh-client
+    - bundle install --without build test
+    # ensure that deployments can use the SSH key that is passed in via the
+    # environment variables. Via https://docs.gitlab.com/ce/ci/ssh_keys/README.html
+    - eval $(ssh-agent -s)
+      # add ssh key stored in SSH_PRIVATE_KEY variable to the agent store
+    - echo -e "$REVIEW_SSH_PRIVATE_KEY" > key
+    - chmod 600 key
+    - ssh-add key
+    - cap review deploy
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: https://$CI_COMMIT_REF_SLUG.$URL_REVIEW_SUFFIX
+    on_stop: review_stop
+  only:
+    - branches
+  except:
+    - master
+
+review_stop:
+  image: ruby:2.5-alpine
+  stage: review
+  script:
+    - apk --update add git openssh-client
+    - bundle install --without build test
+    # ensure that deployments can use the SSH key that is passed in via the
+    # environment variables. Via https://docs.gitlab.com/ce/ci/ssh_keys/README.html
+    - eval $(ssh-agent -s)
+      # add ssh key stored in SSH_PRIVATE_KEY variable to the agent store
+    - echo -e "$REVIEW_SSH_PRIVATE_KEY" > key
+    - chmod 600 key
+    - ssh-add key
+    - cap review stop
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+  when: manual
+  only:
+    - branches
+  except:
+    - master
+# }}}
+
+build_no_test_deploy_site:
+  services:
+    - docker:dind
+  stage: production
+  script:
+    - docker build -t $CONTAINER_BUILT_IMAGE .
+    - container_id=$(docker create $CONTAINER_BUILT_IMAGE echo)
+    - docker cp $container_id:/site public
+    - apk add --update curl
+    - curl https://github.com/netlify/netlifyctl/releases/download/v0.4.0/netlifyctl-linux-amd64-0.4.0.tar.gz -LO
+    - tar xvf netlifyctl-linux-amd64-0.4.0.tar.gz
+    - ./netlifyctl deploy -s fa4dd95a-994e-4f89-8a7a-2d9e9fc36a32 -P public -A $NETLIFY_ACCESS_TOKEN
+    # }}}
+  only:
+    - master
+

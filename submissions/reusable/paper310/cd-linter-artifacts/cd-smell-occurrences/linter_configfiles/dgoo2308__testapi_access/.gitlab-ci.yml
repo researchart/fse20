@@ -1,0 +1,6 @@
+testit:
+  script:
+    - 'echo "*** test ci_buil_token API access ***" '
+    - 'curl -H "JOB_TOKEN: $CI_BUILD_TOKEN" "https://gitlab.com/api/v4/projects/2828837/repository/tags"'
+    - 'echo -e "\n DONE \n"'
+

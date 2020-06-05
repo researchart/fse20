@@ -1,0 +1,79 @@
+variables:
+  POSTGRES_DB: nice_marmot
+  POSTGRES_USER: runner
+  POSTGRES_PASSWORD: ""
+  POSTGRES_URL:  "postgresql://$POSTGRES_USER@postgres/$POSTGRES_DB"
+
+cache:
+  key: "$CI_BUILD_NAME"
+  paths:
+  - ~/.m2
+
+stages:
+  - build
+  - test
+  - deploy
+
+unit-tests:
+  image: clojure:lein-2.7.1
+  script:
+  - lein do clean, unit-tests
+  stage: test
+
+db-migration-test:
+  image: clojure:lein-2.7.1
+  services:
+    - postgres:latest
+  script:
+  - DATABASE_URL=$POSTGRES_URL lein migratus migrate
+  - DATABASE_URL=$POSTGRES_URL lein migratus reset
+  stage: test
+
+integration-tests:
+  image: clojure:lein-2.7.1
+  services:
+    - postgres:latest
+  script:
+  - DATABASE_URL=$POSTGRES_URL lein migratus reset
+  - DATABASE_URL=$POSTGRES_URL lein integration-tests
+  stage: test
+
+acceptance-tests:
+  image: clojure:lein-2.7.1
+  services:
+    - postgres:latest
+  script:
+  - DATABASE_URL=$POSTGRES_URL lein migratus reset
+  - DATABASE_URL=$POSTGRES_URL lein acceptance-tests
+  stage: test
+
+build-docker-image:
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker info
+  script:
+    - docker build -t finny/finny-api .
+    - docker run -e FINNY_ENV=test -t --rm --name finny-api finny/finny-api lein unit-tests
+    - docker run -t alpine sh -c 'apk add --update curl && curl -XPOST -H "Content-Type:\ application/json" "https://registry.hub.docker.com/u/finnyapp/finny-api/trigger/$DOCKER_TOKEN/"'
+  stage: deploy
+
+dev-db-migrate:
+  image: clojure:lein-2.7.1
+  script:
+  - DATABASE_URL=$DEV_DATABASE_URL lein migratus migrate
+  stage: deploy
+  environment: dev
+
+dev-deploy:
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - gem install dpl
+  - dpl --provider=heroku --app=finny-api-dev --api-key=$HEROKU_API_KEY
+  only:
+  - master
+  stage: deploy
+  environment: dev
+

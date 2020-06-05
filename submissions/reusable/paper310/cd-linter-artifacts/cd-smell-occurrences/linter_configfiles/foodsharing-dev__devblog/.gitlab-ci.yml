@@ -1,0 +1,56 @@
+image: ruby:2.3
+
+cache:
+  paths: 
+    - vendor/
+    
+before_script:
+  - bundle install --path vendor
+
+test:
+  stage: test
+  script:
+  - gem install jekyll
+  - bundle exec jekyll build -d test
+  artifacts:
+    paths:
+    - test
+  except:
+  - master
+  - work-in-progress
+
+live-deploy:
+  stage: deploy
+  script:
+# Install ssh-agent if not already installed, it is required by Docker.
+  # (change apt-get to yum if you use a CentOS-based image)
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - 'which rsync || ( apt-get update -y && apt-get install rsync -y )'
+  # Run ssh-agent (inside the build environment)
+  - eval $(ssh-agent -s)
+
+  # Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+  - ssh-add <(echo "$DEPLOY_SSH_KEY")
+  - bundle exec jekyll build -d public/ --future
+  - rsync --delete -e "ssh -o StrictHostKeyChecking=no" -a public/ $DEPLOY_URL
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+  tags:
+  - non-shared
+
+pages:
+  stage: deploy
+  script:
+  - bundle exec jekyll build -d public/ --future
+  - cp public/index.de.html public/index.html
+  artifacts:
+    paths:
+    - public
+  only:
+  - work-in-progress
+  tags:
+  - non-shared
+

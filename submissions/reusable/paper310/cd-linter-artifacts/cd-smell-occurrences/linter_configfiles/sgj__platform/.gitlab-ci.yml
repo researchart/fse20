@@ -1,0 +1,36 @@
+image: python:3.7
+
+stages:
+  - test
+
+services:
+  - mdillon/postgis:latest
+
+variables:
+  POSTGRES_DB: gemeinsam
+  POSTGRES_USER: gemeinsam
+  POSTGRES_PASSWORD: gemeinsam
+  ENV_FILE: gemeinsam/.env
+
+before_script:
+  - apt update -y
+  - apt install -y gdal-bin
+  - pip install -r requirements.txt
+  - pip install -r requirements-dev.txt
+  
+test:
+  stage: test
+  script:
+    - touch $ENV_FILE
+    - echo "SERVER_EMAIL=mir@mur.at" >> $ENV_FILE
+    - echo "MODERATION_EMAIL=mir@mur.at" >> $ENV_FILE
+    - echo "DEFAULT_FROM_EMAIL=mir@mur.at" >> $ENV_FILE
+    - echo "SITE_URL=http:localhost:8000" >> $ENV_FILE
+    - echo "SECRET_KEY=2398579d8g9s8n98" >> $ENV_FILE
+    - echo "ALLOWED_HOSTS=localhost" >> $ENV_FILE
+    - echo "DATABASE_URL=postgis://$POSTGRES_USER:$POSTGRES_PASSWORD@mdillon__postgis:5432/$POSTGRES_DB" >> $ENV_FILE
+    - cd gemeinsam
+    - python ./manage.py test
+
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+

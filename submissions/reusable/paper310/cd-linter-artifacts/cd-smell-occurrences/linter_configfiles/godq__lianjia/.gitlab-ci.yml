@@ -1,0 +1,18 @@
+image:
+    name: python:3.6
+
+include:
+  - template: Code-Quality.gitlab-ci.yml
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq sqlite3 wget curl
+
+test1:
+  script:
+    - python hello.py
+
+test2:
+  script:
+    - python hello.py
+
+

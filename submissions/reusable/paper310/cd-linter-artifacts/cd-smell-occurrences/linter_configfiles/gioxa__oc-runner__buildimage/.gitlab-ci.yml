@@ -1,0 +1,173 @@
+stages:
+  - build
+  - test
+  - deploy
+  - deploy_test
+  - tag_latest
+  - cleanup
+
+variables:
+  # for auto-labeling META Data of the docker image
+  OC_INFO_IMAGE_LICENSE: MIT
+  OC_INFO_IMAGE_VENDOR: Gioxa Ltd.
+  OC_INFO_IMAGE_TITLE: Custom Build-Image for oc-runner project
+  OC_INFO_IMAGE_REFNAME: build-image-4-oc-runner
+
+  # release of the distro for caches and make_os
+  DISTRO_RELEASE: 7
+  # docker hub image name
+  DOCKER_NAMESPACE: gioxa
+
+build_rootfs:
+  image: gioxa/imagebuilder
+  stage: build
+  variables:
+    GIT_CACHE_STRATEGY: push-pull
+    WORK_SPACES: |
+          - name: repo C$DISTRO_RELEASE
+            key: x86_64
+            scope: global
+            path:
+              - cache/yum/x86_64/$DISTRO_RELEASE/base
+              - cache/yum/x86_64/$DISTRO_RELEASE/updates
+            strategy: push-pull
+            threshold:
+              path: 
+                - cache/yum/x86_64/$DISTRO_RELEASE/base/packages/*.rpm
+                - cache/yum/x86_64/$DISTRO_RELEASE/updates/packages/*.rpm
+          - name: deployctl $DISTRO_RELEASE
+            key: x86_64
+            scope: global
+            path:
+              - cache/yum/x86_64/$DISTRO_RELEASE/deployctl
+            strategy: push-pull
+            threshold:
+              path:
+                - cache/yum/x86_64/$DISTRO_RELEASE/deployctl/packages/*.rpm 
+          - name: epel 7
+            key: x86_64
+            scope: global
+            path: 
+              - cache/yum/x86_64/$DISTRO_RELEASE/epel
+            strategy: push-pull
+            threshold:
+              path:
+                - cache/yum/x86_64/$DISTRO_RELEASE/epel/packages/*.rpm
+  script:
+    - export target="${CI_PROJECT_DIR}/rootfs"
+    - export BASE="${CI_PROJECT_DIR}"
+    - export OS_CONFIG=make_os.conf
+    - mkdir -pv $target
+    - ./make_os
+    - copy --from_file=make_os.conf --to_var=MAKE_OS_CONFIG --substitute
+    - copy --from_file=docker_config.yml --to_var=DOCKER_CONFIG_YML --substitute
+    - copy --from_file=description.in.md --to_file=description.md --substitute
+    - copy --to_var=OC_INFO_IMAGE_DESCRIPTION --from_file=description.md
+    - copy --to_var=OC_INFO_IMAGE_VERSION --from_text="$OC_GITVERSION-$OC_RUNNER_SHORT_DATE"
+    - registry_push --rootfs=$target --name=$CI_PIPELINE_ID --ISR --reference=1 --config .
+  tags:
+   - oc-runner-starter
+  artifacts:
+    paths:
+      - description.md
+
+# testing: macro
+.test: &test
+  stage: test
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+  image: ImageStream/$CI_PIPELINE_ID:1
+  script:
+    - gcc -v
+  tags:
+   - oc-runner-starter
+
+# start our newly created image with the oc-executer
+#
+test_build-image-IS-registry:
+  <<: *test
+
+# push image to registry with tag
+# requires the build artifacts
+push-image-tags:
+  stage: deploy
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+  image: scratch
+  environment: production
+  script:
+     - >-
+         registry_push
+         --from_ISR --from_name=${CI_PIPELINE_ID} --from_reference=1
+         --GLR --reference=${CI_COMMIT_TAG}
+         --skip_label
+     - >-
+         registry_push
+         --from_ISR --from_name=${CI_PIPELINE_ID} --from_reference=1 
+         --image=${DOCKER_NAMESPACE}/${OC_INFO_IMAGE_REFNAME}:${CI_COMMIT_TAG}
+         --skip_label
+  only:
+    - tags
+  except:
+    - branches
+  tags:
+    - oc-runner-starter
+
+# test if our pushed tag-image is availleble
+# need to expand with actual configure.ac to test if all libs present!
+test-image-gitlab-registry:
+  <<: *test
+  image: Gitlab:$CI_COMMIT_TAG
+  stage: deploy_test
+  only:
+     - tags
+  except:
+     - branches
+
+# test if our pushed tag-image is availleble
+# need to expand with actual configure.ac to test if all libs present!
+test-image-docker-hub:
+  <<: *test
+  image: ${DOCKER_NAMESPACE}/${OC_INFO_IMAGE_REFNAME}:${CI_COMMIT_TAG}
+  stage: deploy_test
+  only:
+     - tags
+  except:
+     - branches
+
+# remote tag it, no need to have physical image directory
+# no dependencies, no git
+tag-image-latest:
+  stage: tag_latest
+  variables:
+    GIT_STRATEGY: none
+  image: scratch
+  environment: production
+  script:
+     - registry_tag_image --GLR --reference=${CI_COMMIT_TAG} --tag=latest
+     - registry_tag_image --image=${DOCKER_NAMESPACE}/${OC_INFO_IMAGE_REFNAME}:${CI_COMMIT_TAG} --credentials=${DOCKER_CREDENTIALS} --tag=latest
+     - DockerHub_set_description --image=$DOCKER_NAMESPACE/$OC_INFO_IMAGE_REFNAME --credentials=$DOCKER_CREDENTIALS
+     - MicroBadger_Update  --allow-fail --image=${DOCKER_NAMESPACE}/${OC_INFO_IMAGE_REFNAME}
+  only:
+     - tags
+  except:
+     - branches
+  tags:
+    - oc-runner-starter
+
+# test if our pushed tag-image is availleble
+cleanup:
+  image: scratch
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - ImageStream_delete --name=$CI_PIPELINE_ID
+  stage: cleanup
+  allow_failure: true
+  when: always
+  tags:
+    - oc-runner-starter
+

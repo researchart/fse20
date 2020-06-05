@@ -1,0 +1,155 @@
+---  # ASE Gitlab CI configuration
+
+services:
+  - postgres:latest
+  - mysql:latest
+  - mariadb:latest
+
+variables:
+  POSTGRES_DB: testase
+  POSTGRES_USER: ase
+  POSTGRES_PASSWORD: "ase"
+  MYSQL_DATABASE: testase_mysql
+  MYSQL_ROOT_PASSWORD: ase
+  OMP_NUM_THREADS: "1"
+
+# Check oldest supported Python with oldest supported libraries.
+# Does not install any optional libraries except matplotlib.
+#
+# With older python, pytest-xdist jumbles the tests differently
+# on different codes, then complains.  So we use -j 0.
+oldlibs:
+  image: registry.gitlab.com/ase/ase:ase-oldlibs
+  script:
+    - pip install --no-deps .
+    - ase test -j 0 --pytest --color=yes
+
+# For testing newest versions of libraries against standard images
+# on dockerhub.
+#
+# psycopg2-binary is for testing the postgres backend for ase.db
+# Currently we have trouble with pyhon3.8 where we need to compile some
+# libraries that don't have binary wheels; we don't want to install gcc
+# in this test job.
+pipinstall:
+  image: python:3.7-slim
+  script:
+    - python --version
+    - pip install flake8 psycopg2-binary netCDF4 pymysql cryptography
+    - pip install pytest pytest-xdist
+    - pip install scipy==1.2.1  # TODO: Delete me
+    - pip install .
+    - ase test --pytest --color=yes
+    - cd $CI_PROJECT_DIR
+    - python -We:invalid -m compileall -f -q ase/
+  when: manual
+
+# This is the main test job using new versions of libraries.
+# The intention is to enable as many features and libraries as possible.
+main:
+  image: registry.gitlab.com/ase/ase:ase-main
+  script:
+    - python --version
+    - pip install --no-deps .
+    - ase info --calculators
+    - ase test --calculators asap,eam,ff,lj,morse,tip3p,tip4p --pytest --color=yes --durations 20
+    - cd $CI_PROJECT_DIR
+    - python -We:invalid -m compileall -f -q ase/
+
+
+# See the 'pages' job further down for how the data is published.
+coverage:
+  image: registry.gitlab.com/ase/ase:ase-main
+  script:
+    - python --version
+    - pip install coverage
+    - pip install --editable .
+    - coverage run
+    - coverage report
+    - coverage html
+  coverage: '/TOTAL.+ ([0-9]+%)/'
+  artifacts:
+    paths:
+      - coverage-html/
+  only:
+      - master
+
+# Currently (2019-07-26) facing a problem where PATH does not include
+# /opt/conda/bin.  So we manually update the PATH.  This could be a temporary
+# issue with the gitlab runners.
+#
+# Same scipy versioning issue as for the ordinary tests.
+#
+# Grrr.  Failing after image updates, or something.  Disabling.
+# --askhl 2019-10-16
+.conda:
+  image: registry.gitlab.com/ase/ase:ase-anaconda
+  script:
+    - pip install . --no-deps
+    - ase test
+
+# Plan: Test as many calculators as possible as well as possible.
+# Obviously this is kind of expensive so the job is manually activated.
+# Also, the docker serves as a knowledgebase for how to set up those
+# calculators with ASE.
+#
+# It would be great if someone could enable more calculators with this.
+calculators:
+  image: registry.gitlab.com/ase/ase:ase-full-monty
+  script:
+    - pip install . --no-deps
+    - ase info --calculators
+    - export ASE_LAMMPSRUN_COMMAND=lmp
+    - ase test cp2k lammpsrun standardization abinit gromacs --calculators abinit,cp2k,lammpsrun,gromacs --pytest --color=yes --durations 20
+  when: manual
+
+doc:
+  image: registry.gitlab.com/ase/ase:ase-main
+  script:
+    - pip install --no-deps .[docs]
+    - ase info
+    - which sphinx-build
+    - cd $CI_PROJECT_DIR/doc
+    - python -m ase.utils.sphinx run  # test scripts
+    - sphinx-build -W . build
+
+distribution_package:
+  image: python:3.7
+  script:
+    - apt-get update
+    - apt-get install -y gettext  # For compiling ase gui translations
+    - mkdir dist
+    - python setup.py sdist | tee dist/setup_sdist.log
+    - python setup.py bdist_wheel | tee dist/setup_bdist_wheel.log
+    - pip install dist/ase-*.tar.gz
+    - ase test
+    - pip uninstall --yes ase
+    - pip install dist/ase-*-py3-none-any.whl
+    - ase test
+  artifacts:
+    paths:
+      - dist
+    expire_in: 1 week
+  when: manual
+
+# Publish code coverage data on web.
+#  * The deploy starge is specially recognized by gitlab
+#  * The jobname pages is specially recognized by gitlab
+#  * The public/ directory is specially recognized by gitlab
+# https://about.gitlab.com/blog/2016/11/03/publish-code-coverage-report-with-gitlab-pages/
+#
+# If we make this automatic, it should run only for master.
+# Right now we will have it run as manually activated
+pages:
+  stage: deploy
+  dependencies:
+    - coverage
+  script:
+    - mv coverage-html public
+  artifacts:
+    paths:
+      - public
+    expire_in: 3 weeks
+  only:
+    - master
+

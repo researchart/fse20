@@ -1,0 +1,37 @@
+.use-mongodb: &use-mongodb
+  services:
+    - name: mongo:latest
+      alias: mongo
+
+variables:
+  DATABASE_URL: "mongo"
+  
+before_script:
+  - date
+
+after_script:
+  - date
+
+stages:
+  - test
+
+test1:
+  <<: *use-mongodb
+  image: node:latest
+  stage: test
+  cache:
+    paths:
+      - node_modules/
+  before_script:
+    - git submodule update --init --recursive
+    - date
+    - yarn install --silent
+    - date
+  script:
+    - node --version
+    - date
+    - yarn test
+  tags:
+    - docker
+    - gce
+

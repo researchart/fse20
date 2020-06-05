@@ -1,0 +1,14 @@
+build:
+  stage: build
+  script:
+    - git submodule init
+    - git submodule update
+    - docker build -t pdp11 .
+
+deploy heroku:
+  stage: deploy
+  script:
+    - heroku container:login
+    - heroku container:push web --app pdp11
+    - heroku container:release web --app pdp11
+

@@ -1,0 +1,38 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>${env.CI_PROJECT_NAMESPACE}</groupId>
+  <artifactId>${env.CI_PROJECT_NAME}</artifactId>
+  <packaging>jar</packaging>
+  <version>1.5-SNAPSHOT</version>
+  <name>my-app</name>
+  <url>http://maven.apache.org</url>
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>3.8.1</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+  <distributionManagement>
+    <snapshotRepository>
+      <id>gitlab-com</id>
+      <url>https://gitlab.com/api/v4/projects/${env.CI_PROJECT_ID}/packages/maven</url>
+    </snapshotRepository>
+    <repository>
+      <id>gitlab-com</id>
+      <url>https://gitlab.com/api/v4/projects/${env.CI_PROJECT_ID}/packages/maven</url>
+    </repository>
+  </distributionManagement>
+  <properties>
+    <maven.compiler.source>1.6</maven.compiler.source>
+    <maven.compiler.target>1.6</maven.compiler.target>
+  </properties>
+  <scm>
+    <connection>scm:git:${env.CI_REPOSITORY_URL}</connection>
+    <url>${env.CI_PROJECT_URL}</url>
+    <developerConnection>scm:git:${env.CI_REPOSITORY_URL}</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
+</project>
+

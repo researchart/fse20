@@ -1,0 +1,33 @@
+image: golang:latest
+
+variables:
+  REPO_NAME: gitlab.com/MatteoCampinoti94/faapi-go
+
+before_script:
+  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+  # get imported packages
+  - go get ./...
+
+stages:
+    - test
+    - build
+
+format:
+    stage: test
+    script:
+      - go fmt $(go list ./... | grep -v /vendor/)
+      - go vet $(go list ./... | grep -v /vendor/)
+      - go test -race $(go list ./... | grep -v /vendor/)
+
+compile:
+    stage: build
+    script:
+      - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/mybinary
+    artifacts:
+      paths:
+        - mybinary
+    only:
+      - tags
+

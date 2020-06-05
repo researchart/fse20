@@ -1,0 +1,16 @@
+
+stages:
+  - build
+
+.build_template: &build_template
+  # using an image from bt-deps because bt-deps MUST also be able to build irrlicht_extended
+  stage: build
+  image: registry.gitlab.com/jft/irrlicht_extended/clang:d091831e98b786768673ecc42dbf713eb5d47f9b
+  script:
+    - mkdir build && cd build
+    - cmake ".." && make -j $(nproc)
+
+build:clang:
+  <<: *build_template
+
+

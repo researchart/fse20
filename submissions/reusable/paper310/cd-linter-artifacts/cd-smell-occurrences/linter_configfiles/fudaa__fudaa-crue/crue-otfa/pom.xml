@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <artifactId>fudaa-crue</artifactId>
+        <groupId>org.fudaa.soft.fudaa-crue</groupId>
+        <version>1.4.1-SNAPSHOT</version>
+    </parent>
+    <artifactId>crue-otfa</artifactId>
+    <name>Crue OTFA</name>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <parallel>classes</parallel>
+                    <threadCount>5</threadCount>
+                </configuration>
+            </plugin>
+        </plugins>
+
+    </build>
+    <dependencies>
+        <dependency>
+            <groupId>org.fudaa.soft.fudaa-crue</groupId>
+            <artifactId>crue-project</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.soft.fudaa-crue</groupId>
+            <artifactId>crue-compare</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.soft.fudaa-crue</groupId>
+            <artifactId>crue-core</artifactId>
+            <scope>test</scope>
+            <type>test-jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.soft.fudaa-crue</groupId>
+            <artifactId>crue-io</artifactId>
+            <scope>test</scope>
+            <type>test-jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.soft.fudaa-crue</groupId>
+            <artifactId>crue-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.soft.fudaa-crue</groupId>
+            <artifactId>crue-config</artifactId>
+            <scope>test</scope>
+            <type>test-jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.fudaa.soft.fudaa-crue</groupId>
+            <artifactId>crue-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <!--pour eviter de lancer les tests d'integration-->
+    <profiles>
+        <profile>
+            <id>assemble</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.keyboardsamurais.maven</groupId>
+                        <artifactId>maven-timestamp-plugin</artifactId>
+                        <version>1.0</version>
+                        <configuration>
+                            <propertyName>timestamp</propertyName>
+                            <timestampPattern>dd.MM.yyyy HH:mm</timestampPattern>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>create</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <configuration>
+                            <finalName>Fudaa-Crue-OTFA-${project.version}</finalName>
+                            <appendAssemblyId>true</appendAssemblyId>
+                            <archive>
+                                <manifest>
+                                    <mainClass>org.fudaa.dodico.crue.projet.otfa.OtfaBatch</mainClass>
+                                </manifest>
+                                <manifestEntries>
+                                    <version>${project.version}</version>
+                                    <date>${maven.build.timestamp}</date>
+                                    <fullVersion>${project.version} [${maven.build.timestamp}]</fullVersion>
+                                </manifestEntries>
+
+                            </archive>
+                            <descriptors>
+                                <!--permet de générer le jar contenant toutes les classes-->
+                                <descriptor>src/assemble/otfa.xml</descriptor>
+                                <!--permet de générer le zip contenant le jar ci-dessus avec les lanceurs bat et zip-->
+                                <descriptor>src/assemble/distribution.xml</descriptor>
+                            </descriptors>
+                        </configuration>
+                        <executions>
+                            <!--pour etre utiliser dans le build normal-->
+                            <execution>
+                                <id>make-assembly</id> <!-- this is used for inheritance merges -->
+                                <phase>package</phase> <!-- bind to the packaging phase -->
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
+

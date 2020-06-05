@@ -1,0 +1,27 @@
+{
+  "image": "nixos/nix:latest",
+
+  "pages": {
+    "stage": "deploy",
+    "script": [
+      "# Build Snowflake.",
+      "(cd tool && nix-build)",
+
+      "# Build site.",
+      "(cd site && ../tool/result/snowflake build site)",
+
+      "# Install site.",
+      "mkdir public",
+      "cp site/result/* public"
+    ],
+    "artifacts": {
+      "paths": [
+        "public"
+      ]
+    },
+    "only": [
+      "master"
+    ]
+  }
+}
+

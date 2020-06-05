@@ -1,0 +1,80 @@
+image: registry.gitlab.com/serebit/strife
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  GRADLE_USER_HOME: $CI_PROJECT_DIR/.gradle
+  KONAN_DATA_DIR: $CI_PROJECT_DIR/.konan
+  SNAPSHOT_VERSION: "$CI_COMMIT_REF_NAME-commit-$CI_COMMIT_SHORT_SHA"
+
+before_script:
+  - rm -f $GRADLE_USER_HOME/caches/modules-2/modules-2.lock
+  - rm -f $GRADLE_USER_HOME/caches/build-cache-1/build-cache-1.lock
+  - mkdir -p $KONAN_DATA_DIR/cache
+  - ln -s /var/lib/konan/deps/* $KONAN_DATA_DIR/cache/
+
+.base:
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - $GRADLE_USER_HOME/wrapper/dists/
+      - $GRADLE_USER_HOME/caches/modules-2/
+      - $GRADLE_USER_HOME/caches/build-cache-1/
+      - $KONAN_DATA_DIR/kotlin-native-*
+    policy: pull
+  except:
+    changes:
+      - README.md
+      - CONTRIBUTING.md
+      - LICENSE.md
+      - FUNDING.yml
+
+build:
+  extends: .base
+  stage: build
+  script: ./gradlew build
+  artifacts:
+    paths:
+      - "**/build/classes"
+      - "**/build/libs"
+  cache:
+    policy: pull-push
+
+deploy-release:
+  extends: .base
+  stage: deploy
+  when: manual
+  script: ./gradlew publishAllPublicationsToPublicRepository
+  dependencies:
+    - build
+  environment:
+    name: deploy-release
+  only:
+    - tags
+
+deploy-snapshot:
+  extends: .base
+  stage: deploy
+  script: ./gradlew publishAllPublicationsToSnapshotRepository
+  dependencies:
+    - build
+  environment:
+    name: deploy-snapshot
+  only:
+    refs:
+      - master
+
+pages:
+  extends: .base
+  stage: deploy
+  when: manual
+  script: ./gradlew dokka
+  dependencies:
+    - build
+  environment:
+    name: deploy-pages
+  only:
+    - tags
+  artifacts:
+    paths:
+      - public
+

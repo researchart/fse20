@@ -1,0 +1,42 @@
+image: registry.gitlab.com/freddieptf/go-ubuntu-image:latest
+
+variables:
+  REPO_NAME: github.com/freddieptf/manga-scraper
+
+# The problem is that to be able to use go get, one needs to put
+# the repository in the $GOPATH. So for example if your gitlab domain
+# is gitlab.com, and that your repository is namespace/project, and
+# the default GOPATH being /go, then you'd need to have your
+# repository in /go/src/gitlab.com/namespace/project
+# Thus, making a symbolic link corrects this.
+before_script:
+  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+  - go get -v ./...
+
+stages:
+    - test
+    - build
+
+format:
+    stage: test
+    script:
+      - go fmt $(go list ./...)
+      - go vet $(go list ./...)
+      - go test -v -timeout 150s $(go list ./...)
+  
+compile:
+    stage: build
+    script:
+      - go build -race -o $CI_PROJECT_DIR/manga-scraper ./cmd/scraper
+      - go build -race -o $CI_PROJECT_DIR/mangadex ./cmd/mangadex
+      - go build -race -o $CI_PROJECT_DIR/mangareader ./cmd/mangareader
+      - go build -race -o $CI_PROJECT_DIR/mangastream ./cmd/mangastream
+    artifacts:
+      paths:
+        - $CI_PROJECT_DIR/manga-scraper
+        - $CI_PROJECT_DIR/mangadex
+        - $CI_PROJECT_DIR/mangareader
+        - $CI_PROJECT_DIR/mangastream
+

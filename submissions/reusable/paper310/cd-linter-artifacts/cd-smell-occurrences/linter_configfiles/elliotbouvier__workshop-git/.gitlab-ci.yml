@@ -1,0 +1,50 @@
+stages:
+    - test
+    - build
+    - deploy-staging
+    - deploy-production
+
+job_test:
+    stage: test
+    image: node:latest
+    script:
+        - npm i
+        - npm test
+    
+job_build:
+    stage: build
+    only:
+        - dev
+        - staging
+        - master
+    artifacts:
+        paths:
+            - build
+    image: node:latest
+    script:
+        - npm i
+        - npm run build
+
+job_staging:
+    image: ruby:latest
+    stage: deploy-staging
+    environment:
+        name: staging
+    script:
+        - gem install dpl
+        - dpl --provider=heroku --api-key=$HEROKU_TOKEN --app=git-staging --skip_cleanup
+    only:
+        - staging
+        - master
+
+job_deploy:
+    image: ruby:latest
+    stage: deploy-production
+    environment:
+        name: production
+    script:
+        - gem install dpl
+        - dpl --provider=heroku --api-key=$HEROKU_TOKEN --app=git-production --skip_cleanup
+    only:
+        - tags
+

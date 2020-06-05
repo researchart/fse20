@@ -1,0 +1,78 @@
+image: docker:git
+services:
+- docker:dind
+
+stages:
+  - build
+  - package
+  - deploy
+
+.build: &build
+  stage: build
+  image: registry.gitlab.com/i-am-root/drupal-builder:latest
+  script:
+   # - composer install --no-dev --no-progress --prefer-dist --no-suggest
+     - echo "Build for demo purpose"
+
+.unami-build:
+  <<: *build
+  only:
+    - master
+    - /^release.*$/
+    - /^feature.*$/
+    - /^hotfix.*$/
+
+.docker-package: &docker-package
+  stage: package
+  tags:
+    - dockerbuild
+  script:
+    - echo ${VERSION}
+    - tar --exclude="./deployment" -czf deployment/docker/app/package.tar.gz .
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:${CI_COMMIT_REF_SLUG}_${CI_COMMIT_SHA} ./deployment/docker/app
+    - docker push $CI_REGISTRY_IMAGE:${CI_COMMIT_REF_SLUG}_${CI_COMMIT_SHA}
+
+docker-package-ephemeral:
+  <<: *docker-package
+  only:
+    - master
+    - /^release.*$/
+    - /^feature.*$/
+    - /^hotfix.*$/
+
+.k8s-deploy: &k8s-deploy
+    stage: deploy
+    image: alpine
+    environment:
+      name: develop
+    script:
+      - apk add --no-cache curl
+      - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+      - chmod +x ./kubectl
+      - mv ./kubectl /usr/local/bin/kubectl
+      - kubectl config set-cluster nosebit --server="$KUBE_URL" --insecure-skip-tls-verify=true
+      - kubectl config set-credentials admin --username="$KUBE_USER" --password="$KUBE_PASSWORD"
+      - kubectl config set-context default --cluster=nosebit --user=admin
+      - kubectl config use-context default
+      - sed -i 's/master/'"${CI_COMMIT_REF_SLUG}"'/g' ./deployment/k8s/namespace.yml
+      - sed -i 's/master/'"${CI_COMMIT_REF_SLUG}"'/g' ./deployment/k8s/pvc.yml
+      - sed -i 's/master/'"${CI_COMMIT_REF_SLUG}"'/g' ./deployment/k8s/mysql.yml
+      - sed -i 's/master/'"${CI_COMMIT_REF_SLUG}"'/g' ./deployment/k8s/drupal.yml
+      - sed -i 's@'"${CI_REGISTRY_IMAGE}:latest"'@'"${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}_${CI_COMMIT_SHA}"'@g' ./deployment/k8s/drupal.yml
+      - kubectl apply -f ./deployment/k8s/namespace.yml
+      - kubectl apply -f ./deployment/k8s/pvc.yml
+      - kubectl apply -f ./deployment/k8s/mysql.yml
+      - kubectl apply -f ./deployment/k8s/drupal.yml
+
+k8s-deploy-ephemeral:
+  <<: *k8s-deploy
+  when: manual
+  only:
+  - master
+  - /^release.*$/
+  - /^feature.*$/
+  - /^hotfix.*$/
+
+
+

@@ -1,0 +1,19 @@
+image: docker:1.12
+
+variables:
+  DOCKER_DRIVER: overlay
+
+services:
+- docker:dind
+
+
+before_script:
+  - docker info
+
+build_image:
+  script:
+    - docker build -t me2digital/haproxy19 .
+    - docker run --rm --entrypoint /usr/local/sbin/haproxy me2digital/haproxy19 -vv
+    - docker login -u ${DOCKER_HUB_USER} -p ${DOCKER_HUB_PASS}
+    - docker push me2digital/haproxy19
+

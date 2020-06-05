@@ -1,0 +1,123 @@
+stages:
+  - try
+  - build
+  - deploy
+  - test
+  - release
+
+try_kc:
+  image: ubuntu:16.04
+  stage: try
+  script:
+    - echo "Hello, KC!!"
+  tags:
+    - docker
+
+try_kc_2:
+  image: ubuntu:16.04
+  stage: try
+  script:
+    - echo "Hello, KC!!"
+  tags:
+    - docker
+
+# first try
+try_rock:
+  image: ubuntu:16.04
+  stage: try
+  script:
+    - echo "Hello World"
+  tags:
+    - docker
+
+# second try
+try_my_lab:
+  image: registry.gitlab.com/chusiang/continuous-delivery-workshop/ubuntu:16.04
+  stage: try
+  script:
+    - echo "Hello Blues"
+    - pwd
+  tags:
+    - docker
+    
+# third try
+try_hchsfox:
+  image: ubuntu:16.04
+  stage: try
+  script:
+    - echo "hello word hchsfox1"
+  tags:
+    - docker
+
+build_binary:
+  image: registry.gitlab.com/chusiang/continuous-delivery-workshop/ubuntu:16.04
+  stage: build
+  script:
+    # For fix bad permissions of control directory on GitLab CI.
+    # > https://gitlab.com/chusiang/coscup2017-cd-demo/-/jobs/26274225
+    - chmod 755 penguin-htdocs/DEBIAN
+
+    - dpkg -b penguin-htdocs
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - penguin-htdocs.deb
+  tags:
+    - docker
+
+deploy_to_dev:
+  image: registry.gitlab.com/chusiang/continuous-delivery-workshop/ansible:2.5.3
+  stage: deploy
+  script:
+    - ls
+    - cd ansible-playbooks/
+    - echo "${VAULT_KEY}" > secret.txt
+    - ansible-playbook deploy.yml
+    - rm -f secret.txt
+  only:
+    - master@drx-tw/cdws-2.0-team-b
+    - develop@drx-tw/cdws-2.0-team-b
+    - tags@drx-tw/cdws-2.0-team-b
+  tags:
+    - docker
+  environment:
+    name: staging
+    url: http://stg.cdws.drx.tw:32180
+
+test_dev:
+  image: registry.gitlab.com/chusiang/continuous-delivery-workshop/ansible:2.5.3
+  stage: test
+  script:
+    - cd ansible-playbooks/
+    - echo "${VAULT_KEY}" > secret.txt
+    - ansible-playbook test.yml
+    - rm -f secret.txt
+  only:
+    - master@drx-tw/cdws-2.0-team-b
+    - develop@drx-tw/cdws-2.0-team-b
+    - tags@drx-tw/cdws-2.0-team-b
+  tags:
+    - docker
+  environment:
+    name: staging
+    url: http://stg.cdws.drx.tw:32180
+
+release_to_prd:
+  image: registry.gitlab.com/chusiang/continuous-delivery-workshop/ansible:2.5.3
+  stage: release
+  script:
+    - cd ansible-playbooks/
+    - echo "${VAULT_KEY}" > secret.txt
+    - ansible-playbook -i production deploy.yml
+    - rm -f secret.txt
+  only:
+    - master@drx-tw/cdws-2.0-team-b
+    - tags@drx-tw/cdws-2.0-team-b
+  tags:
+    - docker
+  environment:
+    name: production
+    url: http://cdws.drx.tw:32280
+
+# vim: ft=yaml :
+

@@ -1,0 +1,65 @@
+.cargo_test_template: &cargo_test
+  stage: test
+  script:
+    - cargo test --verbose --jobs 1 --all
+
+stages:
+    - build
+    - test
+    - deploy
+
+#########
+# Build #
+#########
+
+build:
+  image: rust
+  stage: build
+  script:
+    - cargo build --release --all
+  artifacts:
+    paths:
+      - target/release
+
+########
+# test #
+########
+
+stable:cargo:
+  image: registry.gitlab.com/iron-oxide/docker/rust-codecov:stable
+  <<: *cargo_test
+  after_script:
+    - |
+      for file in target/debug/cogwheel-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
+      bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN &&
+      echo "Uploaded code coverage"
+
+beta:cargo:
+  image: registry.gitlab.com/iron-oxide/docker/rust-codecov:beta
+  <<: *cargo_test
+  allow_failure: true
+
+nightly:cargo:
+  image: registry.gitlab.com/iron-oxide/docker/rust-codecov:nightly
+  <<: *cargo_test
+  allow_failure: true
+
+
+#########
+# Pages #
+#########
+
+pages:
+  image: rust
+  stage: deploy 
+  script:
+    - cargo doc --all --no-deps
+    - rm -rf public
+    - mkdir public
+    - cp -R target/doc/* public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

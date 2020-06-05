@@ -1,0 +1,16 @@
+image: ubuntu:bionic
+
+before_script:
+ - ln -s /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
+ - apt-get update && apt-get install -y build-essential g++ cmake pkg-config libglfw3-dev libglew-dev libgl1-mesa-dev git
+
+build_and_run_tests:
+  stage: build
+  script:
+    - cd /builds/gravoo/my_game
+    - mkdir build
+    - cd build
+    - cmake ..
+    - make
+    - make test
+

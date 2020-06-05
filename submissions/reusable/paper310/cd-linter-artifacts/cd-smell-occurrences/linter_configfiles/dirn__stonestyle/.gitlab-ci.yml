@@ -1,0 +1,21 @@
+test:manifest:
+  image: python:3.6
+  variables:
+    TOX_ENV: manifest
+  script: tox -e $TOX_ENV
+  when: always
+  only:
+    - master
+
+test:pep8:
+  image: python:3.6
+  variables:
+    TOX_ENV: pep8
+  script: tox -e $TOX_ENV
+  when: always
+  only:
+    - master
+
+before_script:
+  - pip install tox
+

@@ -1,0 +1,412 @@
+---
+image: "${CI_REGISTRY_IMAGE}:3.0.6"
+
+stages:
+  - images
+  - test
+  - deploy
+  - alertmanager
+  - deploy-rules
+  - deploy-rules-production
+
+.deploy-rules:
+  extends: .rules-artifacts
+  stage: deploy-rules
+  script:
+    - gcloud auth activate-service-account --key-file ${SERVICE_KEY}
+    - gcloud config set project ${PROJECT}
+    - gcloud container clusters get-credentials ${CLUSTER} --region ${REGION}
+    - kubectl apply --namespace monitoring --filename ${CI_PROJECT_DIR}/rules-k8s/
+  only:
+    refs:
+      - master
+    variables:
+      - $CI_API_V4_URL == "https://ops.gitlab.net/api/v4"
+  tags:
+    - release
+
+.rules-artifacts:
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - rules-k8s
+
+.dashboards:
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  before_script:
+    - dashboards/bundler.sh # Install jsonnet bundles
+    - dashboards/generate-mixins.sh # Generate dashboards from mixins
+  only:
+    variables:
+      - $CI_PROJECT_URL =~ /^https:\/\/gitlab\.com\/.*/
+
+verify:
+  stage: test
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+    - make verify
+
+test-rules:
+  extends: .rules-artifacts
+  stage: test
+  script:
+    - gem install bundler --no-document
+    - bundle install --with=test
+    - bundle exec ./bin/create_kubernetes_rules.rb --create --validate
+
+rubocop:
+  stage: test
+  script:
+    - gem install bundler --no-document
+    - bundle install --with=test
+    - bundle exec rubocop
+
+rspec:
+  stage: test
+  script:
+    - gem install bundler --no-document
+    - bundle install --with=test
+    - bundle exec rspec
+
+deploy-rules-gstg:
+  environment: gstg
+  extends: .deploy-rules
+  stage: deploy-rules
+
+deploy-rules-pre:
+  environment: pre
+  extends: .deploy-rules
+  stage: deploy-rules
+
+deploy-rules-production:
+  environment: gprd
+  extends: .deploy-rules
+  stage: deploy-rules-production
+
+update-alert-manager:
+  stage: alertmanager
+  script:
+    - cd alertmanager
+    - ./template.rb
+    - ./update.sh
+  only:
+    refs:
+      - master
+    changes:
+      - alertmanager/*
+    variables:
+      - $CI_API_V4_URL == "https://ops.gitlab.net/api/v4"
+
+test:
+  stage: test
+  script:
+    - scripts/validate-service-mappings
+    - find . -name \*.y*ml | xargs yaml-lint
+    - /prometheus/promtool check rules rules/*.yml thanos-rules/*.yml
+    # Prometheus config checks are stricter than rules checks, so use a fake config to check this too
+    - /prometheus/promtool check config scripts/prometheus.yml
+    - scripts/validate_kibana_urls
+    - scripts/validate-alerts
+
+ensure_generated_content_up_to_date:
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  stage: test
+  script:
+    - make generate
+    - git diff --exit-code || (echo "Please run 'make generate'" && exit 1)
+
+
+# log.gitlab.net
+################################################################################
+update_elastic_log_dashboards:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/log/dashboards/update-dashboards.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/log/dashboards/*
+    variables:
+      - $ES_LOG_URL
+
+update_elastic_log_searches:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/log/searches/update-searches.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/log/searches/*
+    variables:
+      - $ES_LOG_URL
+
+update_elastic_log_watches:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/log/watches/update-watches.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/log/watches/*
+    variables:
+      - $ES_LOG_URL
+
+update_elastic_log_visualizations:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/log/visualizations/update-visualizations.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/log/visualizations/*
+    variables:
+      - $ES_LOG_URL
+
+# log.gprd.gitlab.net
+################################################################################
+update_elastic_log_gprd_ilm:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/log_gprd/ILM/update-ilm.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/log_gprd/ILM/*
+    variables:
+      - $ES_LOG_GPRD_URL
+
+update_elastic_log_gprd_watches:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/log_gprd/watches/update-watches.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/log_gprd/watches/*
+    variables:
+      - $ES_LOG_GPRD_URL
+
+update_elastic_log_gprd_index_templates:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/log_gprd/index-templates/update-index-templates.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/log_gprd/index-templates/*
+      - elastic/managed-objects/lib/log_gprd_index_template.libsonnet
+      - elastic/managed-objects/lib/mappings.libsonnet
+    variables:
+      - $ES_LOG_GPRD_URL
+
+update_elastic_log_gprd_cluster_settings:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/log_gprd/cluster-settings/update-cluster-settings.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/log_gprd/cluster-settings/*
+    variables:
+      - $ES_LOG_GPRD_URL
+
+# nonprod-log.gitlab.net
+################################################################################
+update_elastic_nonprod-log_watches:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/nonprod-log/watches/update-watches.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/nonprod-log/watches/*
+    variables:
+      - $ES_NONPROD_URL
+
+update_elastic_nonprod-log_ilm:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/nonprod-log/ILM/update-ilm.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/nonprod-log/ILM/*
+    variables:
+      - $ES_NONPROD_URL
+
+update_elastic_nonprod-log_index_templates:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/nonprod-log/index-templates/update-index-templates.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/nonprod-log/index-templates/*
+      - elastic/managed-objects/lib/nonprod-log_index_template.libsonnet
+      - elastic/managed-objects/lib/mappings.libsonnet
+    variables:
+      - $ES_NONPROD_URL
+
+update_elastic_nonprod-log_cluster_settings:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/nonprod-log/cluster-settings/update-cluster-settings.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/nonprod-log/cluster-settings/*
+    variables:
+      - $ES_NONPROD_URL
+
+# monitoring-es7
+################################################################################
+
+update_elastic_monitoring-es7_cluster_settings:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/monitoring-es7/cluster-settings/update-cluster-settings.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/monitoring-es7/cluster-settings/*
+    variables:
+      - $ES_MONITORING_ES7_URL
+
+update_elastic_monitoring-es7_ilm:
+  stage: deploy
+  image: "${CI_REGISTRY_IMAGE}/runtools_build:latest"
+  script:
+  - ./elastic/managed-objects/monitoring-es7/ILM/update-ilm.sh
+  only:
+    refs:
+      - master
+    changes:
+      - elastic/managed-objects/monitoring-es7/ILM/*
+    variables:
+      - $ES_MONITORING_ES7_URL
+
+################################################################################
+
+dryrun_pingdom_checks:
+  stage: test
+  image: golang:1.11
+  script:
+    - cd pingdom
+    - go run pingdom.go --dry-run
+  except:
+    refs:
+      - master
+  only:
+    variables:
+      - $CI_PROJECT_URL =~ /^https:\/\/gitlab\.com\/.*/
+
+deploy_pingdom_checks:
+  stage: deploy
+  image: golang:1.11
+  script:
+    - cd pingdom
+    - go run pingdom.go
+  only:
+    refs:
+      - master
+    variables:
+      - $CI_PROJECT_URL =~ /^https:\/\/gitlab\.com\/.*/
+
+check_alerts:
+  image: golang:1.12
+  script:
+    - cd alerts-checker
+    - go run alerts-checker.go ../rules $THANOS_URL $IGNORED_ALERTS
+  only:
+    variables:
+      - $PERFORM_ALERTS_CHECK
+
+test_dashboards:
+  extends: .dashboards
+  stage: test
+  script:
+    - dashboards/upload.sh -D
+
+deploy_dashboards:
+  extends: .dashboards
+  stage: deploy
+  script:
+    - dashboards/upload.sh
+  only:
+    refs:
+      - master
+
+build_runtools_build_image:
+  stage: images
+  image: docker:19.03.1-git
+  services:
+    - docker:19.03.1-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+    INTERMEDIATE_IMAGE: ${CI_REGISTRY_IMAGE}/runtools_build-intermediate:latest
+    IMAGE: ${CI_REGISTRY_IMAGE}/runtools_build
+  script:
+    - export ci_image_tag=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}
+    - apk add curl
+    - git clone https://github.com/google/jsonnet.git
+    - echo ${CI_JOB_TOKEN} | docker login --password-stdin -u $CI_REGISTRY_USER $CI_REGISTRY
+    - cd jsonnet && docker build -t ${INTERMEDIATE_IMAGE} . && cd ..
+    - docker build -t ${IMAGE}:$ci_image_tag -t ${IMAGE}:latest --build-arg CI_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE images/runtools_build/
+    - docker push ${IMAGE}:latest
+    - docker push ${IMAGE}:$ci_image_tag
+  only:
+    - tags
+
+build_runbooks_image:
+  stage: images
+  image: docker:19.03.1-git
+  services:
+    - docker:19.03.1-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE: ${CI_REGISTRY_IMAGE}
+  script:
+    - export ci_image_tag=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}
+    - echo ${CI_JOB_TOKEN} | docker login --password-stdin -u $CI_REGISTRY_USER $CI_REGISTRY
+    - docker build -t ${IMAGE}:$ci_image_tag -t ${IMAGE}:latest .
+    - docker push ${IMAGE}:latest
+    - docker push ${IMAGE}:$ci_image_tag
+  only:
+    - tags
+
+verify_alertmanager_parity:
+  stage: test
+  image: registry.gitlab.com/gitlab-com/runbooks/runtools_build:latest
+  script:
+    - alertmanager/verify-alertmanager-parity.sh
+

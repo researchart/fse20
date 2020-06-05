@@ -1,0 +1,24 @@
+# Using the official GCC Docker image
+image: gcc
+
+build:
+  stage: build
+  script:
+    - gcc -fprofile-arcs -ftest-coverage -fPIC calculator.c -o calculator
+    # First three arguments are needed by gcovr
+  artifacts:
+    paths:
+      - calculator
+      - calculator.gcno
+
+# Run tests using the binary built above
+functional-test:
+  stage: test
+  before_script:
+    - apt update && apt -y install gcovr
+  script:
+    - test $(./calculator 1 + 1) = 2
+    - test $(./calculator 25 \* 5) = 125
+    - gcovr -r .
+  coverage: /^TOTAL.*\s+(\d+\%)$/
+

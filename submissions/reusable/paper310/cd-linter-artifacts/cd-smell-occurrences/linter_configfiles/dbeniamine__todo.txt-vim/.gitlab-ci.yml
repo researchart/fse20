@@ -1,0 +1,18 @@
+test-vim-latest:
+    image: thinca/vim:v7.4
+    script:
+        - cd tests
+        - bash runtests.sh
+
+test-vim-7.4:
+    image: thinca/vim:v7.4
+    script:
+        - cd tests
+        - bash runtests.sh
+
+test-neovim:
+    image: lambdalisue/neovim-ci
+    script:
+        - cd tests
+        - bash runtests.sh
+

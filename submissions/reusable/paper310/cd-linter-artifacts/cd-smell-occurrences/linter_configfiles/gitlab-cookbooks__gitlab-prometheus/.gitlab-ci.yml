@@ -1,0 +1,44 @@
+image: ruby:2.6
+
+stages:
+  - test
+  - lint
+  - publish
+
+before_script:
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo $CI_PRIVATE_KEY |base64 -d)
+  - mkdir -p ~/.ssh
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  - ruby -v
+  - bundle install
+
+rspec:
+  stage: test
+  script:
+    - bundle exec rspec
+  only:
+    variables:
+      - $CI_PRIVATE_KEY
+
+cookstyle:
+  stage: lint
+  script:
+    - bundle exec cookstyle
+  only:
+    variables:
+      - $CI_PRIVATE_KEY
+
+push-cookbook:
+  stage: publish
+  only:
+    refs:
+      - master
+    variables:
+      - $OPS_CLONE_USERNAME
+      - $OPS_CLONE_PASSWORD
+  script:
+    - git clone https://$OPS_CLONE_USERNAME:$OPS_CLONE_PASSWORD@ops.gitlab.net/gitlab-cookbooks/cookbook-publisher.git /tmp/cookbook-publisher
+    - cp /tmp/cookbook-publisher/publisher.rb .
+    - ruby publisher.rb
+

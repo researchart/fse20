@@ -1,0 +1,28 @@
+image: node:8.15.0
+
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  - yarn install
+
+.build:
+  script:
+    - yarn build
+  artifacts:
+    paths:
+      - public
+
+pages:
+  extends: .build
+  stage: deploy
+  only:
+    - master
+
+test-webpack:
+  extends: .build
+  stage: test
+  except:
+    - master
+

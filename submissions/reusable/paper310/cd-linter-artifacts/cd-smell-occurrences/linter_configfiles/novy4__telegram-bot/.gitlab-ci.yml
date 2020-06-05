@@ -1,0 +1,148 @@
+
+include: '/cryptodiffer/.gitlab-ci-cryptodiffer.yml'
+
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  CI_DEBUG_TRACE: "true"
+  CONTAINER_IMAGE_ICODROPS: $HUB_USER/telegram-bot/icodrops-$CI_COMMIT_SHA
+  CONTAINER_IMAGE_ITOINVEST: $HUB_USER/telegram-bot/itoinvest-$CI_COMMIT_SHA
+  CONTAINER_IMAGE_CRYPTOBRED: $HUB_USER/telegram-bot/cryptobred-$CI_COMMIT_SHA
+  CONTAINER_IMAGE_CRYPTODIFFER: $HUB_USER/telegram-bot/cryptodiffer-$CI_COMMIT_SHA
+  CONTAINER_IMAGE_THECRYPTOADVISER: $HUB_USER/telegram-bot/thecryptoadviser-$CI_COMMIT_SHA
+
+. build_itoinvest:
+  image: docker:latest
+  services:
+   - docker:dind
+  stage: build
+  script:
+   - docker build -t $HUB/$CONTAINER_IMAGE_ITOINVEST -f itoinvest/itoinvest.yaml .
+   - docker login -u $HUB_USER -p $HUB_PASS $HUB
+   - docker push $HUB/$CONTAINER_IMAGE_ITOINVEST:latest
+
+. build_thecryptoadviser:
+  image: docker:latest
+  services:
+   - docker:dind
+  stage: build
+  script:
+   - docker build -t $HUB/$CONTAINER_IMAGE_THECRYPTOADVISER -f thecryptoadviser.yaml .
+   - docker login -u $HUB_USER -p $HUB_PASS $HUB
+   - docker push $HUB/$CONTAINER_IMAGE_THECRYPTOADVISER:latest
+
+. build_cryptobred:
+  image: docker:latest 
+  services:
+   - docker:dind
+  stage: build
+  script:
+   - docker build -t $HUB/$CONTAINER_IMAGE_CRYPTOBRED -f cryptobred.yaml .
+   - docker login -u $HUB_USER -p $HUB_PASS $HUB
+   - docker push $HUB/$CONTAINER_IMAGE_CRYPTOBRED:latest
+
+. build_icodrops:
+  image: docker:latest
+  services:
+   - docker:dind
+  stage: build
+  script:
+   - docker build -t $HUB/$CONTAINER_IMAGE_ICODROPS -f icodrops.yaml .
+   - docker login -u $HUB_USER -p $HUB_PASS $HUB
+   - docker push $HUB/$CONTAINER_IMAGE_ICODROPS:latest
+
+. test_itoinvest:
+  image: docker:latest
+  services:
+   - docker:dind
+  stage: test
+  script:
+   - docker login -u $HUB_USER -p $HUB_PASS $HUB
+   - docker run $HUB/$CONTAINER_IMAGE_ITOINVEST echo "echo itoinvest test passed succesfully"
+
+. test_thecryptoadviser:
+  image: docker:latest
+  services:
+   - docker:dind
+  stage: test
+  script:
+   - docker login -u $HUB_USER -p $HUB_PASS $HUB
+   - docker run $HUB/$CONTAINER_IMAGE_THECRYPTOADVISER echo "echo thecryptoadviser test passed succesfully"
+
+. test_icodrops:
+  image: docker:latest
+  services:
+   - docker:dind
+  stage: test
+  script:
+   - docker login -u $HUB_USER -p $HUB_PASS $HUB
+   - docker run $HUB/$CONTAINER_IMAGE_ICODROPS echo "echo icodrop test passed succesfully" 
+
+. test_cryptobred:
+  image: docker:latest
+  services:
+   - docker:dind
+  stage: test
+  script:
+   - docker login -u $HUB_USER -p $HUB_PASS $HUB
+   - docker run $HUB/$CONTAINER_IMAGE_CRYPTOBRED echo "echo cryptobred test passed succesfully"
+
+. deploy_itoinvest:
+  image: gitlab/dind:latest
+  stage: deploy
+  before_script:
+   - mkdir -p ~/.ssh
+   - chmod 700 ~/.ssh
+   - echo "$DEPLOY_SERVER_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+   - chmod 600 ~/.ssh/id_rsa
+   - eval "$(ssh-agent -s)"
+   - ssh-add ~/.ssh/id_rsa
+   - ssh-keyscan -H $DEPLOYMENT_SERVER_IP >> ~/.ssh/known_hosts
+  script:
+   - ssh novy@$DEPLOYMENT_SERVER_IP "sudo docker login -u ${HUB_USER} -p ${HUB_PASS} ${HUB};sudo docker pull ${HUB}/${CONTAINER_IMAGE_ITOINVEST}:latest;sudo docker rm $(sudo docker ps -a -q -f name=itoinvest) --force;sudo docker run --restart=always --name itoinvest -it -d ${HUB}/${CONTAINER_IMAGE_ITOINVEST} python3 /root/itoinvest.py"
+
+. deploy_icodrops:
+  image: gitlab/dind:latest
+  stage: deploy
+  before_script:
+   - mkdir -p ~/.ssh
+   - chmod 700 ~/.ssh
+   - echo "$DEPLOY_SERVER_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+   - chmod 600 ~/.ssh/id_rsa
+   - eval "$(ssh-agent -s)"
+   - ssh-add ~/.ssh/id_rsa
+   - ssh-keyscan -H $DEPLOYMENT_SERVER_IP >> ~/.ssh/known_hosts
+  script:
+   - ssh novy@$DEPLOYMENT_SERVER_IP "sudo docker login -u ${HUB_USER} -p ${HUB_PASS} ${HUB};sudo docker pull ${HUB}/${CONTAINER_IMAGE_ICODROPS}:latest;sudo docker rm $(sudo docker ps -a -q -f name=icodrops) --force;sudo docker run --restart=always --name icodrops -it -d ${HUB}/${CONTAINER_IMAGE_ICODRPS} python3 /root/icodrops.py"
+
+. deploy_cryptobred:
+  image: gitlab/dind:latest
+  stage: deploy
+  before_script:
+   - mkdir -p ~/.ssh
+   - chmod 700 ~/.ssh
+   - echo "$DEPLOY_SERVER_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+   - chmod 600 ~/.ssh/id_rsa
+   - eval "$(ssh-agent -s)"
+   - ssh-add ~/.ssh/id_rsa
+   - ssh-keyscan -H $DEPLOYMENT_SERVER_IP >> ~/.ssh/known_hosts
+  script:
+   - ssh novy@$DEPLOYMENT_SERVER_IP "sudo docker login -u ${HUB_USER} -p ${HUB_PASS} ${HUB};sudo docker pull ${HUB}/${CONTAINER_IMAGE_CRYPTOBRED}:latest;sudo docker rm $(sudo docker ps -a -q -f name=cryptobred) --force;sudo docker run --restart=always --name cryptobred -it -d ${HUB}/${CONTAINER_IMAGE_CRYPTOBRED} python3 /root/cryptobred.py"
+
+. deploy_thecryptoadviser:
+  image: gitlab/dind:latest
+  stage: deploy
+  before_script:
+   - mkdir -p ~/.ssh
+   - chmod 700 ~/.ssh
+   - echo "$DEPLOY_SERVER_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+   - chmod 600 ~/.ssh/id_rsa
+   - eval "$(ssh-agent -s)"
+   - ssh-add ~/.ssh/id_rsa
+   - ssh-keyscan -H $DEPLOYMENT_SERVER_IP >> ~/.ssh/known_hosts
+  script:
+   - ssh novy@$DEPLOYMENT_SERVER_IP "sudo docker login -u ${HUB_USER} -p ${HUB_PASS} ${HUB};sudo docker pull ${HUB}/${CONTAINER_IMAGE_THECRYPTOADVISER}:latest;sudo docker rm $(sudo docker ps -a -q -f name=thecryptoadviser) --force;sudo docker run --restart=always --name thecryptoadviser -it -d ${HUB}/${CONTAINER_IMAGE_THECRYPTOADVISER} python3 /root/thecryptoadviser.py"
+

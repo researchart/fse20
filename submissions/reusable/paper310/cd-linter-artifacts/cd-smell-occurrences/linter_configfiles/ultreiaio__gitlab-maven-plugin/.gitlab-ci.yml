@@ -1,0 +1,93 @@
+.stage_docker: &stage_docker
+  stage: Docker
+.stage_build: &stage_build
+  stage: Build
+.stage_staging: &stage_staging
+  stage: Staging
+
+.only_develop: &only_develop
+  only:
+    - develop
+.only_tag: &only_tag
+  only:
+    - tag
+.only_triggers: &only_triggers
+  only:
+    - triggers
+.except_triggers: &except_triggers
+  except:
+    - triggers
+
+.generate-docker-image: &generate-docker-image
+  image: registry.gitlab.com/ultreiaio-infra/docker/docker:latest
+  services:
+    - docker:dind
+  script:
+    - if [ -n "${GENERATE_DOCKER}" ]; then ultreiaio-docker-generate-image gitlab-ci-token $CI_BUILD_TOKEN; fi
+
+.publish-site: &publish_site
+  script:
+    - ultreiaio-site-mono-module-publish
+
+image: registry.gitlab.com/ultreiaio/${CI_PROJECT_NAME}/docker:latest
+stages:
+  - Docker
+  - Build
+  - Test
+  - Staging
+
+docker:
+  <<: *stage_docker
+  <<: *only_develop
+  <<: *generate-docker-image
+  when: manual
+  before_script:
+    - export GENERATE_DOCKER=true
+
+docker-trigger:
+  <<: *stage_docker
+  <<: *only_triggers
+  <<: *generate-docker-image
+
+ci:
+  <<: *stage_build
+  <<: *only_develop
+  <<: *except_triggers
+  script:
+    - ultreiaio-maven-execute 'clean install -DperformRelease'
+
+snapshot:
+  <<: *stage_staging
+  <<: *only_develop
+  when: manual
+  script:
+    - ultreiaio-maven-execute 'clean deploy -DperformRelease'
+
+release:
+  <<: *stage_staging
+  <<: *only_develop
+  when: manual
+  script:
+    - ultreiaio-release-gitlab-init
+    - ultreiaio-release-start
+    - ultreiaio-release-finish
+    - ultreiaio-stage-close-and-release
+    - ultreiaio-milestone-create
+
+nightly-build:
+  <<: *stage_build
+  <<: *only_triggers
+  script:
+    - if [ -n "${NIGHTLY_BUILD}" ]; then ultreiaio-maven-execute 'clean ~verify -DperformRelease'; fi
+
+deploy-site:
+  <<: *stage_staging
+  <<: *only_develop
+  when: manual
+  <<: *publish_site
+
+staging-site:
+  <<: *stage_staging
+  <<: *only_tag
+  <<: *publish_site
+

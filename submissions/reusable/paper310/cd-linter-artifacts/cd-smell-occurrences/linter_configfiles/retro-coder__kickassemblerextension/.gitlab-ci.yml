@@ -1,0 +1,35 @@
+# this is the first try - this will change
+
+image: node:latest
+
+cache:
+  paths:
+  - client/node_modules/
+  - server/node_modules/
+
+before_script:
+  - npm install -g vsce
+
+build:
+  only:
+   - tags
+  script:
+   - cd ./client
+   - export VER=`node -e "console.log(require('./package.json').version);"`
+   - echo $VER
+   - npm install --unsafe-perm
+   - cd ../server
+   - npm install --unsafe-perm
+   - npm run compile
+   - cd ../client
+   - vsce package
+   - mv *.vsix ..
+  variables:
+    TEST: $VER
+  artifacts:
+   name: "kickass-vscode-ext-$CI_COMMIT_REF_NAME"
+   paths:
+   - ./*.vsix
+   - ./*.md
+   
+

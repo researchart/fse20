@@ -1,0 +1,103 @@
+---
+stages:
+  - build
+  - release
+  - deploy
+
+variables:
+    HL_JOB_ID: $CI_JOB_ID
+    HL_BUILDER: $CI_RUNNER_DESCRIPTION
+
+# Templates for different stages.
+.build: &build
+    stage: build
+    cache:
+        untracked: true
+        key: "$CI_BUILD_REF_NAME"
+        paths:
+            - build
+    script:
+        - cd build
+        - cmake ../src -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -G Ninja
+        - ninja HearthLauncher check
+    artifacts:
+        paths:
+            - build/
+        expire_in: 6 hours
+.release: &release
+    stage: release
+    only:
+        - tags
+    artifacts:
+        paths:
+            - release
+        expire_in: 6 hours
+.deploy: &deploy
+    stage: deploy
+    script:
+        - python3 CI/deploy.py
+    only:
+        - tags
+    when: on_success
+.windows: &windows
+    tags:
+        - windows
+.linux: &linux
+    tags:
+        - linux
+.darwin: &darwin
+    tags:
+        - darwin
+
+# Build each environment.
+build:linux:
+    <<: [*build, *linux]
+    script:
+        - cd build
+        - cmake ../src -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release -G Ninja
+        - ninja HearthLauncher HLTest
+build:windows:
+    <<: [*build, *windows]
+    script:
+        - cd build
+        - cmake ../src -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release -G Ninja -DZLIB_INCLUDE_DIR=c:/zlib-1.2.11 -DQUAZIP_INCLUDE_DIR=c:/quazip -DQUAZIP_LIBRARIES=c:/quazip/release/libquazip.a
+        - ninja HearthLauncher HLTest
+build:darwin:
+    <<: [*build, *darwin]
+    before_script:
+        - export PATH=/usr/local/opt/qt/bin:$PATH
+
+# Build releases for each environment.
+release:linux:
+    <<: [*release, *linux]
+    dependencies:
+        - build:linux
+    script:
+        - ./CI/linuxrelease.sh
+release:windows:
+    <<: [*release, *windows]
+    dependencies:
+        - build:windows
+    script:
+        - ./CI/windowsrelease.bat
+release:darwin:
+    <<: [*release, *darwin]
+    dependencies:
+        - build:darwin
+    script:
+        - ./CI/macrelease.sh
+
+# Deploy each environment.
+deploy:linux:
+    <<: [*deploy, *linux]
+    dependencies:
+        - release:linux
+deploy:windows:
+    <<: [*deploy, *windows]
+    dependencies:
+        - release:windows
+deploy:darwin:
+    <<: [*deploy, *darwin]
+    dependencies:
+        - release:darwin
+

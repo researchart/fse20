@@ -1,0 +1,60 @@
+stages:
+- check
+- build
+- lint
+- test
+
+variables:
+  CI_FLAVOURS: "AlphaWikipediaDebug AlphaWikivoyageDebug AlphaWikipediaRelease AlphaWikivoyageRelease"
+
+cache:
+  paths:
+  - /root/.gradle/caches/
+
+# shared bits of all gradle based jobs
+.gradle: &gradle
+  image: saraedum/android-sdk
+  artifacts:
+    when: always
+    paths:
+    - app/build/outputs/
+    - app/build/reports/
+
+checkstyle:
+  << : *gradle
+  stage: check
+  script:
+    - ./gradlew checkstyle
+
+buildAlpha:
+  << : *gradle
+  stage: build
+  script:
+  - for flavour in ${CI_FLAVOURS};do ./gradlew assemble${flavour}; done
+
+lint:
+  << : *gradle
+  stage: lint
+  script:
+  - for flavour in ${CI_FLAVOURS};do ./gradlew lint${flavour}; done
+
+unitTest:
+  << : *gradle
+  stage: test
+  script:
+  - for flavour in ${CI_FLAVOURS};do ./gradlew test${flavour}UnitTest; done
+
+instrumentationTest:
+  << : *gradle
+  stage: test
+  tags:
+  # The host needs to expose /dev/kvm for the emulator by setting 'devices = ["/dev/kvm"]' in [runners.docker]
+  - kvm
+  # The host needs VMX for the emulator, i.e., Haswell or later and VMX enabled in the BIOS.
+  - vmx
+  script:
+  - echo "no" | avdmanager create avd -n test -k "system-images;android-25;google_apis;x86" --tag google_apis
+  - emulator64-x86 -avd test -no-window -no-boot-anim -noaudio -accel on &
+  - /android-wait-for-emulator
+  - for flavour in ${CI_FLAVOURS};do ./gradlew grantPermission${flavour} connected${flavour}AndroidTest; done
+

@@ -1,0 +1,14 @@
+image: alpine:latest
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r indecision-app/public/* .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

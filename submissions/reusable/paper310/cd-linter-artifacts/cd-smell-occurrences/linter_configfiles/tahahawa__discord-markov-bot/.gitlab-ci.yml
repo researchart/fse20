@@ -1,0 +1,74 @@
+stages:
+  - build
+  - check
+#  - test
+  - deploy
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+
+build:
+  image: "rust"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq libssl-dev pkg-config
+    - cargo --version
+    - rustc --version
+    - cargo update
+  stage: build
+  script:
+    - cargo build --release
+  cache:
+    untracked: true
+    paths:
+      - target/
+      - cargo/
+  artifacts:
+    paths:
+      - target/release/discord-markov-bot
+  only:
+  - master
+
+check:
+  image: "rust"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq libssl-dev pkg-config
+    - cargo --version
+    - rustc --version
+    - cargo update
+  stage: check
+  script:
+    - cargo check
+  cache:
+    untracked: true
+    paths:
+      - target/
+      - cargo/
+  only:
+  - dev
+
+#test:
+#  image: "rust"
+#  before_script:
+#    - apt-get update -qq && apt-get install -y -qq libssl-dev pkg-config libsodium-dev
+#    - cargo --version
+#    - rustc --version
+#  stage: test
+#  cache:
+#    untracked: true
+#    paths:
+#      - target/
+#      - cargo/
+#  script: cargo test --release
+#
+
+#deploy_vps:
+#  image: "governmentpaas/curl-ssl"
+#  stage: deploy
+#  script:
+#    - curl --version
+#    - curl https://tahahawa.me/deploy_markov_bot -f -m 300 -# -S
+#  environment:
+#    name: taha vps
+#  only:
+#  - master
+

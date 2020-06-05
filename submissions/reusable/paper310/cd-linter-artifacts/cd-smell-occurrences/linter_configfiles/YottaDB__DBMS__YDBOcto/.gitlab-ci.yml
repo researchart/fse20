@@ -1,0 +1,140 @@
+#################################################################
+#								#
+# Copyright (c) 2019-2020 YottaDB LLC and/or its subsidiaries.	#
+# All rights reserved.						#
+#								#
+#	This source code contains the intellectual property	#
+#	of its copyright holder(s), and is made available	#
+#	under a license.  If you do not know the terms of	#
+#	the license, please stop and do not read further.	#
+#								#
+#################################################################
+
+stages:
+  - build
+  - docker
+  - docs
+
+variables:
+  GOLANG_VERSION: 1.11.2
+
+before_script:
+  - export PATH=/usr/local/go/bin:$PATH
+  - export JDBC_VERSION=42.2.6
+  - wget -O go.tgz -q https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz
+  - tar -C /usr/local -xzf go.tgz
+  - rm go.tgz
+  - go version
+
+.make:
+  stage: build
+  artifacts:
+    paths:
+      - build/
+    when: always
+
+.ubuntu:
+  before_script:
+    # Separate, non-interactive installation of tzdata required due to expect's dependency on libtcl8.6, which depends on tzdata.
+    # If these steps aren't done, the build will open an interactive prompt to setup tzdata during apt-get install.
+    - export DEBIAN_FRONTEND=noninteractive
+    - export JDBC_VERSION=42.2.6
+    - ln -fs /usr/share/zoneinfo/US/Eastern /etc/localtime
+    - apt-get update -qq && apt-get install -y tzdata
+    - dpkg-reconfigure --frontend noninteractive tzdata
+    - apt-get install -y -qq build-essential cmake bison flex libcmocka-dev python-pip libreadline-dev git libconfig-dev libssl-dev postgresql-client postgresql xxd wget libgcrypt20-dev libgpgme-dev expect default-jdk
+    - pip install sphinxcontrib-fulltoc sphinx sphinx_rtd_theme
+    - export PATH=/usr/local/go/bin:$PATH
+    - wget -O go.tgz -q https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz
+    - tar -C /usr/local -xzf go.tgz
+    - rm go.tgz
+    - go version
+
+.centos:
+  before_script:
+    - yum install -y epel-release
+    - yum install -y gcc make cmake3 ctest3 bison flex libcmocka-devel python-pip readline-devel git libconfig-devel openssl-devel postgresql postgresql-server libgcrypt-devel gpgme-devel openssl expect java-11-openjdk-devel
+    - export PATH=/usr/local/go/bin:$PATH
+    - export JDBC_VERSION=42.2.6
+    - wget -O go.tgz -q https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz
+    - tar -C /usr/local -xzf go.tgz
+    - rm go.tgz
+    - go version
+
+make-ubuntu:
+  image: yottadb/yottadb-base:latest-master
+  extends:
+    - .make
+    - .ubuntu
+  script:
+    - ./tools/ci/build.sh
+
+make-centos:
+  image: yottadb/yottadb-centos-base:latest-master
+  extends:
+    - .make
+    - .centos
+  script: ./tools/ci/build.sh
+
+make-tls-ubuntu:
+  image: yottadb/yottadb-base:latest-master
+  extends:
+    - .make
+    - .ubuntu
+  script:
+    - ./tools/ci/install-tls.sh
+    - ./tools/ci/build.sh
+
+make-tls-centos:
+  image: yottadb/yottadb-centos-base:latest-master
+  extends:
+    - .make
+    - .centos
+  script:
+    - ./tools/ci/install-tls.sh
+    - ./tools/ci/build.sh
+
+octo:
+  image: docker:latest
+  stage: docker
+  before_script:
+    - ""
+  services:
+    - docker:dind
+  dependencies:
+    - make-ubuntu
+  script:
+    - docker build --pull -t yottadb/octo:latest-master .
+    - docker login -u $HUB_USERNAME -p $HUB_PASSWORD
+    - docker push yottadb/octo:latest-master
+  only:
+    - master@YottaDB/DBMS/YDBOcto
+
+vista:
+  image: docker:latest
+  stage: docker
+  before_script:
+    - ""
+  services:
+    - docker:dind
+  script:
+    - apk add git
+    - ./tools/ci/vistabuild.sh
+    - docker login -u $HUB_USERNAME -p $HUB_PASSWORD
+    - docker push yottadb/octo-vehu:latest-master
+  only:
+    - master@YottaDB/DBMS/YDBOcto
+
+pages:
+  image: yottadb/yottadb-base
+  stage: docs
+  extends: .ubuntu
+  dependencies:
+    - make-ubuntu
+  script:
+    - ./tools/ci/docs.sh
+  artifacts:
+    paths:
+      - public
+    when: always
+

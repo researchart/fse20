@@ -1,0 +1,32 @@
+image: docker:git
+
+services:
+  - docker:dind
+
+stages:
+  - build
+
+before_script:
+  - apk update
+  - apk add bash
+
+build_ubuntu_base:
+  stage: build
+  script:
+    - bash build_image.sh ubuntu_base
+
+build_conda_base:
+  stage: build
+  script:
+    - bash build_image.sh conda_base
+
+build_python1:
+  stage: build
+  script:
+    - bash build_image.sh python1
+
+build_python2:
+  stage: build
+  script:
+    - bash build_image.sh python2
+

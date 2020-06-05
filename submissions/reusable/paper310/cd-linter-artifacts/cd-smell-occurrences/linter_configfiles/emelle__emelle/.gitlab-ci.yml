@@ -1,0 +1,45 @@
+image: ocaml/opam2:4.09
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+- opam repo set-url default https://opam.ocaml.org
+- opam depext conf-m4
+
+build:
+  stage: build
+  script:
+  - opam install -y .
+  - opam install -y -q ./bexp --deps-only
+  - dune build app/main.exe --profile release
+  - dune build editor/main.bc.js --profile release
+  - dune build editor/index.html
+  - dune build editor/stylesheet.css
+  - dune build try/main.bc.js --profile release
+  - dune build try/stylesheet.css
+  - dune build try/index.html
+  - opam install -y -q odoc
+  - dune build @doc
+  artifacts:
+    paths:
+    - _build
+
+test:
+  stage: test
+  script:
+  - opam install -y -t .
+
+pages:
+  stage: deploy
+  script:
+  - mkdir public
+  - mv _build/default/_doc/_html public/doc
+  - mv _build/default/editor public/editor
+  - mv _build/default/try public/try
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

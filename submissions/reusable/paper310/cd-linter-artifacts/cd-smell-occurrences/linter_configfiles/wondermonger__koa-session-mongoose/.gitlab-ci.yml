@@ -1,0 +1,22 @@
+include:
+  - https://gitlab.com/wondermonger/ci-tools/raw/v7.0.0/tpl/node/base.yml
+  - https://gitlab.com/wondermonger/ci-tools/raw/v7.0.0/tpl/node/post-install/lint.yml
+  - https://gitlab.com/wondermonger/ci-tools/raw/v7.0.0/tpl/node/test/coverage.yml
+  - https://gitlab.com/wondermonger/ci-tools/raw/v7.0.0/tpl/node/post-build/pages.yml
+
+unit:
+  except:
+    - tags
+  script: npm run test:unit
+  stage: test
+
+integration:
+  except:
+    - tags
+  services:
+    - mongo
+  script: npm run test:integration
+  stage: test
+  variables:
+    MONGODB_URI: mongodb://mongo/koa-session-mongoose
+

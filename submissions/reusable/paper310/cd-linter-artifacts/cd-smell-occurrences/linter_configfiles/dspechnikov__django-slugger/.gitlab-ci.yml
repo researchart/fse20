@@ -1,0 +1,82 @@
+image: python:3.6-alpine
+
+stages:
+  - test
+  - pre-release
+  - release
+
+before_script:
+  - apk update && apk add curl
+  - curl -O https://bootstrap.pypa.io/get-pip.py
+  - python get-pip.py
+  - pip install -q tox
+
+flake8:
+  script: tox -e flake8
+
+.test: &test
+  artifacts:
+    paths:
+      - .coverage*
+    expire_in: 1 hour
+
+py36-django1.11:
+  <<: *test
+  image: python:3.6-alpine
+  script: tox -e py36-django1.11
+
+py36-django2.0:
+  <<: *test
+  image: python:3.6-alpine
+  script: tox -e py36-django2.0
+
+py36-django2.1:
+  <<: *test
+  image: python:3.6-alpine
+  script: tox -e py36-django2.1
+
+py36-djangomaster:
+  <<: *test
+  image: python:3.6-alpine
+  script: tox -e py36-djangomaster
+  allow_failure: true
+
+py37-django1.11:
+  <<: *test
+  image: python:3.7-alpine
+  script: tox -e py37-django1.11
+
+py37-django2.0:
+  <<: *test
+  image: python:3.7-alpine
+  script: tox -e py37-django2.0
+
+py37-django2.1:
+  <<: *test
+  image: python:3.7-alpine
+  script: tox -e py37-django2.1
+
+py37-djangomaster:
+  <<: *test
+  image: python:3.7-alpine
+  script: tox -e py37-djangomaster
+  allow_failure: true
+
+coverage:
+  stage: pre-release
+  coverage: '/TOTAL.*\s+(\d+\.?\d+?)\%/'
+  script: tox -e coverage-report
+
+release:
+  stage: release
+  variables:
+    TWINE_USERNAME: $PYPI_USERNAME
+    TWINE_PASSWORD: $PYPI_PASSWORD
+  script:
+    - pip install -q wheel twine
+    - python setup.py bdist_wheel sdist
+    - twine upload dist/*
+  only:
+    - tags
+    - /^v.*$/
+

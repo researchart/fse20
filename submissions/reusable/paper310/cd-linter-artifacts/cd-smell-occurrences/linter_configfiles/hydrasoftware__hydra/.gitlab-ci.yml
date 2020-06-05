@@ -1,0 +1,9 @@
+test:
+  script:
+    - call hydra64.bat
+    - python -m hydra.utility.package -i
+    - python -m hydra.test -e hydra.utility.opengl_test
+    - python -m hydra.utility.project_cleaner -t
+  after_script:
+    - call cleanup.bat >null 2>&1
+

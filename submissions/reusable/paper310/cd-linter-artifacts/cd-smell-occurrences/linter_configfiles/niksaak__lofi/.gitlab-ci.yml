@@ -1,0 +1,13 @@
+# Unofficial language image. Look for the different tagged releases at:
+# https://hub.docker.com/r/scorpil/rust/tags/
+image: "scorpil/rust:nightly"
+
+#before_script:
+#- apt-get update -yqq
+#- apt-get install -yqq --no-install-recommends build-essential
+
+test:cargo:
+  script:
+  - rustc --version && cargo --version
+  - cargo test
+

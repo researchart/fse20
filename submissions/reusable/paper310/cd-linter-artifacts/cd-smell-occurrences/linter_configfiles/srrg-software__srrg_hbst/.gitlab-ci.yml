@@ -1,0 +1,73 @@
+#ds pipeline stages
+stages:
+  - wash_and_dry #ds no artifacts thrown around here
+
+before_script:
+
+  #ds repo gets locally cloned into: /builds/srrg-software/srrg_hbst
+
+  #ds generic build dependencies (valid for ubuntu 16.04 and 18.04)
+  - apt-get update 
+  - apt install python-catkin-tools -y
+  - apt install build-essential -y
+  - apt install libeigen3-dev -y
+
+  #ds set up catkin workspace
+  - cd && mkdir -p workspace/src && cd workspace/src
+
+  #ds link this repository for build
+  - ln -s /builds/srrg-software/srrg_hbst srrg_hbst
+
+  #ds move back to catkin workspace level
+  - cd ..
+
+# Build targets
+ubuntu_16_04_ros_kinetic_release:
+  image: osrf/ros:kinetic-desktop-full-xenial
+  stage: wash_and_dry
+  script:
+    - apt install libqglviewer-dev -y
+    - catkin build srrg_hbst
+    - catkin build srrg_hbst --catkin-make-args tests
+    - /root/workspace/devel/lib/srrg_hbst/test_search
+    - /root/workspace/devel/lib/srrg_hbst/test_search_merging
+    - /root/workspace/devel/lib/srrg_hbst/test_streaming
+    - /root/workspace/devel/lib/srrg_hbst/test_streaming_merging
+
+ubuntu_16_04_ros_kinetic_debug:
+  image: osrf/ros:kinetic-desktop-full-xenial
+  stage: wash_and_dry
+  script:
+    - apt install libqglviewer-dev -y
+    - catkin build srrg_hbst -DCMAKE_BUILD_TYPE=DEBUG
+    - catkin build srrg_hbst --catkin-make-args tests
+    - /root/workspace/devel/lib/srrg_hbst/test_search
+    - /root/workspace/devel/lib/srrg_hbst/test_search_merging
+    - /root/workspace/devel/lib/srrg_hbst/test_streaming
+    - /root/workspace/devel/lib/srrg_hbst/test_streaming_merging
+
+ubuntu_18_04_ros_melodic_release:
+  image: osrf/ros:melodic-desktop-full-bionic
+  stage: wash_and_dry
+  script:
+    - apt install libqglviewer-dev-qt5 -y
+    - catkin build srrg_hbst
+    - catkin build srrg_hbst --catkin-make-args tests
+    - /root/workspace/devel/lib/srrg_hbst/test_search
+    - /root/workspace/devel/lib/srrg_hbst/test_search_merging
+    - /root/workspace/devel/lib/srrg_hbst/test_streaming
+    - /root/workspace/devel/lib/srrg_hbst/test_streaming_merging
+
+ubuntu_18_04_ros_melodic_debug:
+  image: osrf/ros:melodic-desktop-full-bionic
+  stage: wash_and_dry
+  script:
+    - apt install libqglviewer-dev-qt5 -y
+    - catkin build srrg_hbst -DCMAKE_BUILD_TYPE=DEBUG
+    - catkin build srrg_hbst --catkin-make-args tests
+    - /root/workspace/devel/lib/srrg_hbst/test_search
+    - /root/workspace/devel/lib/srrg_hbst/test_search_merging
+    - /root/workspace/devel/lib/srrg_hbst/test_streaming
+    - /root/workspace/devel/lib/srrg_hbst/test_streaming_merging
+
+

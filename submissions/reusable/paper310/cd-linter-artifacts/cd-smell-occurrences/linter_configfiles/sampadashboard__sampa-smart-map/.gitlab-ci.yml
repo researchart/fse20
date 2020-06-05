@@ -1,0 +1,18 @@
+image: ruby:2.3.3
+
+test:
+  
+  tags:
+    - shared
+  before_script:
+    - apt-get update
+    - apt-get upgrade -y
+    - apt-get -y install nodejs sqlite3
+    - gem install bundler
+    - bundle install
+    - export RAILS_ENV=test
+    - rails db:create
+    - rails db:migrate
+  script:
+    - rake
+

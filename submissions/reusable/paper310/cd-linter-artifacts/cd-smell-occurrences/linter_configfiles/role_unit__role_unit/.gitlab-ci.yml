@@ -1,0 +1,62 @@
+image: registry.gitlab.com/role_unit/role_unit_containers:build
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DEBIAN_FRONTEND: noninteractive
+
+services:
+- docker:dind
+
+stages:
+  - images
+  - library
+  - role-init
+
+before_script:
+  - chmod o-w tests
+
+.distribution_testing: &distribution_testing_definition
+  script:
+    - RU_ENV_IMAGE=${CI_JOB_NAME} tests/bash_unit tests/tests_role_unit
+  stage: images
+
+debian10:
+  <<: *distribution_testing_definition
+
+debian9:
+  <<: *distribution_testing_definition
+
+debian8:
+  <<: *distribution_testing_definition
+
+centos7:
+  <<: *distribution_testing_definition
+
+centos6:
+  <<: *distribution_testing_definition
+
+requirements:
+  script:
+    - RU_ENV_IMAGE=debian9 tests/bash_unit tests/tests_role_unit_requirements
+  stage: library
+
+docker:
+  script:
+    - RU_ENV_IMAGE=debian9 tests/bash_unit tests/tests_role_unit_docker
+  stage: library
+
+multiplicity:
+  script:
+    - RU_ENV_IMAGE=debian9 tests/bash_unit tests/tests_role_unit_double
+  stage: library
+
+simultaneity:
+  script:
+    - tests/bash_unit tests/tests_run_the_same_twice
+  stage: library
+
+role_init:
+  script:
+    - tests/bash_unit tests/tests_role_init
+  stage: role-init
+

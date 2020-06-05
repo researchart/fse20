@@ -1,0 +1,13 @@
+pages:
+  image: python:3
+  script:
+  - cd documents
+  - pip install -r requirements.txt
+  - mkdocs build
+  - mv site ../public
+  artifacts:
+    paths:
+    - public
+  only:
+  - push
+

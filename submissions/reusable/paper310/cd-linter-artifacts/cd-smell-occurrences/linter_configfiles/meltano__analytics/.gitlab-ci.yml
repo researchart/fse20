@@ -1,0 +1,205 @@
+# ======
+# Globals
+# ======
+
+variables:
+  PYTHONPATH: "$CI_PROJECT_DIR/extract/:$CI_PROJECT_DIR/extract/shared_modules/:$PYTHONPATH"
+  SNOWFLAKE_DATABASE: "$CI_COMMIT_REF_NAME"
+
+# ======
+# CI Stages
+# ======
+stages:
+  - ❄️ Snowflake
+  - 🚂 Extract   # extract/extract-ci.yml
+  - ⚙️ dbt Run   # transform/snowflake-dbt/snowflake-dbt-ci.yml
+  - 🛠 dbt Misc  # transform/snowflake-dbt/snowflake-dbt-ci.yml
+  - 📚 dbt Docs
+  - 🐍 Python
+  - 🛑 Snowflake Stop
+
+include:
+  - "extract/extract-ci.yml"
+  - "transform/snowflake-dbt/snowflake-dbt-ci.yml"
+
+
+# ======
+# Snowflake Database Clones
+# ======
+
+# Template for cloning databases in Snowflake for use in MRs
+.snowflake_clone_template: &snowflake_clone_template
+  image: registry.gitlab.com/gitlab-data/data-image/data-image:latest
+  tags:
+    - analytics
+  before_script:
+    - export PATH="$CI_PROJECT_DIR/orchestration/:$PATH"
+  only:
+    refs:
+      - merge_requests
+    variables:
+      - $SNOWFLAKE_SYSADMIN_ROLE
+      - $SNOWFLAKE_LOAD_WAREHOUSE
+      - $SNOWFLAKE_LOAD_DATABASE       # make sure the guard works
+      - $SNOWFLAKE_TRANSFORM_DATABASE  # make sure the guard works
+  except:
+    refs:
+      - master
+    variables:
+      - $SNOWFLAKE_DATABASE == $SNOWFLAKE_LOAD_DATABASE
+      - $SNOWFLAKE_DATABASE == $SNOWFLAKE_TRANSFORM_DATABASE
+      - $TEST_PIPELINE
+  when: manual  
+
+.snowflake_start_clone: &snowflake_start_clone
+  <<: *snowflake_clone_template
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    on_stop: clone_stop
+  stage: ❄️ Snowflake
+  variables:
+    GIT_STRATEGY: clone
+
+# Clone Jobs
+📈clone_analytics:
+  <<: *snowflake_start_clone
+  script:
+    - manage_snowflake.py manage_clones --database analytics --empty
+  when: always
+
+📈❗️clone_analytics_real:
+  <<: *snowflake_start_clone
+  script:
+    - manage_snowflake.py manage_clones --force --database analytics
+
+🥩clone_raw:
+  <<: *snowflake_start_clone
+  script:
+    - manage_snowflake.py manage_clones --database raw
+
+👥force_clone_both:
+  <<: *snowflake_start_clone
+  script:
+    - manage_snowflake.py manage_clones --force --database analytics --empty
+    - manage_snowflake.py manage_clones --force --database raw
+
+clone_stop:
+  <<: *snowflake_clone_template
+  stage: 🛑 Snowflake Stop
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - git clone $CI_REPOSITORY_URL
+    - analytics/orchestration/manage_snowflake.py delete_clones
+
+
+# ======
+# Python Code Checks
+# ======
+
+.python_check: &python_check
+  stage: 🐍 Python
+  image: registry.gitlab.com/gitlab-data/data-image/data-image:latest
+  tags:
+    - analytics
+  only:
+    changes:
+      - "**/*.py"
+    refs:
+      - merge_requests
+  allow_failure: true
+
+python_black:
+  <<: *python_check
+  script:
+    - pip install black
+    - black --check .
+
+python_mypy:
+  <<: *python_check
+  script:
+    - pip install mypy
+    - mypy extract/ --ignore-missing-imports
+
+python_pylint:
+  <<: *python_check
+  script:
+    - pylint ../analytics/ --ignore=dags --disable=C --disable=W1203 --disable=W1202 --reports=y --exit-zero
+  when: manual
+
+python_complexity:
+  <<: *python_check
+  script:
+    -  xenon --max-absolute B --max-modules A --max-average A . -i transform,shared_modules
+
+python_pytest:
+  <<: *python_check
+  script:
+    - pytest -vv -x --ignore=dags
+
+# ======
+# Snowflake Permissions Validator
+# ======
+
+.permissions_check: &permissions_check
+  stage: 🐍 Python
+  image: registry.gitlab.com/gitlab-data/data-image/data-image:latest
+  tags:
+    - analytics
+  only:
+    changes:
+      - "load/snowflake/roles.yml"
+    refs:
+      - merge_request
+  allow_failure: true
+
+🔐permissions_query:
+  <<: *permissions_check
+  script:
+    - python -c 'import yaml, sys; print(yaml.safe_load(sys.stdin))' < load/snowflake/roles.yml
+
+
+# ======
+# dbt docs to GitLab Pages
+# ======
+
+.pages_job_template: &pages_job_template
+  stage: 📚 dbt Docs
+  image: registry.gitlab.com/gitlab-data/data-image/dbt-image:latest
+  variables:
+    SNOWFLAKE_ROLE: $SNOWFLAKE_TRANSFORM_ROLE
+    SNOWFLAKE_WAREHOUSE: $SNOWFLAKE_TRANSFORM_WAREHOUSE
+    SNOWFLAKE_DATABASE: $SNOWFLAKE_TRANSFORM_DATABASE
+  before_script:
+    - export PATH="$CI_PROJECT_DIR/orchestration/:$PATH"
+  script:
+    - echo "SNOWFLAKE_DATABASE = $SNOWFLAKE_TRANSFORM_DATABASE"
+    - cd $CI_PROJECT_DIR/transform/snowflake-dbt/
+    - dbt deps --profiles-dir profile --target prod
+    - dbt docs generate --profiles-dir profile --target prod
+    - mkdir -p $CI_PROJECT_DIR/public/
+    - cd target
+    - cp *.json graph.gpickle $CI_PROJECT_DIR/public/
+    - cd $CI_PROJECT_DIR/transform/snowflake-dbt/docs/
+    - cp index.html gitlab.css $CI_PROJECT_DIR/public/
+  tags:
+    - analytics
+  artifacts:
+    name: "dbt Docs Files"
+    paths:
+      - public
+    expire_in: 1 week
+
+
+# Run the script to generate the dbt docs and stand them up in gitlab pages
+pages:
+  <<: *pages_job_template
+  only:
+    refs:
+      - master
+    variables:
+      - $DEPLOY_DBT_PAGES
+

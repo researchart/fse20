@@ -1,0 +1,122 @@
+stages:
+  - build
+  - package
+  - deploy
+
+# Template variables:
+variables:
+  #
+  # To edit for specific package
+  # Change if project name is not equal to the package to deploy.
+  package: $CI_PROJECT_NAME
+  # Upstream Version
+  version: 0.0.0
+  # upstream url
+  url: https://github.com/namespace/project_name
+  # upstream description
+  description: "bla bla"
+  # upstream License
+  license: "MIT"
+  # Upstream arch
+  source_arch: amd64
+  # arch of RPM to be created here
+  rpm_arch: x86_64
+  #
+  # Repository to deploy to here e.g:
+  DEPLOY_REPO_URL: "https://repo.deployctl.com"
+  #
+  # check deploy stage, tags runner should serve above repo domain!!!!
+  #
+  #  END Template variables
+#
+# Template Fixed variables
+  DEPLOY_REPO_PATH: "/"
+
+# START WORKING
+# ************************************
+# download & extract upstream binaries
+# Set packagename for rpm
+# ************************************
+prepare:
+  stage: build
+  script:
+    - rm -rf bin && mkdir -pv bin
+    - |
+        if [ ! -f "${package}-${version}.linux-${source_arch}.tar.gz" ] ; then
+          curl -o "${package}-${version}.linux-${source_arch}.tar.gz" -L "${url}/releases/download/v${version}/${package}-${version}.linux-${source_arch}.tar.gz"
+        else
+          echo "already have source"
+        fi
+    - tar -xf "${package}-${version}.linux-${source_arch}.tar.gz"
+    # mov ${package} to bin/
+    - mv "${package}-${version}.linux-${source_arch}/${package}" bin/
+    # set scripts mypackage to $package
+    - 'sed -i -e "s|package=mypackage|package=${package}|" scripts/*'
+    # set service package_name to $package
+    - 'sed -i -e "s|package_name|${package}|g" init.d.service'
+    - 'sed -i -e "s|package_name|${package}|g" systemd.service'
+  artifacts:
+    paths:
+      - init.d.service
+      - systemd.service
+      - config/
+      - bin/
+      - scripts/
+  cache:
+    paths:
+     - "${package}-${version}.linux-${source_arch}.tar.gz"
+
+# *******************************
+# package rpm with given info
+# *******************************
+rpm:
+  stage: package
+  variables:
+      GIT_STRATEGY: none
+  image: registry.gitlab.com/gitlab-org/gitlab-ci-multi-runner:ci-1.8
+  script:
+    - ls -la {./,config/,scripts}
+    - rm -rf rpm && mkdir rpm
+    - >
+       fpm -s dir -t rpm
+       -n ${package}
+       -v ${version}
+       -p rpm/${package}-${version}-1.${rpm_arch}.rpm
+       --rpm-compression bzip2 --rpm-os linux
+       --force
+       --url ${url}
+       --description "${description}"
+       --license "${license}"
+       --provides ${package}
+       --replaces ${package}
+       --before-install scripts/preinst.sh
+       --after-install scripts/postinst.sh
+       --before-remove scripts/prerm.sh
+       -a ${rpm_arch}
+       bin/=/usr/bin/
+       init.d.service=/etc/${package}/service/
+       systemd.service=/etc/${package}/service/
+       config/=/etc/${package}/
+  artifacts:
+    paths:
+      - rpm/
+  tags:
+    - docker
+
+# ***************************************
+# Deploy with deployctl to repo
+# ***************************************
+deploy:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  dependencies:
+    - rpm
+  script:
+    - deployctl repo_add
+  tags:
+    # specific runner tag of the deployctl server!!!
+    - deployctl-gioxapp.com
+  environment:
+    name: production
+

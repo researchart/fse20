@@ -1,0 +1,248 @@
+stages:
+  - test_build
+  - staging
+  - production
+
+# functional testing
+test: &test_template
+  stage: test_build
+
+  image: registry.gitlab.com/failmap/ci:latest
+
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+
+  cache:
+    paths:
+      - "$CI_PROJECT_DIR/pip-cache"
+    key: "$CI_PROJECT_ID"
+
+  script:
+    - tox -e test
+
+  retry: 1
+
+# functional testing using mysql database instead of sqlite
+test_mysql: &test_mysql_template
+  <<: *test_template
+  services:
+    - mysql:5.5
+  variables:
+    # configuration for docker mysql service
+    MYSQL_ROOT_PASSWORD: failmap
+    MYSQL_DATABASE: failmap
+    MYSQL_USER: failmap
+    MYSQL_PASSWORD: failmap
+    # select mysql database settings, all settings default to 'failmap'
+    # so they don't need to be passed explicitly
+    DJANGO_DATABASE: production
+    # add mysqlclient to tox environment
+    TOX_EXTRAS: deploy
+  only: [master]
+  retry: 1
+
+# functional testing using postgres database instead of sqlite
+test_postgres: &test_postgres_template
+  <<: *test_template
+  services:
+    # current version in debian jessie
+    - postgres:9.4
+  variables:
+    # configuration for docker mysql service
+    POSTGRES_DB: failmap
+    POSTGRES_USER: failmap
+    POSTGRES_PASSWORD: failmap
+    # select mysql database settings, all settings default to 'failmap'
+    # so they don't need to be passed explicitly
+    DJANGO_DATABASE: production
+    DB_ENGINE: postgresql_psycopg2
+    DB_HOST: postgres
+    # add mysqlclient to tox environment
+    TOX_EXTRAS: deploy
+
+  # run long/non-critical tests only on master
+  only: [master]
+  retry: 1
+
+# code quality checks
+check:
+  <<: *test_template
+  stage: test_build
+
+  script:
+    - tox -e check
+    - shellcheck tests/*.sh tools/*.sh
+
+  # runs on merge requests, merge requests require rebase, no need to run on master again
+  except: [master]
+
+# integration tests
+integration:
+  <<: *test_template
+  stage: test_build
+
+  services:
+    - redis:latest
+
+  variables:
+    BROKER: redis://redis:6379/0
+    # required to run celery worker under docker 'root' user
+    C_FORCE_ROOT: 1
+
+  script:
+    - tox -e integration
+
+  # runs on merge requests, merge requests require rebase, no need to run on master again
+  except: [master]
+
+dataset:
+  <<: *test_template
+  script:
+    - tox -e datasets
+
+  # runs on merge requests, merge requests require rebase, no need to run on master again
+  except: [master]
+
+dataset_mysql:
+  <<: *test_mysql_template
+  script:
+    - tox -e datasets
+  # run long tests only on master
+  only: [master]
+
+dataset_postgres:
+  <<: *test_postgres_template
+  script:
+    - tox -e datasets
+  # run long tests only on master
+  only:
+    - master
+
+# create distributable release
+build:
+  stage: test_build
+
+  services:
+    - docker:dind
+
+  image: docker:git
+
+  before_script:
+    # required for quering python package version
+    - apk add --no-cache python3
+    # login to docker and cache previous image if available
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker pull registry.gitlab.com/failmap/failmap:latest || true
+
+  script:
+    # store current version as artifact to copy into docker container
+    - python3 setup.py --version > version
+
+    # build docker image and push to registry
+    - docker build -t registry.gitlab.com/failmap/failmap:build .
+    - docker push registry.gitlab.com/failmap/failmap:build
+
+    # push version tag to docker registry
+    - docker tag registry.gitlab.com/failmap/failmap:build registry.gitlab.com/failmap/failmap:$(cat version|tr + _)
+    - docker push registry.gitlab.com/failmap/failmap:$(cat version|tr + _)
+
+  only:
+    - master
+    - tags
+  retry: 1
+
+# test building image & run image smoketest
+build_test:
+  stage: test_build
+
+  services:
+    - docker:dind
+
+  image: docker:git
+
+  before_script:
+    - apk add --no-cache curl
+    # login to docker and cache previous image if available
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker pull registry.gitlab.com/failmap/failmap:latest || true
+
+  script:
+    # build docker image to test building
+    - docker build . -t failmap
+
+    # run simple smoketests to verify Docker image is sane
+    - tests/docker.sh docker
+
+  # run on merge request to determine if build will not break on master
+  except: [master]
+  retry: 1
+
+
+# provide codequality context for merge requests
+codequality:
+  stage: test_build
+
+  services:
+    - docker:dind
+
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay
+  script:
+    # run code quality
+    - docker run --env CODECLIMATE_CODE="$PWD" --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock --volume /tmp/cc:/tmp/cc codeclimate/codeclimate:latest analyze -f json > codeclimate.json
+  artifacts:
+    paths: [codeclimate.json]
+  retry: 1
+
+staging:
+  stage: staging
+
+  image: docker:git
+  services:
+  - docker:dind
+
+  before_script:
+    # required for quering python package version
+    - apk add --no-cache python3
+
+  script:
+    # store current version as artifact to copy into docker container
+    - python3 setup.py --version > version
+    # build docker image and push to registry
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker pull registry.gitlab.com/failmap/failmap:$(cat version|tr + _)
+    - docker tag registry.gitlab.com/failmap/failmap:$(cat version|tr + _) registry.gitlab.com/failmap/failmap:staging
+
+    # here is where I would put my staging integration tests, if I had one!!!
+
+    # promote to staging after tests have succeeded
+    - docker push registry.gitlab.com/failmap/failmap:staging
+
+    # until there is a CD staging environment
+    - docker tag registry.gitlab.com/failmap/failmap:$(cat version|tr + _) registry.gitlab.com/failmap/failmap:latest
+    - docker push registry.gitlab.com/failmap/failmap:latest
+
+  only: [master]
+  retry: 1
+
+production:
+  stage: production
+
+  image: docker:git
+  services:
+  - docker:dind
+  script:
+    - export tag=$(git describe --exact-match --tags --abbrev=0)
+    # build docker image and push to registry
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker pull registry.gitlab.com/failmap/failmap:$tag
+    - docker tag registry.gitlab.com/failmap/failmap:$tag registry.gitlab.com/failmap/failmap:latest
+    - docker push registry.gitlab.com/failmap/failmap:latest
+
+    # insert deploy magic here
+
+  only:
+    - tags
+  retry: 1
+

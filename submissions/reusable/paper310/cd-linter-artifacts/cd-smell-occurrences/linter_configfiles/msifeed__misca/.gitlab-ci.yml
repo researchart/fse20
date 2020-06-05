@@ -1,0 +1,24 @@
+image: java:8
+
+stages:
+  - build
+
+before_script:
+  - chmod +x gradlew
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+
+cache:
+  paths:
+    - .gradle/caches/
+    - .gradle/wrapper/
+    - ./build/tmp/reobf/
+
+build:
+  stage: build
+  script:
+    - ./gradlew assemble
+  allow_failure: false
+  artifacts:
+    paths:
+      - ./build/libs/misca-*.jar
+

@@ -1,0 +1,99 @@
+include:
+    # PyPI upload
+    - "https://gitlab.com/nobodyinperson/ci-templates/raw/master/pypi-upload.yml"
+
+image: registry.gitlab.com/nobodyinperson/simbuto/ubuntu_16.04
+
+variables:
+    SPHINX_DOC_DIR: sphinx-doc
+    COVERAGE_STATIC_DIR: coverage-report
+    PAGES_DIR: public
+
+stages:
+    - test
+    - package
+    - deploy
+
+cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+
+before_script:
+    - apt-get update -qq
+    - apt-get -qq -y install python3-pip
+    - pip3 install --upgrade --only-binary=numpy,scipy numpy scipy
+
+pip-install-local:
+    stage: test
+    script:
+        - apt-get -qq -y install libffi6 libffi-dev
+        - pip3 install --prefix=~/.local .
+        - pip3 install --prefix=~/.local '.[gui]'
+
+coverage:
+    stage: test
+    script:
+        - pip3 install coveralls
+        - coverage run setup.py test
+        - coverage html
+        - coverage report
+        - mv htmlcov/ $COVERAGE_STATIC_DIR
+    coverage: '/TOTAL.*\s+(\d+\%)/'
+    artifacts:
+        paths:
+            - $COVERAGE_STATIC_DIR
+        expire_in: 1 week
+
+dist:
+    stage: package
+    dependencies: [] # no other artifacts needed
+    script:
+        - make dist
+    artifacts:
+        paths:
+            - dist/*
+        expire_in: 1 week
+
+sphinx:
+    stage: package
+    dependencies: [] # no other artifacts needed
+    script:
+        - pip3 install sphinx==1.6.7 sphinx_rtd_theme matplotlib ipython
+        - apt-get -y -qq install python3-gi python3-cairocffi gir1.2-gtk-3.0
+        - make docs
+        - mv docs/build/html $SPHINX_DOC_DIR
+    artifacts:
+        paths:
+            - $SPHINX_DOC_DIR
+        expire_in: 1 week
+
+pypi-upload:
+    stage: deploy
+    environment:
+        name: production
+        url: https://pypi.python.org
+    dependencies:
+        - dist
+    only:
+        - master
+    only:
+        - tags
+
+pages:
+    before_script: [] # no need to install anything for deployment
+    stage: deploy
+    dependencies:
+        - sphinx
+        - coverage
+    script:
+        - rm -rf $PAGES_DIR/ # make sure there is not pages dir
+        - mv $SPHINX_DOC_DIR $PAGES_DIR/ # sphinx doc is index page
+        - mv $COVERAGE_STATIC_DIR $PAGES_DIR/ # put coverage report inside
+    artifacts:
+        paths:
+            - $PAGES_DIR/
+    only:
+        - master
+    only:
+        - tags
+
+

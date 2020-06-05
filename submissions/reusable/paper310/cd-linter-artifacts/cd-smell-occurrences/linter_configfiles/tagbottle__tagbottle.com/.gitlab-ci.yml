@@ -1,0 +1,157 @@
+image: registry.gitlab.com/tagbottle/tagbottle.com:v1
+
+stages:
+  - install
+  - build
+  - deploy
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  policy: pull
+  paths:
+    - node_modules/
+    - functions/node_modules/
+    - hosting/node_modules/
+
+before_script:
+- yarn install
+
+install:
+  stage: install
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    policy: pull-push
+    paths:
+      - node_modules/
+      - functions/node_modules/
+      - hosting/node_modules/
+  script:
+    - yarn install
+
+#
+# build
+#
+
+build:functions:
+  stage: build
+  script:
+    - cd functions
+    - yarn lint
+    - yarn run build
+  except:
+    - master
+    - alpha
+    - beta
+
+build:functions:release:
+  stage: build
+  script:
+    - cd functions
+    - yarn run build
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - functions/dist
+  only:
+    - master
+    - alpha
+    - beta
+
+build:hosting:
+  stage: build
+  script:
+    - cd hosting
+    - yarn lint
+    - yarn run generate
+  except:
+    - master
+    - alpha
+    - beta
+
+build:hosting:release:
+  stage: build
+  script:
+    - cd hosting
+    - DEPLOY_TARGET=$CI_COMMIT_REF_NAME yarn run generate
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - hosting/dist
+  only:
+    - master
+    - alpha
+    - beta
+
+build:doc:release:
+  stage: build
+  script:
+    - cd documents
+    - yarn run build
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - documents/docs/.vuepress/dist
+  only:
+    - master
+    - alpha
+    - beta
+
+#
+# deploy
+#
+
+deploy:dev:
+  stage: deploy
+  environment: dev
+  variables:
+    FIREBASE_PROJECT_ID: tagbottle-dev-2a1e1
+  dependencies:
+    - build:hosting:release
+    - build:functions:release
+  script:
+    - yarn -s firebase deploy --project "$FIREBASE_PROJECT_ID" --token "$FIREBASE_TOKEN"
+  only:
+    - master
+
+deploy:alpha:
+  stage: deploy
+  environment: alpha
+  variables:
+    FIREBASE_PROJECT_ID: tagbottle-alpha
+  dependencies:
+    - build:hosting:release
+    - build:functions:release
+  script:
+    - yarn -s firebase deploy --project "$FIREBASE_PROJECT_ID" --token "$FIREBASE_TOKEN"
+  only:
+    - alpha
+
+deploy:beta:
+  stage: deploy
+  environment: beta
+  variables:
+    FIREBASE_PROJECT_ID: tagbottle-beta
+  dependencies:
+    - build:hosting:release
+    - build:functions:release
+  script:
+    - yarn -s firebase deploy --project "$FIREBASE_PROJECT_ID" --token "$FIREBASE_TOKEN"
+  only:
+    - beta
+
+pages:
+  stage: deploy
+  environment: documents
+  dependencies:
+    - build:doc:release
+  script:
+    - mv documents/docs/.vuepress/dist public
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - public
+  only:
+    - master
+    - alpha
+    - beta
+

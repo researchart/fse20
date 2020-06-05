@@ -1,0 +1,64 @@
+
+image: node:10.15.0
+
+hexo:
+  stage: build
+  before_script:
+    - npm install gulp -g
+    - npm install hexo-cli -g
+    - npm install
+  script:
+    - gulp build --cwd ./themes/starter
+    - hexo generate
+  artifacts:
+    paths:
+      - public/
+  cache:
+    paths:
+      - node_modules/
+    key: project
+  only:
+    - master
+
+htmlproofer:
+  stage: test
+  image: bobik/html-proofer-docker:gitlabci # fork of 18fgsa/html-proofer
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /htmlproofer/
+  script:
+    - htmlproofer public/ --url-ignore "/fediverse.network/,/howto.disroot.org/,/f-droid.org/" --external-only --checks-to-ignore ScriptCheck,ImageCheck
+  dependencies:
+    - hexo
+
+pages:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  artifacts:
+    paths:
+      - public/
+  dependencies:
+    - hexo
+  script:
+    - echo 'Deploying...'
+  only:
+    - master
+
+cert-renewal:
+  only:
+    - schedules
+  variables:
+    CERTBOT_RENEWAL_GIT_TOKEN: $CERTBOT_RENEWAL_GIT_TOKEN
+  script:
+    - echo "deb http://deb.debian.org/debian stretch-backports main" >> /etc/apt/sources.list
+    - apt-get update
+    - apt-get install certbot -t stretch-backports -y
+    - apt-get install git curl -y
+    - export PATH=$PATH:$CI_PROJECT_DIR
+    - git config --global user.name $GITLAB_USER_LOGIN
+    - git config --global user.email $GITLAB_USER_EMAIL
+    - chmod +x  ./letsencrypt_generate.sh
+    - chmod +x  ./letsencrypt_authenticator.sh
+    - ./letsencrypt_generate.sh
+

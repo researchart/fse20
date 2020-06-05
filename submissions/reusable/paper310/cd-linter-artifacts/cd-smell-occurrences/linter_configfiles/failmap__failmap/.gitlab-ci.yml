@@ -1,0 +1,272 @@
+# Gitlabs new early alpha security features, see https://gitlab.com/help/user/application_security/index.md
+include:
+  - template: Container-Scanning.gitlab-ci.yml
+  - template: Dependency-Scanning.gitlab-ci.yml
+  - template: License-Management.gitlab-ci.yml
+  - template: SAST.gitlab-ci.yml
+
+stages:
+  - test
+  - build
+  - staging
+  - production
+
+# functional testing
+test: &test_template
+  stage: test
+
+  image: websecmap/ci:latest
+
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+    PIP_DISABLE_PIP_VERSION_CHECK: 1
+  cache:
+    paths:
+      - ".pip-cache"
+      - "~/.cache"
+    key: "$CI_JOB_NAME"
+
+  script:
+    # run check and test
+    - make
+
+  retry: 1
+
+# functional testing using mysql database instead of sqlite
+test_mysql: &test_mysql_template
+  <<: *test_template
+  services:
+    - mysql:5.6
+  variables:
+    # configuration for docker mysql service
+    MYSQL_ROOT_PASSWORD: failmap
+    MYSQL_DATABASE: failmap
+    MYSQL_USER: failmap
+    MYSQL_PASSWORD: failmap
+    # select mysql database settings, all settings default to 'failmap'
+    # so they don't need to be passed explicitly
+    DJANGO_DATABASE: production
+    DB_USER: root
+    # make poetry install mysql dependencies
+    poetry_args: --extras=deploy
+  retry: 1
+
+# functional testing using postgres database instead of sqlite
+test_postgres: &test_postgres_template
+  <<: *test_template
+  services:
+    # current version in debian jessie
+    - postgres:9.4
+  variables:
+    # configuration for docker postgres service
+    POSTGRES_DB: failmap
+    POSTGRES_USER: failmap
+    POSTGRES_PASSWORD: failmap
+    # select mysql database settings, all settings default to 'failmap'
+    # so they don't need to be passed explicitly
+    DJANGO_DATABASE: production
+    DB_ENGINE: postgresql_psycopg2
+    DB_HOST: postgres
+    # make poetry install postgres dependencies
+    poetry_args: --extras=deploy
+  retry: 1
+
+# functional testing using mariadb as it is default for debian 9
+test_mariadb: &test_mariadb_template
+  <<: *test_template
+  services:
+    - mariadb:latest
+  variables:
+    # configuration for docker mariadb service
+    MYSQL_ROOT_PASSWORD: failmap
+    MYSQL_DATABASE: failmap
+    MYSQL_USER: failmap
+    MYSQL_PASSWORD: failmap
+    # select mysql database settings, all settings default to 'failmap'
+    # so they don't need to be passed explicitly
+    DJANGO_DATABASE: production
+    DB_HOST: mariadb
+    DB_USER: root
+    # make poetry install mysql dependencies
+    poetry_args: --extras=deploy
+  retry: 1
+
+# integration tests
+integration:
+  <<: *test_template
+  stage: test
+
+  services:
+    - redis:latest
+
+  variables:
+    BROKER: redis://redis:6379/0
+    # required to run celery worker under docker 'root' user
+    C_FORCE_ROOT: 1
+
+  script:
+    - make test_integration
+
+dataset:
+  <<: *test_template
+  script:
+    - make test_datasets
+
+dataset_mysql:
+  <<: *test_mysql_template
+  script:
+    - make test_datasets
+  # run long tests only on master
+  only: [master]
+
+dataset_postgres:
+  <<: *test_postgres_template
+  script:
+    - make test_datasets
+  # run long tests only on master
+  only: [master]
+
+# create distributable release
+build:
+  stage: build
+
+  services:
+    - docker:19.03.5-dind
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+  image: websecmap/ci:docker-git
+
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+
+  script:
+    # store current version as artifact to copy into docker container
+    - python3 setup.py --version > version
+
+    # build docker image and push to registry
+    - time docker build . --tag websecmap/websecmap:build
+    - docker push websecmap/websecmap:build
+
+    # push version tag to docker registry
+    - docker tag websecmap/websecmap:build websecmap/websecmap:$(cat version|tr + _)
+    - docker push websecmap/websecmap:$(cat version|tr + _)
+
+  only:
+    - master
+    - tags
+  retry: 1
+
+# test building image & run image smoketest
+image_test:
+  stage: test
+
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+    PIP_DISABLE_PIP_VERSION_CHECK: 1
+    SYSTEM_TEST_TIMEOUT: "120"
+    GIT_SUBMODULE_STRATEGY: recursive
+  cache:
+    paths:
+      - "$CI_PROJECT_DIR/.pip-cache"
+    # use cache from 'test' job to import it in docker container
+    # for quicker docker builds
+    key: "test"
+    # don't update the cache after run as it will not be updated
+    # by this job
+    policy: pull
+
+  services:
+    - docker:19.03.5-dind
+
+  image: websecmap/ci:docker-git
+
+  script:
+    # build docker image to test building
+    - time docker build . --tag websecmap/websecmap:latest
+
+    # run simple smoketests to verify Docker image is sane
+    - time tests/docker.sh docker
+
+    # run system tests against image
+    - time make test_system
+
+  # run on merge request to determine if build will not break on master
+  except: [master]
+  retry: 1
+
+test_system:
+  stage: staging
+
+  image: websecmap/ci:docker-git
+  services:
+  - docker:19.03.5-dind
+
+  variables:
+    SYSTEM_TEST_TIMEOUT: 120
+    PIP_DISABLE_PIP_VERSION_CHECK: 1
+    IMAGE: websecmap/websecmap:build
+
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+
+  script:
+    - time make test_system
+
+  only: [master]
+  retry: 1
+
+staging:
+  stage: staging
+
+  image: websecmap/ci:docker-git
+  services:
+  - docker:19.03.5-dind
+
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+
+  script:
+    # store current version as artifact to copy into docker container
+    - python3 setup.py --version > version
+    - export tag=$(cat version|tr + _)
+
+    # pull latest version and tag as staging
+    - docker pull websecmap/websecmap:$tag
+    - docker tag websecmap/websecmap:$tag websecmap/websecmap:staging
+
+    # here is where I would put my staging integration tests, if I had one!!!
+
+    # promote to staging after tests have succeeded
+    - docker push websecmap/websecmap:staging
+
+    # until there is a CD staging environment
+    - docker tag websecmap/websecmap:$tag websecmap/websecmap:latest
+    - docker push websecmap/websecmap:latest
+
+  only: [master]
+  retry: 1
+
+production:
+  stage: production
+
+  image: websecmap/ci:docker-git
+  services:
+  - docker:19.03.5-dind
+
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
+
+  script:
+    - export tag=$(git describe --exact-match --tags --abbrev=0)
+    # build docker image and push to registry
+    - docker pull websecmap/websecmap:$tag
+    - docker tag websecmap/websecmap:$tag websecmap/websecmap:latest
+    - docker push websecmap/websecmap:latest
+
+    # insert deploy magic here
+
+  only: [tags]
+  retry: 1
+

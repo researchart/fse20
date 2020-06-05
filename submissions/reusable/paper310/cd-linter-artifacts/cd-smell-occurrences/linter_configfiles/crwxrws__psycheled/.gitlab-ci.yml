@@ -1,0 +1,22 @@
+stages:
+  - build
+
+before_script:
+  - apt update -qq
+  - apt install -y -qq libasound2-dev
+
+rust-latest:
+  stage: build
+  image: rust:latest
+  script:
+    - cargo build --verbose
+    - cargo test --verbose
+
+rust-nightly:
+  stage: build
+  image: rustlang/rust:nightly
+  script:
+    - cargo build --verbose
+    - cargo test --verbose
+  allow_failure: true
+

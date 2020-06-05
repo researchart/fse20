@@ -1,0 +1,72 @@
+image: griest/karma-full-test-env:latest
+
+stages:
+  - build
+  - test
+  - deploy
+
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  - yarn install
+
+test:
+  stage: test
+  script:
+    - npm run test -- --single-run --browsers Chrome
+    - mkdir -p public/reports
+    - cp -r test/reports/unit public/reports
+    - mv test/reports/coverage/lcov-report public/reports/coverage
+  artifacts:
+    paths:
+      - public/
+
+build:
+  stage: build
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+  only:
+    - tags
+    - master
+
+docs:
+  stage: build
+  script:
+    - npm run docs
+  artifacts:
+    paths:
+      - public/
+  only:
+    - tags
+    - master
+
+publish:
+  stage: deploy
+  script:
+    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+    - npm publish
+  dependencies:
+    - build
+    - docs
+    - test
+  only:
+    - tags
+
+pages:
+  stage: deploy
+  script:
+    - echo Building Pages
+  dependencies:
+    - test
+    - docs
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master
+

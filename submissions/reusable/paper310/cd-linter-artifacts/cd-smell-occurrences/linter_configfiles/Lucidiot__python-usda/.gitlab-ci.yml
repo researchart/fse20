@@ -1,0 +1,95 @@
+image: python:3.7
+stages:
+  - test
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+before_script:
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+  - pip install .[dev]
+
+tests:
+  stage: test
+  script:
+    - pytest --cov=usda
+    - codecov
+
+flake8:
+  stage: test
+  script:
+    - flake8
+
+doc8:
+  stage: test
+  script:
+    - doc8
+
+deploy-pypi:
+  stage: deploy
+  when: manual
+  only:
+    - master@Lucidiot/python-usda
+  environment:
+    name: pypi
+    url: https://pypi.org/project/python-usda
+
+  before_script:
+    - pip install twine setuptools wheel
+    - echo "[distutils]" > ~/.pypirc
+    - echo "index-servers =" >> ~/.pypirc
+    - echo "  pypi" >> ~/.pypirc
+    - echo "[pypi]" >> ~/.pypirc
+    - echo "repository=https://upload.pypi.org/legacy/" >> ~/.pypirc
+    - echo "username=$PYPI_DEPLOY_USERNAME" >> ~/.pypirc
+    - echo "password=$PYPI_DEPLOY_PASSWORD" >> ~/.pypirc
+  script:
+    - python setup.py sdist bdist_wheel
+    - twine upload dist/* -r pypi
+
+deploy-testpypi:
+  stage: deploy
+  when: manual
+  only:
+    - branches@Lucidiot/python-usda
+  environment:
+    name: testpypi
+    url: https://test.pypi.org/project/python-usda
+
+  before_script:
+    - pip install twine setuptools wheel
+    - echo "[distutils]" > ~/.pypirc
+    - echo "index-servers =" >> ~/.pypirc
+    - echo "  testpypi" >> ~/.pypirc
+    - echo "[testpypi]" >> ~/.pypirc
+    - echo "repository=https://test.pypi.org/legacy/" >> ~/.pypirc
+    - echo "username=$PYPI_DEPLOY_USERNAME" >> ~/.pypirc
+    - echo "password=$PYPI_DEPLOY_PASSWORD" >> ~/.pypirc
+  script:
+    - python setup.py sdist bdist_wheel
+    - twine upload dist/* -r testpypi
+
+pages:
+  stage: deploy
+  when: manual
+  only:
+    - master@Lucidiot/python-usda
+  artifacts:
+    paths:
+      - public
+
+  before_script:
+    - pip install .[dev]
+  script:
+    - cd docs
+    - make html
+    - mv _build/html ../public
+

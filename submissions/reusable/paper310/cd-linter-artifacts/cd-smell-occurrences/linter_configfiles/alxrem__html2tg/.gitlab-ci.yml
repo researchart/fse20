@@ -1,0 +1,10 @@
+image: golang:1.8-alpine3.6
+
+before_script:
+- ln -s /builds /go/src/gitlab.com
+- cd /go/src/gitlab.com/alxrem/html2tg
+
+test:
+  script:
+  - go test
+

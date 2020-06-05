@@ -1,0 +1,92 @@
+#test public runner
+variables:
+  APP_NAME: "websrv"
+  APP_NAME_STAGING: "websrv-staging"
+  APP_PORT: 5000
+  APP_TEST_LOCAL: "http://0.0.0.0:${APP_PORT}/data"
+  APP_TEST_STAGING: "https://${APP_NAME_STAGING}.herokuapp.com/data"
+
+stages:
+ - test
+ - staging
+ - production
+# - monitor
+
+test:
+  image: python:3-alpine
+  stage: test
+  before_script:
+   - apk add py-pip py-setuptools
+   - pip install requests flask
+   - export FLASK_APP=${APP_NAME}.py
+   - export FLASK_RUN_PORT=${APP_PORT}
+   - python -m flask run &
+   - echo 'Give it some time to start' && sleep 2
+  script:
+   - python test.py ${APP_TEST_LOCAL}
+  only:
+   changes:
+    - .gitlab-ci.yml
+    - '*.py'
+  except:
+   - master
+
+staging:
+  image: tmaier/dpl
+  stage: staging
+  before_script:
+   # get the stuffz
+   - apk update
+   - apk add python py-pip py-setuptools git openssh-client
+   - pip install requests
+    #configure git to ssh and authenticate
+   - git config --global user.name "${GITLAB_USER_NAME}"
+   - git config --global user.email "${GITLAB_USER_EMAIL}"
+   - git remote set-url origin "git@gitlab.com:${CI_PROJECT_PATH}.git"
+   # set ssh
+   - 'which ssh-agent || openssh-client'
+   - 'eval $(ssh-agent -s)'
+   # add ssh key stored in SSH_PRIVATE_KEY variable
+   - mkdir ~/.ssh
+   - echo "${SSH_PRIVATE_KEY}" > ~/.ssh/gitlab_ci_ssh
+   - chmod 600 ~/.ssh/gitlab_ci_ssh
+   - ssh-add ~/.ssh/gitlab_ci_ssh
+   # disable host key checking (NOTE: makes you susceptible to man-in-the-middle attacks)
+   # lol, as if I care ¯\_(ツ)_/¯
+   # WARNING: use only in docker container, if you use it with shell you will overwrite your user's ssh config
+   - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  script:
+   - dpl --provider=heroku --app=$APP_NAME_STAGING --api-key=$HEROKU_API_KEY
+   - echo 'Give it some time to start' && sleep 5
+   - python test.py ${APP_TEST_STAGING}
+   # publish changes to master
+   - git commit --allow-empty -m "Staging succeeded for ${CI_COMMIT_SHA}"
+   - git push -f origin HEAD:master
+  only:
+   changes:
+    - .gitlab-ci.yml
+    - '*.py'
+  except:
+   - master
+
+#deploy to heroku
+production:
+  image: tmaier/dpl
+  stage: production
+  script:
+   - dpl --provider=heroku --app=$APP_NAME --api-key=$HEROKU_API_KEY
+  only:
+   - master
+
+
+#check_in:
+#  image: python:3-alpine
+#  stage: monitor
+#  before_script:
+#   - apk add py-pip py-setuptools
+#   - pip install requests
+#  script:
+#   - python test.py https://$APP_NAME.herokuapp.com/data/1
+#  only:
+#   - schedules
+

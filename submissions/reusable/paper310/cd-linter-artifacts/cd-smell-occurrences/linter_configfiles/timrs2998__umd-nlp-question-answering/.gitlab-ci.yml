@@ -1,0 +1,26 @@
+image: "perl:5.14"
+
+cache:
+  paths:
+  - local/
+  - /usr/lib/perl/
+
+before_script:
+  - curl -L https://cpanmin.us | perl - App::cpanminus
+  - cpanm Carton
+  - carton install
+
+stages:
+  - build
+  # - test
+
+job1:
+  stage: build
+  script:
+  - carton bundle
+
+# job2:
+#   stage: test
+#   script:
+#   - dzil test
+

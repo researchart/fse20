@@ -1,0 +1,38 @@
+
+test_code:
+  image: rootproject/root:latest
+  stage: test
+  before_script:
+    - yum install -y make cmake boost-devel git
+# will install latest CMake, even though Fedora has a recent one
+    - mkdir -p $HOME/.local
+    - curl -s "https://cmake.org/files/v3.16/cmake-3.16.3-Linux-x86_64.tar.gz" | tar --strip-components=1 -xz -C $HOME/.local
+    - export PATH=$HOME/.local/bin:$PATH
+  script:
+    - cmake -S examples -B build
+    - cmake --build build -v
+    - cmake --build build -t test
+
+pages:
+  image: node:10
+  stage: deploy
+  only:
+    - master
+  cache:
+    paths:
+      - node_modules/
+  before_script:
+    - apt update && apt install -y calibre calibre-bin
+    - npm install gitbook-cli -g #
+    - gitbook fetch 3.2.3
+    - gitbook install
+  script:
+    - gitbook build . public
+    - gitbook pdf . modern-cmake.pdf
+    - cp modern-cmake.pdf public/modern-cmake.pdf
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+
+

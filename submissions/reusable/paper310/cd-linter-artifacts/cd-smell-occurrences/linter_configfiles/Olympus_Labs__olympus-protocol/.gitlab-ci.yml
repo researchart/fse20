@@ -1,0 +1,70 @@
+image: alpine:latest # Ideally, a dedicated docker image with Truffle on it
+
+before_script:
+  - apk add --no-cache nodejs nodejs-npm git python g++ make
+  - npm i -g truffle ganache-cli run-with-testrpc solhint
+  - npm i
+
+cache:
+  key: ${CI_PROJECT_ID}
+  paths:
+    - node_modules/
+
+stages:
+  - build
+  - checkstyle
+  - test
+  - coverage
+  - deploy
+
+# coverage:
+#   stage: coverage
+#   only:
+#     - develop
+#   tags: [aireach]
+#   script:
+#     - npm run coverage
+#     - mv coverage/ public/
+#   artifacts:
+#     paths:
+#       - public
+#     expire_in: 30 days
+
+checkstyle:
+  stage: checkstyle
+  tags: [aireach]
+  script:
+    - npm run linting
+
+build:
+  stage: build
+  tags: [aireach]
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - build
+
+test:
+  stage: test
+  tags: [aireach]
+  script:
+    - npm test
+
+deploy:
+  stage: deploy
+  tags: [aireach]
+  before_script:
+    - apk add --no-cache nodejs nodejs-npm git python g++ make openssh-client
+    - node scripts/exec/retriever
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 700 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -H '188.166.218.211' >> ~/.ssh/known_hosts
+  script:
+    - scp -r ./.temp/* root@188.166.218.211:/var/www/Olympus/Website/contracts/
+  only:
+    - develop
+

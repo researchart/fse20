@@ -1,0 +1,160 @@
+stages:
+    - source
+    - build
+    - deploy
+
+portable-source:
+    stage: source
+    tags:
+        - graphviz,centos7
+    script:
+        - ./autogen.sh
+        - make dist
+    artifacts:
+        when: on_success
+        expire_in: 1 week
+        paths:
+            - VERSION
+            - COLLECTION
+            - graphviz-*.tar.gz
+    only:
+        - master
+
+.build_template: &rpm_build_definition
+    stage: build
+    script:
+        - rm -rf /home/gitlab-runner/rpmbuild
+        - GV_VERSION=$( cat VERSION )
+        - COLLECTION=$( cat COLLECTION )
+        - rpmbuild -ta graphviz-${GV_VERSION}.tar.gz
+        - ID=$( cat /etc/redhat-release | cut -d' ' -f1 | tr 'A-Z' 'a-z' )
+        - VERSION_ID=$( cat /etc/redhat-release | cut -d' ' -f3  | cut -d'.' -f1 )
+        - if test -f /etc/os-release; then . /etc/os-release; fi
+        - DIR=Packages/${COLLECTION}/${ID}/${VERSION_ID}
+        - ARCH=$( uname -m )
+        - mkdir -p ${DIR}/os/${ARCH}
+        - mkdir -p ${DIR}/debug/${ARCH}
+        - mkdir -p ${DIR}/source
+        - mv /home/gitlab-runner/rpmbuild/SRPMS/*.src.rpm ${DIR}/source/
+        - mv /home/gitlab-runner/rpmbuild/RPMS/*/*debuginfo*rpm ${DIR}/debug/${ARCH}/
+        - mv /home/gitlab-runner/rpmbuild/RPMS/*/*.rpm ${DIR}/os/${ARCH}/
+    artifacts:
+        when: on_success
+        expire_in: 1 week
+        paths:
+            - Packages/*/*/*/*/*/*.rpm
+            - Packages/*/*/*/*/*.rpm
+    only:
+         - master
+
+.build_template: &deb_build_definition
+    stage: build
+    script:
+        - GV_VERSION=$( cat VERSION )
+        - COLLECTION=$( cat COLLECTION )
+        - zcat graphviz-${GV_VERSION}.tar.gz | tar xf -
+        - (cd graphviz-${GV_VERSION}; fakeroot make -f debian/rules binary)
+        - . /etc/os-release
+        - DIR=Packages/${COLLECTION}/${ID}/${VERSION_ID}
+        - ARCH=$( uname -m )
+        - mkdir -p ${DIR}/os/${ARCH}
+        - mkdir -p ${DIR}/debug/${ARCH}
+        - mkdir -p ${DIR}/source
+        - mv *.deb ${DIR}/os/${ARCH}/
+        - mv *.ddeb ${DIR}/debug/${ARCH}/
+    artifacts:
+        when: on_success
+        expire_in: 1 week
+        paths:
+            - Packages/*/*/*/*/*/*deb
+            - Packages/*/*/*/*/*.gz
+    only:
+        - master
+
+centos6-build:
+    <<: *rpm_build_definition
+    tags:
+        - graphviz,centos6
+
+centos7-build:
+    <<: *rpm_build_definition
+    tags:
+        - graphviz,centos7
+
+          #fedora27-build:
+          #<<: *rpm_build_definition
+          #tags:
+          #- graphviz,fedora27
+
+          #fedora28-build:
+          #<<: *rpm_build_definition
+          #tags:
+          #- graphviz,fedora28
+
+fedora29-build:
+    <<: *rpm_build_definition
+    tags:
+        - graphviz,fedora29
+
+fedora30-build:
+    <<: *rpm_build_definition
+    tags:
+        - graphviz,fedora30
+
+fedora31-build:
+    <<: *rpm_build_definition
+    tags:
+        - graphviz,fedora31
+
+fedora32-build:
+    <<: *rpm_build_definition
+    tags:
+        - graphviz,fedora32
+
+fedora33-build:
+    <<: *rpm_build_definition
+    tags:
+        - graphviz,fedora33
+
+ubuntu18-04-build:
+    <<: *deb_build_definition
+    tags:
+        - graphviz,ubuntu18-04
+
+ubuntu18-10-build:
+    <<: *deb_build_definition
+    tags:
+        - graphviz,ubuntu18-10
+
+ubuntu19-04-build:
+    <<: *deb_build_definition
+    tags:
+        - graphviz,ubuntu19-04
+
+
+deployment:
+    stage: deploy
+    script:
+        - GV_VERSION=$( cat VERSION )
+        - COLLECTION=$( cat COLLECTION )
+        - eval $(ssh-agent -s)
+        - cat "$DEPLOY_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+        - mkdir -p ~/.ssh
+        - chmod 700 ~/.ssh
+        - ssh-keyscan "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+        - chmod 644 ~/.ssh/known_hosts
+        - chmod -R o-rwx Packages
+        - chmod -R g-wx Packages
+        - chmod -R g+X Packages
+        - ssh "$DEPLOY_USER"@"$DEPLOY_HOST" 'rm -rf Packages/'"$COLLECTION"'/{fedora,centos,ubuntu}'
+        - scp -r Packages/* "$DEPLOY_USER"@"$DEPLOY_HOST"':'Packages/
+        - ssh "$DEPLOY_USER"@"$DEPLOY_HOST" 'for i in Packages/'"$COLLECTION"'/{fedora,centos}/*/{source,os/*,debug/*}; do createrepo $i; done'
+        - scp graphviz-fedora.repo graphviz-centos.repo "$DEPLOY_USER"@"$DEPLOY_HOST"':'Packages/
+        - ssh "$DEPLOY_USER"@"$DEPLOY_HOST" mkdir -p Packages/"$COLLECTION"/portable_source
+        - md5sum graphviz-"$GV_VERSION".tar.gz >graphviz-"$GV_VERSION".tar.gz.md5
+        - scp graphviz-"$GV_VERSION".tar.gz graphviz-"$GV_VERSION".tar.gz.md5 "$DEPLOY_USER"@"$DEPLOY_HOST"':'Packages/"$COLLECTION"/portable_source/
+    only:
+        - master
+    tags:
+        - graphviz,deploy
+

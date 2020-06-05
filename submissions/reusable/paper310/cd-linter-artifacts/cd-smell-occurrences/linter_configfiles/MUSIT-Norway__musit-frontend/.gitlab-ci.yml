@@ -1,0 +1,99 @@
+######################################################################
+# GitLab CI build script for the MUSIT frontend project              #
+######################################################################
+
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  tags:
+    - docker
+    - shared
+  image: registry.gitlab.com/musit-norway/docker-node
+
+  cache:
+    paths:
+      - node_modules/
+
+  before_script:
+    - apt-get update -qq && apt-get install -qy libelf1
+
+  script:
+    - echo "Running frontend tests..."
+    - npm install
+    # npm run flow
+    # Check formatting
+    - npm run formatcode
+    - git status
+    - git diff --exit-code src/ || (echo "ERROR The codebase isn't formatted! See list of files above"; false)
+    # Run tests
+    - npm test
+
+build:
+  stage: build
+  tags:
+    - docker
+    - musit
+    - utv
+  image: $MUSIT_DOCKER_REGISTRY/musit/docker-node
+  variables:
+    DOCKER_DRIVER: overlay
+
+  services:
+    - $MUSIT_DOCKER_REGISTRY/library/docker:dind
+
+  before_script:
+    - echo "Running build $CI_BUILD_ID"
+    - mkdir $HOME/.docker
+    - echo $DOCKER_AUTH_CONFIG > $HOME/.docker/config.json
+    - apt-get update -qq && apt-get install -qy libelf1
+    - docker info
+    # Ensure that we are building the client from the correct Docker image.
+    - sed -e "s/FROM node/FROM $MUSIT_DOCKER_REGISTRY\/library\/node/g" Dockerfile > Dockerfile.tmp && mv Dockerfile.tmp Dockerfile
+
+  script:
+    - sed -i 's/LOCAL_DEVELOPMENT/'$CI_COMMIT_SHA'/g' $CI_PROJECT_DIR/src/build.ts
+    - docker build -t $MUSIT_DOCKER_REGISTRY/musit/webpack:$CI_COMMIT_SHA .
+    - docker push $MUSIT_DOCKER_REGISTRY/musit/webpack:$CI_COMMIT_SHA
+    - docker tag  $MUSIT_DOCKER_REGISTRY/musit/webpack:$CI_COMMIT_SHA $MUSIT_DOCKER_REGISTRY/musit/webpack:utv
+    - docker push $MUSIT_DOCKER_REGISTRY/musit/webpack:utv
+
+  only:
+    - master@MUSIT-Norway/musit-frontend
+
+  when: manual
+
+build release branch:
+  stage: build
+  tags:
+    - docker
+    - musit
+    - utv
+  image: $MUSIT_DOCKER_REGISTRY/musit/docker-node
+  variables:
+    DOCKER_DRIVER: overlay
+
+  services:
+    - $MUSIT_DOCKER_REGISTRY/library/docker:dind
+
+  before_script:
+    - echo "Running build $CI_BUILD_ID"
+    - mkdir $HOME/.docker
+    - echo $DOCKER_AUTH_CONFIG > $HOME/.docker/config.json
+    - apt-get update -qq && apt-get install -qy libelf1
+    - docker info
+    # Ensure that we are building the client from the correct Docker image.
+    - sed -e "s/FROM node/FROM $MUSIT_DOCKER_REGISTRY\/library\/node/g" Dockerfile > Dockerfile.tmp && mv Dockerfile.tmp Dockerfile
+
+  script:
+    - sed -i 's/LOCAL_DEVELOPMENT/'$CI_COMMIT_SHA'/g' $CI_PROJECT_DIR/src/build.js
+    - docker build -t $MUSIT_DOCKER_REGISTRY/musit/webpack:utv .
+    - docker push $MUSIT_DOCKER_REGISTRY/musit/webpack:utv
+
+  only:
+    - release@MUSIT-Norway/musit-frontend
+
+  when: manual
+

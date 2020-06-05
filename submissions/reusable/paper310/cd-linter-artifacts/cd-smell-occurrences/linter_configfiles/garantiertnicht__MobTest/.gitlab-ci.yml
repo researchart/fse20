@@ -1,0 +1,35 @@
+# JDK is installed already
+image: java:8
+
+before_script:
+  - "sed --in-place -e \"s/CI_MOD_VERSION/$CI_BUILD_REF/g\" build.gradle"
+  - "sed --in-place -e \"s/CI_MOD_VERSION/$CI_BUILD_REF/g\" src/main/java/de/garantiertnicht/mobexample/MobExample.java"
+  - "chmod a+x ./gradlew"
+  - "./gradlew setupCiWorkspace"
+
+stages:
+  - build
+
+# Just Build
+development:
+  stage: build
+  script:
+    - "./gradlew build"
+  except:
+    - "master@garantiertnicht/MobTest"
+    - triggers
+
+# Build and Release
+release:
+  stage: build
+  script:
+    - "./gradlew build"
+    - "pack200 -q -E9 build/libs/mobtest-$CI_BUILD_REF.pack.gz build/libs/mobtest-$CI_BUILD_REF.jar"
+    - "mv build/libs/mobtest-$CI_BUILD_REF.pack.gz mobtest-$CI_BUILD_REF.pack.gz"
+  artifacts:
+    paths:
+      - "mobtest-$CI_BUILD_REF.pack.gz"
+  only:
+    - "master@garantiertnicht/MobTest"
+    - triggers
+

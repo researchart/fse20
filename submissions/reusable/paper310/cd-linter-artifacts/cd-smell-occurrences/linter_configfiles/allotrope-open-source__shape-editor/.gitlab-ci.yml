@@ -1,0 +1,61 @@
+#--------------------------------------
+# environment
+#--------------------------------------
+
+image: eclipse/ubuntu_jdk8
+
+variables:
+  # This will suppress any download for dependencies and plugins or upload messages which would clutter the console log.
+  # `showDateTime` will show the passed time in milliseconds. You need to specify `--batch-mode` to make this work.
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  # Do not use `installAtEnd` and `deployAtEnd`, or artifactory will not deploy .pom files
+  MAVEN_CLI_OPTS: "-s ../../.m2/settings.xml --batch-mode --errors --fail-at-end --show-version"
+
+stages:
+ - build
+ - deploy
+
+# This will only validate and compile stuff.
+validate:
+  stage: build
+  script:
+  # run maven build
+  - cd src/com.osthus.shapes.shaclc.parent
+  - mvn $MAVEN_CLI_OPTS clean install
+  # serve files to the next stage
+  artifacts:
+    name: validate
+    paths:
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.repository/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.feature/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.ui/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.ide/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.ui.tests/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.tests/target/*
+    expire_in: 120 minutes
+
+# Copy the final package to the remote repository.
+# See https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
+deploy:
+  stage: deploy
+  script:
+  # run maven build
+  - cd src/com.osthus.shapes.shaclc.parent
+  - mvn -X $MAVEN_CLI_OPTS deploy
+  only:
+    - master
+  # archive up the built artifacts
+  artifacts:
+    name: deploy
+    paths:
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.repository/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.feature/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.ui/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.ide/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.ui.tests/target/*
+    - src/com.osthus.shapes.shaclc.parent/com.osthus.shapes.shaclc.tests/target/*
+    expire_in: 14 days
+  when: manual
+

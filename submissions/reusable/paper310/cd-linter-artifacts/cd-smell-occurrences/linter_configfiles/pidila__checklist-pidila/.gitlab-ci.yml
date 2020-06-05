@@ -1,0 +1,21 @@
+image: node:10.9.0
+
+before_script:
+  - npm install
+
+test:
+   stage: test
+   script:
+     - npm test
+
+pages:
+  stage: deploy
+  script:
+    - npm run bundleData
+    - npm run generate
+  artifacts:
+    paths:
+      - public
+  only:
+    - rgaa4
+

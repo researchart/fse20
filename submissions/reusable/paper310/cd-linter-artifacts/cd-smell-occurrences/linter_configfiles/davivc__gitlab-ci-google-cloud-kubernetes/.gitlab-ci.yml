@@ -1,0 +1,145 @@
+# Content of .gitlab-ci.yml
+# Author: Davi Candido <davi@contentools.com>
+# Date: 2018-06-19
+image: docker:latest
+
+stages:
+  - test
+  - build
+  - deploy
+
+test:
+  stage: test
+  script: echo "Running tests"
+
+build:
+  stage: build
+  image: google/cloud-sdk
+  services:
+    - docker:dind
+  script:
+    - echo "$GCP_SERVICE_KEY" > gcloud-service-key.json # Google Cloud service accounts
+    - gcloud auth activate-service-account --key-file gcloud-service-key.json
+    - gcloud config set project $GCP_PROJECT_ID
+    - gcloud builds submit . --config=cloudbuild.yaml --substitutions _IMAGE_NAME=$CI_PROJECT_NAME,_VERSION=$(echo $CI_COMMIT_SHA | cut -c8-25)
+
+deploy_review:
+  stage: deploy
+  image: google/cloud-sdk
+  script:
+    - echo "Deploy a review app $CI_ENVIRONMENT_SLUG - $CI_COMMIT_REF_NAME"
+    - config_kubernetes
+    - create_ssl_secret
+    - create_deployment_files
+    - apply_and_rollout
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://$CI_ENVIRONMENT_SLUG.$CI_PROJECT_NAME.$MY_DOMAIN
+    on_stop: stop_review
+  only:
+    - branches
+  except:
+    - master
+
+stop_review:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - echo "Remove review app"
+    - kubectl version
+    - kubectl delete ing -l app=$CI_ENVIRONMENT_SLUG
+    - kubectl delete all -l app=$CI_ENVIRONMENT_SLUG
+  when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+
+deploy_stage:
+  stage: deploy
+  image: google/cloud-sdk
+  script: 
+    - echo "Deploy to staging server"
+    - config_kubernetes
+    - create_ssl_secret
+    - create_deployment_files
+    - apply_and_rollout
+  environment:
+    name: staging
+    url: https://$CI_ENVIRONMENT_SLUG.$CI_PROJECT_NAME.$MY_DOMAIN
+  only:
+    - master
+
+deploy_stage:
+  stage: deploy
+  image: google/cloud-sdk
+  script: 
+    - echo "Deploy to production server"
+    - config_kubernetes
+    - create_ssl_secret
+    - create_deployment_files
+    - apply_and_rollout
+  environment:
+    name: prod
+    url: https://$CI_ENVIRONMENT_SLUG.$CI_PROJECT_NAME.$MY_DOMAIN
+  only:
+    - tags
+
+# Custom Functions -------------------------------------------------------
+.custom_functions: &custom_functions |
+  export VERSION=$(echo $CI_COMMIT_SHA | cut -c8-25)
+  export SECRET_NAME=tls-$CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG
+  export REPLICAS=3
+  export TRACK=stable
+
+  function config_kubernetes() {
+    kubectl config set-cluster $KUBE_NAME --server="$KUBE_URL" --insecure-skip-tls-verify=true
+    kubectl config set-credentials cluster-admin --username="$KUBE_USER" --password="$KUBE_PASSWORD"
+    kubectl config set-context default --cluster=$KUBE_NAME --user=cluster-admin
+    kubectl config use-context default
+  }
+  
+  function create_ssl_secret() {
+    ## Check if we are using SSL
+    if [[ "$USE_SSL" != "True" ]]; then
+      return
+    fi
+    
+    ## Check if secret name already exists
+    if [[ $SECRET_NAME == $(kubectl get secret $SECRET_NAME -o jsonpath="{.metadata.name}") ]]; then 
+      kubectl delete secret $SECRET_NAME
+    fi
+
+    kubectl create secret generic $SECRET_NAME --from-file=tls.key=ssl_certs/privkey.pem --from-file=tls.crt=ssl_certs/fullchain.pem
+  }
+    
+  function create_deployment_files() {
+    ## Deployment file substitutions
+    sed 's/_APP_NAME_/'"$CI_PROJECT_NAME"'/g; s/_VERSION_/'"$VERSION"'/g; s/_CI_ENVIRONMENT_SLUG_/'"$CI_ENVIRONMENT_SLUG"'/g; s/_PROJECT_NAME_/'"$GCP_PROJECT_ID"'/g; s/_REPLICAS_/'"$REPLICAS"'/g; s/_TRACK_/'"$TRACK"'/g;' kubernetes.tpl.deployment.yaml > deployment.yaml;
+    
+    ## Ingress file substitutions
+    if [[ "$USE_SSL" != "True" ]]; then
+      sed 's/_APP_NAME_/'"$CI_PROJECT_NAME"'/g; s/_CI_ENVIRONMENT_SLUG_/'"$CI_ENVIRONMENT_SLUG"'/g; s/_MY_DOMAIN_/'"$MY_DOMAIN"'/g;' kubernetes.tpl.ingress.yaml > ingress.yaml;
+    else
+      sed 's/_APP_NAME_/'"$CI_PROJECT_NAME"'/g; s/_CI_ENVIRONMENT_SLUG_/'"$CI_ENVIRONMENT_SLUG"'/g; s/_MY_DOMAIN_/'"$MY_DOMAIN"'/g;' kubernetes.tpl.ingress-ssl.yaml > ingress.yaml;
+    fi
+    
+    ## Service file substitutions
+    sed 's/_APP_NAME_/'"$CI_PROJECT_NAME"'/g; s/_CI_ENVIRONMENT_SLUG_/'"$CI_ENVIRONMENT_SLUG"'/g;' kubernetes.tpl.service.yaml > service.yaml;
+  }
+
+  function apply_and_rollout() {
+    cat deployment.yaml
+    cat service.yaml
+    cat ingress.yaml
+    kubectl apply -f deployment.yaml
+    kubectl apply -f service.yaml
+    kubectl apply -f ingress.yaml
+    kubectl rollout status -f deployment.yaml
+    kubectl get all,ing -l app=$CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG
+  }
+
+before_script:
+  - *custom_functions
+
+

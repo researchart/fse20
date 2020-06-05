@@ -1,0 +1,160 @@
+#  _____               _           _
+# |   __|___ ___ ___ _| |___ _____| |_ ___ ___ ___
+# |   __|  _| -_| -_| . | . |     | . | . |   | -_|
+# |__|  |_| |___|___|___|___|_|_|_|___|___|_|_|___|
+#
+#                              Freedom in the Cloud
+#
+# Gitlab-CI: Build and Test to ensure that known bugs get caught
+#
+# License
+# =======
+#
+# Copyright (C) 2019 Liam Hurwitz <liam@contra-bit.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# This file builds images for freedombone and tests various apps
+# see https://docs.gitlab.com/ce/ci/yaml/README.html for all available options
+#
+# The Freedombone Docker image is defined in the Dockerfile, its purpose is to build and test freedombone. Using a docker image has the advantage, that most overhead is removed from the setup phase.
+# TODO: Currently erverything is run as root
+#
+# Local Testing is sometimes more Verbose. To run locally make sure you have gitlab-runner and docker installed,
+# then run gitlab-runner exec docker [testname]
+image: gitlab.informatik.uni-bremen.de:5005/turingcomplete/freedombone:latest
+
+stages:
+  - prepare
+  - build
+  - test
+  - deploy
+
+git update:
+  stage: prepare
+  script:
+    - git pull --rebase origin stretch && git checkout buster
+
+build amd64:
+  stage: build
+  script:
+    - echo "Buidling Image for amd64"
+    - freedombone-image -t amd64 -m http://www.fb3.uni-bremen.de/download/linux/debian/debian/
+
+  artifacts:
+    paths:
+      - freedombone-main-all-amd64.img
+  only:
+    - tags
+
+
+build qemu64:
+  stage: build
+  script:
+    - echo "Buidling Image for qemu-x86_64"
+    - freedombone-image -t qemu-x86_64 -m http://www.fb3.uni-bremen.de/download/linux/debian/debian/
+
+  artifacts:
+    paths:
+      - freedombone-main-all-qemu-x86_64.img
+  only:
+    - tags
+
+build beaglebonegreen:
+  stage: build
+  script:
+    - echo "Buidling Image for beaglebonegreen"
+    - freedombone-image -t beaglebonegreen -m http://www.fb3.uni-bremen.de/download/linux/debian/debian/
+
+  artifacts:
+    paths:
+      - freedombone-main-all-beaglebonegreen.img
+  only:
+    - tags
+
+build beaglebonegreenmesh:
+  stage: build
+  script:
+    - echo "Buidling Image for beaglebonegreen"
+    - freedombone-image -t beaglebonegreen -m http://www.fb3.uni-bremen.de/download/linux/debian/debian/ -v mesh
+
+  artifacts:
+    paths:
+      - freedombone-main-all-beaglebonegreen.img
+  only:
+    - tags
+
+
+build amd64meshclient:
+  stage: build
+  script:
+    - echo "Buidling Image for amd64 meshclient"
+    - freedombone-image -t amd64 -m http://www.fb3.uni-bremen.de/download/linux/debian/debian/ -v meshclient
+
+  artifacts:
+    paths:
+      - freedombone-main-all-beaglebonegreen.img
+  only:
+    - tags
+
+build menuconfig-onion:
+  stage: build
+  script:
+  # Install Freedombone to local testing for testing
+  # TODO: make sure,that tests have access to this build
+  # TODO: add headless menuconfig
+    - export TERMINFO=/usr/lib/terminfo
+    - echo $TERMINFO
+    - sudo freedombone menuconfig-onion --noninteractive
+
+build menuconfig:
+  stage: build
+  script:
+    - export TERMINFO=/usr/lib/terminfo
+    - echo $TERMINFO
+    - sudo freedombone menuconfig --noninteractive your-test-domain-name.net
+
+test syncthing:
+  stage: test
+  script:
+  # TODO: Emualte User in Browser for Clicks in postinstall with python programm
+  # Then scrape HTML in order to use assertions to check if app works
+    - echo "Testing Install for Syncthing"
+    - freedombone addremove add syncthing
+    - echo "For example run a test suite"
+    - freedombone addremove remove syncthing
+
+test epicyon:
+  stage: test
+  script:
+  # TODO: Emualte User in Browser for Clicks in postinstall with python programm
+  # Then scrape HTML in order to use assertions to check if app works
+    - echo "Testing Install for Epicyon"
+    - freedombone addremove add epicyon
+    - echo "For example run a test suite"
+    - freedombone addremove remove epicyon
+
+test2:
+  stage: test
+  script:
+    - echo "Do another parallel test here"
+    - echo "For example run a lint test"
+
+deploy1:
+  stage: deploy
+  script:
+  # TODO: Decide where to host images, and then push artefacts to website
+  # Hosting at Uni Bremen should be no problem. TODO: Ask about logging
+    - echo "Do your deploy here"
+

@@ -1,0 +1,12 @@
+image: "library/rust:latest"
+
+before_script:
+- apt-get update -yqq
+- apt-get install -yqq --no-install-recommends libgtk-3-dev
+
+# Use cargo to test the project
+test:cargo:
+  script:
+  - rustc --version && cargo --version      # Print version info for debugging
+  - cargo test --verbose --jobs 1 --release # Don't paralize to make errors more readable
+

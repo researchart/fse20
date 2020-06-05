@@ -1,0 +1,24 @@
+image: maven:3-jdk-8
+
+release:
+  stage: build
+  script:
+  - "mvn -e package"
+  - "ls target"
+  - "unzip -d target/release target/kickc-release.zip"
+  - "mv target/release/kickc/lib/kickc-release.jar target/release/kickc/lib/kickc-${CI_COMMIT_REF_NAME}.jar"
+  - "mkdir ./kickc"
+  - "mv target/release/kickc/* ./kickc/"
+  - "cat target/site/jacoco/index.html"
+  artifacts:
+    name: kickc_${CI_COMMIT_REF_NAME}
+    paths:
+    - ./kickc/bin
+    - ./kickc/lib
+    - ./kickc/stdlib
+    - ./kickc/fragment
+    - ./kickc/examples
+    - ./kickc/LICENSE*
+    - ./kickc/NOTICE*
+    - ./kickc/*.pdf
+

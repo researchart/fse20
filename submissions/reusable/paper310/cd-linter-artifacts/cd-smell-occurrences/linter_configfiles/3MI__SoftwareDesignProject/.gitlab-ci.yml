@@ -1,0 +1,40 @@
+image: ubuntu:16.04
+
+before_script:
+  - apt-get update -qy
+  - apt-get -y install python-pip
+  - apt-get -y install python3-pip
+  - apt-get -y install curl
+  - apt-get -y install libsasl2-dev python-dev libldap2-dev libssl-dev
+  - pip3 install numpy
+  - pip3 install django
+  - pip3 install django-auth-ldap
+  - pip3 install codecov
+  - pip3 install pytest-cov
+  - pip3 install pytest-django
+  - pip3 install djangorestframework
+  - pip3 install django-rest-auth
+  - pip3 install Celery
+  - pip3 install django-cors-headers
+  - pip3 install redis
+  - pip3 install icalendar
+  - pip3 install dj-static
+  - apt install redis-server -y
+  - alias python=python3
+  - CODECOV_TOKEN="c35645b6-11da-4775-8d87-b4c4e95b8770"
+  - source ~/.bashrc
+
+test:
+  script:
+#    - codecov --token=c35645b6-11da-4775-8d87-b4c4e95b8770
+    - pwd
+    - ls
+    - redis-server &
+    - pytest -s SoftwareDesignProject/just_some_code_test.py
+    - pytest -s SoftwareDesignProject/just_some_code_test.py --cov=./
+    - curl -s https://codecov.io/bash > .codecov
+    - chmod +x .codecov
+    - ./.codecov -t c35645b6-11da-4775-8d87-b4c4e95b8770
+
+
+

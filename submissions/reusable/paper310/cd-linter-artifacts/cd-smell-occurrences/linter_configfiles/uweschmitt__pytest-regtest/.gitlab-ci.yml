@@ -1,0 +1,11 @@
+stages:
+    - tests
+
+image: python:3.7
+
+tests:
+    script:
+        - pip3 install tox
+        - tox -r -vv
+    stage: tests
+

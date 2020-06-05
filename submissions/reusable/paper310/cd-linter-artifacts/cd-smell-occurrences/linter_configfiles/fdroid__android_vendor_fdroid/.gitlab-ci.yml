@@ -1,0 +1,15 @@
+
+test:
+  image: debian:stretch-slim
+  variables:
+    fingerprint: 37D2C98789D8311948394E3E41E7044E1DBA2E89
+  script:
+    - apt update -y
+    - apt-get install -y --no-install-recommends bash ca-certificates dirmngr gnupg grep wget
+    - for f in *.sh */*.sh; do bash -n $f; done
+    - "! (gpg --list-keys | grep pub)"
+    - while ! gpg --keyserver pgp.mit.edu --recv-key $fingerprint; do sleep 10; done
+    - gpg --list-key --fingerprint | tr -d '[:space:]' | grep $fingerprint
+    - echo "${fingerprint}:6:" | gpg --import-ownertrust
+    - ./get_packages.sh
+

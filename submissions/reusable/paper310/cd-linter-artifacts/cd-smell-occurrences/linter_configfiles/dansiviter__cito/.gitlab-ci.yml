@@ -1,0 +1,60 @@
+variables:
+  MAVEN_OPTS: >
+    -Dhttps.protocols=TLSv1.2
+    -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository
+    -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN
+    -Dorg.slf4j.simpleLogger.showDateTime=true
+    -Djava.awt.headless=true
+  MAVEN_CLI_OPTS: "-B -e -fae -V -DinstallAtEnd=true -DdeployAtEnd=true"
+
+# This template uses jdk8 for verifying and deploying images
+image: maven:3.6-jdk-8-alpine
+
+include:
+  - template: Jobs/Code-Quality.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+  - template: Security/License-Management.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+
+cache:
+  key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+  paths:
+    - .m2/repository
+    - target
+
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS package -DskipTests -DskipITs
+
+test:
+  stage: test
+  before_script:
+    - apk add grep
+  script:
+    - mvn $MAVEN_CLI_OPTS verify -DskipITs
+  after_script:
+    - |
+      echo "Test Coverage Total: $(cat $CI_PROJECT_DIR/target/site/jacoco/index.html | grep -oP 'Total.*?\K([0-9]{1,3})%')"
+
+deploy:
+  stage: deploy
+  only:
+    - /^release/.*$/
+    - /^master$/
+  script:
+    - mvn $MAVEN_CLI_OPTS deploy -s ci_settings.xml -Pdeploy -DskipTests -DskipITs
+
+manual deploy:
+  extends: deploy
+  only:
+    - /^feature\/.*$/
+    - /^bugfix\/.*$/
+    - /^hotfix\/.*$/
+  before_script:
+    - |
+      if [ "$CI_COMMIT_REF_NAME" != "master" ] && ! [[ $CI_COMMIT_REF_NAME =~ release\/.* ]]; then
+        mvn $MAVEN_CLI_OPTS versions:set -DgenerateBackupPoms=false -DnewVersion=${CI_COMMIT_REF_SLUG}-SNAPSHOT
+      fi
+  when: manual
+

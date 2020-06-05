@@ -1,0 +1,10 @@
+stages:
+  - test
+
+rpmlint:
+  image: fedora:latest
+  stage: test
+  script:
+    - dnf install -y rpmlint
+    - rpmlint -v python-pylatest.fedora.spec
+

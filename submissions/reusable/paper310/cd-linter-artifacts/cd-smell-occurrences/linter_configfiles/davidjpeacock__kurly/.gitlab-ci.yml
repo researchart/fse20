@@ -1,0 +1,39 @@
+image: golang:latest
+
+variables:
+  REPO_NAME: gitlab.com/davidjpeacock/kurly
+
+# The problem is that to be able to use go get, one needs to put
+# the repository in the $GOPATH. So for example if your gitlab domain
+# is gitlab.com, and that your repository is namespace/project, and
+# the default GOPATH being /go, then you'd need to have your
+# repository in /go/src/gitlab.com/namespace/project
+# Thus, making a symbolic link corrects this.
+before_script:
+  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+  - go get ./...
+  #- go get -u golang.org/x/lint/golint
+
+stages:
+    - test
+    - build
+
+format:
+    stage: test
+    script:
+      - diff <(echo -n) <(gofmt -s -d .)
+      - go vet $(go list ./... | grep -v /vendor/)
+      - go test -race $(go list ./... | grep -v /vendor/)
+      # # To be added in the future.
+      # - golint -set_exit_status $(go list ./... | grep -v /vendor/)
+
+compile:
+    stage: build
+    script:
+      - bash $CI_PROJECT_DIR/build/build.sh kurly $CI_PROJECT_DIR
+    artifacts:
+      paths:
+        - artifacts/
+

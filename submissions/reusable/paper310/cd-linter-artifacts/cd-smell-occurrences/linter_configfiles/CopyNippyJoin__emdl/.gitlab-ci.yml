@@ -1,0 +1,22 @@
+image: node:latest
+image: electronuserland/electron-builder:wine
+
+cache:
+    paths:
+        - node_modules/
+        
+deploy_build:
+    stage: deploy
+    only:
+        - master
+    script:
+        - npm install
+        - npm run distl
+        - npm run distw
+        - npm run distm
+        - cd dist
+        - rm -rf ./*/
+    artifacts:
+        paths:
+            - dist/
+

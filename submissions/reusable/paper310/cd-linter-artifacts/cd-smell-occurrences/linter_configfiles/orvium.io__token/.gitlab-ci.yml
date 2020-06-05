@@ -1,0 +1,16 @@
+image: node:8.11
+
+before_script:
+  - npm install -g ganache-cli@6.2.5
+  - npm config set unsafe-perm=true
+  - npm install -g truffle@5.0.1
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - npm install
+    - ./node_modules/.bin/solidity-coverage
+

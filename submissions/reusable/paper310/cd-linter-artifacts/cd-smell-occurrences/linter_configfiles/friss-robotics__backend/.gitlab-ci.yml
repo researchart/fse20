@@ -1,0 +1,21 @@
+image: node:latest
+
+before_script:
+  - npm install --silent
+
+cache:
+  paths:
+    - node_modules/
+
+services:
+  - mongo
+
+variables:
+  DATABASE_URI: 'mongodb://mongo/test_friss'
+  PORT: '3000'
+
+tests:
+  script:
+    - npm test
+    - npm run lint
+

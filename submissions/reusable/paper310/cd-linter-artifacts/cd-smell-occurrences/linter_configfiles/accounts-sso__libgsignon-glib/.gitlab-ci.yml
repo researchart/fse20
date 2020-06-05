@@ -1,0 +1,59 @@
+image: ubuntu:bionic
+
+cache:
+  key: apt-cache
+  paths:
+  - apt-cache/
+
+before_script:
+  - export APT_CACHE_DIR=`pwd`/apt-cache && mkdir -pv $APT_CACHE_DIR
+  - apt-get update -yq && apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y autoconf automake autotools-dev gobject-introspection gtk-doc-tools libdbus-1-dev libgirepository1.0-dev libglib2.0-dev pkg-config valac python3 python3-gi python-gi-dev lcov gcovr check
+  - apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y libsqlite3-dev git meson # TODO Remove it once gsignond is mainlined in debian/ubuntu
+
+build_amd64:
+  stage: build
+  script:
+    - export PYTHON=python3
+    - NOCONFIGURE=1 ./autogen.sh
+    - mkdir build
+    - cd build
+    - ../configure --enable-gtk-doc --enable-introspection=yes --enable-tests  --enable-python --enable-coverage
+    - make -j 4
+  artifacts:
+    paths:
+      - ./
+
+test_amd64:
+  stage: test
+  script:
+### Remove this once gsignond is packaged into debian/ubuntu
+    - git clone https://gitlab.com/accounts-sso/gsignond.git
+    - cd gsignond
+    - meson build --prefix=/usr -Ddebug=true
+    - ninja -C build install
+    - cd ..
+### Remove down to here
+    - find build | xargs touch # Avoid rebuilding
+    - cd build
+    - make check || (cat tests/test-suite.log && /bin/false)
+    - make lcov
+  dependencies:
+    - build_amd64
+  artifacts:
+    paths:
+      - ./
+
+pages:
+  stage: deploy
+  script:
+    - mkdir public
+    - cp -a build/lcov-report public/coverage
+    - cp -a build/docs/reference/html/* public
+  only:
+    - tags
+  dependencies:
+    - test_amd64
+  artifacts:
+    paths:
+      - public
+

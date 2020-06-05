@@ -1,0 +1,35 @@
+image: node:latest
+
+variables:
+  DB_DATABASE: dchp9k20hl81qh
+  DB_SCHEMA: public
+  DB_HOST: 'ec2-23-21-204-166.compute-1.amazonaws.com'
+  DB_USERNAME: cpvwouugonohlr
+  DB_PASSWORD: '6a1716c10e6613c4cb887b059cb9f281e438f34128714582c972de56d489ef47'
+  DB_DIALECT: postgres
+  DB_PORT: '5432'
+
+cache:
+  paths:
+    - node_modules/
+
+test:
+  script:
+    - npm install
+    - npm run-script test
+  artifacts:
+    paths:
+      - coverage/
+
+pages:
+  type: deploy
+  dependencies:
+    - test
+  script:
+    - mv coverage/lcov-report/  public/
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master
+

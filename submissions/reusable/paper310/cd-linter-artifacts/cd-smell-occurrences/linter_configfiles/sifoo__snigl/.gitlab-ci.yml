@@ -1,0 +1,20 @@
+image: gcc
+
+build:
+  stage: build
+  before_script:
+    - apt update && apt -y install make cmake
+  script: 
+    - mkdir build && cd build && cmake .. && make all
+  artifacts:
+    paths:
+      - build/snigl
+      - build/libsnigl.a
+      - build/libsnigl.so
+
+# run tests using the binary built before
+test:
+  stage: test
+  script:
+    - build/snigl test/all.sl
+

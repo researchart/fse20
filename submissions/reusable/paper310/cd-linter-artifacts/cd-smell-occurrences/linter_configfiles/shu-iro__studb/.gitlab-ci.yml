@@ -1,0 +1,9 @@
+image: node:8.9.1
+
+before_script:
+  - npm install
+
+all_tests:
+  script:
+    - npm test -- -u
+

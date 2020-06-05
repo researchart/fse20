@@ -1,0 +1,53 @@
+image: "ruby:2.4"
+
+stages:
+  - test
+
+cache:
+  untracked: true
+
+# hidden job with anchor rails_job, usage: <<: *rails_job
+.rails_template: &rails_job
+  image: "unused/rails-system-test"
+  services:
+    - mongo:latest
+  variables:
+    RAILS_ENV: test
+    MONGO_HOST: mongo
+  before_script:
+    - ruby -v
+    - which ruby
+    - echo $RAILS_ENV
+    - gem install bundler --no-ri --no-rdoc
+    - bundle install --jobs $(nproc) "${FLAGS[@]}"
+    - bundle exec bin/rails yarn:install
+    - bundle exec bin/rails db:mongoid:create_indexes
+
+test:
+  <<: *rails_job
+  script: bundle exec bin/rails test
+  stage: test
+
+system_test:
+  <<: *rails_job
+  script: bundle exec bin/rails test:system
+  stage: test
+
+rubocop:
+  before_script:
+    - gem install rubocop --no-ri --no-rdoc
+  script: rubocop -D
+  stage: test
+
+brakeman:
+  before_script:
+    - gem install brakeman --no-ri --no-rdoc
+  script: brakeman --exit-on-warn
+  stage: test
+
+bundle_audit:
+  before_script:
+    - gem install bundle-audit --no-ri --no-rdoc
+  script: bundle-audit check --update
+  stage: test
+

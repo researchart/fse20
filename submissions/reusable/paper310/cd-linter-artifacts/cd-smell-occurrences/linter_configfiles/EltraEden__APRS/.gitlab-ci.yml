@@ -1,0 +1,14 @@
+test:
+    stage: test
+    image: docker
+    services:
+        - docker:dind
+    variables:
+        IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+    before_script:
+        - apk add --no-cache py-pip
+        - pip install -U docker-compose
+    script:
+        - docker-compose run web python3 manage.py test
+    
+

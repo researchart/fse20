@@ -1,0 +1,12 @@
+pdf:
+    image: aergus/latex
+    script:
+        - export DIR=/builds/benoitldr/cours-maths-blandrieu
+        - git clone https://gitlab.com/benoitldr/beamerarticle-teacher.git
+        - export TEXMFHOME=$DIR/beamerarticle-teacher/texmf
+        - export GITLAB=$DIR
+    artifacts:
+        untracked: true
+        paths:
+          - test.pdf
+

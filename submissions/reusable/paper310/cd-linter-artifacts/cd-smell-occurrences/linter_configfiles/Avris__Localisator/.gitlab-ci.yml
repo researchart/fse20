@@ -1,0 +1,6 @@
+ci_tests:
+    script:
+        - composer install --dev
+        - vendor/bin/phpunit
+        - vendor/bin/phpcs --standard=PSR2 src/
+

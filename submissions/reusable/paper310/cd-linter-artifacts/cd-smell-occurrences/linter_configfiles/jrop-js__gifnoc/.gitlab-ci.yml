@@ -1,0 +1,11 @@
+image: node
+test:
+  script:
+    - npm install
+    - npm test
+coverage:
+  script:
+    - npm install
+    - npm run coverage
+  coverage: '/Statements\s+:\s+[^%]+/'
+

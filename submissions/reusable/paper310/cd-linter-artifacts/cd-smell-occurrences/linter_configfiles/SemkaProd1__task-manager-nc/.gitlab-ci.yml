@@ -1,0 +1,15 @@
+#image: alpine
+
+stages:
+  - build
+  - test
+  - package
+
+build:
+  script:
+    - chmod a+x ./build/run.sh
+    - ./build/run.sh
+#  only:
+#    refs:
+#      - master
+

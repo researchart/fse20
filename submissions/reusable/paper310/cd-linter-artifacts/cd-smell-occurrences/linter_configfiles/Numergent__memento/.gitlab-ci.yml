@@ -1,0 +1,65 @@
+image: clojure:lein-2.7.0
+
+variables:
+  DATABASE_URL: "postgresql://memento:testdb@postgres:5432/memento_test"
+
+before_script:
+  - export LEIN_SNAPSHOTS_IN_RELEASE=true
+
+stages:
+  - test
+  - build
+  - deploy
+
+.lein-cache: &lein-cache
+  # GitLab CI only caches files in the current (app) folder, but lein expects everything in `~/.m2`.
+  # So we copy the stuff between the two folders.
+  # Tries to create ~/.m2 as cp would fail if it doesn't exist.
+  before_script:
+    - mkdir -p ~/.m2
+    - cp -r ./.local-m2 ~/.m2 || mkdir .local-m2
+  after_script:
+    - rm -rf ./.local-m2 && cp -r ~/.m2 ./.local-m2
+  cache:
+    key: all-y-all
+    paths:
+      - .local-m2
+
+test:
+  <<: *lein-cache
+  stage: test
+  services:
+    - postgres:latest
+  script:
+  - apt-get update -y
+  - apt-get install postgresql-client -y
+  - psql -h postgres -U postgres < db-setup.sql
+  - echo $DATABASE_URL
+  - cp resources/test-config.default.edn ./test-config.edn
+  - lein with-profile test run migrate
+  - lein with-profile test cloverage --codecov
+  - bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json -t $CODECOV_KEY
+
+uberjar:
+  <<: *lein-cache
+  stage: build
+  script:
+  - lein uberjar
+  artifacts:
+    paths:
+    - target/uberjar/memento.jar
+  only:
+  - tags
+
+production:
+  <<: *lein-cache
+  stage: deploy
+  script:
+  - lein uberjar
+  - HEROKU_API_KEY=$HEROKU_PRODUCTION_API_KEY lein heroku deploy
+  artifacts:
+    paths:
+    - target/uberjar/memento.jar
+  only:
+  - master
+

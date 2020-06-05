@@ -1,0 +1,11 @@
+test:
+  image: swiftdocker/swift
+  script: "swift build"
+pages:
+  image: ruby:2.1
+  script:
+  - mv docs public
+  artifacts:
+    paths:
+    - public
+

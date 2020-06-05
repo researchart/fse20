@@ -1,0 +1,32 @@
+image: node:6
+
+cache:
+  paths:
+  - node_modules/
+
+variables:
+  TERM: xterm
+
+build:
+  script:
+    - node -v
+    - npm -v
+    - npm config set loglevel warn
+    - npm install
+    - npm ls fs-promise
+    - npm ls lodash
+    - npm test
+    - npm run build
+  artifacts:
+    paths:
+      - dist
+
+pages:
+  stage: deploy
+  image: node:6
+  artifacts:
+    paths:
+      - dist
+  only:
+    - master
+

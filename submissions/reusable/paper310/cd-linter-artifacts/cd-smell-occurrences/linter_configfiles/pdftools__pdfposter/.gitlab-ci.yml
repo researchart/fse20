@@ -1,0 +1,46 @@
+#pdf:
+#  script:
+#    - make pdf
+#  artifacts:
+#    expire_in: 1 mos
+#    paths:
+#      - output
+
+
+before_script:
+  - python --version
+  - pip install -U pip setuptools wheel
+  - pip install -r dev-requirements.txt
+  # Generate test input-file (using Scons for this is overhead)
+  - python test/gen-chessboard.py test/chessboard.pdf
+
+python2.7:
+  image: python:2.7
+  script:
+    - tox -e py27
+
+python3.4:
+  image: python:3.4
+  script:
+    - tox -e py34
+
+python3.5:
+  image: python:3.5
+  script:
+    - tox -e py35
+
+python3.6:
+  image: python:3.6
+  script:
+    - tox -e py36
+
+linters:
+  image: python:3.5
+  script:
+    # For now only check the readme
+    - tox -e readme
+    #- tox -e linters
+
+# As of 2017-02 not available in yml file.
+#coverage: /^TOTAL\s+.*\s+(\d+\%)/
+

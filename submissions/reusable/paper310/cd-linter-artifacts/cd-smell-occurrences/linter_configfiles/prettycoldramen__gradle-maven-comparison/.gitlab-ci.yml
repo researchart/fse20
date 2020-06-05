@@ -1,0 +1,127 @@
+# Daniel Vargas
+# gradle-maven-comparison
+# 12 January 2018
+# .gitlab-ci.yml
+
+# Run script in a java container
+image: openjdk:8-jdk-alpine
+
+# Define our CI pipeline stages and the order they will be executed in
+stages:
+- code_analysis
+- build
+- test
+- code_coverage
+
+# Define job(s) for the code_analysis stage
+gradle-code-analysis:
+  stage: code_analysis
+  script:
+  - ./gradlew check --no-daemon
+  artifacts:
+    paths:
+    - string-manip-app/build/reports/checkstyle/
+    - string-manip-app/build/reports/findbugs/
+    - string-manip-app/build/reports/pmd/
+    - string-manip-bean/build/reports/checkstyle/
+    - string-manip-bean/build/reports/findbugs/
+    - string-manip-bean/build/reports/pmd/
+    - string-manip-common/build/reports/checkstyle/
+    - string-manip-common/build/reports/findbugs/
+    - string-manip-common/build/reports/pmd/
+    expire_in: 1 week
+  tags:
+  - docker
+
+mvn-code-analysis:
+  stage: code_analysis
+  script:
+  - ./mvnw verify
+  artifacts:
+    paths:
+    - string-manip-app/target/site/
+    - string-manip-app/target/findbugs/
+    - string-manip-bean/target/site/
+    - string-manip-bean/target/findbugs/
+    - string-manip-common/target/site/
+    - string-manip-common/target/findbugs/
+    expire_in: 1 week
+  tags:
+  - docker
+
+# Define job(s) for the build stage
+gradle-build:
+  stage: build
+  script:
+  - ./gradlew -i assemble --no-daemon
+  artifacts:
+    paths:
+    - string-manip-app/build/libs/string-manip-app.jar
+    expire_in: 1 week
+  tags:
+  - docker
+
+mvn-build:
+  stage: build
+  script:
+  - ./mvnw -D maven.test.skip=true install
+  artifacts:
+    paths:
+    - string-manip-app/target/string-manip-app-1.0-SNAPSHOT.jar
+    - string-manip-app/target/string-manip-app-1.0-SNAPSHOT.lib
+    expire_in: 1 week
+  tags:
+  - docker
+
+# Define job(s) for the test stage
+gradle-test:
+  stage: test
+  script:
+  - ./gradlew test --no-daemon
+  artifacts:
+    paths:
+    - string-manip-app/build/reports/tests/
+    - string-manip-bean/build/reports/tests/
+    expire_in: 1 week
+  tags:
+  - docker
+
+mvn-test:
+  stage: test
+  script:
+  - ./mvnw test
+  artifacts:
+    paths:
+    - string-manip-app/target/surefire-reports/
+    - string-manip-bean/target/surefire-reports/
+    expire_in: 1 week
+  tags:
+  - docker
+
+# Define job(s) for the code_coverage stage
+gradle-code-coverage:
+  stage: code_coverage
+  script:
+  - ./gradlew test jacocoTestReport --no-daemon
+  artifacts:
+    paths:
+    - string-manip-app/build/reports/jacoco/
+    - string-manip-bean/build/reports/jacoco/
+    - string-manip-common/build/reports/jacoco/
+    expire_in: 1 week
+  tags:
+  - docker
+
+mvn-code-coverage:
+  stage: code_coverage
+  script:
+  - ./mvnw package
+  artifacts:
+    paths:
+    - string-manip-app/target/site/jacoco/
+    - string-manip-bean/target/site/jacoco/
+    - string-manip-common/target/site/jacoco/
+    expire_in: 1 week
+  tags:
+  - docker
+

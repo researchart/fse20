@@ -1,0 +1,36 @@
+stages:
+    - build
+    - tests
+    - deploy
+
+.linux:
+    image: archlinux/base
+    variables:
+        QT_QPA_PLATFORM: 'offscreen'
+        PYTEST_ADDOPTS: '--color=yes'
+        DISPLAY: ":99.0"
+    tags:
+        - linux
+    before_script:
+        - ./scripts/gitlab-ci/linux/env-setup.sh
+
+build:linux:
+    extends: .linux
+    stage: build
+    script:
+        - ./scripts/gitlab-ci/linux/build.sh
+    artifacts:
+        name: "build"
+        paths:
+        - build
+
+
+tests:linux:
+    extends: .linux
+    stage: tests
+    dependencies:
+        - build:linux
+    script:
+        - ./scripts/gitlab-ci/linux/lint.sh
+        - ./scripts/gitlab-ci/linux/run-tests.sh
+

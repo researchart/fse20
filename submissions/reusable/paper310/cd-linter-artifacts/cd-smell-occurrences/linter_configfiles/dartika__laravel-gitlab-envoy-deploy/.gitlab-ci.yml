@@ -1,0 +1,43 @@
+image: image_deploy:latest
+
+services:
+  - mysql:5.7
+
+variables:
+  MYSQL_DATABASE: homestead
+  MYSQL_ROOT_PASSWORD: secret
+  DB_HOST: mysql
+  DB_USERNAME: root
+
+stages:
+  - test
+  - deploy
+
+unit_test:
+  stage: test
+  script:
+    - composer install
+    - cp .env.example .env
+    - php artisan key:generate
+    - php artisan migrate
+    - vendor/bin/phpunit
+
+deploy_production:
+  stage: deploy
+  script:
+    # Add the private SSH key to the build environment
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+    # Run Envoy
+    - ~/.composer/vendor/bin/envoy run deploy --on=production
+  environment:
+    name: production
+    url: http://localhost
+  when: manual
+  only:
+    - master
+

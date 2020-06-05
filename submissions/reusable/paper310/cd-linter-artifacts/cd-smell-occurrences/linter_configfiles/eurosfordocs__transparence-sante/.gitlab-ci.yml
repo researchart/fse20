@@ -1,0 +1,62 @@
+stages:
+  - test
+  - deploy-preprod
+  - deploy-prod
+
+test:3.6:
+  image: python:3.6-stretch
+  stage: test
+  before_script:
+    - pip install -r requirements.txt
+  script:
+  - pytest --ignore=tests/docker/metabase
+  services:
+  - postgres:10.1-alpine
+  variables:
+    POSTGRES_PORT: 5432  # default 'tcp://172.17.0.3:5432' causes error
+
+deploy-data-preprod:
+  stage: deploy-preprod
+  script:
+  - cd /root/transparence-sante
+  - git fetch
+  - git reset --hard origin/master
+  - ./deploy.sh
+
+  tags:
+  - preprod
+  - shell
+  only:
+    refs:
+      - master
+
+deploy-website-prod:
+  stage: deploy-prod
+  script:
+    - cd /root/transparence-sante
+    - git fetch
+    - git reset --hard origin/master
+    - docker-compose up website
+  tags:
+    - prod
+    - shell
+  only:
+    refs:
+     - master
+    changes:
+     - website/**/*
+
+deploy-data-prod:
+  stage: deploy-prod
+  script:
+  - cd /root/transparence-sante
+  - git fetch
+  - git reset --hard origin/master
+  - ./deploy.sh
+
+  tags:
+  - prod
+  - shell
+  only:
+  - schedules
+

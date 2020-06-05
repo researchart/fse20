@@ -1,0 +1,16 @@
+image: node:6.2.0
+
+before_script:
+  - npm install --global gulp jspm
+  - npm install
+  - jspm install -y
+
+cache:
+  paths:
+  - node_modules/
+  - jspm_modules/
+
+generate:
+  script:
+  - gulp test
+

@@ -1,0 +1,53 @@
+variables:
+  COURSIER_CACHE: ${CI_PROJECT_DIR}/.coursier-cache
+
+.openjdk8: &openjdk8
+  image: registry.gitlab.com/teozkr/docker-sbt:openjdk8
+.openjdk10: &openjdk10
+  image: registry.gitlab.com/teozkr/docker-sbt:openjdk10
+
+.build_template: &build
+  stage: build
+  script:
+  - sbt package
+  artifacts:
+    paths:
+    - target/scala-*/sbt-*/*.jar
+  cache:
+    paths:
+    - .coursier-cache
+
+.test_template: &test
+  stage: test
+  script:
+  - sbt test scripted
+  cache:
+    paths:
+    - .coursier-cache
+
+# build_openjdk8:
+#   <<: *openjdk8
+#   <<: *build
+
+test_openjdk8:
+  <<: *openjdk8
+  <<: *test
+
+# build_openjdk10:
+#   <<: *openjdk10
+#   <<: *build
+  
+test_openjdk10:
+  <<: *openjdk10
+  <<: *test
+
+publishSnapshot:
+  <<: *openjdk8
+  stage: deploy
+  script:
+  - sbt publish
+  environment:
+    name: snapshots
+  only:
+  - master
+

@@ -1,0 +1,28 @@
+image: microsoft/dotnet:2.1-sdk
+
+stages:
+  - build
+  - test
+  
+variables:
+  project: "Vulcan"
+  testProject: "VulcanTest"
+
+before_script:
+  - "dotnet --version"
+  - "dotnet restore" 
+
+build:
+  stage: build
+  variables:
+    build_path: "$project"  
+  script:
+    - "dotnet build Vulcan"
+
+test:
+  stage: test
+  variables:
+    build_path: "$testProject"
+  script:
+    - "dotnet test VulcanTest"
+

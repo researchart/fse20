@@ -1,0 +1,19 @@
+image: registry.gitlab.com/santetis/santetis/dart_test_image
+
+before_script:
+- export PATH="$PATH":"~/.pub-cache/bin"
+- pub global activate grinder
+- pub get
+
+test:
+  stage: test
+  script:
+    - grind test
+
+publish:
+  stage: deploy
+  script:
+  - grind auto-publish
+  only:
+  - master@exitlive/cooky
+

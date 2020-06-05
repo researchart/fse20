@@ -1,0 +1,181 @@
+stages:
+  - build
+  - deploy
+
+services:
+  - docker:dind
+
+variables:
+  REGISTRY: "registry.gitlab.com"
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  ELASTICSEARCH_PROVISIONING_IMAGE: "registry.gitlab.com/$CI_PROJECT_PATH/elasticsearch-provisioning:$CI_COMMIT_TAG"
+  DOCKER_BUILD_IMAGE: tmaier/docker-compose:18.06
+
+build:build-docker:grafana:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build grafana
+    - docker-compose push grafana
+
+build:build-docker:elasticsearch:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build elasticsearch
+    - docker-compose push elasticsearch
+
+build:build-docker:prometheus:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build prometheus
+    - docker-compose push prometheus
+
+build:build-docker:dark-sky:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build dark-sky
+    - docker-compose push dark-sky
+
+build:build-docker:kiel-opendata:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build kiel-opendata
+    - docker-compose push kiel-opendata
+
+build:build-docker:ratsprotokolle:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build ratsprotokolle
+    - docker-compose push ratsprotokolle
+
+build:build-docker:kiel-parkhaeuser:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build kiel-parkhaeuser
+    - docker-compose push kiel-parkhaeuser
+
+build:build-docker:geomar-wetter:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build geomar-wetter
+    - docker-compose push geomar-wetter
+
+build:build-docker:ship-data-ais-forwarder:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build ship-data-ais-forwarder
+    - docker-compose push ship-data-ais-forwarder
+
+build:build-docker:ship-data-provider:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build ship-data-provider
+    - docker-compose push ship-data-provider
+
+build:build-docker:kiel-photos:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build kiel-photos
+    - docker-compose push kiel-photos
+
+build:build-docker:luftdaten-info:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build luftdaten-info
+    - docker-compose push luftdaten-info
+
+build:build-docker:swkielnetz-iot:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build swkielnetz-iot
+    - docker-compose push swkielnetz-iot
+
+build:build-docker:orion-grafana-proxy:
+  stage: build
+  image: $DOCKER_BUILD_IMAGE
+  only:
+    - tags
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $REGISTRY
+    - docker-compose build orion-grafana-proxy
+    - docker-compose push orion-grafana-proxy
+
+deploy:integration:
+  stage: deploy
+  image: kroniak/ssh-client:3.6
+  only:
+    - tags
+  variables:
+    DEPLOYMENT_SERVER: $INTEGRATION_SERVER
+  script:
+    - source deploy.sh integration
+  environment:
+    name: integration
+    url: https://integration.kiel-data-hub.de/
+
+deploy:production:
+  stage: deploy
+  image: kroniak/ssh-client:3.6
+  only:
+    - tags
+  when: manual
+  variables:
+    DEPLOYMENT_SERVER: $PRODUCTION_SERVER
+  script:
+    - source deploy.sh production
+  environment:
+    name: production
+    url: https://app.kiel-data-hub.de/
+

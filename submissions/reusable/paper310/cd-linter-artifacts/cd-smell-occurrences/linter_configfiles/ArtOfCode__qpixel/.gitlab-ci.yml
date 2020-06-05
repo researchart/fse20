@@ -1,0 +1,22 @@
+cache:
+  paths:
+  - vendor/apt
+  - vendor/ruby
+
+before_script:
+  - mkdir -p vendor/apt
+  - apt-get update -qq && apt-get -o dir::cache::archives="vendor/apt" install -y -qq sqlite3 libsqlite3-dev nodejs
+  - ruby -v
+  - which ruby
+  - gem install bundler --no-ri --no-rdoc
+  - cp config/letsencrypt_plugin.example.yml config/letsencrypt_plugin.yml
+  - bundle install --jobs $(nproc) --path vendor
+  - bundle exec rake db:create db:schema:load
+  - bundle exec rake test:prepare
+  - bundle exec rake db:migrate
+  - bundle exec rake db:seed
+
+test_unit:
+  script:
+    - bundle exec rake test
+

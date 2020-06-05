@@ -1,0 +1,27 @@
+image: golang:latest
+
+before_script:
+  - cd $GOPATH/src/
+  - mkdir -p $GOPATH/src/golang.org/x/
+  - cd $GOPATH/src/golang.org/x/
+  - git clone https://github.com/golang/net/
+  - go get -v gitlab.com/$CI_PROJECT_PATH
+  - cd $GOPATH/src/gitlab.com/$CI_PROJECT_PATH
+
+stages:
+    - test
+    - build
+
+format:
+    stage: test
+    script:
+      - diff <(echo -n) <(gofmt -s -d .)
+
+compile:
+    stage: build
+    script:
+      - bash $CI_PROJECT_DIR/scripts/build.sh pin $CI_PROJECT_DIR
+    artifacts:
+      paths:
+        - artifacts/
+

@@ -1,0 +1,87 @@
+# Advise GitLab that these environment vars should be loaded from the Variables config.
+variables:
+  PYPI_USER: SECURE
+  PYPI_PASSWORD: SECURE
+
+stages:
+  - lint
+  - test
+  - release
+  - deploy
+
+.checks_common:
+  except:
+    - /^v\d+\.\d+(\.\d+([abc]\d*)?)?$/  # PEP-440 compliant
+  before_script:
+    - curl -O https://bootstrap.pypa.io/get-pip.py
+    - python get-pip.py
+    - pip install tox
+
+linting:
+  extends: .checks_common
+  image: python:3.7
+  stage: lint
+  before_script:
+    - curl -O https://bootstrap.pypa.io/get-pip.py
+    - python get-pip.py
+    - pip install tox pre-commit
+  script: tox -e lint
+
+python35:
+  extends: .checks_common
+  image: python:3.5
+  stage: test
+  script: tox -e py35
+
+python36:
+  extends: .checks_common
+  image: python:3.6
+  stage: test
+  script: tox -e py36
+
+python37:
+  extends: .checks_common
+  image: python:3.7
+  stage: test
+  script: tox -e py37
+
+tag:
+  image: node:10
+  stage: release
+  variables:
+    GIT_SSL_NO_VERIFY: "true"
+    NODE_TLS_REJECT_UNAUTHORIZED: 0
+    HOME: "."
+  before_script:
+    - git config user.name "Test User"
+    - git config user.email "test@redhat.com"
+    - npm install @semantic-release/gitlab -D
+  script:
+    - npx semantic-release@15
+  only:
+    - master
+
+deploy_pypi:
+  image: python:3.7
+  stage: deploy
+  before_script:
+    - curl -O https://bootstrap.pypa.io/get-pip.py
+    - python get-pip.py
+    - pip install tox
+  script:
+    - echo "[distutils]" > ~/.pypirc
+    - echo "index-servers =" >> ~/.pypirc
+    - echo "  pypi" >> ~/.pypirc
+    - echo >> ~/.pypirc
+    - echo "[pypi]" >> ~/.pypirc
+    - echo "username=" ${PYPI_USER} >> ~/.pypirc
+    - echo "password=" ${PYPI_PASSWORD} >> ~/.pypirc
+    - tox -e release
+    - echo > ~/.pypirc
+  after_script:
+    - rm -vf ~/.pypirc
+  only:
+    - /^v\d+\.\d+(\.\d+([abc]\d*)?)?$/  # PEP-440 compliant
+  except:
+    - branches
+

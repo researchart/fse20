@@ -1,0 +1,25 @@
+image: rustlang/rust:nightly
+
+stages:
+  - test
+  - package
+
+rust-nightly:
+  stage: test
+  script:
+    - cargo test --verbose
+
+linux-static-x86_64:
+  stage: package
+  only:
+    - tags
+  before_script:
+    - rustup target install x86_64-unknown-linux-musl
+  script:
+    - cargo build --verbose --release --target=x86_64-unknown-linux-musl
+    - strip ./target/x86_64-unknown-linux-musl/release/ddssd
+  artifacts:
+    paths:
+      - ./target/x86_64-unknown-linux-musl/release/ddssd
+    name: ddssd-$CI_COMMIT_REF_NAME
+

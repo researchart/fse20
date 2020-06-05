@@ -1,0 +1,177 @@
+stages:
+- build
+- publish
+
+build:centos6:
+  stage: build
+  image: harbottle/omnibus:centos6
+  script:
+    - bundle install
+    - bundle exec omnibus build bolt
+    - mkdir -p packages/centos6
+    - mkdir -p packages/rhel6
+    - cp -f pkg/*.rpm packages/centos6
+    - cp -f pkg/*.rpm packages/rhel6
+  artifacts:
+    paths:
+    - packages
+
+build:centos7:
+  stage: build
+  image: harbottle/omnibus:centos7
+  script:
+    - bundle install
+    - bundle exec omnibus build bolt
+    - mkdir -p packages/centos7
+    - mkdir -p packages/rhel7
+    - cp -f pkg/*.rpm packages/centos7
+    - cp -f pkg/*.rpm packages/rhel7
+  artifacts:
+    paths:
+    - packages
+
+build:debian8jessie:
+  stage: build
+  image: harbottle/omnibus:debian8jessie
+  script:
+    - eval "$(rbenv init -)"; bundle install
+    - eval "$(rbenv init -)"; bundle exec omnibus build bolt
+    - mkdir -p packages/debian8jessie
+    - cp -f pkg/*.deb packages/debian8jessie
+  artifacts:
+    paths:
+    - packages
+
+build:debian9stretch:
+  stage: build
+  image: harbottle/omnibus:debian9stretch
+  script:
+    - eval "$(rbenv init -)"; bundle install
+    - eval "$(rbenv init -)"; bundle exec omnibus build bolt
+    - mkdir -p packages/debian9stretch
+    - cp -f pkg/*.deb packages/debian9stretch
+  artifacts:
+    paths:
+    - packages
+
+build:debian10buster:
+  stage: build
+  image: harbottle/omnibus:debian10buster
+  script:
+    - eval "$(rbenv init -)"; bundle install
+    - eval "$(rbenv init -)"; bundle exec omnibus build bolt
+    - mkdir -p packages/debian10buster
+    - cp -f pkg/*.deb packages/debian10buster
+  artifacts:
+    paths:
+    - packages
+
+build:fedora25:
+  stage: build
+  image: harbottle/omnibus:fedora25
+  script:
+    - bundle install
+    - bundle exec omnibus build bolt
+    - mkdir -p packages/fedora25
+    - cp -f pkg/*.rpm packages/fedora25
+  artifacts:
+    paths:
+    - packages
+
+build:fedora26:
+  stage: build
+  image: harbottle/omnibus:fedora26
+  script:
+    - bundle install
+    - bundle exec omnibus build bolt
+    - mkdir -p packages/fedora26
+    - cp -f pkg/*.rpm packages/fedora26
+  artifacts:
+    paths:
+    - packages
+
+build:fedora27:
+  stage: build
+  image: harbottle/omnibus:fedora27
+  script:
+    - bundle install
+    - bundle exec omnibus build bolt
+    - mkdir -p packages/fedora27
+    - cp -f pkg/*.rpm packages/fedora27
+  artifacts:
+    paths:
+    - packages
+
+build:macos:
+  stage: build
+  tags:
+    - mac
+  variables:
+    GIT_STRATEGY: clone
+  script:
+    - bundle install
+    - sudo bundle exec omnibus build bolt
+    - mkdir -p packages/macos
+    - cp -f pkg/*.pkg packages/macos
+    - sudo rm -rf pkg
+  artifacts:
+    paths:
+    - packages
+
+build:ubuntu14.04trusty:
+  stage: build
+  image: harbottle/omnibus:ubuntu14.04trusty
+  script:
+    - bundle install
+    - bundle exec omnibus build bolt
+    - mkdir -p packages/ubuntu14.04trusty
+    - cp -f pkg/*.deb packages/ubuntu14.04trusty
+  artifacts:
+    paths:
+    - packages
+
+build:ubuntu16.04xenial:
+  stage: build
+  image: harbottle/omnibus:ubuntu16.04xenial
+  script:
+    - bundle install
+    - bundle exec omnibus build bolt
+    - mkdir -p packages/ubuntu16.04xenial
+    - cp -f pkg/*.deb packages/ubuntu16.04xenial
+  artifacts:
+    paths:
+    - packages
+
+build:ubuntu17.04zesty:
+  stage: build
+  image: harbottle/omnibus:ubuntu17.04zesty
+  script:
+    - bundle install
+    - bundle exec omnibus build bolt
+    - mkdir -p packages/ubuntu17.04zesty
+    - cp -f pkg/*.deb packages/ubuntu17.04zesty
+  artifacts:
+    paths:
+    - packages
+
+build:ubuntu17.10artful:
+  stage: build
+  image: harbottle/omnibus:ubuntu17.10artful
+  script:
+    - bundle install
+    - bundle exec omnibus build bolt
+    - mkdir -p packages/ubuntu17.10artful
+    - cp -f pkg/*.deb packages/ubuntu17.10artful
+  artifacts:
+    paths:
+    - packages
+
+publish:artifacts:
+  stage: publish
+  image: centos
+  script:
+    - ls -lR packages
+  artifacts:
+    paths:
+    - packages
+

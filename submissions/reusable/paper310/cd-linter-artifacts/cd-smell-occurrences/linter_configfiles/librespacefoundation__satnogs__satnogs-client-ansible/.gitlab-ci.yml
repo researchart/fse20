@@ -1,0 +1,21 @@
+---
+variables:
+  GITLAB_CI_IMAGE_ANSIBLE: 'librespace/ansible:2.9.3'
+  GITLAB_CI_IMAGE_PYTHON: 'python:3'
+  GITLAB_CI_PYPI_YAMLLINT: 'yamllint~=1.15.0'
+stages:
+  - static
+static_yaml:
+  stage: static
+  image: ${GITLAB_CI_IMAGE_PYTHON}
+  before_script:
+    - pip install "$GITLAB_CI_PYPI_YAMLLINT"
+  script:
+    - 'yamllint -s .'
+static_ansible:
+  stage: static
+  image: ${GITLAB_CI_IMAGE_ANSIBLE}
+  script:
+    - ansible-playbook -i production.dist/inventory --syntax-check -vvv site.yml
+    - ansible-lint site.yml
+

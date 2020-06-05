@@ -1,0 +1,145 @@
+variables:
+  GIT_STRATEGY: none
+  CI_SCRIPTS_REPO: "git@js-er-code.jsc.nasa.gov:ci_build/ci_scripts.git"
+  CI_SCRIPTS_PATH: "ci_scripts"
+  WORKSPACES_REPO: "git@js-er-code.jsc.nasa.gov:vs/val_workspaces.git"
+  WORKSPACES_PATH: "vs_workspaces"
+  WORKSPACE_FILE: "full_internal_ssh.yaml"
+  WORK_AREA: "package_work_area"
+  PACKAGE_NAME: "val_description"
+  TEST_EXTRAS: ""
+  DEB_COMP: "main"
+  DEB_ARCH: "amd64"
+
+stages:
+  - build
+  - package
+  - deploy
+
+before_script:
+  - git clone $CI_SCRIPTS_REPO $CI_SCRIPTS_PATH
+  - pushd $CI_SCRIPTS_PATH
+  - vcs custom --args checkout develop || true
+  - vcs custom --args checkout $CI_COMMIT_REF_NAME || true
+  - pip install -r requirements.txt
+  - pip install .
+  - popd
+  - apt-get update -qqy
+  - rosdep update
+
+build_trusty:
+  stage: build
+  image: js-er-code.jsc.nasa.gov:5005/vs/val_image_trusty_indigo_fast_build:latest
+  variables:
+    DEB_REPO: "ubuntu-trusty"
+    ROS_DISTRO: "indigo"
+    DEB_PREFIX_REL: "opt/nasa/indigo"
+    DEB_PREFIX_ABS: /$DEB_PREFIX_REL
+  script:
+    - git clone $WORKSPACES_REPO $WORKSPACES_PATH
+    - pushd $WORKSPACES_PATH
+    - vcs custom --args checkout `gitflow_base_branch -b $CI_COMMIT_REF_NAME` || true
+    - vcs custom --args checkout $CI_COMMIT_REF_NAME || true
+    - popd
+    - $CI_PROJECT_DIR/$CI_SCRIPTS_PATH/catkin/catkin_build_package.py --work-area $CI_PROJECT_DIR/$WORK_AREA --catkin-package-name $PACKAGE_NAME --repository $CI_REPOSITORY_URL --branch $CI_COMMIT_REF_NAME --catkin-workspace $CI_PROJECT_DIR/$WORKSPACES_PATH/$WORKSPACE_FILE --ros-distro $ROS_DISTRO --prefix $DEB_PREFIX_ABS
+    - mkdir -p $CI_PROJECT_DIR/$DEB_PREFIX_REL
+    - cp -a $DEB_PREFIX_ABS/* $CI_PROJECT_DIR/$DEB_PREFIX_REL
+    - $CI_PROJECT_DIR/$CI_SCRIPTS_PATH/catkin/catkin_run_tests.py --work-area $CI_PROJECT_DIR/$WORK_AREA --catkin-package-name $PACKAGE_NAME --ros-distro $ROS_DISTRO --prefix $DEB_PREFIX_ABS $TEST_EXTRAS
+  artifacts:
+    paths:
+      - $WORK_AREA
+      - $DEB_PREFIX_REL
+    expire_in: 4 hours
+  tags:
+    - syslog
+
+package_trusty:
+  stage: package
+  image: js-er-code.jsc.nasa.gov:5005/vs/val_image_trusty_indigo_fast_build:latest
+  variables:
+    DEB_REPO: "ubuntu-trusty"
+    ROS_DISTRO: "indigo"
+    DEB_PREFIX_REL: "opt/nasa/indigo"
+    DEB_PREFIX_ABS: /$DEB_PREFIX_REL
+  dependencies:
+    - build_trusty
+  script:
+    - mkdir -p $DEB_PREFIX_ABS
+    - cp -a $DEB_PREFIX_REL/* $DEB_PREFIX_ABS
+    - $CI_PROJECT_DIR/$CI_SCRIPTS_PATH/catkin/catkin_generate_debian.py --work-area $CI_PROJECT_DIR/$WORK_AREA  --catkin-package-name $PACKAGE_NAME --ros-distro $ROS_DISTRO --prefix $DEB_PREFIX_ABS --from-prefix
+    - cp $WORK_AREA/debian_ws/*.deb $CI_PROJECT_DIR
+  artifacts:
+    paths:
+      - ./*.deb
+
+deploy_trusty:
+  stage: deploy
+  image: js-er-code.jsc.nasa.gov:5005/vs/val_image_trusty_indigo_fast_build:latest
+  variables:
+    DEB_REPO: "ubuntu-trusty"
+    ROS_DISTRO: "indigo"
+    DEB_PREFIX_REL: "opt/nasa/indigo"
+    DEB_PREFIX_ABS: /$DEB_PREFIX_REL
+  dependencies:
+    - package_trusty
+  script:
+    - artifactory_upload debian --package ./ --repository $DEB_REPO --component $DEB_COMP --architecture $DEB_ARCH --branch $CI_COMMIT_REF_NAME
+
+build_xenial:
+  stage: build
+  image: js-er-code.jsc.nasa.gov:5005/vs/val_image_xenial_kinetic_fast_build:latest
+  variables:
+    DEB_REPO: "ubuntu-xenial"
+    ROS_DISTRO: "kinetic"
+    DEB_PREFIX_REL: "opt/nasa/kinetic"
+    DEB_PREFIX_ABS: /$DEB_PREFIX_REL
+  script:
+    - git clone $WORKSPACES_REPO $WORKSPACES_PATH
+    - pushd $WORKSPACES_PATH
+    - vcs custom --args checkout `gitflow_base_branch -b $CI_COMMIT_REF_NAME` || true
+    - vcs custom --args checkout $CI_COMMIT_REF_NAME || true
+    - popd
+    - $CI_PROJECT_DIR/$CI_SCRIPTS_PATH/catkin/catkin_build_package.py --work-area $CI_PROJECT_DIR/$WORK_AREA --catkin-package-name $PACKAGE_NAME --repository $CI_REPOSITORY_URL --branch $CI_COMMIT_REF_NAME --catkin-workspace $CI_PROJECT_DIR/$WORKSPACES_PATH/$WORKSPACE_FILE --ros-distro $ROS_DISTRO --prefix $DEB_PREFIX_ABS
+    - mkdir -p $CI_PROJECT_DIR/$DEB_PREFIX_REL
+    - cp -a $DEB_PREFIX_ABS/* $CI_PROJECT_DIR/$DEB_PREFIX_REL
+    - $CI_PROJECT_DIR/$CI_SCRIPTS_PATH/catkin/catkin_run_tests.py --work-area $CI_PROJECT_DIR/$WORK_AREA --catkin-package-name $PACKAGE_NAME --ros-distro $ROS_DISTRO --prefix $DEB_PREFIX_ABS $TEST_EXTRAS
+  artifacts:
+    paths:
+      - $WORK_AREA
+      - $DEB_PREFIX_REL
+    expire_in: 4 hours
+  tags:
+    - syslog
+
+package_xenial:
+  stage: package
+  image: js-er-code.jsc.nasa.gov:5005/vs/val_image_xenial_kinetic_fast_build:latest
+  variables:
+    DEB_REPO: "ubuntu-xenial"
+    ROS_DISTRO: "kinetic"
+    DEB_PREFIX_REL: "opt/nasa/kinetic"
+    DEB_PREFIX_ABS: /$DEB_PREFIX_REL
+  dependencies:
+    - build_xenial
+  script:
+    - mkdir -p $DEB_PREFIX_ABS
+    - cp -a $DEB_PREFIX_REL/* $DEB_PREFIX_ABS
+    - $CI_PROJECT_DIR/$CI_SCRIPTS_PATH/catkin/catkin_generate_debian.py --work-area $CI_PROJECT_DIR/$WORK_AREA  --catkin-package-name $PACKAGE_NAME --ros-distro $ROS_DISTRO --prefix $DEB_PREFIX_ABS --from-prefix
+    - cp $WORK_AREA/debian_ws/*.deb $CI_PROJECT_DIR
+  artifacts:
+    paths:
+      - ./*.deb
+
+deploy_xenial:
+  stage: deploy
+  image: js-er-code.jsc.nasa.gov:5005/vs/val_image_xenial_kinetic_fast_build:latest
+  variables:
+    DEB_REPO: "ubuntu-xenial"
+    ROS_DISTRO: "kinetic"
+    DEB_PREFIX_REL: "opt/nasa/kinetic"
+    DEB_PREFIX_ABS: /$DEB_PREFIX_REL
+  dependencies:
+    - package_xenial
+  script:
+    - artifactory_upload debian --package ./ --repository $DEB_REPO --component $DEB_COMP --architecture $DEB_ARCH --branch $CI_COMMIT_REF_NAME
+

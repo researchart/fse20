@@ -1,0 +1,58 @@
+image: maven:latest
+
+stages:
+  - build
+  - test
+  - package
+  - deploy
+  - production
+
+variables:
+  MAVEN_CLI_OPTS: "--batch-mode"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  KUBE_DOMAIN: 35.185.20.222.nip.io
+
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS clean compile
+
+test:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS test
+
+package:
+  stage: package
+  script:
+    - mvn $MAVEN_CLI_OPTS package
+  artifacts:
+    paths: [target/demo-app-1.0-jar-with-dependencies.jar]
+
+deploy:
+  image: registry.gitlab.com/gitlab-examples/kubernetes-deploy
+  stage: deploy
+  dependencies:
+    - package
+  script:
+    - command build
+  only:
+    - branches
+
+production:
+  image: registry.gitlab.com/gitlab-examples/kubernetes-deploy
+  stage: production
+  script:
+    - command deploy
+  environment:
+    name: production
+    url: http://$CI_PROJECT_NAME.$KUBE_DOMAIN
+  only:
+    - master
+
+

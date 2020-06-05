@@ -1,0 +1,57 @@
+---
+# uses GitLab's defaul stages: build, test, deploy
+
+build:
+  stage: build
+  script:
+  - ./scripts/build
+  artifacts:
+    paths:
+    - ./site.tgz
+    when: on_success
+    expire_in: 1 week
+
+my:
+  stage: test
+  script:
+  - ./scripts/deploy $GITLAB_USER_LOGIN
+  - ./scripts/test $GITLAB_USER_LOGIN
+
+dev:
+  stage: test
+  script:
+  - ./scripts/deploy $CI_JOB_NAME
+  - ./scripts/test $CI_JOB_NAME
+  when: manual
+
+qa:
+  stage: test
+  script:
+  - ./scripts/deploy $CI_JOB_NAME
+  - ./scripts/test $CI_JOB_NAME
+  when: manual
+
+uat:
+  stage: test
+  script:
+  - ./scripts/deploy $CI_JOB_NAME
+  - ./scripts/test $CI_JOB_NAME
+  only:
+  - master
+
+prod:
+  stage: deploy
+  script:
+  - ./scripts/deploy $CI_JOB_NAME
+  - ./scripts/test $CI_JOB_NAME
+  only:
+  - master
+  when: manual
+
+pages:
+  script:
+  - ./pages
+  artifacts:
+    paths:
+    - public/
+

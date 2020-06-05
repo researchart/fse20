@@ -1,0 +1,22 @@
+image: docker:git
+services:
+  - docker:dind
+
+build_android_image_alpha:
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/alibitek-flutter/flutter-docker-images/android -f Dockerfile_Flutter_Android --build-arg BRANCH=alpha .
+    - docker push registry.gitlab.com/alibitek-flutter/flutter-docker-images/android:alpha
+  tags:
+    - docker
+
+build_android_image_master:
+  stage: build
+  script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/alibitek-flutter/flutter-docker-images/android -f Dockerfile_Flutter_Android --build-arg BRANCH=master .
+    - docker push registry.gitlab.com/alibitek-flutter/flutter-docker-images/android:master
+  tags:
+    - docker
+

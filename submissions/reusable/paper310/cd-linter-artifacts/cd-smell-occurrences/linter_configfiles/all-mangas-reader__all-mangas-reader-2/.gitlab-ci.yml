@@ -1,0 +1,104 @@
+image: registry.gitlab.com/frnchfrgg/docker-web-ext
+
+stages:
+    - build
+    - package
+
+before_script:
+    - export PREVIOUS_TAGS=$(git tag --list --format '%(objectname)' --merged origin/master --no-contains HEAD)
+    - export PREVIOUS_TAGS+=" $(git tag --list --format '%(objectname)' --points-at HEAD)"
+    - export LAST_TAG=$([[ -n "$PREVIOUS_TAGS" ]] && git merge-base --independent $PREVIOUS_TAGS)
+    - export VERSION=$([[ -n "$LAST_TAG" ]] && git tag --points-at $LAST_TAG)
+    - export VERSION=${VERSION:-2.0.0}
+    - export PATCH=$(git rev-list ${LAST_TAG:+$LAST_TAG..}HEAD | wc -l)
+    - yarn
+
+.build_common: &build_common
+    stage: build
+    artifacts:
+        paths:
+            - dist/
+        expire_in: 1 day
+
+build:
+    <<: *build_common
+    script: yarn run build
+
+.zip_common: &zip_common
+    stage: package
+    script: yarn run build-zip
+    artifacts:
+        paths:
+            - dist-zip/*.zip
+        expire_in: 1 week
+
+zip:
+    <<: *zip_common
+    dependencies:
+        - build
+
+xpi-beta:
+    stage: package
+    script:
+        - yarn run manifest:specify -firefox -checkver $VERSION -patch $PATCH
+        - web-ext sign --source-dir=dist --api-key="$SIGN_FF_API_KEY" --api-secret="$SIGN_FF_API_SECRET" --artifacts-dir=dist-zip
+    artifacts:
+        paths:
+            - dist-zip/*.xpi
+        expire_in: 1 week
+    except:
+        variables:
+            - $SIGN_FF_API_KEY == null
+            - $CI_COMMIT_MESSAGE =~ /NO-CI/
+    only:
+        - develop
+    dependencies:
+        - build
+        
+xpi-unsigned:
+    stage: package
+    script:
+        - yarn run manifest:specify -firefox -checkver $VERSION
+        - yarn run build-zip
+        # do not sign file, has to be manually updated to Mozilla Addons, just prepare it for signing
+    artifacts:
+        paths:
+            - dist-zip/*.zip
+        expire_in: 1 week
+    only:
+        - tags
+    dependencies:
+        - build
+        
+crx-beta:
+    stage: package
+    script:
+        - yarn run manifest:specify -chrome -checkver $VERSION -patch $PATCH
+        - yarn run build-zip
+    artifacts:
+        paths:
+            - dist-zip/*.zip
+        expire_in: 1 week
+    except:
+        variables:
+            - $CI_COMMIT_MESSAGE =~ /NO-CI/
+    only:
+        - develop
+    dependencies:
+        - build
+
+crx:
+    stage: package
+    script:
+        - yarn run manifest:specify -chrome -checkver $VERSION
+        - yarn run build-zip
+    artifacts:
+        paths:
+            - dist-zip/*.zip
+        expire_in: 1 week
+    only:
+        - tags
+    dependencies:
+        - build
+
+

@@ -1,0 +1,20 @@
+
+image: debian:latest
+
+before_script:
+  - apt update
+  - apt install luarocks -y
+  - luarocks install moonscript
+
+ppm2:
+  stage: build
+  when: always
+  script:
+    - rm -rf ./lua
+    - mkdir lua
+    - sh build.sh
+  artifacts:
+    paths:
+      - lua/*
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHA"
+

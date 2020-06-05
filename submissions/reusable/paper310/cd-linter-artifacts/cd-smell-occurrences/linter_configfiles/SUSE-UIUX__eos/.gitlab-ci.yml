@@ -1,0 +1,108 @@
+stages:
+  - test
+  - build
+  - deploy
+  - release
+
+image: node:10.15.0
+
+# Start the jobs
+test_lints_sass:
+  stage: test
+  before_script:
+    - npm install
+  script:
+    - npm run test:sass
+
+test_lints_js:
+  stage: test
+  before_script:
+    - npm install
+  script:
+    - npm run test:js
+
+test_lints_pug:
+  stage: test
+  before_script:
+    - npm install
+  script:
+    - npm run test:pug
+
+test_units:
+  stage: test
+  before_script:
+    - npm install
+    - npm run build:vendors
+  script:
+    - apt-get update
+    - apt-get install -y gconf-service libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 libnss3 lsb-release xdg-utils wget
+    - npm run test:unit
+
+build_fe:
+  stage: build
+  before_script:
+    - npm install
+  script:
+    - npm run postinstall
+    - npm run build:css
+    - npm run build:js
+
+build_vendors:
+  stage: build
+  before_script:
+    - npm install gulp
+  script:
+    - npm run build:vendors
+
+deploy_next_release:
+  stage: deploy
+  image: ruby:latest
+  environment:
+    name: development
+    url: https://$HEROKU_DEVELOPMENT_NAME.herokuapp.com/
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=$HEROKU_DEVELOPMENT_NAME --api-key=$HEROKU_PRODUCTION_API_KEY
+  only:
+    - master
+
+deploy_staging:
+  stage: deploy
+  image: ruby:latest
+  environment:
+    name: staging
+    url: https://$HEROKU_STAGING_NAME.herokuapp.com/
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=$HEROKU_STAGING_NAME --api-key=$HEROKU_PRODUCTION_API_KEY
+  only:
+    - master
+
+deploy_production:
+  stage: deploy
+  image: ruby:latest
+  environment:
+    name: production
+    url: https://$HEROKU_PRODUCTION_NAME.herokuapp.com/
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=$HEROKU_PRODUCTION_NAME --api-key=$HEROKU_PRODUCTION_API_KEY
+  when: manual
+  only:
+    - master
+
+version_release:
+  stage: release
+  script:
+    - npm install
+    - npx semantic-release
+  when: manual
+  only:
+    - master
+

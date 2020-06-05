@@ -1,0 +1,15 @@
+image: node:latest
+
+services:
+  - didrocks/snapcraft
+  - aheuermann/electron
+
+cache:
+  paths:
+  - node_modules/
+
+test_build:
+  script:
+   - npm install
+   - npm run build-snappy
+

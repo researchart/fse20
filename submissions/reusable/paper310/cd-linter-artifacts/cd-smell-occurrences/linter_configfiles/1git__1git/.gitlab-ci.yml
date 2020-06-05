@@ -1,0 +1,288 @@
+stages:
+  - build_phase0
+  - nightly_build_phase1
+  - build_phase1
+  - build_phase2
+  - test_phase1
+  - retag_phase1
+  - deploy
+
+variables:
+  IMAGE_TAG: "${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_IID}"
+  NIGHTLY_IMAGE_TAG: latest
+  DOCKER_REGISTRY: ${CI_REGISTRY}/1git/1git
+
+.base_go: &base_go
+  image: ${DOCKER_REGISTRY}/golang:${NIGHTLY_IMAGE_TAG}
+  before_script:
+    - mkdir -p "/go/src/gitlab.com/1git"
+    - ln -svf "/builds/1git/1git" "/go/src/gitlab.com/1git"
+    - cd "/go/src/gitlab.com/1git/1git"
+
+.build_go: &build_go
+  <<: *base_go
+  script:
+    - cd "${PROJECT_PATH}"
+    - go build -race -o "out/${ARTIFACT_NAME}"
+  artifacts:
+    paths:
+      - "${PROJECT_PATH}/out/${ARTIFACT_NAME}"
+  variables:
+    TARGET_OS: linux
+    TARGET_ARCH: amd64
+
+.build_vuejs: &build_vuejs
+  image: node:latest
+  script:
+    - cd "${PROJECT_PATH}"
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - "${PROJECT_PATH}/dist"
+
+.base_docker: &base_docker
+  image: ${DOCKER_REGISTRY}/docker:${NIGHTLY_IMAGE_TAG}
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+
+.base_docker_retagging: &base_docker_retagging
+  <<: *base_docker
+  only:
+    - master
+  script:
+    - docker pull "${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+    - docker tag "${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}" "${DOCKER_REGISTRY}/${IMAGE_NAME}:latest"
+    - docker tag "${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}" "${DOCKER_REGISTRY}/${IMAGE_NAME}:${CI_PIPELINE_IID}"
+    - docker push "${DOCKER_REGISTRY}/${IMAGE_NAME}:latest"
+    - docker push "${DOCKER_REGISTRY}/${IMAGE_NAME}:${CI_PIPELINE_IID}"
+
+build-container-docker:
+  <<: *base_docker
+  stage: build_phase0
+  only:
+    - schedules
+  image: docker:stable
+  script:
+    - docker build -t "${DOCKER_REGISTRY}/docker:${NIGHTLY_IMAGE_TAG}" docker/docker
+    - docker push "${DOCKER_REGISTRY}/docker:${NIGHTLY_IMAGE_TAG}"
+
+build-centos-builder:
+  <<: *base_docker
+  stage: nightly_build_phase1
+  only:
+    - schedules
+  script:
+    - cd docker/centos/builder
+    - docker build -t "${DOCKER_REGISTRY}/golang:${NIGHTLY_IMAGE_TAG}" .
+    - docker build -t "${DOCKER_REGISTRY}/golang-linter:${NIGHTLY_IMAGE_TAG}" -f Dockerfile.linter .
+    - docker push "${DOCKER_REGISTRY}/golang:${NIGHTLY_IMAGE_TAG}"
+    - docker push "${DOCKER_REGISTRY}/golang-linter:${NIGHTLY_IMAGE_TAG}"
+
+build-container-slate:
+  <<: *base_docker
+  stage: nightly_build_phase1
+  only:
+    - schedules
+  script:
+    - docker build -t "${DOCKER_REGISTRY}/slate:${NIGHTLY_IMAGE_TAG}" docker/slate
+    - docker push "${DOCKER_REGISTRY}/slate:${NIGHTLY_IMAGE_TAG}"
+      
+build-centos-kubectl:
+  <<: *base_docker
+  stage: nightly_build_phase1
+  only:
+    - schedules
+  script:
+    - cd docker/centos/kubectl
+    - docker build -t "${DOCKER_REGISTRY}/kubectl:${NIGHTLY_IMAGE_TAG}" .
+    - docker push "${DOCKER_REGISTRY}/kubectl:${NIGHTLY_IMAGE_TAG}"
+
+global-linting:
+  <<: *base_go
+  image: $DOCKER_REGISTRY/golang-linter:${NIGHTLY_IMAGE_TAG}
+  stage: build_phase1
+  dependencies: []
+  script:
+    - gometalinter.v2 ./... --vendor
+
+build-documentation:
+  <<: *base_docker
+  stage: build_phase1
+  dependencies: []
+  script:
+    - docker-compose -f docker/slate/docker-compose.yml run app build
+  artifacts:
+    paths:
+      - docker/slate/build
+
+build-frontend:
+  <<: *build_vuejs
+  stage: build_phase1
+  dependencies: []
+  variables:
+    PROJECT_PATH: services/frontend
+
+build-core:
+  <<: *build_go
+  stage: build_phase1
+  dependencies: []
+  variables:
+    PROJECT_PATH: services/core
+    ARTIFACT_NAME: core
+
+build-webserver:
+  <<: *build_go
+  stage: build_phase1
+  dependencies: []
+  variables:
+    PROJECT_PATH: services/webserver
+    ARTIFACT_NAME: webserver
+
+build-shell:
+  <<: *base_docker
+  stage: build_phase1
+  dependencies: []
+  script:
+    - docker build -t "${DOCKER_REGISTRY}/shell:${IMAGE_TAG}" docker/shell
+    - docker push "${DOCKER_REGISTRY}/shell:${IMAGE_TAG}"
+
+build-container-cypress:
+  <<: *base_docker
+  stage: build_phase1
+  only:
+    - schedules
+  dependencies: []
+  script:
+    - docker build -t "${DOCKER_REGISTRY}/cypress:${NIGHTLY_IMAGE_TAG}" docker/cypress
+    - docker push "${DOCKER_REGISTRY}/cypress:${NIGHTLY_IMAGE_TAG}"
+
+build-container-postgres:
+  <<: *base_docker
+  stage: build_phase1
+  dependencies: []
+  script:
+    - docker build -t "${DOCKER_REGISTRY}/postgres:${IMAGE_TAG}" docker/postgres
+    - docker push "${DOCKER_REGISTRY}/postgres:${IMAGE_TAG}"
+
+build-container-webserver:
+  <<: *base_docker
+  stage: build_phase2
+  dependencies:
+    - build-webserver
+    - build-frontend
+    - build-documentation
+  script:
+    - cp services/webserver/out/webserver docker/centos/runner/executable
+    - cp -r services/frontend/dist docker/centos/runner/assets
+    - cp -r docker/slate/build docker/centos/runner/assets/slate
+    - docker build -t "${DOCKER_REGISTRY}/webserver:${IMAGE_TAG}" --build-arg EXECUTABLE=executable --build-arg ASSETS=assets docker/centos/runner
+    - docker push "${DOCKER_REGISTRY}/webserver:${IMAGE_TAG}"
+
+test-e2e-cypress:
+  <<: *base_docker
+  stage: test_phase1
+  dependencies: []
+  script:
+    - docker-compose -f tests/docker-compose.yml up -d
+    - docker-compose -f tests/docker-compose.yml run cypress service run --config baseUrl=http://webserver:8080
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+    - tests/cypress/screenshots
+    - tests/cypress/videos
+
+test-shell:
+  <<: *base_docker
+  stage: test_phase1
+  dependencies: []
+  script:
+    - docker pull "${DOCKER_REGISTRY}/shell:${IMAGE_TAG}"
+    - docker-compose -f tests/shell/docker-compose.yml up --abort-on-container-exit
+
+retag-container-webserver:
+  <<: *base_docker_retagging
+  stage: retag_phase1
+  dependencies: []
+  variables:
+    IMAGE_NAME: webserver
+
+retag-container-docker:
+  <<: *base_docker_retagging
+  stage: retag_phase1
+  only:
+    - schedules
+  dependencies: []
+  variables:
+    IMAGE_NAME: docker
+
+retag-container-cypress:
+  <<: *base_docker_retagging
+  stage: retag_phase1
+  only:
+    - schedules
+  dependencies: []
+  variables:
+    IMAGE_NAME: cypress
+
+retag-container-postgres:
+  <<: *base_docker_retagging
+  stage: retag_phase1
+  dependencies: []
+  variables:
+    IMAGE_NAME: postgres
+
+retag-container-postgres:
+  <<: *base_docker_retagging
+  stage: retag_phase1
+  dependencies: []
+  variables:
+    IMAGE_NAME: shell
+
+retag-container-builder:
+  <<: *base_docker_retagging
+  stage: retag_phase1
+  only:
+    - schedules
+  dependencies: []
+  variables:
+    IMAGE_NAME: golang
+
+retag-container-linter:
+  <<: *base_docker_retagging
+  stage: retag_phase1
+  only:
+    - schedules
+  dependencies: []
+  variables:
+    IMAGE_NAME: golang-linter
+
+retag-container-kubectl:
+  <<: *base_docker_retagging
+  stage: retag_phase1
+  only:
+    - schedules
+  dependencies: []
+  variables:
+    IMAGE_NAME: kubectl
+
+deploy_prod:
+  image: ${DOCKER_REGISTRY}/kubectl
+  stage: deploy
+  dependencies: []
+  environment:
+    name: production
+    url: https://1git.io
+  only:
+    - master
+  script:
+    - mkdir infrastructure/k8sconfigs_processed
+    - |
+      for file in infrastructure/k8sconfigs/*; do
+        envsubst < "${file}" > "infrastructure/k8sconfigs_processed/$(basename "${file}")"
+      done
+    - kubectl -n staging apply -f infrastructure/k8sconfigs_processed
+

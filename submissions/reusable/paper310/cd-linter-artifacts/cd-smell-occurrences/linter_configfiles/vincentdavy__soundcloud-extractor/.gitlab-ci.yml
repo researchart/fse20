@@ -1,0 +1,77 @@
+image: golang
+
+.scripts: &scripts
+  before_script:
+    - ln -s /builds/$CI_PROJECT_PATH /go/src/soundcloud-extractor
+    - cd /go/src/soundcloud-extractor
+
+stages:
+  - lint
+  - vendor
+  - test
+  - build
+  - docker
+
+lint:
+  <<: *scripts
+  stage: lint
+  script:
+    - make lint
+
+vendor:
+  <<: *scripts
+  stage: vendor
+  script:
+    - make vendor
+  artifacts:
+    paths:
+      - vendor
+    expire_in: 1 week
+
+test:
+  <<: *scripts
+  stage: test
+  script:
+#    - sysctl -w net.ipv4.ping_group_range="0   2147483647"
+    - make test
+  dependencies:
+    - vendor
+
+build:
+  <<: *scripts
+  stage: build
+  script:
+    - make
+  dependencies:
+    - vendor
+  artifacts:
+    paths:
+      - build/soundcloud-extractor
+      - build/wordpress-importer
+    expire_in: 1 week
+
+.docker: &docker
+  stage: docker
+  image: docker
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+  dependencies:
+    - build
+    
+docker:soundcloud-extractor:
+  <<: *docker
+  script:
+    - docker build -t "${CI_REGISTRY_IMAGE}/soundcloud-extractor:latest" -f docker/Dockerfile-soundcloud-extractor .
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+    - docker push "${CI_REGISTRY_IMAGE}/soundcloud-extractor:latest"
+
+    
+docker:wordpress-importer:
+  <<: *docker
+  script:
+    - docker build -t "${CI_REGISTRY_IMAGE}/wordpress-importer:latest" -f docker/Dockerfile-wordpress-importer .
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+    - docker push "${CI_REGISTRY_IMAGE}/wordpress-importer:latest"
+

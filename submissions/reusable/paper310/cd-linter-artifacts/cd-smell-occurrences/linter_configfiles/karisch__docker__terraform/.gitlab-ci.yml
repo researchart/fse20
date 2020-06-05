@@ -1,0 +1,42 @@
+image: docker:latest
+
+services:
+- docker:dind
+
+stages:
+- build
+- test
+- release
+
+variables:
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+
+before_script:
+  - mkdir -p ~/.docker/ && echo "$DOCKER_AUTH" > ~/.docker/config.json
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - tf_version=$(grep TERRAFORM_VERSION= Dockerfile | cut -d= -f2)
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+validate:
+  stage: test
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run $CONTAINER_TEST_IMAGE terraform --version
+
+release-image:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE karisch/terraform:${tf_version}
+    - docker tag $CONTAINER_TEST_IMAGE karisch/terraform:latest
+    - docker push karisch/terraform:${tf_version}
+    - docker push karisch/terraform:latest
+  when: manual
+  only:
+    - master
+

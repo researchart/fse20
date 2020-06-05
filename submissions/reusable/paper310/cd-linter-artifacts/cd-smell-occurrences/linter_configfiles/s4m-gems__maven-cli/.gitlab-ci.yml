@@ -1,0 +1,45 @@
+image: sbernard/arch-kitchen-docker
+
+rubocop:
+  stage: test
+  script:
+    - rubocop
+
+lines_length:
+  stage: test
+  script:
+    - >
+      curl https://gitlab.com/s4m/checks/raw/master/check_lines_length.sh |
+      bash
+
+git_history:
+  stage: test
+  script:
+    - >
+      curl https://gitlab.com/s4m/checks/raw/master/check_git_history.sh |
+      bash
+
+before_script:
+  - bundle install
+
+rspec:
+  stage: test
+  script:
+    - rspec
+  artifacts:
+    paths:
+      - coverage/
+
+pages:
+  stage: deploy
+  dependencies:
+    - rspec
+  script:
+    - mv coverage/ public/
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  only:
+    - develop
+

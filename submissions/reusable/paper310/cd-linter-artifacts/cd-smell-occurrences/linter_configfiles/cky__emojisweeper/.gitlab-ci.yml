@@ -1,0 +1,10 @@
+image: clojure:latest
+
+pages:
+  script: lein with-profile prod do sass4clj once, cljsbuild once
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

@@ -1,0 +1,14 @@
+image: node:carbon
+
+cache:
+  paths:
+    - node_modules/
+
+test:
+  script:
+    - npm install
+    - npm run lint
+    - npm test
+  tags:
+    - docker
+

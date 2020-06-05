@@ -1,0 +1,37 @@
+stages:
+  - test
+  - success
+  - failure
+
+pyflakes2:
+  stage: test
+  script:
+  - ./ci/install.sh python2.7 pyflakes
+  - pyflakes .
+  image: debian:unstable
+
+.pyflakes3:
+  stage: test
+  script:
+  - ./ci/install.sh python3 pyflakes3
+  - pyflakes3 .
+  image: debian:unstable
+
+success:
+  stage: success
+  script:
+  - echo "do nothing"
+  image: debian:stable
+  when: on_success
+  variables:
+    GIT_STRATEGY: none
+
+failure:
+  stage: failure
+  script:
+  - echo "do nothing"
+  image: debian:stable
+  when: on_failure
+  variables:
+    GIT_STRATEGY: none
+

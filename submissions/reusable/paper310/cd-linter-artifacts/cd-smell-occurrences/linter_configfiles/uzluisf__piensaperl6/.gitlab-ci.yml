@@ -1,0 +1,26 @@
+stages:
+  - deploy
+
+pages: 
+  image: alpine:latest
+  stage: deploy
+  script:
+  - echo 'Nothing to do...'
+  artifacts:
+    paths:
+    - public
+    - master/piensaperl6.pdf
+  only:
+  - master
+
+# Commented out to avoid the PDF compilation job. To enable,
+# remove leading dot and specify the `build` stage in stages.
+.compile_pdf:
+  image: philipptempel/docker-ubuntu-tug-texlive
+  script:
+    - make -C libro/
+  stage: build
+  artifacts:
+    paths:
+      - "libro/tmpDir/piensaperl6.pdf"
+

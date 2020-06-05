@@ -1,0 +1,50 @@
+image: python:2.7
+
+stages:
+- test
+- deploy
+
+before_script:
+    - pip install -r requirements.txt
+
+runTest:
+    stage: test
+    script:
+        - nosetests -sx
+
+coverage:
+    stage: test
+    script:
+        - nosetests -c .noserc -q --cover-html-dir=build --cover-html
+        - coverage report -m
+    coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+    artifacts:
+        paths:
+            - build
+        expire_in: 1 day
+
+apidoc:
+    stage: test
+    script:
+        - cd docs
+        - fab make
+    artifacts:
+        paths:
+            - docs/build/html
+        expire_in: 1 day
+
+pages:
+    stage: deploy
+    before_script:
+        - "true"
+    script:
+        - mkdir -p public/coverage
+        - cp -fr docs/build/html/* public/
+        - cp -fr build/* public/coverage/
+    dependencies:
+        - coverage
+        - apidoc
+    artifacts:
+        paths:
+            - public
+

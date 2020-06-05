@@ -1,0 +1,91 @@
+image: docker:stable-git
+
+services:
+  - docker:dind
+
+stages:
+  - manual
+  - build
+  - push
+  - deploy
+
+variables:
+  MAVEN_OPTS: "-Dhttps.protocols=TLSv1.2 -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+
+cache:
+  paths:
+  - .m2/repository
+
+build-artifacts:
+  stage: build
+  image: registry.gitlab.com/opentracing-workshop/build-mvn-jdk11:latest
+  except:
+    - tags
+  script:
+    - mvn clean
+    - mvn install -Dnet.bytebuddy.experimental=true
+    - chmod a+x ./scripts/prepare.sh && ./scripts/prepare.sh
+  artifacts:
+    paths:
+    - target
+
+push-images:
+  stage: push
+  cache: {}
+  only:
+    - master
+  except:
+    - tags
+  script:
+    - apk add --no-cache bash
+    - echo ${CI_BUILD_TOKEN} | docker login -u gitlab-ci-token --password-stdin ${CI_REGISTRY}
+    - chmod a+x ./scripts/image_build.sh && ./scripts/image_build.sh
+
+# deploys functional assets for the application to serve requests.
+# database servers, cache servers, and ingress/routing rules
+deploy-dependencies:
+  stage: deploy
+  image: registry.gitlab.com/opentracing-workshop/build-tools:latest
+  cache: {}
+  except:
+    - tags
+  only:
+    - master
+  when: manual
+  allow_failure: true
+  environment:
+    name: prod
+  script:
+  - chmod a+x ./scripts/deploy_backend.sh && ./scripts/deploy_backend.sh
+
+deploy-services:
+  stage: deploy
+  image: registry.gitlab.com/opentracing-workshop/build-tools:latest
+  cache: {}
+  except:
+  - tags
+  only:
+    - master
+  when: manual
+  allow_failure: true
+  environment:
+    name: prod
+  script:
+  - chmod a+x ./scripts/deploy_services.sh && ./scripts/deploy_services.sh
+
+validate-k8s:
+  cache: {}
+  stage: manual
+  image:
+    name: registry.gitlab.com/opentracing-workshop/build-tools:latest
+  environment:
+    name: prod
+  when: manual
+  allow_failure: true
+  except:
+    - tags
+  script:
+    - kubectl get pods
+    - chmod a+x scripts/check_vars.sh && ./scripts/check_vars.sh
+

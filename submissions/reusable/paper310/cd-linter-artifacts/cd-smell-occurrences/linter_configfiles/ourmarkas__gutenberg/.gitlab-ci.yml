@@ -1,0 +1,24 @@
+#image: alpine:latest
+image: centos:latest
+
+before_script:
+    #- apk add --update ca-certificates wget tar && rm -rf /var/cache/apk/*
+    - yum install -y wget tar
+    
+    # Download and unzip the gutenberg executable
+    # Replace the version numbers in the URL by the version you want to use
+    - wget https://github.com/Keats/gutenberg/releases/download/v0.3.1/gutenberg-v0.3.1-x86_64-unknown-linux-gnu.tar.gz
+    - tar -xf gutenberg-v0.3.1-x86_64-unknown-linux-gnu.tar.gz
+
+pages:
+    stage: deploy
+    script:
+        - echo 'Build...'
+        - ls
+        - ./gutenberg build
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+

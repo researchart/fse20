@@ -1,0 +1,29 @@
+variables:
+  NETLIFY_SITE: "37fca3f6-1100-4e48-80c0-000670c7cad7"
+
+stages:
+  - test
+  - deploy
+
+test:
+  image: node:11
+  stage: test
+  cache:
+    paths:
+    - node_modules/
+  script:
+  - yarn install
+  - yarn test
+deploy:
+  image: node:11
+  stage: deploy
+  only:
+  - master@denkmal/denkmal-website-admin
+  before_script:
+    - yarn global add react-scripts
+    - yarn global add netlify-cli
+    - yarn install && yarn build
+  script:
+    - netlify deploy --site="$NETLIFY_SITE" --auth="$NETLIFY_AUTH_TOKEN" --dir=build/ --prod --message="$CI_COMMIT_MESSAGE"
+
+

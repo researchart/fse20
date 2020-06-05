@@ -1,0 +1,22 @@
+image: fedora
+
+before_script:
+  - dnf install -y cmake clang clang-tools-extra gsl-devel boost-devel make automake
+
+stages:
+  - build
+
+make:
+  stage: build
+  script:
+    - cmake .
+    - make
+
+check:
+  stage: build
+  script:
+    - cmake .
+    - make
+    - clang-check -analyze -extra-arg -Xclang -extra-arg -analyzer-output=text -extra-arg -std=c++14 -extra-arg -Wall src/*.cpp
+    - clang-tidy src/*.cpp
+

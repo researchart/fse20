@@ -1,0 +1,31 @@
+#image: python:2.7
+image: ubuntu:16.04
+
+stages:
+  - newdatacheck
+#  - build
+
+# cache:
+#   paths:
+#   - tmp/.gradle/wrapper
+#   - tmp/.gradle/caches
+
+before_script:
+  - apt-get --quiet update --yes
+  - apt-get --quiet install --yes git # python zip unzip # python-dev python-pip # python-virtualenv
+  - git remote set-url origin https://gdroidbot:${CI_PUSH_TOKEN}@gitlab.com/gdroid/gdroiddata.git
+  - git config --global user.email 'gdroidbot@abga.be'
+  - git config --global user.name 'G-Droid Bot'
+
+doall:
+  script:
+    - apt-get --quiet install --yes git python zip unzip virtualenv build-essential python-dev curl # python-pip # python-virtualenv
+    - git checkout -B master
+    - ./make_env.sh
+    - ./do_all.sh $MODE
+    - git commit -m "update `date +'%Y-%m-%d %H:%M:%S'`" .
+    - git push --follow-tags origin master
+  stage: newdatacheck
+  except:
+      - pushes
+

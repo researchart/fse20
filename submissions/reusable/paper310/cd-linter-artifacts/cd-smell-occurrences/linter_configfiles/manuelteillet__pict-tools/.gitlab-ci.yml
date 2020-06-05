@@ -1,0 +1,20 @@
+image: docker:latest
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+services:
+  - docker:dind
+
+before_script:
+  - apk --no-cache add python3 exiftool bash rsync git openssh-client 
+  - pip3 install tox
+
+python36_tests:
+  script:
+    - rsync_server="$(docker run -d -p 22:22 -e SSH_USERS=test:1000:1000,http:33:33 docker.io/panubo/sshd)"
+    - docker cp /builds/manuelteillet/pict-tools/pict_tools/tests/test_rsa_key.pub ${rsync_server}:/etc/authorized_keys/test
+    - docker cp /builds/manuelteillet/pict-tools/pict_tools/tests/test_rsa_key.pub ${rsync_server}:/root/.ssh/authorized_keys 
+    - export rsync_server_ip_address=docker
+    - tox
+

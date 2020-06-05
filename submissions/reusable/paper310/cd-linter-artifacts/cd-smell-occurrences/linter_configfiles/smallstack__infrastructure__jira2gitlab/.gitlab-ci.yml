@@ -1,0 +1,22 @@
+image: node:6.11.3
+
+stages:
+  - test
+  - deploy
+  
+  
+test:
+  stage: deploy
+  script:
+    - npm install -g
+    - jira2gitlab
+
+
+npm_publish:
+  stage: deploy
+  only:
+    - tags
+  script:
+    - npm install
+    - npm run ci-publish
+

@@ -1,0 +1,41 @@
+before_script:
+    - make all
+    - mkdir -p /usr/share/prv/
+    - ln -f -s $(pwd)/makefiles /usr/share/prv
+    - ln -f -s $(pwd)/templates /usr/share/prv
+
+project:
+    script:
+        - bin/main c test
+        - test test/Makefile
+
+template:
+    script:
+        - bin/main -y main.c 
+        - test main.c
+        - test main.h
+
+template_in_folder:
+    script:
+        - bin/main -y test/main.c
+        - test test/main.c
+        - test test/main.h
+
+redirect:
+    script:
+        - bin/main -y main.f03
+        - test main.f03
+
+extension_changed:
+    script:
+        - bin/main -y main.hpp
+        - test main.h
+
+linked_extension_changed:
+    script:
+        - bin/main -y main.cpp
+        - test main.h
+
+
+
+

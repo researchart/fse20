@@ -1,0 +1,246 @@
+stages:
+  - stage1-testing
+  - stage2-tarball-testing
+
+variables:
+  BUILD_IMAGES_PROJECT: libidn/build-images
+  DEBIAN_BUILD: buildenv-debian-buster
+  FEDORA_BUILD: buildenv-fedora
+  CENTOS7_BUILD: buildenv-centos7
+  BASE_BUILD: buildenv-basic
+  GET_SOURCES_ATTEMPTS: "3"
+
+# In this build we combine
+#  * fuzz/ building
+#  * build/valgrind-check
+Debian GNU/Linux:
+  stage: stage1-testing
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
+  script:
+  - ./bootstrap
+  - ./configure -C --disable-doc --enable-gcc-warnings --enable-valgrind-tests
+  - echo "nproc="$(nproc)" "$nproc
+  - make -j$(nproc) check
+  - make -j$(nproc) -C fuzz
+  tags:
+  - shared
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - ./*.log
+      - tests/*.log
+
+# In this build we combine
+#  * syntax-check
+#  * abi-check
+# It is not run on tags
+abi-check:
+  stage: stage1-testing
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
+  script:
+  - ./bootstrap
+  - CFLAGS="-g -Og" ./configure -C --disable-doc
+  - make syntax-check
+  - make -j$(nproc)
+  - make abi-check
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - ./*.log
+      - tests/*.log
+      - compat_reports/
+
+# In this build we do
+#  * distcheck
+dist-check:
+  stage: stage1-testing
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
+  script:
+  - ./bootstrap
+  - ./configure -C --enable-gtk-doc --enable-gtk-doc-pdf --disable-gcc-warnings --disable-valgrind-tests
+  - make -j$(nproc)
+  - DISTCHECK_CONFIGURE_FLAGS=--disable-gtk-doc make distcheck
+  tags:
+  - shared
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - libidn2-*
+  artifacts:
+    expire_in: 2 weeks
+    when: on_success
+    paths:
+      - ./*.log
+      - libidn2-*.gz
+
+# In this build we combine
+#  * build/asan-check
+#  * build w/Werror and ubsan-check
+Debian ASAN/UBSAN:
+  stage: stage1-testing
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
+  script:
+  - ./bootstrap
+  - export CC=clang
+  - export CFLAGS="-fsanitize=address -g -O0"
+  - ASAN_OPTIONS=detect_leaks=0 ./configure --disable-doc --disable-gcc-warnings
+  - make -j$(nproc) check
+  - make clean
+  - export CFLAGS="-fsanitize=undefined,integer -fno-sanitize-recover=undefined,integer -g -O0"
+  - ./configure --disable-doc --disable-gcc-warnings
+  - make -C unistring && make -C gl
+  - make -C lib CFLAGS="$CFLAGS -Wall -Wextra -Werror"
+  - make -C examples CFLAGS="$CFLAGS -Wall -Wextra -Werror -Wno-unused-parameter"
+  - make -j$(nproc) check
+  tags:
+  - shared
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - tests/*.log
+      - ./*.log
+
+Centos7:
+  stage: stage1-testing
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$CENTOS7_BUILD
+  script:
+  - sed -i 's/AM_GNU_GETTEXT_VERSION(0.19.3)/AM_GNU_GETTEXT_VERSION(0.18.2)/g' configure.ac
+  - ./bootstrap && ./configure --enable-gcc-warnings --disable-doc && make -j$(nproc) check
+  tags:
+  - shared
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - ./*.log
+      - tests/*.log
+      - compat_reports/
+
+clang-analyzer/Fedora:
+  stage: stage1-testing
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  script:
+  - ./bootstrap
+  - scan-build ./configure --disable-doc --enable-gcc-warnings
+  - make -j$(nproc) -C gl
+  - scan-build --status-bugs -o scan-build-lib make -j$(nproc) -C lib
+  tags:
+  - shared
+  except:
+  - tags
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - ./*.log
+      - scan-build-lib/*
+
+pages:
+  stage: stage1-testing
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
+  script:
+  - ./bootstrap
+  - CFLAGS="-g -O0" ./configure --enable-gtk-doc --enable-code-coverage --disable-gcc-warnings
+  - make -j$(nproc) check
+  - make local-code-coverage-output
+  - mkdir -p public
+  - rm -rf public/coverage
+  - mv libidn2-*-coverage public/coverage
+  - rm -rf public/reference
+  - mv doc/reference/html public/reference
+  - make -C doc manual
+  - rm -rf public/manual
+  - mv doc/manual public/manual
+  - make clean
+  - make clean && make && make -C fuzz check && make code-coverage-capture
+  - contrib/make-coverage-badge "fuzz-coverage"
+  - rm -rf public/fuzz-coverage
+  - mv libidn2-*-coverage public/fuzz-coverage
+  - mv badge.svg public/fuzz-coverage/
+  tags:
+  - shared
+  artifacts:
+    when: on_success
+    paths:
+      - public
+  only:
+    - master
+
+# Target to run code coverage on non-master branches. That is intended
+# to ensure that compilation in master will not break the pages rule.
+pages-test:
+  stage: stage1-testing
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$DEBIAN_BUILD
+  script:
+  - ./bootstrap
+  - CFLAGS="-g -O0" ./configure --enable-gtk-doc --enable-code-coverage --disable-gcc-warnings
+  - make -j$(nproc) check
+  - make local-code-coverage-output
+  tags:
+  - shared
+  except:
+    - master
+
+MinGW64:
+  stage: stage1-testing
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$FEDORA_BUILD
+  before_script:
+  - mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc &&
+    echo ':DOSWin:M::MZ::/usr/bin/wine64:' > /proc/sys/fs/binfmt_misc/register
+  script:
+  - ./bootstrap
+  - mingw64-configure --disable-valgrind-tests --disable-doc
+  - mingw64-make -j$(nproc)
+  - mingw64-make -j$(nproc) check
+  tags:
+  - shared
+  - docker
+  except:
+  - tags
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - ./*.log
+      - tests/*.log
+
+# After having issues with building from tarball (make distcheck was ok),
+# outside a git repo, we test the tarball stand-alone.
+Tarball:
+  stage: stage2-tarball-testing
+  image: $CI_REGISTRY/$BUILD_IMAGES_PROJECT:$BASE_BUILD
+  variables:
+    GIT_STRATEGY: none
+  script:
+    # remove all files from git repo
+    - mv libidn2-*.gz /tmp
+    - rm -rf * .git* .travis*
+    - mv /tmp/libidn2-*.gz .
+    # unpack and build from tarball
+    - tar xvf libidn2-*.gz
+    - cd libidn2-*
+    - ./configure
+    - make
+    - make check
+    # check if essential files are accidentally cleaned
+    - make clean
+    - make
+  tags:
+    - shared
+  dependencies:
+    - dist-check
+  artifacts:
+    expire_in: 2 weeks
+    when: on_failure
+    paths:
+      - libidn2-*/*.log
+      - libidn2-*/*/*.log
+

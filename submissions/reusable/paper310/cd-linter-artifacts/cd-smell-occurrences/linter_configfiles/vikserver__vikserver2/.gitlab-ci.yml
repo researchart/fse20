@@ -1,0 +1,50 @@
+image: node:alpine
+stages:
+- test
+- build
+
+include:
+    - template: SAST.gitlab-ci.yml
+    - template: Dependency-Scanning.gitlab-ci.yml
+
+.Test:
+    stage: test
+    before_script:
+    - npm ci
+
+Test JS:
+    extends: .Test
+    script:
+    - npm test
+    - npm run eslint
+
+Test CSS:
+    extends: .Test
+    script:
+    - npm run stylelint
+
+.build_tarball:
+    image: node:latest # Use the default image instead of the alpine based one
+    stage: build
+    before_script:
+    - npm ci
+    script:
+    - bash stages.sh tarball "vikserver-${VIKSERVER_COMMIT_NAME}.tar"
+    artifacts:
+        paths:
+        - vikserver-${VIKSERVER_COMMIT_NAME}.tar
+
+Build current tarball:
+    extends: .build_tarball
+    except:
+    - tags
+    variables:
+        VIKSERVER_COMMIT_NAME: ${CI_COMMIT_REF_NAME}
+
+Build tagged tarball:
+    extends: .build_tarball
+    only:
+    - tags
+    variables:
+        VIKSERVER_COMMIT_NAME: ${CI_COMMIT_TAG}
+

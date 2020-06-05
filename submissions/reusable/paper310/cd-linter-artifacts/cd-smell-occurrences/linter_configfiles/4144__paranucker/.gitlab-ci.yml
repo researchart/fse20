@@ -1,0 +1,31 @@
+stages:
+  - build
+  - success
+  - failure
+
+job1:
+  stage: build
+  image: ubuntu:cosmic
+  script:
+    - ./ci/install.sh
+    - ${CC} --version
+    - ${CXX} --version
+    - ./build.sh
+  variables:
+    CC: gcc-5
+    CXX: g++-5
+
+success:
+  stage: success
+  script:
+  - echo "do nothing"
+  image: debian:unstable
+  when: on_success
+
+failure:
+  stage: failure
+  script:
+  - echo "do nothing"
+  image: debian:unstable
+  when: on_failure
+

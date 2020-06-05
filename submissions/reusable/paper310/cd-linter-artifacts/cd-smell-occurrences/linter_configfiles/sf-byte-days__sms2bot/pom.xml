@@ -1,0 +1,333 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.rafasoft</groupId>
+    <artifactId>sms2bot</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>Sms2Bot</name>
+    <description>This project will be polling the telegram bot</description>
+
+    <repositories>
+
+        <repository>
+            <id>smslib-snapshots</id>
+            <name>SMSLib Repository</name>
+            <url>http://smslib.org/maven2/v3/</url>
+        </repository>
+
+        <repository>
+            <id>jitpack.io</id>
+            <name>GIT Repository</name>
+            <url>https://jitpack.io</url>
+        </repository>
+
+    </repositories>
+
+    <properties>
+
+        <!-- Basic properties -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Java Version -->
+        <java.version>1.8</java.version>
+
+        <!-- 3rd-Party Library Versioning -->
+        <antjsch.version>1.9.6</antjsch.version>
+        <beanutils.version>1.8.3</beanutils.version>
+        <jackson.version>2.7.3</jackson.version>
+        <jcommander.version>1.35</jcommander.version>
+        <junit.version>4.12</junit.version>
+        <guava.version>19.0</guava.version>
+        <guice.version>4.0</guice.version>
+        <log4j.version>1.2.17</log4j.version>
+        <powermock.version>1.6.5</powermock.version>
+        <rxtx.version>2.2</rxtx.version>
+        <slf4j.version>1.7.7</slf4j.version>
+        <smslib.version>3.5.4</smslib.version>
+        <snakeyaml.version>1.11</snakeyaml.version>
+        <spring.version>4.2.6.RELEASE</spring.version>
+
+        <!-- Maven Plugin Versioning -->
+        <maven-clean-plugin.version>2.5</maven-clean-plugin.version>
+        <maven-compiler-plugin.version>3.5</maven-compiler-plugin.version>
+        <jacoco-maven-plugin.version>0.7.6.201602180812</jacoco-maven-plugin.version>
+        <maven-antrun-plugin.version>1.8</maven-antrun-plugin.version>
+
+        <!-- Raspberry Pi -->
+        <pi.host>10.0.0.145</pi.host>
+        <pi.port>22</pi.port>
+        <pi.user>pi</pi.user>
+        <pi.password>raspberry</pi.password>
+        <pi.deployDirectory>/home/pi</pi.deployDirectory>
+
+    </properties>
+
+    <dependencies>
+
+        <!-- Core dependencies -->
+
+        <dependency>
+            <groupId>org.smslib</groupId>
+            <artifactId>smslib</artifactId>
+            <version>${smslib.version}</version>
+        </dependency>
+
+        <!-- Utils dependencies -->
+
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
+            <version>${guice.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>${snakeyaml.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-beanutils</groupId>
+            <artifactId>commons-beanutils</artifactId>
+            <version>${beanutils.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.beust</groupId>
+            <artifactId>jcommander</artifactId>
+            <version>${jcommander.version}</version>
+            <type>jar</type>
+        </dependency>
+
+        <!-- Logging-related dependencies -->
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
+        <!-- Testing-related dependencies -->
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-all</artifactId>
+            <version>1.10.19</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.powermock</groupId>
+            <artifactId>powermock-module-junit4</artifactId>
+            <version>${powermock.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.powermock</groupId>
+            <artifactId>powermock-api-mockito</artifactId>
+            <version>${powermock.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Communication-related libs -->
+        <dependency>
+            <groupId>org.bidib.jbidib.org.qbang.rxtx</groupId>
+            <artifactId>rxtxcomm</artifactId>
+            <version>${rxtx.version}</version>
+        </dependency>
+
+        <!-- Simple Slack API -->
+        <dependency>
+            <groupId>com.github.Ullink</groupId>
+            <artifactId>simple-slack-api</artifactId>
+            <version>0.5.1</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+
+        <pluginManagement>
+
+            <plugins>
+
+                <!-- ============================================================================================== -->
+                <!-- Basic plugins                                                                                  -->
+                <!-- ============================================================================================== -->
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-clean-plugin</artifactId>
+                    <version>${maven-clean-plugin.version}</version>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <compilerArgs>
+                            <arg>-Werror</arg>
+                            <arg>-Xlint:deprecation</arg>
+                            <arg>-Xlint:unchecked</arg>
+                        </compilerArgs>
+
+                    </configuration>
+                </plugin>
+
+                <!-- ============================================================================================== -->
+                <!-- Generate package with all dependencies                                                         -->
+                <!-- Usage:                                                                                         -->
+                <!--   $ mvn clean install assembly:single                                                          -->
+                <!--   $ java -jar sms2bot-0.0.1-SNAPSHOT.jar                                                       -->
+                <!-- ============================================================================================== -->
+
+                <plugin>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <configuration>
+                        <archive>
+                            <manifest>
+                                <mainClass>com.sms2bot.MessageManager</mainClass>
+                            </manifest>
+                        </archive>
+                        <descriptorRefs>
+                            <descriptorRef>jar-with-dependencies</descriptorRef>
+                        </descriptorRefs>
+                        <outputDirectory>${project.basedir}</outputDirectory>
+                        <appendAssemblyId>false</appendAssemblyId> <!-- avoid annoying suffix jar-with-dependencies -->
+                        <attach>true</attach>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>make-assembly</id> <!-- this is used for inheritance merges -->
+                            <phase>package</phase> <!-- bind to the packaging phase -->
+                            <goals>
+                                <goal>single</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+            </plugins>
+
+        </pluginManagement>
+
+        <plugins>
+
+            <!-- Test coverage -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--This plugin will Transfer the executable JAR file to the Pi and runs it -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>${maven-antrun-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <tasks>
+                                <!-- ensure the target directory exists on the Raspberry Pi -->
+                                <sshexec host="${pi.host}" port="${pi.port}"
+                                         username="${pi.user}" password="${pi.password}"
+                                         trust="true" failonerror="false" verbose="true"
+                                         command="mkdir --parents ${pi.deployDirectory}"/>
+
+                                <!-- copy the JAR file to the Raspberry Pi -->
+                                <scp file="${project.basedir}/${project.build.finalName}.jar"
+                                     todir="${pi.user}:${pi.password}@${pi.host}:${pi.deployDirectory}"
+                                     port="${pi.port}" trust="true" verbose="true" failonerror="true">
+                                </scp>
+
+                                <!-- run the JAR file on the Raspberry Pi -->
+                                <sshexec host="${pi.host}" port="${pi.port}" username="${pi.user}"
+                                         password="${pi.password}" trust="true" failonerror="false"
+                                         verbose="true"
+                                         command="java -jar ${pi.deployDirectory}/${project.build.finalName}.jar"/>
+                            </tasks>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.ant</groupId>
+                        <artifactId>ant-jsch</artifactId>
+                        <version>${antjsch.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+        </plugins>
+
+    </build>
+
+</project>
+

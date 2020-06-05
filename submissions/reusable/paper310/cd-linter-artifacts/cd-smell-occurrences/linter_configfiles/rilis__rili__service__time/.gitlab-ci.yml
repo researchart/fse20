@@ -1,0 +1,80 @@
+image: registry.gitlab.com/rilis/docker-ci:ci-latest
+
+stages:
+  - test
+  - stats
+  - docs
+
+clang-format:
+  stage: stats
+  script:
+  - find * -iname '*.hpp' -o -iname '*.cpp' | xargs clang-format -i -style=file
+  - git status --porcelain > ../status.log
+  - git diff
+  - test ! -s ../status.log
+
+cppcheck:
+  stage: stats
+  script:
+  - find * -iname '*.cpp' -o -iname '*.hpp' | cppcheck --quiet --std=c++11 --enable=warning --enable=style --enable=performance --enable=portability --enable=information --enable=missingInclude --suppress=missingIncludeSystem --file-list=- &> cppcheck.log
+  - cat cppcheck.log
+  - test ! -s cppcheck.log
+
+cpplint:
+  stage: stats
+  script:
+  - find * -iname '*.cpp' -o -iname '*.hpp' | xargs cpplint.py --linelength=120 --extensions=hpp,cpp --filter=-legal/copyright,-build/include_order,-build/c++11,+build/c++14,-runtime/references
+
+doxygen:
+  stage: docs
+  script:
+    - doxygen Doxyfile
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - doxygen/html
+
+coverage:
+  stage: stats
+  script:
+  - hell --install -r "=" -r "RILI_SERVICE_TIME_TESTS=ON" -r "RILI_SERVICE_TIME_COVERAGE=ON" -i "CMAKE_CXX_STANDARD=11" -G "Ninja"
+  - mkdir build
+  - cd build
+  - cmake ../ -G"Ninja" -DRILI_SERVICE_TIME_TESTS=ON -DRILI_SERVICE_TIME_COVERAGE=ON -DCMAKE_INSTALL_PREFIX=../.hell/install -DCMAKE_CXX_STANDARD=11
+  - ninja install
+  - ./rili-service-time_tests
+  - cd ..
+  - lcov --directory ./build/ --capture --output-file coverage.info
+  - lcov --remove coverage.info '/usr/include/*' '*/tests/*' '*/.hell/*' -o coverage.info
+  - lcov --list coverage.info
+
+valgrind:
+  stage: stats
+  script:
+  - hell --install -r "=" -r "RILI_SERVICE_TIME_TESTS=ON" -r "RILI_SERVICE_TIME_TESTS_WITH_VALGRIND=ON" -i "CMAKE_BUILD_TYPE=Debug" -i "CMAKE_CXX_STANDARD=11" -G "Ninja"
+  - mkdir build
+  - cd build
+  - cmake ../ -G"Ninja" -DRILI_SERVICE_TIME_TESTS=ON -DRILI_SERVICE_TIME_TESTS_WITH_VALGRIND=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=../.hell/install -DCMAKE_CXX_STANDARD=11
+  - ninja install
+  - valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=123 ./rili-service-time_tests
+
+helgrind:
+  stage: stats
+  script:
+  - hell --install -r "=" -r "RILI_SERVICE_TIME_TESTS=ON" -r "RILI_SERVICE_TIME_TESTS_WITH_VALGRIND=ON" -i "CMAKE_BUILD_TYPE=Debug" -i "CMAKE_CXX_STANDARD=11" -G "Ninja"
+  - mkdir build
+  - cd build
+  - cmake ../ -G"Ninja" -DRILI_SERVICE_TIME_TESTS=ON -DRILI_SERVICE_TIME_TESTS_WITH_VALGRIND=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=../.hell/install -DCMAKE_CXX_STANDARD=11
+  - ninja install
+  - valgrind --tool=helgrind --error-exitcode=123 --sim-hints=no-nptl-pthread-stackcache ./rili-service-time_tests
+
+test:
+  stage: test
+  script:
+  - hell --install -r "=" -r "RILI_SERVICE_TIME_TESTS=ON" -i "CMAKE_CXX_STANDARD=11" -G "Ninja"
+  - mkdir build
+  - cd build
+  - cmake ../ -G"Ninja" -DRILI_SERVICE_TIME_TESTS=ON -DCMAKE_INSTALL_PREFIX=../.hell/install -DCMAKE_CXX_STANDARD=11
+  - ninja install
+  - ./rili-service-time_tests
+

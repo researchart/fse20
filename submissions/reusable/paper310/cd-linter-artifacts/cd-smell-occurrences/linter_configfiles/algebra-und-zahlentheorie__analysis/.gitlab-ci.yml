@@ -1,0 +1,22 @@
+pdf:
+  image: blang/latex
+  script:
+    - latexmk -shell-escape -pdf skript.tex uebung*.tex sloesung*.tex archimedes*.tex
+  artifacts:
+    paths:
+      - "*.pdf"
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - cp -r * .public
+  - mv .public public
+  dependencies:
+  - pdf
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

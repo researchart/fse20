@@ -1,0 +1,21 @@
+image: docker
+services:
+  - docker:dind
+variables:
+  BRANCH_TAG: $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
+  LATEST_TAG: $CI_REGISTRY_IMAGE:latest
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+build_all:
+  stage: build
+  script:
+    - docker build -t $BRANCH_TAG .
+    - docker push $BRANCH_TAG
+build_master:
+  stage: build
+  only:
+    - master
+  script:
+    - docker build -t $LATEST_TAG .
+    - docker push $LATEST_TAG
+

@@ -1,0 +1,51 @@
+stages:
+  - test
+  - deploy
+
+variables:
+  CARGO_HOME: "$CI_PROJECT_DIR/.cargo"
+
+cache:
+    key: ${CI_JOB_NAME}
+    paths:
+      - target/
+      - .cargo/
+    policy: pull-push
+
+.tests_template: &tests_template
+  stage: test
+  script:
+    - cargo test --verbose --jobs 1
+    - cargo test --examples --all-features --jobs 1
+
+tests:stable:
+  image: rustdocker/rust:stable
+  <<: *tests_template
+
+tests:nightly:
+  image: rustdocker/rust:nightly
+  <<: *tests_template
+
+tests:semver:
+  image: rustdocker/rust:nightly
+  stage: test
+  allow_failure: true
+  before_script:
+    - cargo +nightly install semverver
+  script:
+    - ./semver.sh
+
+pages:
+  image: rustdocker/rust:stable
+  stage: deploy
+  only:
+    - master
+  script:
+    - cargo doc
+    - rm -rf public
+    - mkdir public
+    - cp -R target/doc/* public
+  artifacts:
+    paths:
+    - public
+

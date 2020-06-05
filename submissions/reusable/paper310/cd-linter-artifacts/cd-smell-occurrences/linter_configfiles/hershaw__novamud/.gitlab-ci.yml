@@ -1,0 +1,20 @@
+image: python:3.6
+
+before_script:
+   - pip install twine
+   - python setup.py sdist
+
+production:
+  type: deploy
+  variables:
+    TWINE_USERNAME: $TWINE_USERNAME
+    TWINE_PASSWORD: $TWINE_PASSWORD
+  script:
+    - apt-get update -qy
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=novamud --api-key=$HEROKU_PRODUCTION_API_KEY
+    - twine upload dist/*
+  only:
+    - master
+

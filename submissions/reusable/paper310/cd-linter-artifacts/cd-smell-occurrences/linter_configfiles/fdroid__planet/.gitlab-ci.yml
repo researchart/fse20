@@ -1,0 +1,30 @@
+image: debian:stretch
+
+pages:
+  stage: deploy
+  artifacts:
+    paths:
+      - public
+    expire_in: 60m
+    when: always
+  script:
+    - apt-get update
+    - apt-get -qy install --no-install-recommends
+        python-chardet
+        python-feedparser
+        python-html5lib
+        python-htmltmpl
+        python-httplib2
+        python-librdf
+        python-libxml2
+        python-portalocker
+        python-utidylib
+        python-beautifulsoup
+        python-libxslt1
+        xsltproc
+    - test -d public || mkdir public
+    - test -d cache || mkdir cache
+    - python planet.py fdroid.ini
+  only:
+    - master
+

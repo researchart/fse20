@@ -1,0 +1,67 @@
+image: griest/karma-full-test-env:latest
+
+stages:
+  - test
+  - build
+  - deploy
+
+cache:
+  paths:
+    - /usr/local/share/.config/yarn/global/node_modules
+    - node_modules/
+    - "src/*/node_modules"
+  
+before_script:
+  - yarn global add lerna
+  - ls /usr/local/share/.config/yarn/global/node_modules
+  - npm run bootstrap
+
+lint:
+  stage: test
+  script:
+    - npm run lint
+
+test:
+  stage: test
+  script:
+    - npm run test
+  artifacts:
+    paths:
+      - test/reports/
+
+build:
+  stage: build
+  script:
+    - lerna run build
+  artifacts:
+    paths:
+      - dist/
+      - "src/*/dist"
+  only:
+    - tags
+    - master
+    - v3
+
+publish:
+  stage: deploy
+  script:
+    - echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' > ~/.npmrc
+    - lerna run publish
+  dependencies:
+    - build
+  only:
+    - tags
+
+pages:
+  stage: deploy
+  script:
+    - cp -r test/reports public
+    - sed -i -e 's/<head>/<head><script type="application\/javascript" src="https:\/\/unpkg.com\/iframe-resizer@3.5.14\/js\/iframeResizer.contentWindow.min.js"><\/script>/g' public/reports/{unit,coverage/lcov-report}/index.html
+  dependencies:
+    - test
+  artifacts:
+    paths:
+      - public/
+  only:
+    - master
+

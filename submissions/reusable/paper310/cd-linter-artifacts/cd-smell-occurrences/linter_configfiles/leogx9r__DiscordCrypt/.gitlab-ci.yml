@@ -1,0 +1,69 @@
+image: node:latest
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+# Main stages
+stages:
+- build
+- test
+- deploy
+
+# Generate documents on every branch.
+documents:
+  stage: build
+  script:
+   - npm install --save-dev
+   - node node_modules/.bin/jsdoc -c ./.jsdoc.conf.json
+  allow_failure: false
+  artifacts:
+   name: plugin-documentation
+   paths:
+    - docs/
+
+# Perform full tests. Executed on every other branch but the master branch.
+test:
+  stage: test
+  script:
+   - npm install --save-dev
+   - node ./tests/perform-tests.js
+  allow_failure: false
+  except:
+   - master
+
+# Perform code coverage only on the master & development branches.
+coverage:
+  stage: test
+  script:
+   - npm install --save-dev
+   - node node_modules/.bin/istanbul cover ./tests/perform-tests.js coverage
+  coverage: '/^Statements *: (\d+\.\d+%)/'
+  artifacts:
+   name: plugin-coverage
+   paths:
+    - coverage/
+  allow_failure: false
+  only:
+   - master
+   - development
+
+# Upload the code coverage and documentation reports only on the master branch.
+pages:
+  stage: deploy
+  dependencies:
+   - documents
+   - coverage
+  script:
+   - mv docs public/
+   - mv coverage/lcov-report/ public/coverage
+  artifacts:
+   paths:
+    - public
+   expire_in: 30 days
+  only:
+   - master
+
+

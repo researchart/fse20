@@ -1,0 +1,18 @@
+image: node:7.7.3
+pages:
+  cache:
+    paths:
+    - node_modules/
+  script:
+  - git config user.name "twiceYuan"
+  - git config user.email "twiceyuan@gmail.com"
+  - npm install hexo-cli -g
+  - npm install
+  - hexo clean
+  - hexo g -d
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

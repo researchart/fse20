@@ -1,0 +1,12 @@
+image: openjdk:11-jdk
+
+stages:
+  - test
+
+test:
+  stage: test
+  except:
+    - prod
+  script:
+    - ./gradlew clean test --stacktrace
+

@@ -1,0 +1,74 @@
+include:
+  template: SAST.gitlab-ci.yml
+
+stages:
+  - buildRelease
+  - deploy
+  - testBuild
+  
+testBuild:
+    image: openjdk:8-jdk
+    image: npetrovsky/docker-android-sdk-ndk
+  
+    stage: testBuild
+    
+    only:
+        - pushes
+    except:
+        - tags
+    
+    variables:
+        GIT_SUBMODULE_STRATEGY: recursive
+
+    before_script:
+        - chmod +x ./gradlew
+    script:
+        - ./gradlew assembleFdroidDebug
+    artifacts:
+        paths:
+            - app/build/outputs/
+  
+  
+buildReleaseApp:
+    image: openjdk:8-jdk
+    image: npetrovsky/docker-android-sdk-ndk
+
+    variables:
+        GIT_SUBMODULE_STRATEGY: recursive
+        fileName: ScreenCam-V${CI_COMMIT_REF_NAME}-Play.apk
+        magiskModuleName: ScreenCam-Magisk-V${CI_COMMIT_REF_NAME}-playstore
+    before_script:
+        - chmod +x ./gradlew
+        - echo $setUpSigning | base64 -d > prepareConfig.sh
+        - chmod +x prepareConfig.sh
+        - sh prepareConfig.sh
+        - sed -i -e "s|app_pub_key = <App pub key>|app_pub_key = ${playApiKey}|g" app_pub_key
+        - apt-get update -qq && apt-get install -y -qq zip
+    stage: buildRelease
+    script:
+        - ./gradlew assemblePlaystoreRelease
+        - mv app/build/outputs/apk/playstore/release/*.apk releases/${fileName}
+        - echo $CI_JOB_ID > releases/ScreenCam-JobID.txt
+        - cd magisk
+        - ./buildMagiskModule.sh $magiskModuleName
+    only:
+        - tags
+    artifacts:
+        name: "ScreenCam-V($CI_COMMIT_REF_NAME)-Play"
+        paths:
+            - releases/ScreenCam*
+        
+deployReleaseApp:
+    dependencies: 
+        - buildReleaseApp
+    stage: deploy
+    only:
+        - tags 
+    before_script:
+        - echo $pushScript | base64 -d > deploy.sh
+    script:
+        - sh deploy.sh
+
+sast:
+    stage: testBuild
+

@@ -1,0 +1,15 @@
+stages:
+  - build
+
+php dependencies:
+  image: composer
+  stage: build
+  script:
+    - composer install
+
+node dependencies:
+  image: node
+  stage: build
+  script:
+    - npm install
+

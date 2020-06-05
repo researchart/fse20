@@ -1,0 +1,582 @@
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.oskopek.transport</groupId>
+    <artifactId>transport</artifactId>
+    <version>0.10.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>Transport multiproject parent</name>
+    <description>A problem editor, plan visualizer and set of planners for the Transport domain from the IPC 2008.</description>
+    <inceptionYear>2016</inceptionYear>
+    <licenses>
+        <license>
+            <name>The MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <modules>
+        <module>transport-editor</module>
+        <module>transport-core</module>
+        <module>transport-planners</module>
+        <module>transport-thirdparty</module>
+        <module>transport-benchmark</module>
+        <module>transport-report</module>
+    </modules>
+    <scm>
+        <url>https://github.com/oskopek/TransportEditor.git</url>
+        <connection>scm:git:https://github.com/oskopek/TransportEditor.git</connection>
+        <developerConnection>scm:git:https://github.com/oskopek/TransportEditor.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+    <url>https://github.com/oskopek/TransportEditor/</url>
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/oskopek/TransportEditor/issues</url>
+    </issueManagement>
+    <ciManagement>
+        <system>TravisCI</system>
+        <url>https://travis-ci.org/oskopek/TransportEditor</url>
+    </ciManagement>
+    <organization>
+        <name>Ondrej Skopek</name>
+        <url>https://github.com/oskopek/TransportEditor/graphs/contributors</url>
+    </organization>
+    <prerequisites>
+        <maven>3.2.1</maven>
+    </prerequisites>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <skipTests>false</skipTests>
+        <skipITs>true</skipITs>
+        <graphstream.version>1.3</graphstream.version>
+        <checkstyle.javadoc.severity>error</checkstyle.javadoc.severity>
+        <rootLevelDir>${project.basedir}</rootLevelDir>
+        <mainClass/>
+    </properties>
+    <dependencyManagement>
+        <!-- IMPORTANT: Every time a dependency is changed, make sure to check beans.xml and add excludes -->
+        <dependencies>
+            <dependency>
+                <groupId>org.controlsfx</groupId>
+                <artifactId>controlsfx</artifactId>
+                <version>8.40.12</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.5</version>
+            </dependency>
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.12</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>3.6.2</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.testfx</groupId>
+                <artifactId>testfx-core</artifactId>
+                <version>4.0.6-alpha</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.testfx</groupId>
+                <artifactId>testfx-junit</artifactId>
+                <version>4.0.6-alpha</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.testfx</groupId>
+                <artifactId>openjfx-monocle</artifactId>
+                <version>8u20-b26</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>1.2.3</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jboss.weld.se</groupId>
+                <artifactId>weld-se</artifactId>
+                <version>2.3.5.Final</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>2.7.22</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.graphstream</groupId>
+                <artifactId>gs-core</artifactId>
+                <version>${graphstream.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.graphstream</groupId>
+                <artifactId>gs-algo</artifactId>
+                <version>${graphstream.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.graphstream</groupId>
+                <artifactId>gs-ui</artifactId>
+                <version>${graphstream.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.thoughtworks.xstream</groupId>
+                <artifactId>xstream</artifactId>
+                <version>1.4.8</version>
+            </dependency>
+            <dependency>
+                <groupId>org.freemarker</groupId>
+                <artifactId>freemarker</artifactId>
+                <version>2.3.26-incubating</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>21.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-runtime</artifactId>
+                <version>4.7</version>
+            </dependency>
+            <dependency>
+                <groupId>io.javaslang</groupId>
+                <artifactId>javaslang</artifactId>
+                <version>2.1.0-alpha</version>
+            </dependency>
+            <dependency>
+                <groupId>org.reflections</groupId>
+                <artifactId>reflections</artifactId>
+                <version>0.9.11</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>2.9.0.pr2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>2.9.0.pr2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.codehaus.janino</groupId>
+                <artifactId>janino</artifactId>
+                <version>3.0.7</version>
+            </dependency>
+            <dependency>
+                <groupId>com.puppycrawl.tools</groupId>
+                <artifactId>checkstyle</artifactId>
+                <version>7.6.1</version>
+                <scope>compile</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.jfree</groupId>
+                <artifactId>jfreechart</artifactId>
+                <version>1.0.19</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jfree</groupId>
+                <artifactId>jfreesvg</artifactId>
+                <version>3.2</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.antlr</groupId>
+                    <artifactId>antlr4-maven-plugin</artifactId>
+                    <version>4.7</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.7.1.201405082137</version>
+                    <executions>
+                        <execution>
+                            <id>default-prepare-agent</id>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>default-prepare-agent-integration</id>
+                            <goals>
+                                <goal>prepare-agent-integration</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>default-report</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>default-report-integration</id>
+                            <phase>post-integration-test</phase>
+                            <goals>
+                                <goal>report-integration</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-clean-plugin</artifactId>
+                    <version>2.6.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>2.7</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>2.8.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-install-plugin</artifactId>
+                    <version>2.5.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-site-plugin</artifactId>
+                    <version>3.4</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>2.6</version>
+                    <executions>
+                        <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>single</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <archive>
+                            <manifest>
+                                <mainClass>${mainClass}</mainClass>
+                            </manifest>
+                            <manifestEntries>
+                                <Application-Name>${project.name}</Application-Name>
+                            </manifestEntries>
+                        </archive>
+                        <descriptorRefs>
+                            <descriptorRef>jar-with-dependencies</descriptorRef>
+                        </descriptorRefs>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <version>1.4.0</version>
+                    <configuration>
+                        <mainClass>${mainClass}</mainClass>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>2.6</version>
+                    <configuration>
+                        <archive>
+                            <manifest>
+                                <addClasspath>true</addClasspath>
+                                <classpathPrefix>dependency-jars/</classpathPrefix>
+                                <mainClass>${mainClass}</mainClass>
+                            </manifest>
+                        </archive>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>2.19.1</version>
+                    <configuration>
+                        <skipTests>${skipTests}</skipTests>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.5.1</version>
+                    <configuration>
+                        <source>1.8</source>
+                        <target>1.8</target>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.0.0</version>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>2.10.3</version>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>2.10</version>
+                    <executions>
+                        <execution>
+                            <id>copy-dependencies</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>copy-dependencies</goal>
+                            </goals>
+                            <configuration>
+                                <overWriteReleases>false</overWriteReleases>
+                                <overWriteSnapshots>false</overWriteSnapshots>
+                                <overWriteIfNewer>true</overWriteIfNewer>
+                                <outputDirectory>${project.build.directory}/dependency-jars</outputDirectory>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>2.19.1</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <skipTests>${skipTests}</skipTests>
+                        <skipITs>${skipITs}</skipITs>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>2.17</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>com.puppycrawl.tools</groupId>
+                            <artifactId>checkstyle</artifactId>
+                            <version>7.0</version>
+                        </dependency>
+                    </dependencies>
+                    <executions>
+                        <execution>
+                            <id>validate</id>
+                            <phase>validate</phase>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                            <configuration>
+                                <checkstyleRules>
+                                    <module name="Checker">
+                                        <property name="fileExtensions" value="java, properties, xml"/>
+                                        <module name="SuppressionFilter">
+                                            <property name="file" value="${rootLevelDir}/config/checkstyle/suppression.xml"/>
+                                        </module>
+                                        <!--<property name="severity" value="warning" default="warning"/>-->
+                                        <!-- Checks whether files end with a new line.                        -->
+                                        <!-- See http://checkstyle.sf.net/config_misc.html#NewlineAtEndOfFile -->
+                                        <module name="NewlineAtEndOfFile">
+                                            <property name="lineSeparator" value="lf"/>
+                                        </module>
+                                        <!-- Checks that property files contain the same keys.         -->
+                                        <!-- See http://checkstyle.sf.net/config_misc.html#Translation -->
+                                        <module name="Translation"/>
+                                        <!-- Checks for whitespace                               -->
+                                        <!-- See http://checkstyle.sf.net/config_whitespace.html -->
+                                        <module name="FileTabCharacter">
+                                            <property name="severity" value="error"/>
+                                            <property name="eachLine" value="true"/>
+                                        </module>
+                                        <!-- Javadoc comment checks.                       -->
+                                        <module name="JavadocPackage">
+                                            <property name="severity" value="${checkstyle.javadoc.severity}"
+                                                      default="error"/>
+                                            <property name="allowLegacy" value="true"/>
+                                        </module>
+                                        <!-- Miscellaneous other checks.                   -->
+                                        <!-- See http://checkstyle.sf.net/config_misc.html -->
+                                        <module name="RegexpSingleline">
+                                            <property name="format" value="\s+$"/>
+                                            <property name="minimum" value="0"/>
+                                            <property name="maximum" value="0"/>
+                                            <property name="message" value="Line has trailing spaces."/>
+                                        </module>
+                                        <module name="TreeWalker">
+                                            <property name="cacheFile" value="target/cachefile"/>
+                                            <property name="tabWidth" value="4"/>
+                                            <!-- Checks for Javadoc comments.                     -->
+                                            <!-- See http://checkstyle.sf.net/config_javadoc.html -->
+                                            <module name="JavadocMethod">
+                                                <property name="severity" value="${checkstyle.javadoc.severity}"
+                                                          default="error"/>
+                                            </module>
+                                            <module name="JavadocType">
+                                                <property name="severity" value="${checkstyle.javadoc.severity}"
+                                                          default="error"/>
+                                            </module>
+                                            <module name="JavadocStyle">
+                                                <property name="severity" value="${checkstyle.javadoc.severity}"
+                                                          default="error"/>
+                                            </module>
+                                            <module name="JavadocVariable">
+                                                <property name="scope" value="public"/>
+                                                <property name="severity" value="${checkstyle.javadoc.severity}"
+                                                          default="error"/>
+                                            </module>
+                                            <!-- Checks for imports                              -->
+                                            <!-- See http://checkstyle.sf.net/config_import.html -->
+                                            <module name="IllegalImport"/>
+                                            <!-- defaults to sun.* packages -->
+                                            <module name="RedundantImport"/>
+                                            <module name="UnusedImports">
+                                                <property name="processJavadoc" value="true"/>
+                                            </module>
+                                            <!-- Checks for Size Violations.                    -->
+                                            <!-- See http://checkstyle.sf.net/config_sizes.html -->
+                                            <module name="LineLength">
+                                                <property name="max" value="120"/>
+                                            </module>
+                                            <module name="MethodLength"/>
+                                            <module name="ParameterNumber">
+                                                <property name="max" value="9"/>
+                                            </module>
+                                            <!-- Checks for whitespace                               -->
+                                            <!-- See http://checkstyle.sf.net/config_whitespace.html -->
+                                            <module name="EmptyForIteratorPad"/>
+                                            <module name="GenericWhitespace"/>
+                                            <module name="MethodParamPad"/>
+                                            <module name="NoWhitespaceAfter"/>
+                                            <module name="NoWhitespaceBefore"/>
+                                            <module name="OperatorWrap"/>
+                                            <module name="ParenPad"/>
+                                            <module name="TypecastParenPad"/>
+                                            <module name="SeparatorWrap">
+                                                <property name="tokens" value="DOT"/>
+                                                <property name="option" value="nl"/>
+                                            </module>
+                                            <module name="SeparatorWrap">
+                                                <property name="tokens" value="COMMA"/>
+                                            </module>
+                                            <module name="WhitespaceAfter"/>
+                                            <module name="WhitespaceAround"/>
+                                            <!-- Modifier Checks                                    -->
+                                            <!-- See http://checkstyle.sf.net/config_modifiers.html -->
+                                            <module name="ModifierOrder"/>
+                                            <module name="RedundantModifier"/>
+                                            <!-- Checks for blocks. You know, those {}'s         -->
+                                            <!-- See http://checkstyle.sf.net/config_blocks.html -->
+                                            <module name="EmptyBlock">
+                                                <property name="severity" value="warning"/>
+                                            </module>
+                                            <module name="LeftCurly"/>
+                                            <module name="NeedBraces"/>
+                                            <module name="RightCurly"/>
+                                            <!-- Checks for common coding problems               -->
+                                            <!-- See http://checkstyle.sf.net/config_coding.html -->
+                                            <module name="EmptyStatement"/>
+                                            <module name="EqualsHashCode"/>
+                                            <module name="IllegalInstantiation"/>
+                                            <module name="InnerAssignment"/>
+                                            <module name="MissingSwitchDefault"/>
+                                            <module name="SimplifyBooleanExpression"/>
+                                            <module name="SimplifyBooleanReturn"/>
+                                            <module name="OneStatementPerLine"/>
+                                            <module name="CovariantEquals"/>
+                                            <module name="EqualsAvoidNull"/>
+                                            <module name="StringLiteralEquality"/>
+                                            <!-- Checks for class design                         -->
+                                            <!-- See http://checkstyle.sf.net/config_design.html -->
+                                            <module name="FinalClass"/>
+                                            <module name="HideUtilityClassConstructor"/>
+                                            <module name="InterfaceIsType"/>
+                                            <!-- Miscellaneous other checks.                   -->
+                                            <!-- See http://checkstyle.sf.net/config_misc.html -->
+                                            <module name="ArrayTypeStyle"/>
+                                            <module name="UpperEll"/>
+                                        </module>
+                                    </module>
+                                </checkstyleRules>
+                                <encoding>UTF-8</encoding>
+                                <consoleOutput>true</consoleOutput>
+                                <logViolationsToConsole>true</logViolationsToConsole>
+                                <failOnViolation>true</failOnViolation>
+                                <includeResources>true</includeResources>
+                                <includeTestResources>true</includeTestResources>
+                                <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>license-maven-plugin</artifactId>
+                    <version>1.9</version>
+                    <configuration>
+                        <verbose>false</verbose>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>third-party</id>
+                            <goals>
+                                <goal>add-third-party</goal>
+                            </goals>
+                            <configuration>
+                                <outputDirectory>${project.basedir}</outputDirectory>
+                                <thirdPartyFilename>NOTICE.txt</thirdPartyFilename>
+                            </configuration>
+                            <phase>generate-resources</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+    <profiles>
+        <profile>
+            <id>docs</id>
+            <modules>
+                <module>transport-docs</module>
+            </modules>
+        </profile>
+    </profiles>
+</project>
+

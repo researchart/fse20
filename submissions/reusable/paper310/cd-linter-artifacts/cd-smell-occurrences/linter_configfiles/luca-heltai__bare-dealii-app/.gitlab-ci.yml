@@ -1,0 +1,17 @@
+image: mathlab/deal2lkit:dev-debugrelease 
+
+before_script:
+  - ./scripts/check_indentation.sh
+
+debug:
+  script:
+   - test -d build_linux_debug && rm -rf build_linux_debug
+   - mkdir build_linux_debug; cd build_linux_debug; cmake .. -GNinja -DCMAKE_BUILD_TYPE=Debug; ninja
+   - ctest -N; ctest -V; cd ..
+
+release:
+  script:
+   - test -d build_linux_release && rm -rf build_linux_release
+   - mkdir build_linux_release; cd build_linux_release; cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release; ninja
+   - ctest -N; ctest -V; cd ..
+

@@ -1,0 +1,17 @@
+before_script:
+  - gem install redcarpet
+  - gem install pygments.rb
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - ruby .build_md.rb
+  - cp -r * .public
+  - mv .public public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+

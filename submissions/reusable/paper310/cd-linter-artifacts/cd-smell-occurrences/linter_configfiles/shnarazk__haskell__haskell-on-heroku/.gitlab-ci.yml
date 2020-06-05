@@ -1,0 +1,12 @@
+build:
+  stage: build
+  script:
+    - docker build -t my-servant-on-heroku .
+
+deploy heroku:
+  stage: deploy
+  script:
+    - heroku container:login
+    - heroku container:push web --app my-servant-on-heroku
+    - heroku container:release web --app my-servant-on-heroku
+

@@ -1,0 +1,28 @@
+stages:
+  - build
+
+qmk_pok3r:
+  stage: build
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  tags:
+    - linux
+  image: stronglytyped/arm-none-eabi-gcc
+  script:
+    - make vortex/pok3r:default vortex/pok3r_rgb:default vortex/core:default
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    paths:
+      - qmk_pok3r.md5
+      - vortex_pok3r_default.bin
+      - vortex_pok3r_rgb_default.bin
+      - vortex_core_default.bin
+      - .build/vortex_pok3r_default.elf
+      - .build/vortex_pok3r_default.map
+      - .build/vortex_pok3r_rgb_default.elf
+      - .build/vortex_pok3r_rgb_default.map
+      - .build/vortex_core_default.elf
+      - .build/vortex_core_default.map
+
+
+

@@ -1,0 +1,104 @@
+image: opensuse/tumbleweed
+
+stages:
+  - build
+  - test
+  - deploy
+
+# build advent itself
+binary:debug:
+  stage: build
+  before_script:
+    - zypper install -y make gcc libedit-devel libasan5 libubsan1 python python2-PyYAML lcov
+  script:
+    - make debug
+  artifacts:
+    paths:
+      - advent
+      - cheat
+      - "*.o"
+      - dungeon.c
+      - dungeon.h
+
+binary:release:
+  stage: build
+  before_script:
+    - zypper install -y make gcc libedit-devel python python2-PyYAML
+  script:
+    - make advent cheat
+  artifacts:
+    paths:
+      - advent
+      - cheat
+      - "*.o"
+      - dungeon.c
+      - dungeon.h
+
+manpage:
+  stage: build
+  before_script:
+    - zypper install -y make asciidoc
+  script:
+    - make advent.6
+  artifacts:
+    paths:
+      - advent.6
+
+html:
+  stage: build
+  before_script:
+    - zypper install -y make asciidoc libxslt
+  script:
+    - make html
+  artifacts:
+    paths:
+      - "*.html"
+
+dist:
+  stage: build
+  before_script:
+    - zypper install -y make asciidoc tar gzip
+  script:
+    - export VERS=${CI_COMMIT_REF_NAME}
+    - make dist -e
+  artifacts:
+    paths:
+      - "*.tar.gz"
+
+# run tests using the binary built before
+test:debug:
+  stage: test
+  before_script:
+    - zypper install -y make gcc libedit-devel libasan5 libubsan1 python python2-PyYAML lcov
+  script:
+    - make coverage
+  artifacts:
+    paths:
+      - coverage
+  dependencies:
+    - binary:debug
+
+test:release:
+  stage: test
+  before_script:
+    - zypper install -y make libedit
+  script:
+    - cd tests
+    - make
+    - cd ..
+  dependencies:
+    - binary:release
+
+pages:
+  stage: deploy
+  script:
+    - mkdir public
+    - mv coverage public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+  dependencies:
+    - test:debug
+

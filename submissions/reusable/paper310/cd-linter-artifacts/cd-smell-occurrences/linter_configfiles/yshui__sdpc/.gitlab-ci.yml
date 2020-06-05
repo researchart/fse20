@@ -1,0 +1,16 @@
+image: yshui/dmd
+
+pages:
+  stage: deploy
+  script:
+    - dub build -b=ddox
+    - mv docs public
+  artifacts:
+    paths:
+      - public
+tests:
+  stage: test
+  script:
+    - dub test --coverage
+    - bash <(curl -s https://codecov.io/bash)
+

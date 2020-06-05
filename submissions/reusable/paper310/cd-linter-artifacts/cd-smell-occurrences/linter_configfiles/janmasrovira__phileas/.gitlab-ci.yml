@@ -1,0 +1,30 @@
+image: haskell:8.2
+
+variables:
+  STACK_ROOT: "${CI_PROJECT_DIR}/.stack"
+
+cache:
+  untracked: true
+  paths:
+    - .stack-work
+    - .stack
+
+before_script:
+  - stack upgrade
+  - apt-get update
+  - apt-get install make xz-utils
+
+stages:
+  - build
+  - test
+
+src_build:
+  stage: build
+  script:
+    - /root/.local/bin/stack build
+
+src_test:
+  stage: test
+  script:
+    - /root/.local/bin/stack test
+

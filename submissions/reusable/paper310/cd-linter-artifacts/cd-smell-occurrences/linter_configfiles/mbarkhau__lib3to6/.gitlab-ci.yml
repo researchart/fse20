@@ -1,0 +1,34 @@
+stages:
+  - test
+  - build
+
+
+unit:
+  stage: test
+  image: registry.gitlab.com/mbarkhau/lib3to6/base
+  script:
+    - make lint
+    - make mypy
+    - make test
+    - make integration_test
+  coverage: '/^(TOTAL|src).*?(\d+\%)$/'
+  artifacts:
+    paths:
+      - htmlcov/
+      - mypycov/
+  allow_failure: false
+
+
+pages:
+  stage: build
+  script:
+    - mkdir -p public/cov
+    - mkdir -p public/mypycov
+    - cp -r htmlcov/* public/cov/
+    - cp -r mypycov/* public/mypycov/
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

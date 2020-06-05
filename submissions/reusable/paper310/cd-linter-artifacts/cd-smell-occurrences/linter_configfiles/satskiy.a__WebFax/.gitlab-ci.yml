@@ -1,0 +1,23 @@
+stages:
+- analysis
+
+sonarqube:
+  stage: analysis
+  image: ciricihq/gitlab-sonar-scanner
+  variables:
+    SONAR_URL: "https://www.krusher.duckdns.org"
+    SONAR_PROJECT_VERSION: "$CI_BUILD_ID"
+    SONAR_ANALYSIS_MODE: "issues"
+  script:
+  - /usr/bin/sonar-scanner-run.sh
+
+sonarqube-reports:
+  stage: analysis
+  image: ciricihq/gitlab-sonar-scanner
+  variables:
+    SONAR_URL: "https://www.krusher.duckdns.org"
+    SONAR_PROJECT_VERSION: "$CI_BUILD_ID"
+    SONAR_ANALYSIS_MODE: "publish"
+  script:
+  - unset CI_BUILD_REF && /usr/bin/sonar-scanner-run.sh
+

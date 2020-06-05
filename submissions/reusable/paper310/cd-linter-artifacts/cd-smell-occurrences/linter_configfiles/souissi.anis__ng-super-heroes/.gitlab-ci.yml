@@ -1,0 +1,66 @@
+image: node:latest
+stages:
+  - build
+  - deploy
+cache:
+    key: "$CI_COMMIT_REF_NAME"
+    paths:
+    - node_modules/
+    - functions/node_modules/
+
+before_script:
+  - yarn --silent
+  - yarn --cwd ./functions --silent
+  
+build_develop:
+  stage: build
+  environment:
+    name: dev
+  artifacts:
+    paths:
+      - functions/dist/
+      - functions/lib/
+  script:
+    - chmod +x ./config.sh
+    - yarn run build:client-and-server-bundles
+    - yarn --cwd functions run build
+  only:
+    - develop
+
+build_prod:
+  stage: build
+  environment:
+    name: prod
+  artifacts:
+    paths:
+      - functions/dist/
+      - functions/lib/
+  script:
+    - chmod +x ./config.sh
+    - yarn run build:client-and-server-bundles
+    - yarn --cwd functions run build
+  only:
+    - master
+
+deploy_develop:
+  stage: deploy
+  environment:
+    name: dev
+  script:
+    - yarn run deploy
+  dependencies:
+    - build_develop
+  only:
+    - develop
+
+deploy_production:
+  stage: deploy
+  environment:
+    name: prod
+  script:
+    - yarn run deploy
+  dependencies:
+    - build_prod
+  only:
+    - master
+

@@ -1,0 +1,106 @@
+image: docker:git
+#image: docker:latest
+
+# When using dind, it's wise to use the overlayfs driver for
+# improved performance.
+variables:
+  DOCKER_DRIVER: overlay2
+
+services:
+  - docker:dind
+
+stages:
+  - build-and-deploy
+  - git-push-to-mirror
+  - update-docker-hub-readme
+
+before_script:
+  - docker info
+  - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
+
+Docker build:
+  stage: build-and-deploy
+  variables:
+    DOCKERHUB_REGISTRY: "https://index.docker.io/v1/"
+    DOCKER_REGISTRY_DOCKERHUB_REPO: "anacha/ng"
+    TMPTAG: "9.0.2-alpine"
+    # TMPTAG: "8.0.0-rc.3-alpine"
+    # TMPTAG: "8.3.25-alpine"
+    # TMPTAG: "6.2.9-alpine"
+  only:
+    - master
+  script:
+  - >-
+    docker build --pull
+    -t $CI_REGISTRY_IMAGE:$TMPTAG
+    -t $CI_REGISTRY_IMAGE:latest
+    -t $DOCKER_REGISTRY_DOCKERHUB_REPO:$TMPTAG
+    -t $DOCKER_REGISTRY_DOCKERHUB_REPO:latest
+    .
+  - docker images
+  - docker push $CI_REGISTRY_IMAGE:$TMPTAG
+  - docker push $CI_REGISTRY_IMAGE:latest
+  - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin "$DOCKERHUB_REGISTRY"
+  - docker push $DOCKER_REGISTRY_DOCKERHUB_REPO:$TMPTAG
+  - docker push $DOCKER_REGISTRY_DOCKERHUB_REPO:latest
+  - docker logout "$CI_REGISTRY"
+  - docker logout "$DOCKERHUB_REGISTRY"
+
+# .job_sshpushtemplate: &sshpush
+#   image: anacha/openssh-client
+#   before_script:
+#     - which ssh-agent || (apk add --no-cache --update openssh-client)
+#     - eval $(ssh-agent -s)
+#     - mkdir -p ~/.ssh
+#     - $([[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config) 
+#     # - ssh-keyscan -H 'bitbucket.org' >> ~/.ssh/known_hosts
+
+# Github Mirror:
+#   <<: *sshpush
+#   stage: git-push-to-mirror
+#   variables:
+#     GITHUB_REPO: "github.com:anacpe9/ng.git"
+#   only:
+#     - master
+#   script:
+#     - echo "$GITHUB_SSH_PRIVATE_KEY" | ssh-add -
+#     - ssh-add -l
+#     - git push --mirror git@$GITHUB_REPO
+#     - git push git@$GITHUB_REPO HEAD:master
+
+# Bitbucket Mirror:
+#   <<: *sshpush
+#   stage: git-push-to-mirror
+#   variables:
+#     BITBUCKET_REPO: "bitbucket.org:anacpe9/ng.git"
+#   only:
+#     - master
+#   script:
+#     - echo "$BITBUCKET_SSH_PRIVATE_KEY" | ssh-add -
+#     - ssh-add -l
+#     - git push --mirror git@$BITBUCKET_REPO
+#     - git push git@$BITBUCKET_REPO HEAD:master
+
+docker-hub:update-readme:
+  stage: update-docker-hub-readme
+  image: docker:latest
+  variables:
+    DOCKERHUB_REPO_PREFIX: "anacha"
+    DOCKERHUB_REPO_NAME: "ng"
+    DOCKER_REGISTRY_DOCKERHUB_REPO: "$DOCKERHUB_REPO_PREFIX/$DOCKERHUB_REPO_NAME"
+  only:
+  - master
+  services:
+  - docker:dind
+  cache: {}
+  dependencies: []
+  script:
+  - >-
+    docker run --rm
+    -v $(pwd)/README.md:/data/README.md
+    -e DOCKERHUB_USERNAME="$DOCKERHUB_USERNAME"
+    -e DOCKERHUB_PASSWORD="$DOCKERHUB_PASSWORD"
+    -e DOCKERHUB_REPO_PREFIX="$DOCKERHUB_REPO_PREFIX"
+    -e DOCKERHUB_REPO_NAME="$DOCKERHUB_REPO_NAME"
+    sheogorath/readme-to-dockerhub
+

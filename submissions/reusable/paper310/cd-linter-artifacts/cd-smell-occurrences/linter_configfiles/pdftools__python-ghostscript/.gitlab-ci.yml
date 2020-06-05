@@ -1,0 +1,46 @@
+image: python
+
+stages:
+- test
+- build
+- release
+
+before_script:
+- apt-get update -qq && apt-get install -y -q ghostscript
+- curl -O https://bootstrap.pypa.io/get-pip.py
+- python get-pip.py
+- pip install -r requirements.txt
+
+python2:
+  image: python:2.7
+  stage: test
+  script: tox -e py27
+
+python35:
+  image: python:3.5
+  stage: test
+  script: tox -e py35
+
+python36:
+  image: python:3.6
+  stage: test
+  script: tox -e py36
+
+python37:
+  image: python:3.7
+  stage: test
+  script: tox -e py37
+
+linters:
+  image: python:3.7
+  stage: test
+  script: tox -e linters
+
+build:
+  stage: build
+  script: tox -e build
+  artifacts:
+    paths:
+    - dist/
+    expire_in: 1 week
+

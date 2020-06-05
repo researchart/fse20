@@ -1,0 +1,87 @@
+image: "ruby:2.5"
+
+variables:
+  CONTAINER_BASE: registry.gitlab.com/$CI_PROJECT_PATH/base
+  CONTAINER_APP: registry.gitlab.com/$CI_PROJECT_PATH/app
+
+stages:
+  - prepare
+  - build
+  - test
+  - deploy
+
+build_base_container_latest:
+  stage: prepare
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build --tag $CONTAINER_BASE:$CI_COMMIT_SHA --tag $CONTAINER_BASE:latest -f container/base/Dockerfile .
+    - docker push $CONTAINER_BASE:$CI_COMMIT_SHA
+    - docker push $CONTAINER_BASE:latest
+  only:
+    changes:
+      - container/base/*
+
+build_app_container_latest:
+  stage: deploy
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker build --tag $CONTAINER_APP:$CI_COMMIT_SHA --tag $CONTAINER_APP:latest -f container/app/Dockerfile .
+    - docker push $CONTAINER_APP:$CI_COMMIT_SHA
+    - docker push $CONTAINER_APP:latest
+
+build_app_container_release:
+  stage: deploy
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker pull $CONTAINER_APP:latest || true
+    - docker build --cache-from $CONTAINER_APP:latest --tag $CONTAINER_APP:$CI_COMMIT_TAG --tag $CONTAINER_APP:latest container/app/
+    - docker push $CONTAINER_APP:$CI_COMMIT_TAG
+    - docker push $CONTAINER_APP:latest
+  only:
+    - tags
+
+build_release:
+  stage: build
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN registry.gitlab.com
+    - docker pull $CONTAINER_BASE:latest || true
+    - docker pull $CONTAINER_POSTGRES:latest || true
+    - docker build --cache-from $CONTAINER_BASE:latest --tag $CONTAINER_BASE:$CI_COMMIT_TAG --tag $CONTAINER_BASE:latest container/base/
+    - docker build --cache-from $CONTAINER_POSTGRES:latest --tag $CONTAINER_POSTGRES:$CI_COMMIT_TAG --tag $CONTAINER_POSTGRES:latest container/postgres/
+    - docker push $CONTAINER_BASE:$CI_COMMIT_TAG
+    - docker push $CONTAINER_BASE:latest
+  only:
+    - tags
+
+test:
+  image: "registry.gitlab.com/iskcrew/isk/base"
+  stage: test
+  services:
+    - redis:latest
+    - postgres:9.6
+  script:
+    - ruby -v
+    - cp config/database.yml.gitlab config/database.yml
+    - cp test/gitlab_redis.rb config/initializers/01_redis.rb
+    - bundle install -j $(nproc) --path vendor
+    - RAILS_ENV=test bundle exec rake db:setup --quiet
+    - RAILS_ENV=test bundle exec rake isk:secrets --quiet
+    - RAILS_ENV=test bundle exec rake db:test:prepare --quiet
+    - RAILS_ENV=test bundle exec rake test
+  artifacts:
+    paths:
+      - coverage/
+

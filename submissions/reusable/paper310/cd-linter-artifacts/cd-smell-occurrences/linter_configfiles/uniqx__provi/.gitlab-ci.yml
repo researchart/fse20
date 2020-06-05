@@ -1,0 +1,10 @@
+test:
+  image: debian:stretch
+  script:
+    - apt update -y
+    - apt dist-upgrade -y
+    - apt install -y --no-install-recommends
+        python3-pip python3-setuptools flake8
+    - pip3 install -e .
+    - tests/run-tests
+

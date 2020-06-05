@@ -1,0 +1,21 @@
+image: femtopixel/multiarchbuilder
+variables:
+    DOCKER_HOST: "tcp://docker:2375"
+services:
+    - docker:dind
+
+stages:
+    - build
+
+build:
+    stage: build
+    only:
+        - master
+    before_script:
+        - docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        - git clone https://github.com/estesp/manifest-tool && cd manifest-tool && git checkout v0.9.0 && make && make install && cd .. && rm -Rf manifest-tool
+        - git clone https://github.com/computermouth/qemu-static-conf.git && mkdir -p /lib/binfmt.d && cp qemu-static-conf/*.conf /lib/binfmt.d/
+        - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_LOGIN" --password-stdin
+    script:
+        - make
+

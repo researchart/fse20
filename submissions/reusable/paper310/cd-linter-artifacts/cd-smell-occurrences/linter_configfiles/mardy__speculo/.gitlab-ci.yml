@@ -1,0 +1,48 @@
+image: ubuntu:xenial
+
+cache:
+  key: apt-cache
+  paths:
+  - apt-cache/
+
+before_script:
+  - export APT_CACHE_DIR=`pwd`/apt-cache && mkdir -pv $APT_CACHE_DIR
+  - apt-get update -yq && apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -yq gcc make pkg-config
+  - apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -yq doxygen check lcov
+
+build_amd64:
+  stage: build
+  script:
+    - make -j4 COVERAGE=1
+  artifacts:
+    paths:
+      - ./
+
+test_amd64:
+  stage: test
+  script:
+    - make check
+    - make coverage-html
+  dependencies:
+    - build_amd64
+  artifacts:
+    paths:
+      - ./
+
+pages:
+  stage: deploy
+  script:
+    - make doc
+    - mkdir public
+    - cp -a coveragereport public/coverage
+    - cp -a docs/html/* public/
+  dependencies:
+    - test_amd64
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+
+
+

@@ -1,0 +1,22 @@
+image: docker:latest
+
+variables:
+        DOCKER_DRIVER: overlay
+
+services:
+        - docker:dind
+
+#before_script:
+#        - docker info
+#        - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN chaos.expert
+build:
+        stage: build
+        script:
+#        - docker build -t salt-minion-sid .
+        - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+        - docker build --no-cache=true -t registry.gitlab.com/ffffm/docker-salt-minion .
+        - docker push registry.gitlab.com/ffffm/docker-salt-minion
+#        - docker run my-docker-image /script/to/run/tests
+
+       
+

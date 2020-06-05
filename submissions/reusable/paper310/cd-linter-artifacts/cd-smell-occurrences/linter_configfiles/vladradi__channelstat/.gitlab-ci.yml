@@ -1,0 +1,30 @@
+test:
+  script:
+  - apt-get update -qy
+  - apt-get install -y python-dev python-pip
+  - cd src
+  - python channelstat.py --type=all -u "https://coub.com/official"
+  except:
+    - schedules
+
+pages:
+  stage: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y python-dev python-pip
+  - cd src 
+  - python channelstat.py --type=all
+  - cp ../public/oftheday.html  ../public/index.html
+  - cp blacklist-example.txt blacklist.txt
+  - python channelstat.py -l https://coub.com/el-comandante
+  - python channelstat.py -c ../public/followings-el-comandante.csv -p 1 -s 7 -i on -r ../public/weekly.html
+  artifacts:
+    untracked: true
+    paths:
+    - public
+    - public/dist
+    - public/coubml/aws/20190405/
+  only:
+  - schedules
+  
+

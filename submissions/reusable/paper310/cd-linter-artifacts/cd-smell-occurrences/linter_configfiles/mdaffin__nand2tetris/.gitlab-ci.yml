@@ -1,0 +1,51 @@
+cache:
+    paths:
+        - '*/target/'
+        - $HOME/.cargo/
+
+before_script:
+    - cd hardware-simulator
+    - rustc --version && cargo --version && rustup --version
+
+clippy:
+    image: rust:slim
+    before_script:
+        - cd hardware-simulator
+        - rustup default nightly
+        - rustup component add clippy-preview
+        - rustc --version && cargo --version && rustup --version
+    script: cargo clippy
+
+nightly:
+    image: rust:slim
+    before_script:
+        - cd hardware-simulator
+        - rustup default nightly
+        - rustc --version && cargo --version && rustup --version
+    script: cargo test --all
+    allow_failure: true
+
+beta:
+    image: rust:slim
+    before_script:
+        - cd hardware-simulator
+        - rustup default beta
+        - rustc --version && cargo --version && rustup --version
+    script: cargo test --all
+
+latest:
+    image: rust:slim
+    script: cargo test --all
+
+1.28.0:
+    image: rust:1.28.0
+    script: cargo test --all
+
+1.27.0:
+    image: rust:1.27.0
+    script: cargo test --all
+
+1.26.0:
+    image: rust:1.26.0
+    script: cargo test --all
+

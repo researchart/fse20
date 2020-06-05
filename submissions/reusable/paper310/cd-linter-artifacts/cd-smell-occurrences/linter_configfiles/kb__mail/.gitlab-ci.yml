@@ -1,0 +1,19 @@
+services:
+  - postgres:9.5
+
+test:
+  script:
+  - export DATABASE_HOST=postgres
+  - export DATABASE_USER=postgres
+  - export MAIL_TEMPLATE_TYPE="sparkpost"
+  - export MAILGUN_SERVER_NAME=test.net
+  - export MANDRILL_API_KEY="abc"
+  - export MANDRILL_USER_NAME="def"
+  - export SPARKPOST_API_KEY="sparkpost_api_key_test"
+  - export STRIPE_PUBLISH_KEY="pk_test"
+  - export STRIPE_SECRET_KEY="sk_test"
+  - export TEST_EMAIL_ADDRESS_1="test@pkimber.net"
+  - export TEST_EMAIL_ADDRESS_2="test@pkimber.net"
+  - pip3 install -r requirements/ci.txt -i https://pypi.kbsoftware.co.uk/kb/dev/+simple/
+  - pytest --create-db --cov-report term --cov=mail
+

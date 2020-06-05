@@ -1,0 +1,84 @@
+# https://docs.gitlab.com/ce/ci/yaml/
+
+cache:
+  paths:
+  - node_modules/
+
+before_script:
+  - npm install
+
+stages:
+  - test
+  - build
+  - deploy
+
+cypress-e2e:
+  image: cypress/base
+  stage: test
+  script:
+    - npm run ci-test
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - cypress/screenshots
+    - cypress/videos
+
+lint:
+  image: node
+  stage: test
+  script:
+    - npm run lint
+
+cypress-e2e-static:
+  image: cypress/base
+  stage: build
+  script:
+    - npm run ci-test-static
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - cypress/screenshots
+    - cypress/videos
+
+deploy_review:
+  stage: deploy
+  script:
+    - echo "Deploy a review app"
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://$CI_ENVIRONMENT_SLUG.gke.revolunet.com
+  only:
+    - branches
+  except:
+    - master
+   
+# deploy staging:
+#   stage: deploy_staging
+#   script:
+#     - echo "Deploy to staging server"
+#   environment: staging
+#   only:
+#     - master
+
+# deploy prod:
+#   stage: deploy_prod
+#   script:
+#     - echo "Deploy to production server"
+#   environment: production
+#   when: manual
+#   only:
+#     - master
+
+pages:
+  image: node
+  stage: deploy
+  environment: production
+  when: manual
+  script:
+  - npm run build
+  artifacts:
+    paths:
+    - out
+  # except:
+  # - master
+

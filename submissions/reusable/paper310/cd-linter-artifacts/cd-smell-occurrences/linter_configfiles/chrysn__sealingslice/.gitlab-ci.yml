@@ -1,0 +1,22 @@
+test:stable:
+  image: rust:latest
+  script:
+  - cargo version && cargo test --all --verbose
+
+test:old:
+  # Oldest tested version; might not be the limit, and will simply be increased
+  # when new stable features are needed.
+  image: rust:1.26.2
+  script:
+  - cargo version && cargo test --all --verbose
+
+test:beta:
+  image: rustdocker/rust:beta
+  script:
+  - cargo version && cargo test --all --verbose
+
+test:nightly:
+  image: rustdocker/rust:nightly
+  script:
+  - cargo version && cargo test --all --verbose
+

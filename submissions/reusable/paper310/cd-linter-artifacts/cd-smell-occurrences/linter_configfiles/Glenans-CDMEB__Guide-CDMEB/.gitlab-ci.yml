@@ -1,0 +1,54 @@
+# See https://gohugo.io/hosting-and-deployment/hosting-on-gitlab/
+
+#image: registry.gitlab.com/pages/hugo:0.26
+image: monachus/hugo
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  DEPLOY_HOST: vps08.taqamaqa.com
+  DEPLOY_USER: deploy-guide-cdmeb-org
+  DEPLOY_PATH: /var/www-vhosts/guide.cdmeb.org
+  RSYNC_OPTS: -avz --delete
+
+stages:
+  - build
+  - deploy
+
+build-dev:
+  stage: build
+  script:
+  - hugo
+  only:
+  - branches
+  except:
+  - master
+
+build-prod:
+  stage: build
+  script:
+  - hugo
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+deploy-prod:
+  stage: deploy
+  script:
+  - apt-get update -y && apt-get install openssh-client git rsync -y
+  - eval $(ssh-agent -s)
+  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - ssh-keyscan $DEPLOY_HOST >> ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+  - find public/ -type f -exec chmod 664 {} \;
+  - find public/ -type d -exec chmod 775 {} \;
+  - rsync $RSYNC_OPTS public/ $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/
+  environment:
+    name: production
+    url: https://guide.cdmeb.org/
+  only:
+  - master
+

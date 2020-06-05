@@ -1,0 +1,18 @@
+image: node:6
+
+pages:
+  cache:
+    paths:
+    - node_modules/
+  
+  script:
+  - npm install
+  - npm run build-site
+  
+  artifacts:
+    paths:
+    - public
+  
+  only:
+  - master
+

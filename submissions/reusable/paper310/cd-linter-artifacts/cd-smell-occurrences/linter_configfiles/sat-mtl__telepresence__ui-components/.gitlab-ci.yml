@@ -1,0 +1,35 @@
+image: node:lts
+
+stages:
+  - configure
+  - test
+  - deploy
+
+Lint Code:
+  stage: configure
+  script:
+    - npm install
+    - npm run lint
+
+Check Semantic Version:
+  stage: configure
+  variables:
+    GITLAB_MERGE_REQUEST_API: "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/merge_requests?source_branch=${CI_COMMIT_REF_NAME}"
+  script: ['./scripts/check_semantic_versioning.sh']
+  only:
+    - master
+    - release\/.*
+
+Run Unit Tests:
+  stage: test
+  script:
+    - npm install
+    - npm test
+
+Publish Package:
+  stage: deploy
+  only: ['master']
+  script:
+    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+    - npm publish
+

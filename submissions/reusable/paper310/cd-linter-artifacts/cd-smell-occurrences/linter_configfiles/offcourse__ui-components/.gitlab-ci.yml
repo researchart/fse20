@@ -1,0 +1,72 @@
+image: node:6.10.3
+cache:
+  paths:
+    - node_modules/
+
+stages:
+  - build
+  - deploy
+
+before_script:
+  - yarn
+
+build:lib:
+  stage: build
+  script: yarn build --no-demo
+  artifacts:
+    paths:
+      - lib/
+      - umd/
+      - es/
+  except:
+   - tags
+  only:
+    - master
+build:styleguide:
+  stage: build
+  script: yarn styleguide:build
+  artifacts:
+    paths:
+      - styleguide/
+  except:
+   - tags
+  only:
+    - master
+
+release:lib:
+  stage: deploy
+  script:
+    - mkdir -pvm 0700 /root/.ssh
+    - echo "$SSH_DEPLOY_KEY" > /root/.ssh/id_rsa
+    - echo -e 'Host *\n  IdentityFile "/root/.ssh/id_rsa"\n  User git\n' > /root/.ssh/config
+    - chmod 0400 /root/.ssh/id_rsa
+    - ssh-keyscan -H gitlab.com >> "/root/.ssh/known_hosts"
+    - git config --global user.email "gitlabci@example.com"
+    - git config --global user.name "GitLab CI"
+    - npm run ci-publish
+    - git remote set-url --push origin $(perl -pe 's#.*@(.+?(\:\d+)?)/#git@\1:#' <<< $CI_REPOSITORY_URL)
+    - git checkout master
+    - npm version patch
+    - git add package.json
+    - git push --tags
+  dependencies:
+    - build:lib
+  after_script:
+    - rm -Rfv ~/.ssh
+  except:
+   - tags
+  only:
+    - master
+
+
+release:styleguide:
+  stage: deploy
+  script: yarn styleguide:deploy
+  dependencies:
+    - build:styleguide
+  except:
+   - tags
+  only:
+    - master
+
+

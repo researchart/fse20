@@ -1,0 +1,22 @@
+image: registry.gitlab.com/paddy-hack/nikola
+
+pages:
+  before_script:
+  - nikola --version
+  script:
+  - nikola theme -i hack
+  - OPTIMUM_SHELL_RELEASE=1 nikola build
+  - mkdir public && mv output/* public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+test:
+  before_script:
+  - nikola --version
+  script:
+  - nikola theme -i hack
+  - OPTIMUM_SHELL_RELEASE=1 nikola build
+

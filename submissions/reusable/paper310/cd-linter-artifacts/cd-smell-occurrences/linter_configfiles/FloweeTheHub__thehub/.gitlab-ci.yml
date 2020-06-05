@@ -1,0 +1,138 @@
+image: flowee/buildenv:debian
+
+stages:
+- build
+- test
+- deploy
+
+variables:
+  PACKAGE_NAME: flowee-${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHORT_SHA}
+
+#####  Debian stable
+
+build-debian-stable:
+  stage: build
+  script:
+    - mkdir build
+    - cd build
+    - cmake -Dbuild_tests=true -Denable_wallet=true -DCMAKE_BUILD_TYPE=ReleaseWithDebugInfo -DCMAKE_INSTALL_PREFIX=.. ..
+    - echo nproc=`nproc`
+    - make univalue leveldb
+    - make -j0`nproc` install
+  artifacts:
+    paths:
+    - bin
+    - build/testing/*/test_*
+    expire_in: 100 hrs
+
+test_utxo:
+  stage: test
+  script:
+    - build/testing/utxo/test_utxo
+  dependencies:
+  - build-debian-stable
+
+test_api:
+  stage: test
+  script: build/testing/api/test_api bin/hub
+  dependencies:
+  - build-debian-stable
+
+test_prevector:
+  stage: test
+  script: build/testing/prevector/test_prevector
+  dependencies:
+  - build-debian-stable
+
+test_doublespend:
+  stage: test
+  script: build/testing/doublespend/test_doublespend
+  dependencies:
+  - build-debian-stable
+
+test_streaming:
+  stage: test
+  script: build/testing/streaming/test_streaming
+  dependencies:
+  - build-debian-stable
+
+test_protocol:
+  stage: test
+  script: build/testing/bitcoin-protocol/test_protocol
+  dependencies:
+  - build-debian-stable
+
+test_networkmanager:
+  stage: test
+  script: build/testing/networkmanager/test_networkmanager
+  dependencies:
+  - build-debian-stable
+
+test_hashstorage:
+  stage: test
+  script: build/testing/hashstorage/test_hashstorage
+  dependencies:
+  - build-debian-stable
+
+test_blockvalidation:
+  stage: test
+  script: build/testing/blockvalidation/test_blockvalidation
+  dependencies:
+  - build-debian-stable
+
+#####  Static build (Linux)
+
+build-static:
+  image: flowee/buildenv:static
+  stage: build
+  script: build_static
+  artifacts:
+    paths:
+    - bin
+    - etc/flowee
+    - systemd
+    expire_in: 100 hrs
+
+flowee-deb:
+  stage: deploy
+  image: debian:stable
+  script:
+    - umask 022
+    - mkdir -p $PACKAGE_NAME/usr/lib
+    - mv bin $PACKAGE_NAME/usr
+    - mv etc $PACKAGE_NAME/
+    - mv systemd $PACKAGE_NAME/usr/lib/
+    - mv support/debian $PACKAGE_NAME/DEBIAN
+    - chmod 755 $PACKAGE_NAME/DEBIAN/post* $PACKAGE_NAME/DEBIAN/
+    - dpkg-deb --build $PACKAGE_NAME
+  dependencies:
+    - build-static
+  artifacts:
+    paths:
+    - ${PACKAGE_NAME}.deb
+
+flowee-linux.zip:
+  stage: deploy
+  script:
+    - for i in bin/*; do strip $i; done
+    - mkdir ${PACKAGE_NAME}
+    - mv bin etc systemd ${PACKAGE_NAME}
+  artifacts:
+    name: ${PACKAGE_NAME}
+    paths:
+    - ${PACKAGE_NAME}
+  dependencies:
+    - build-static
+
+##### Build as standard as it gets.
+
+build-debian-nowallet:
+  stage: build
+  script:
+    - mkdir build
+    - cd build
+    - cmake -Denable_gui=false ..
+    - make univalue leveldb
+    - make -j0`nproc` all
+
+

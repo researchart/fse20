@@ -1,0 +1,112 @@
+###> Build the runner from a docker image ###
+image: docker:latest
+
+###> Define services ###
+services:
+  - docker:dind
+
+###> Define stages ###
+stages:
+  - build
+  - test
+  #- release
+  - deploy
+  - purge
+
+###> Variables ###
+variables:
+  DOCKER_DRIVER: overlay2
+  CONTAINER_TEST_IMAGE: registry.gitlab.com/didou/${CI_PROJECT_NAME}:${CI_BUILD_REF}_test
+  CONTAINER_RELEASE_IMAGE: registry.gitlab.com/didou/${CI_PROJECT_NAME}:${CI_BUILD_REF}
+  AWS_USER: ${AWS_EC2_USER}
+  AWS_PUBLIC_IP: ${AWS_EC2_PUBLIC_IP}
+  AWS_SSH: ${AWS_EC2_USER}@${AWS_EC2_PUBLIC_IP}
+  REPOSITORY_URL: 933438876997.dkr.ecr.eu-west-1.amazonaws.com/gitlab-ci
+
+###> Before script ###
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+
+###> [BUILD]
+### Build a dockerfile with all the sources
+### and services needed for the project
+###>
+build:
+  stage: build
+  only:
+    - develop
+    - master
+  script:
+    # Build a registry
+    - docker build --pull -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
+
+###> [TEST] : Launch the different tests suites
+### PHPCS :
+### PHPUnit :
+### Behat :
+###>
+test_unit:
+  stage: test
+  script:
+    - docker run -d --name ci $CONTAINER_TEST_IMAGE
+    - docker exec ci composer test
+  only:
+    - develop
+    - master
+test_behat:
+  stage: test
+  script:
+    - docker run -d --name ci $CONTAINER_TEST_IMAGE
+    - echo "behat"
+  only:
+    - develop
+    - master
+test_cs:
+  stage: test
+  script:
+    - echo "phpcs"
+  only:
+    - develop
+    - master
+
+###> [RELEASE] : Create a release of our application and push it to the registry
+###>
+#release:
+#  stage: release
+#  only:
+#    - develop
+#    - master
+#  script:
+#    - docker pull $CONTAINER_TEST_IMAGE
+#    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+#    - docker push $CONTAINER_RELEASE_IMAGE
+#  artifacts:
+#    paths:
+#      - .
+#    name: "$CI_JOB_NAME"
+#    when: on_success
+
+###> [DEPLOY] : Deploy application on AWS Server
+###>
+deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    - apk add --no-cache curl jq python py-pip
+    - pip install awscli
+    - $(aws ecr get-login --no-include-email --region eu-west-1)
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $REPOSITORY_URL
+    - docker push $REPOSITORY_URL
+
+###> [PURGE] : Purge gitlab registry
+###>
+purge:
+  stage: purge
+  only:
+    - master
+  script:
+    - echo "Purge not configured"
+

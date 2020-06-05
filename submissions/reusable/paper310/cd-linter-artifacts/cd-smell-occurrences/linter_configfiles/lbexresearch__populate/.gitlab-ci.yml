@@ -1,0 +1,26 @@
+stages:
+    - unit-test
+    - master
+
+
+unit-test:
+    image: ubuntu
+    stage: unit-test
+    script:
+        - apt-get update
+        - apt-get -y install curl
+        - apt-get -y install python3
+        - apt-get -y install python3-distutils
+        - curl -sS "https://bootstrap.pypa.io/get-pip.py" | python3
+        - pip3 install nose
+        - pip3 install coverage
+        - pip3 install  python-dateutil
+        - python3 --version
+        - nosetests --with-coverage --with-xunit --cover-html
+        - ls
+    coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+    artifacts:
+        paths:
+            - nosetests.xml
+            - cover
+

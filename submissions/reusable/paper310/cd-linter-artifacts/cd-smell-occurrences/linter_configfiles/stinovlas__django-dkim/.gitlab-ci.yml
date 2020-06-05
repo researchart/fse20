@@ -1,0 +1,53 @@
+image: python:3.6-alpine
+
+before_script:
+    - pip install tox
+    - pip freeze
+
+stages:
+    - quality
+    - test
+    - coverage
+
+quality:
+    stage: quality
+    script:
+        - tox -e quality
+
+python2.7:
+    image: python:2.7-alpine
+    script:
+        - tox -e py27-django111
+
+python3.4:
+    image: python:3.4-alpine
+    script:
+        - tox -e py34-django111,py34-django20
+python3.5:
+    image: python:3.5-alpine
+    script:
+        - tox -e py35-django111,py35-django20
+
+python3.6:
+    script:
+        - tox -e py36-django111,py36-django20
+    artifacts:
+        paths:
+            - .coverage
+        expire_in: 1h
+
+python3.7:
+    image: python:3.7-rc-alpine
+    script:
+        - tox -e py37-django111,py37-django20
+
+
+coverage:
+    stage: coverage
+    before_script:
+        - pip install coverage
+        - pip freeze
+    script:
+        - coverage report --include=*/tests/* --fail-under=100
+        - coverage report --omit=*/tests/*
+

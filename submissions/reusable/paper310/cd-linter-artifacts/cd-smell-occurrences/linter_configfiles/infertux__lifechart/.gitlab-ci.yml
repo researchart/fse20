@@ -1,0 +1,12 @@
+image: node:latest
+
+before_script:
+  - export PATH=$PWD/node_modules/.bin:$PATH # we don't have perms to install with -g
+  - npm install elm
+  - npm install uglify-js
+  - elm --version
+
+elm-make:
+  script:
+    - make
+

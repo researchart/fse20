@@ -1,0 +1,55 @@
+stages:
+  - init
+  - check
+  - build
+  - deploy
+
+cache:
+  key: ${CI_BUILD_REF_NAME}
+  paths:
+  - node_modules/
+  - dist/
+
+#定义一个叫init的Job任务
+init:
+  stage: init
+  script:
+  -  cnpm install
+
+#master_check Job:检查master分支上关键内容
+master_check:
+  stage: check
+  script:
+  - echo "Start Check Eros Config ..."
+  - bash check.sh release 
+  only:
+  - master
+  
+#dev_check Job: 检查dev分支上关键内容
+dev_check:
+  stage: check
+  script:
+  - echo "Start Check Eros Config ..."
+  - bash check.sh debug
+  only:
+  - dev
+
+js_build:
+  stage: build
+  script:
+  - eros build
+
+master_deploy:
+  stage: deploy
+  script:
+  - bash deploy.sh release
+  only:
+  - master
+
+dev_deploy:
+  stage: deploy
+  script:
+  - bash deploy.sh debug
+  only:
+  - dev
+

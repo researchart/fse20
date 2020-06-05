@@ -1,0 +1,30 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<artifactId>greenpepper-extensions-parent</artifactId>
+	<packaging>pom</packaging>
+	<name>GreenPepper Extensions Parent</name>
+
+	<parent>
+		<groupId>com.github.strator-dev.greenpepper</groupId>
+		<artifactId>greenpepper-open</artifactId>
+		<version>4.2.5-SNAPSHOT</version>
+	</parent>
+
+	<!--
+	 - GreenPepper Extensions modules
+	 -->
+	<modules>
+		<module>db</module>
+		<module>fit</module>
+		<module>guice</module>
+		<module>ognl</module>
+		<module>php</module>
+		<!-- <module>sandbox</module> -->
+		<module>selenium</module>
+		<module>selenium2</module>
+		<module>spring</module>
+	</modules>
+
+</project>
+

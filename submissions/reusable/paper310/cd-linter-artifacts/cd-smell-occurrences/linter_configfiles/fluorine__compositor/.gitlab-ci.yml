@@ -1,0 +1,15 @@
+image: cm0x4d/ubuntu-qt5-cmake
+
+before_script:
+ - apt-get update -y
+ - apt-get install -y libsdl2-dev libwayland-dev
+
+stages:
+ - build
+
+job1:
+    stage: build
+    script:
+     - qmake compositor.pro
+     - make
+

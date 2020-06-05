@@ -1,0 +1,35 @@
+test:
+  stage: test
+  image: $CI_REGISTRY_IMAGE
+  script:
+  - jekyll build -d test
+  artifacts:
+    paths:
+    - test
+  except:
+  - master
+
+pages:
+  stage: deploy
+  image: $CI_REGISTRY_IMAGE
+  script:
+  - jekyll build -d public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+build_image:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:stable-dind
+  script:
+    - echo $REGISTRY_PASSWORD | docker login -u $REGISTRY_USERNAME --password-stdin $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE .
+    - docker push $CI_REGISTRY_IMAGE
+  allow_failure: true
+  only:
+    - schedules
+

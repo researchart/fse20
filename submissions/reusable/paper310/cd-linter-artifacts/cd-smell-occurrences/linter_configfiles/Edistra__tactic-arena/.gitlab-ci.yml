@@ -1,0 +1,46 @@
+image: node:latest
+
+cache:
+  untracked: true
+  key: "$CI_BUILD_REF_NAME"
+  paths:
+    - node_modules/
+
+stages:
+  - build
+#  - test
+  - deploy
+
+#test:
+#  stage: test
+#  before_script:
+#    - npm install
+#  script:
+#    - npm run serve_headless
+#    - npm run test
+
+build:
+  stage: build
+  before_script:
+    - npm install
+    - npm install bower -g
+    - bower install --allow-root
+    - npm install typescript -g
+  script:
+    - tsc
+    - cp src/{index.html,tests.html} build
+    - cp src/favicon.png build
+    - cp -R src/vendor src/css src/assets build
+  only:
+      - master
+
+deploy:
+  stage: deploy
+  before_script:
+    - apt-get update
+    - apt-get install lftp
+  script:
+    - lftp -u $FTP_USER,$FTP_PASSWORD ftp.edistra.com -e "mirror -e -R ./build www/chrono_arena ; quit"
+  only:
+    - master
+

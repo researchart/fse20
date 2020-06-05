@@ -1,0 +1,92 @@
+image: alpine
+
+stages:
+    - test
+    - generate
+    - deploy
+
+pylint:
+    stage: test
+    script:
+        - apk update && apk add bash python3 python3-dev py-pip
+        - apk add --update alpine-sdk
+        - pip3 install pylint decorator requests
+        - ./ci_scripts/pylint.sh
+    artifacts:
+        paths:
+            - ci_scripts/generated_files/pylint_score.txt
+        when: always
+        expire_in: 1 day
+
+flake8:
+    stage: test
+    script:
+        - apk update && apk add bash python3 python3-dev py-pip
+        - pip3 install flake8
+        - ./ci_scripts/flake8.sh
+    artifacts:
+        paths:
+            - ci_scripts/generated_files/flake8_issue_count.txt
+        when: always
+        expire_in: 1 day
+
+black:
+    stage: test
+    script:
+        - apk update && apk add bash python3 python3-dev py-pip
+        - apk add build-base
+        - pip3 install black
+        - ./ci_scripts/black.sh
+
+mypy:
+    stage: test
+    script:
+        - apk update && apk add bash python3 python3-dev py-pip
+        - apk add build-base
+        - pip3 install mypy
+        - mypy tes_lib
+
+tests:
+    stage: test
+    script:
+        - apk update && apk add bash python3 python3-dev py-pip build-base linux-headers
+        - pip3 install pytest requests psutil pytest-mock
+        - ./ci_scripts/run_tests.sh
+
+# Create the static html pages
+# Note v3.11 of alpine seem to cause the generate_pages job to fail due to py-gtk-dev being missing
+generate_pages:
+    stage: generate
+    image: alpine:3.10
+    dependencies:
+        - pylint
+        - flake8
+    script:
+        - apk update && apk add bash make python3 python3-dev py-pip py-gtk-dev git
+        - pip3 install sphinx anybadge
+        - ./ci_scripts/generate_web_pages.sh
+        - ./ci_scripts/generate_badges.sh
+    artifacts:
+        paths:
+            - docs/_build/html/
+            - ci_scripts/generated_files/*.svg
+        when: always
+        expire_in: 1 day
+
+# Deploy the static html pages, see https://lcaraccio.gitlab.io/tes-lib/
+# for the hosted pages themselves. This deploys the pages due to the 'pages'
+# name
+pages:
+    stage: deploy
+    dependencies:
+        - generate_pages
+    script:
+        - mkdir -p public
+        - cp -r docs/_build/html/* public
+        - cp ci_scripts/generated_files/*.svg public/
+    artifacts:
+        paths:
+            - public
+    only:
+        - master
+

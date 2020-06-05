@@ -1,0 +1,30 @@
+image: fsharp:netcore
+
+stages:
+  - build
+  - test
+
+variables:
+  project: "Source"
+  tests: "Tests"
+
+before_script:
+  - "dotnet restore"
+
+build:
+  stage: build
+  variables:
+    build_path: "$project"
+  script:
+    - "cd $build_path"
+    - "dotnet build"
+
+test:
+  stage: test
+  variables:
+    test_path: "$tests"
+  script:
+    - "cd $test_path"
+    - "dotnet add package coverlet.msbuild"
+    - "dotnet test /p:CollectCoverage=true"
+

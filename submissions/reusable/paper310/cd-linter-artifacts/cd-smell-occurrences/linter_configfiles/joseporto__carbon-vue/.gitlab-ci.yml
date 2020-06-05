@@ -1,0 +1,58 @@
+include:
+  template: Dependency-Scanning.gitlab-ci.yml
+
+stages:
+  - test
+  - docs
+  - deploy
+  - release
+
+unit:
+  image: node:8
+  stage: test
+  script:
+    - npm install
+    - npm run test
+  artifacts:
+    paths:
+    - coverage
+    - report
+  only:
+  - develop
+
+pages:
+  image: node:8
+  stage: docs
+  script:
+    - npm install
+    - npm run storybook:build
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
+tag:
+  before_script:
+    - npm install --frozen-lockfile
+  image: node:8
+  stage: release
+  script:
+    - npx semantic-release-gitlab
+  artifacts:
+    paths:
+    - dist
+  only:
+  - master
+
+publish:
+  before_script:
+    - npm install --frozen-lockfile
+  image: node:8
+  stage: release
+  script:
+    - npm run build
+    - npx npm-publish-git-tag
+  only:
+  - tags
+

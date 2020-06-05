@@ -1,0 +1,67 @@
+image: debian:latest
+
+before_script:
+  - export DEBIAN_FRONTEND= noninteractive
+  - apt-get update -y
+  - apt-get install -y zip unzip jq nodejs
+
+stages:
+  - build
+  - deploy
+
+hash rules:
+  stage: build
+  script:
+    - sha256sum data/data.min.json | awk '{print $1}' > rules.min.hash
+    - node build_tools/minifyDataJSON.js "data/data.min.json" "data.minify.json"
+    - sha256sum data.minify.json | awk '{print $1}' > rules.minify.hash
+  artifacts:
+    paths:
+      - rules.min.hash
+      - data.minify.json
+      - rules.minify.hash
+  only:
+    - master
+
+build firefox:
+  stage: build
+  script:
+    - zip ClearUrls_firefox -r -FS clearurls.js browser-polyfill.js manifest.json img/* external_js/* html/* core_js/* css/* fonts/* _locales/*
+
+  only:
+    - master
+
+  artifacts:
+    paths:
+      - ClearUrls_firefox.zip
+
+build chrome:
+  stage: build
+  script:
+    - jq 'del(.applications)' manifest.json > manifest.json.tmp && mv manifest.json.tmp manifest.json
+    - zip ClearUrls_chrome -r -FS clearurls.js browser-polyfill.js manifest.json img/* external_js/* html/* core_js/* css/* fonts/* _locales/*
+
+  only:
+    - master
+
+  artifacts:
+    paths:
+      - ClearUrls_chrome.zip
+
+pages:
+  stage: deploy
+  script:
+    - mkdir public
+    - mkdir public/data
+    - mv GitLabPages/* public/
+    - cp img/clearurls.svg public/clearurls.svg
+    - cp data/data.min.json public/data/data.min.json
+    - sha256sum public/data/data.min.json | awk '{print $1}' > public/data/rules.min.hash
+    - node build_tools/minifyDataJSON.js "public/data/data.min.json" "public/data/data.minify.json"
+    - sha256sum public/data/data.minify.json | awk '{print $1}' > public/data/rules.minify.hash
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

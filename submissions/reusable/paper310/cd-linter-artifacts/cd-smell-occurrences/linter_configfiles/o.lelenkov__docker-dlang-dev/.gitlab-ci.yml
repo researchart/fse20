@@ -1,0 +1,14 @@
+before_script:
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+
+services:
+    - docker:dind
+
+build:
+    stage: build
+    image: docker:latest
+    script:
+        - apk add make
+        - make publish -C ${CI_PROJECT_DIR}
+
+

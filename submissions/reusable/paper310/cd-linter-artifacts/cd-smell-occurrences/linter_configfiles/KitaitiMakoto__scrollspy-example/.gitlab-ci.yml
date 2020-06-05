@@ -1,0 +1,17 @@
+image: node
+
+pages:
+  cache:
+    paths:
+      - node_modules/
+  script:
+    - mkdir .public
+    - npm install
+    - cp -r * .public/
+    - mv .public public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+

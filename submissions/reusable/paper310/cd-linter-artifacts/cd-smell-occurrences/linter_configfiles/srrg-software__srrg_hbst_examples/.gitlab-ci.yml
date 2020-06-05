@@ -1,0 +1,104 @@
+before_script:
+
+  #ds repo gets locally cloned into: /builds/srrg-software/srrg_hbst_examples
+
+  #ds set up machine
+  - apt-get update 
+  - apt-get install -y sudo ssh openssh-client git
+  - apt-get upgrade -y
+
+  #ds generic build dependencies (valid for ubuntu 16.04 and 18.04)
+  - apt install python-catkin-tools -y
+  - apt install build-essential -y
+  - apt install libeigen3-dev -y
+
+  #ds set up catkin and raw cmake workspace
+  - cd && mkdir -p workspace/src && cd workspace/src
+  - git clone https://gitlab.com/srrg-software/srrg_hbst.git
+
+#ds catkin build targets
+catkin_ubuntu_16_04_ros_kinetic_release:
+  image: osrf/ros:kinetic-desktop-full-xenial
+  stage: build
+  script:
+    - apt install libqglviewer-dev -y
+    - cd /root/workspace/src
+    - ln -s /builds/srrg-software/srrg_hbst_examples srrg_hbst_examples
+    - cd /root/workspace
+    - catkin build srrg_hbst_examples -DCMAKE_BUILD_TYPE=RELEASE
+
+catkin_ubuntu_16_04_ros_kinetic_debug:
+  image: osrf/ros:kinetic-desktop-full-xenial
+  stage: build
+  script:
+    - apt install libqglviewer-dev -y
+    - cd /root/workspace/src
+    - ln -s /builds/srrg-software/srrg_hbst_examples srrg_hbst_examples
+    - cd /root/workspace
+    - catkin build srrg_hbst_examples -DCMAKE_BUILD_TYPE=DEBUG
+
+catkin_ubuntu_18_04_ros_melodic_release:
+  image: osrf/ros:melodic-desktop-full-bionic
+  stage: build
+  script:
+    - apt install libqglviewer-dev-qt5 -y
+    - cd /root/workspace/src
+    - ln -s /builds/srrg-software/srrg_hbst_examples srrg_hbst_examples
+    - cd /root/workspace
+    - catkin build srrg_hbst_examples -DCMAKE_BUILD_TYPE=RELEASE
+
+catkin_ubuntu_18_04_ros_melodic_debug:
+  image: osrf/ros:melodic-desktop-full-bionic
+  stage: build
+  script:
+    - apt install libqglviewer-dev-qt5 -y
+    - cd /root/workspace/src
+    - ln -s /builds/srrg-software/srrg_hbst_examples srrg_hbst_examples
+    - cd /root/workspace
+    - catkin build srrg_hbst_examples -DCMAKE_BUILD_TYPE=DEBUG
+
+#ds out-of-source build targets
+make_ubuntu_16_04_ros_kinetic_release:
+  image: osrf/ros:kinetic-desktop-full-xenial
+  stage: build
+  script:
+    - apt install libqglviewer-dev -y
+    - export HBST_ROOT=/root/workspace/src/srrg_hbst
+    - cd /builds/srrg-software/srrg_hbst_examples
+    - mkdir build && cd build
+    - cmake .. -DCMAKE_BUILD_TYPE=RELEASE
+    - make -j1
+    
+make_ubuntu_16_04_ros_kinetic_debug:
+  image: osrf/ros:kinetic-desktop-full-xenial
+  stage: build
+  script:
+    - apt install libqglviewer-dev -y
+    - export HBST_ROOT=/root/workspace/src/srrg_hbst
+    - cd /builds/srrg-software/srrg_hbst_examples
+    - mkdir build && cd build
+    - cmake .. -DCMAKE_BUILD_TYPE=DEBUG
+    - make -j1
+
+make_ubuntu_18_04_ros_melodic_release:
+  image: osrf/ros:melodic-desktop-full-bionic
+  stage: build
+  script:
+    - apt install libqglviewer-dev-qt5 -y
+    - export HBST_ROOT=/root/workspace/src/srrg_hbst
+    - cd /builds/srrg-software/srrg_hbst_examples
+    - mkdir build && cd build
+    - cmake .. -DCMAKE_BUILD_TYPE=RELEASE
+    - make -j1
+
+make_ubuntu_18_04_ros_melodic_debug:
+  image: osrf/ros:melodic-desktop-full-bionic
+  stage: build
+  script:
+    - apt install libqglviewer-dev-qt5 -y
+    - export HBST_ROOT=/root/workspace/src/srrg_hbst
+    - cd /builds/srrg-software/srrg_hbst_examples
+    - mkdir build && cd build
+    - cmake .. -DCMAKE_BUILD_TYPE=DEBUG
+    - make -j1
+

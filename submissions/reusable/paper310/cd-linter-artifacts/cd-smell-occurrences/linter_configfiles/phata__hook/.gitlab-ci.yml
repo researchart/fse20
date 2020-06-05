@@ -1,0 +1,59 @@
+before_script:
+  # install composer
+  - curl https://getcomposer.org/installer --output installer
+  - php ./installer --install-dir=/usr/local/bin --filename=composer && rm ./installer
+  # install phpdocumentor
+  - curl https://phpdoc.org/phpDocumentor.phar --output /usr/local/bin/phpdoc
+  - chmod 755 /usr/local/bin/phpdoc
+  # install zip extension
+  - apt-get update && apt-get install -y zlib1g-dev libzip-dev
+  - docker-php-ext-install zip
+  # install composer packages
+  - composer install
+
+stages:
+  - test
+  - deploy
+
+test:php-7.1:
+  stage: test
+  image: php:7.1
+  script:
+    - composer run test
+
+test:php-7.2:
+  stage: test
+  image: php:7.2
+  script:
+    - composer run test
+
+test:php-rc:
+  stage: test
+  image: php:rc
+  script:
+    - composer run test
+
+pages:
+  stage: deploy
+  image: php:7.2
+  script:
+  - composer run phpdoc
+  artifacts:
+    paths:
+    - public
+  only:
+  - v1.x
+
+packagist:
+  stage: deploy
+  image: php:7.2
+  before_script:
+  - echo "do nothing"
+  script:
+  - >
+    curl -s -XPOST \
+      -H'content-type:application/json' \
+      "https://packagist.org/api/update-package?username=$PACKAGIST_USER&apiToken=$PACKAGIST_TOKEN" \
+      -d'{"repository":{"url":"https://packagist.org/packages/phata/hook"}}' | \
+      php -r '$s = fopen("php://stdin", "r"); $j = json_decode(stream_get_contents($s)); if ($j->status === "success") exit("success"); echo $s; exit(1);'
+

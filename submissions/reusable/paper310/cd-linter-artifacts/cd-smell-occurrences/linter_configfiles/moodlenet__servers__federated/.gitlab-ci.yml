@@ -1,0 +1,93 @@
+image: elixir:1.9.4-alpine #update this when we switch Elixir version in Dockerfile
+
+variables: 
+  POSTGRES_DB: moodle_net_test
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  DATABASE_HOST: postgres
+  MIX_ENV: test
+  HOSTNAME: localhost
+  
+cache:
+  key: $CI_COMMIT_REF_SLUG
+  paths:
+    - deps
+    - _build
+    - .pip
+
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+  - apk add --update --no-cache build-base cmake curl git rust cargo py-pip
+  - make manual-deps
+  - pip --cache-dir=.pip install -U pip # upgrade pip
+  
+build:
+  stage: build
+  script:
+    - mix deps.get
+    - mix compile --force
+    
+unit-testing:
+  stage: test
+  services:
+  - name: postgres:9.6.6
+    command: ["postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off"]
+  script:
+    - mix ecto.create
+    - mix ecto.migrate
+    - mix test --trace --preload-modules
+
+locales-and-docs:
+  stage: test # deploy documentation (stage should be changed 'deploy' when tests are fixed)
+  script:
+    - if [ ! -z "$TX_TOKEN" ]; then pip --cache-dir=.pip install transifex-client ; else echo "Skipping..."; fi # install transifex cli
+    - mix gettext.extract # extract strings to be localised
+    - if [ ! -z "$TX_TOKEN" ]; then tx push --source --no-interactive ; else echo "Skipping..."; fi # then push latest English PO file to transifex for translators (only need to run this once per new commit)
+    - MIX_ENV=dev mix deps.get
+    - MIX_ENV=dev mix docs
+    - mv doc public # serve as GitLab Pages artifact
+    - pip --cache-dir=.pip install awscli # Install the AWS SDK for pushing the docs  
+    - if [ ! -z "$DOCS_STAGING_BUCKET" ]; then aws s3 sync public/ s3://${DOCS_STAGING_BUCKET}/docs/server/ --delete --exclude .git --exclude README.md --acl public-read ; else echo "Skipping..."; fi # also copy docs to S3-served website
+    - if [ ! -z "$DOCS_STAGING_DISTRIBUTION_ID" ]; then aws cloudfront create-invalidation --distribution-id ${DOCS_STAGING_DISTRIBUTION_ID} --paths '/docs/server/*' ; else echo "Skipping..."; fi # invalidate CloudFront's cache to serve the new version
+  artifacts:
+    paths:
+    - public
+  only:
+  - develop
+
+staging-build-and-push:
+  stage: test # deploy staging docker image (stage should be changed 'deploy' when tests are fixed)
+  image:
+    name: docker:stable
+  services:
+  - docker:stable-dind
+  before_script: # override the default in this case
+    - apk add --update --no-cache build-base cmake git curl
+    - docker login -u $CI_REGISTRY_USER -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - make build
+    - if [ ! -z "$CI_REGISTRY_PASSWORD" ]; then make push ; else echo "Skipped pushing to Docker Hub"; fi
+    - if [ ! -z "$MAIL_KEY" ]; then make hq_deploy_staging ; else echo "Skipped deploying to staging"; fi
+  only:
+  - develop
+
+stable-build-and-push:
+  stage: test # deploy staging docker image (stage should be changed 'deploy' when tests are fixed)
+  image:
+    name: docker:stable
+  services:
+  - docker:stable-dind
+  before_script: # override the default in this case
+    - apk add --update --no-cache build-base cmake git curl
+    - docker login -u $CI_REGISTRY_USER -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - make build
+    - if [ ! -z "$CI_REGISTRY_PASSWORD" ]; then make push_stable ; else echo "Push to Docker Hub or skip if login details missing..."; fi
+    - if [ ! -z "$MAIL_KEY" ]; then make hq_deploy_stable ; else echo "Deploy to Moodle HQ sites or skip if shared key missing..."; fi
+  only:
+  - master
+

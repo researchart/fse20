@@ -1,0 +1,54 @@
+image: node:latest
+
+# pages:
+#   script:
+#     - cd code/sc-client
+#     - git checkout master
+#     - npm install -g bower polymer-cli
+#     - bower --allow-root install
+#     - npm install --save-dev babel-cli babel-preset-env babel-preset-es2015 babel-plugin-transform-es2015-modules-umd babel-preset-es2017
+#     - node_modules/.bin/babel src/lib/ -d lib/
+#     - cd ../..
+#     - mkdir public
+#     - mkdir public/master
+#     - cp -Rf code/sc-client public/master
+#     - git checkout dev
+#     - cd code/sc-client
+#     - bower --allow-root install
+#     - node_modules/.bin/babel src/lib/ -d lib/
+#     - polymer build
+#     - cd ../..
+#     - mkdir public/dev
+#     - cp -Rf code/sc-client/build/bundled public/dev
+#     - rm -Rf code/sc-client/lib
+#     - git checkout marie
+#     - cd code/sc-client
+#     - bower --allow-root install
+#     - node_modules/.bin/babel src/lib/ -d lib/
+#     - node_modules/.bin/babel mobile/ -d build/
+#     - cd ../..
+#     - mkdir public/marie
+#     - cp -Rf code/sc-client public/marie
+#     - git checkout maxime
+#     - cd code/sc-client
+#     - bower --allow-root install
+#     - node_modules/.bin/babel src/lib/ -d lib/
+#     - cd ../..
+#     - mkdir public/maxime
+#     - cp -Rf code/sc-client public/maxime
+#   artifacts:
+#     paths:
+#     - public
+
+cache:
+  paths:
+  - code/sc-client/node_modules/
+
+test:
+  script:
+    - cd code/sc-client
+    - npm install --save-dev babel-cli babel-preset-env babel-preset-es2015 babel-plugin-transform-es2015-modules-umd babel-preset-es2017
+    - node_modules/.bin/babel src/lib/ -d lib/
+    - npm install mocha
+    - node_modules/.bin/mocha
+

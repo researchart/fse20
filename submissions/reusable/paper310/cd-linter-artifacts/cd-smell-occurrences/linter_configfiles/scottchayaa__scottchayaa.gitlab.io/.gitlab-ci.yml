@@ -1,0 +1,26 @@
+pages:
+  image: monachus/hugo:v0.56.3
+  script:
+  - hugo version
+  - hugo
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - public
+  only:
+  - master
+
+letsencrypt-renew:
+  image: scottchayaa/alpine-certbot:3.7
+  variables:
+    GITLAB_API_TOKEN: $GITLAB_API_TOKEN
+    RENEW_DAYS_THRESHOLD: $RENEW_DAYS_THRESHOLD
+    DOMAIN: "blog.scottchayaa.com"
+  script:
+    - git config --global user.name $GITLAB_USER_LOGIN
+    - git config --global user.email $GITLAB_USER_EMAIL
+    - chmod +x ./letsencrypt/*.sh
+    - ./letsencrypt/renew.sh
+  only: 
+    - schedules
+

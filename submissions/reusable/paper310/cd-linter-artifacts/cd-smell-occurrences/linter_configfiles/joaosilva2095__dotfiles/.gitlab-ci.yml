@@ -1,0 +1,9 @@
+before_script:
+    - apt-get update
+    - apt-get -y install zsh
+    - apt-get -y install tmux
+
+build:
+    script:
+        - bash install.sh
+

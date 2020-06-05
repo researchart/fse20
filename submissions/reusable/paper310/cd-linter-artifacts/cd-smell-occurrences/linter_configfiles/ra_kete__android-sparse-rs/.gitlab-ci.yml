@@ -1,0 +1,16 @@
+image: "rust:latest"
+
+stages:
+  - test
+
+test:
+  stage: test
+  script:
+    - rustc --version && cargo --version
+    - cargo test --verbose
+
+cache:
+  paths:
+    - cargo/
+    - target/
+

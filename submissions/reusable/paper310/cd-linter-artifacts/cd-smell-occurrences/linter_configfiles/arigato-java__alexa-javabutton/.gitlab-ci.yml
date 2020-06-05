@@ -1,0 +1,21 @@
+image: node:8
+
+cache:
+  paths:
+    - src/node_modules/
+    - src/kakugen.json
+
+stages:
+  - test
+
+test_skill:
+  stage: test
+  script:
+    - scripts/kakugen.sh
+    - cd src
+    - npm install
+    - npm test
+  tags:
+    - docker
+
+

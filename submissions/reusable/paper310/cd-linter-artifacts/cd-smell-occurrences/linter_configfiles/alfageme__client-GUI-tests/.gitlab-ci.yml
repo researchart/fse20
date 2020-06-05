@@ -1,0 +1,22 @@
+# Some GUI basic tests for the owncloud's Desktop client 
+# ref: https://github.com/owncloud/platform/issues/99
+# @author: samuel@owncloud.com
+
+image: registry.gitlab.com/alfageme/client-gui-tests:latest
+
+test:addAccount:
+    before_script:
+        # Silent does not work as expected: https://github.com/npm/npm/issues/10732
+        - npm install > /dev/null
+        # TODO: Remove these from here and expose on Dockerfile:
+        - Xvfb :5 -screen 0  1024x768x24 -fbdir /var/run &
+        - service dbus start
+        - /owncloud-client/bin/owncloud &
+        # ------------------------------------------------------
+    script:
+        - node GUI_test.js || true
+        - convert -delay 75 -loop 0 *.png $CI_JOB_NAME.gif
+    artifacts:
+        paths:
+            - ./*.gif
+

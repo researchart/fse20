@@ -1,0 +1,10 @@
+build:
+  stage: build
+  before_script:
+    - apt update && apt -y install make clang
+  script:
+    - make
+  artifacts:
+    paths:
+      - ichinscratchy
+

@@ -1,0 +1,27 @@
+# Using Java-8 image
+image: openjdk:8
+
+before_script:
+# Installing dependencies
+  - apt-get update
+  - apt-get install -y --no-install-recommends openjfx #JavaFX
+  - apt-get install -y --no-install-recommends ant # Apache Ant
+
+#Target build client
+build_client:
+  script:
+    - cd client
+# Build & produce jar
+    - ant -buildfile ant-build.xml build package
+  artifacts:
+    paths:
+      - client/jar/
+build_mdt:
+  script:
+    - cd forteso-mdt
+# Build & produce jar
+    - ant -buildfile ant-build.xml build package
+  artifacts:
+    paths:
+      - forteso-mdt/jar/
+

@@ -1,0 +1,84 @@
+# Copyright 2018, Collabora, Ltd.
+# SPDX-License-Identifier: BSL-1.0
+
+stages:
+  - build
+  - deploy
+
+variables:
+  EXTRA_OPTS: ""
+  BUSTER_PKGS: "cmake make clang llvm librange-v3-dev doxygen"
+  STRETCH_PKGS: "cmake make"
+  STRETCH_BPO_PKGS: "librange-v3-dev"
+
+# see https://gitlab.com/gitlab-org/gitlab-ce/issues/48563
+.buildandtest: &build_and_test |
+  cmake -H. -B$CI_JOB_NAME -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_LIGHTER_TESTS=OFF $EXTRA_OPTS
+  make -C $CI_JOB_NAME
+  $CI_JOB_NAME/bin/graph-tests -r xml -o $CI_JOB_NAME/testresults.xml
+
+.buildbase:
+  stage: build
+  script:
+    - *build_and_test
+  artifacts:
+    reports:
+      junit:
+        - $CI_JOB_NAME/testresults.xml
+
+.gccbuild:
+  extends: .buildbase
+  before_script:
+    - echo "deb http://ftp.debian.org/debian stretch-backports main" >> /etc/apt/sources.list.d/backports.list
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends $STRETCH_PKGS
+    - apt-get install -y -qq --no-install-recommends -t stretch-backports $STRETCH_BPO_PKGS
+
+# build
+
+build:gcc:7:
+  extends: .gccbuild
+  image: gcc:7
+
+build:gcc:8:
+  extends: .gccbuild
+  image: gcc:8
+
+build:clang:3.9:
+  extends: .buildbase
+  image: debian:stretch-backports
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends $STRETCH_PKGS clang-3.9
+    - apt-get install -y -qq --no-install-recommends -t stretch-backports $STRETCH_BPO_PKGS
+  variables:
+    EXTRA_OPTS: -DCMAKE_CXX_COMPILER=/usr/bin/clang++-3.9 -DCMAKE_C_COMPILER=/usr/bin/clang-3.9
+
+build:clang:buster:
+  extends: .buildbase
+  image: debian:buster
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends $BUSTER_PKGS gcovr
+  script:
+    - cmake -H. -B$CI_JOB_NAME -DCMAKE_BUILD_TYPE=Debug -DBUILD_LIGHTER_TESTS=OFF -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
+    - make -C $CI_JOB_NAME coverage-tests doc
+    - cd $CI_JOB_NAME && gcovr -r . --gcov-executable 'llvm-cov-8 gcov' --filter ../include/
+  artifacts:
+    paths:
+      - $CI_JOB_NAME/tests/coverage-tests/
+      - $CI_JOB_NAME/docs/html/
+
+pages:
+  stage: deploy
+  only:
+    - master
+  dependencies:
+    - build:clang:buster
+  script:
+    - mv build:clang:buster/docs/html public
+    - mv build:clang:buster/tests/coverage-tests public/coverage
+  artifacts:
+    paths:
+      - public
+

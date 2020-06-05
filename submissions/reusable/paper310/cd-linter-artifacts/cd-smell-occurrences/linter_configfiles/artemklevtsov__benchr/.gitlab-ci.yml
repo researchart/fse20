@@ -1,0 +1,116 @@
+variables:
+  DOCKER_DRIVER: "overlay2"
+  GIT_SUBMODULE_STRATEGY: "recursive"
+  R_LIBS: "${CI_PROJECT_DIR}/ci/R/library"
+  R_BUILD_ARGS: "--no-manual"
+  R_CHECK_ARGS: "--no-manual --as-cran "
+  R_INSTALL_ARGS: "--no-multiarch --with-keep.source"
+  APT_DEPS: "devscripts libcurl4-openssl-dev libssl-dev libxml2-dev libicu-dev git-core qpdf pandoc pandoc-citeproc"
+  R_REMOTES_UPGRADE: "always"
+  CRAN: "http://cran.r-project.org"
+
+stages:
+  - build
+  - test
+  - check
+  - deploy
+
+cache:
+  key: ${CI_JOB_NAME}
+  paths:
+    - ${R_LIBS}
+
+before_script:
+  - export PATH="${RPREFIX:-/usr}/bin:${PATH}"
+  - mkdir -p ${R_LIBS}
+  - apt-get update
+  - apt-get install -y --no-install-recommends ${APT_DEPS}
+  - printf "options(repos = c(CRAN = \"%s\"))\n" ${CRAN} >> ~/.Rprofile
+  - printf "options(Ncpus = %d)\n" $(nproc --all) >> ~/.Rprofile
+  - Rscript -e 'install.packages("remotes")'
+  - Rscript -e 'update(remotes::dev_package_deps(dependencies = TRUE))'
+  - Rscript -e 'remotes::install_cran(commandArgs(TRUE))' ${R_STAGE_DEPS}
+
+.test:rpkg:
+  stage: test
+  variables:
+    R_CHECK_DIR: "${CI_PROJECT_DIR}/ci/R/logs"
+    _R_CHECK_CRAN_INCOMING_: "false"
+    _R_CHECK_FORCE_SUGGESTS_: "true"
+    _R_CHECK_LENGTH_1_CONDITION_: "true"
+    _R_CHECK_LENGTH_1_LOGIC2_: "true"
+  script:
+    - mkdir -p ${R_CHECK_DIR}
+    - R CMD build ${R_BUILD_ARGS} .
+    - R CMD check ${R_CHECK_ARGS} -o ${R_CHECK_DIR} $(ls -1t *.tar.gz | head -n 1)
+  artifacts:
+    paths:
+      - ${R_CHECK_DIR}/*.Rcheck
+    name: ${CI_JOB_NAME}-${CI_COMMIT_REF_NAME}
+    when: always
+
+test:release:gcc:
+  extends: .test:rpkg
+  image: rhub/debian-gcc-release:latest
+
+test:devel:gcc:
+  extends: .test:rpkg
+  image: rhub/debian-gcc-devel:latest
+
+test:patched:gcc:
+  extends: .test:rpkg
+  image: rhub/debian-gcc-patched:latest
+
+test:devel:clang:
+  extends: .test:rpkg
+  image: rhub/debian-clang-devel:latest
+
+code:lint:
+  stage: check
+  image: rhub/debian-gcc-release:latest
+  variables:
+    R_STAGE_DEPS: "lintr"
+  script:
+    - Rscript -e 'lintr::lint_package()'
+  allow_failure: true
+  when: on_success
+  only:
+    changes:
+      - R/*.{r,R}
+      - inst/tinytest/*.{r,R}
+  needs:
+    - test:release:gcc
+
+code:coverage:
+  stage: check
+  image: rhub/debian-gcc-release:latest
+  variables:
+    R_STAGE_DEPS: "covr"
+  script:
+    - Rscript -e 'covr::codecov(type = "all", quiet = FALSE)'
+  allow_failure: true
+  when: on_success
+  coverage: '/Coverage: \d+\.\d+\%/'
+  needs:
+    - test:release:gcc
+    - test:devel:gcc
+
+pages:
+  stage: deploy
+  image: rhub/debian-gcc-release:latest
+  variables:
+    R_STAGE_DEPS: "drat pkgload pkgdown"
+  script:
+    - R CMD build ${R_BUILD_ARGS} .
+    - R CMD INSTALL ${R_INSTALL_ARGS} $(ls -1t *.tar.gz | head -n 1)
+    - Rscript -e 'pkgdown::build_site(devel = TRUE)'
+    - mkdir -p public/src/contrib
+    - Rscript -e 'drat::insertPackage(commandArgs(TRUE), "public")' $(ls -1t *.tar.gz | head -n 1)
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+  needs:
+    - test:release:gcc
+

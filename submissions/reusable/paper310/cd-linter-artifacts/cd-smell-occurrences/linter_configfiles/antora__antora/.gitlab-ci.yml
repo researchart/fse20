@@ -1,0 +1,64 @@
+image: node:10.16.3-buster
+stages: [ init, verify, deploy ]
+variables:
+  GIT_DEPTH: '5'
+.defs:
+# only_code not used when an MR is created, hence the need for except_docs
+- &only_code
+  only:
+    changes:
+    - .gitlab-ci.yml
+    - package.json
+    - yarn.lock
+    - gulpfile.js
+    - '{gulp.d,packages,test}/**/*'
+- &except_docs
+  except:
+  - /^docs\/./
+- &cache_paths
+  paths:
+  - .cache/yarn
+- &pull_cache
+  cache:
+    policy: pull
+    <<: *cache_paths
+- &yarn_install
+  before_script:
+  - yarn --cache-folder=.cache/yarn --pure-lockfile > /dev/null
+yarn:
+  stage: init
+  <<: *except_docs
+  <<: *only_code
+  cache:
+    <<: *cache_paths
+  <<: *yarn_install
+  script: $(npm bin)/antora version
+lint:
+  stage: verify
+  <<: *except_docs
+  <<: *only_code
+  <<: *pull_cache
+  <<: *yarn_install
+  script: $(npm bin)/gulp lint
+test:
+  stage: verify
+  <<: *except_docs
+  <<: *only_code
+  <<: *pull_cache
+  <<: *yarn_install
+  script: $(npm bin)/gulp test
+  artifacts:
+    paths:
+    - coverage/
+release:
+  stage: deploy
+  only:
+  - releases@antora/antora
+  environment: releases
+  before_script:
+  - yarn global add lerna@$(node -p 'require("./lerna.json").lerna') > /dev/null
+  script:
+  - scripts/release.sh
+  # triggers release of Docker image
+  - env $(echo -en $(cat releaserc)) sh -c 'curl -o /dev/null -s -X POST -F "token=$CI_JOB_TOKEN" -F "ref=$RELEASE_BRANCH" -F "variables[ANTORA_VERSION]=$RELEASE_VERSION" $DOCKER_IMAGE_PIPELINE_TRIGGER'
+

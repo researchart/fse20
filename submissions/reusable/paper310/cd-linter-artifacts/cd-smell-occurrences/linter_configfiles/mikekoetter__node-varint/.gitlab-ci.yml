@@ -1,0 +1,33 @@
+image: node:latest
+
+# This folder is cached between builds
+# http://docs.gitlab.com/ce/ci/yaml/README.html#cache
+cache:
+  paths:
+  - node_modules/
+
+test:node:6:
+  image: node:6
+  script:
+    - npm install --unsafe-perm
+    - npm test
+
+
+test:node:8:
+  image: node:8
+  script:
+    - npm install --unsafe-perm
+    - npm test
+
+test:node:10:
+  image: node:10
+  script:
+    - npm install --unsafe-perm
+    - npm test
+
+test:node:4:
+  image: node:4
+  script:
+    - npm install --unsafe-perm
+    - npm test
+

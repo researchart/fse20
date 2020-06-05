@@ -1,0 +1,26 @@
+image: golang:1.9
+
+variables:
+    REPO_NAME: gitlab.com/i-tre-brutti/common
+
+stages:
+  - test
+  - build
+
+before_script:
+  - mkdir -p $(dirname $GOPATH/src/$REPO_NAME)
+  - ln -sf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+  - go get -u github.com/golang/dep/cmd/dep
+  - dep ensure
+
+test:
+  stage: test
+  script:
+    - go test ./...
+
+build:
+  stage: build
+  script:
+    - go build ./...
+

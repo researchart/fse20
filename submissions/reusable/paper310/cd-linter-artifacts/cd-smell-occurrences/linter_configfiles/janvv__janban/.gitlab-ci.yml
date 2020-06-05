@@ -1,0 +1,56 @@
+stages:
+  - deploy
+
+deploy:
+  stage: deploy
+  image: debian:jessie
+  only:
+    - master
+  script:
+    - apt-get -u update 
+    - apt-get -y install zip unzip curl
+    - curl -O $FTPSITE/janban.zip  --user $FTPUSER:$FTPPWD
+    - curl -O $FTPSITE/version.txt  --user $FTPUSER:$FTPPWD
+    - export xx=`cat version.txt`
+    - if curl -O $FTPSITE/janban.$xx.zip --user $FTPUSER:$FTPPWD; then echo found; else echo not found; fi
+    - if [ -f janban.$xx.zip ]; then echo no upload needed; else mv janban.zip janban.$xx.zip && curl -T janban.$xx.zip $FTPSITE --user $FTPUSER:$FTPPWD; fi
+    - rm janban.$xx.zip
+    - rm version.txt
+    - sed -i "s|#WHATSNEW#|$WHATSNEW|" js/app.js
+    - sed -i "s|#VERSION#|$VERSION|" js/app.js
+    - sed -i "s|#DOWNLOAD#|$DOWNLOAD|" js/app.js
+    - sed -i "s|#PINGBACK#|$PINGBACK|" js/app.js
+    - sed 's/";//g' js/version.js > version.txt1
+    - sed 's/const VERSION = "//g' version.txt1 > version.txt
+    - curl -T version.txt $FTPSITE --user $FTPUSER:$FTPPWD
+    - curl -T whatsnew.html $FTPSITE --user $FTPUSER:$FTPPWD
+    - curl -T upgrade.html $FTPSITE --user $FTPUSER:$FTPPWD
+    - rm version.txt
+    - rm version.txt1
+    - rm whatsnew.html
+    - rm upgrade.html
+    - zip -r  install.zip install.cmd
+    - curl -T install.zip $FTPSITE --user $FTPUSER:$FTPPWD
+    - rm install.zip
+    - zip -r  janban.zip *
+    - curl -T janban.zip $FTPSITE --user $FTPUSER:$FTPPWD
+    - mv kanban.html index.html
+    - curl -T index.html $FTPSITE --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T janban-icon-512.jpg $FTPSITE --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T lib/angular.js $FTPSITE/lib/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T lib/angular.min.js $FTPSITE/lib/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T lib/bootstrap.min.js $FTPSITE/lib/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T lib/deep-diff-0.3.8.min.js $FTPSITE/lib/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T lib/jquery.min.js $FTPSITE/lib/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T lib/jquery-ui.min.js $FTPSITE/lib/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T lib/minify.json.js $FTPSITE/lib/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T lib/moment.min.js $FTPSITE/lib/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T lib/sortable.js $FTPSITE/lib/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T lib/sortable.min.js $FTPSITE/lib/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T js/app.js $FTPSITE/js/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T js/exchange.js $FTPSITE/js/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T js/version.js $FTPSITE/js/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T css/bootstrap.min.css $FTPSITE/css/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T css/taskboard.css $FTPSITE/css/ --user $FTPUSERJANBAN:$FTPPWDJANBAN
+    - curl -T install.cmd $FTPSITE --user $FTPUSERJANBAN:$FTPPWDJANBAN
+

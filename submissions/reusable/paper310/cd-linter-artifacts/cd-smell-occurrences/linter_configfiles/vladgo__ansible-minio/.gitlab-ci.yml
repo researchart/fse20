@@ -1,0 +1,46 @@
+image: ansible/ansible:centos7
+services:
+  - docker:dind
+
+stages:
+  - check
+  - tests
+
+before_script:
+  - chmod o=-w "../${CI_PROJECT_NAME}"
+  - curl -fsSL https://get.docker.com | sh
+  - pip install ansible ansible-lint docker-py
+  - chmod o=-w tests
+  - cd tests
+
+lint:
+  stage: check
+  script:
+    - ansible-lint *.yml
+
+check_std:
+  stage: check
+  script:
+    - ansible-playbook --syntax-check test_docker_install.yml 
+
+check_dist:
+  stage: check
+  script:
+    - ansible-playbook --syntax-check test_docker_distrib.yml
+
+standalone:
+  stage: tests
+  script:
+    - ansible-playbook test_docker_install.yml -v -e "minio_port=9000"
+    - echo "idempotence test"
+    - ansible-playbook test_docker_install.yml -e "minio_port=9000"
+    - tail ansible.log | grep 'minio.*changed=0.*unreachable=0.*failed=0'
+
+distributed:
+  stage: tests
+  script:
+    - ansible-playbook test_docker_distrib.yml -v -e "minio_port=9000"
+    - echo "idempotence test"
+    - ansible-playbook test_docker_distrib.yml -e "minio_port=9000"
+    - tail ansible.log | grep 'minio.*changed=0.*unreachable=0.*failed=0'
+

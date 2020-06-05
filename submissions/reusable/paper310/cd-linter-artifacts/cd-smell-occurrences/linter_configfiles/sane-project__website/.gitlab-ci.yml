@@ -1,0 +1,32 @@
+image: alpine:latest
+
+variables:
+  URL: https://gitlab.com/$CI_PROJECT_NAMESPACE
+
+pages:
+  stage: deploy
+  script:
+  - mkdir .public
+  - mv * .public/
+  - mv .public public
+  - wget --quiet -O public/snapshots/sane-backends-git$(date +%Y%m%d).tar.gz $URL/backends/repository/master/archive.tar.gz
+  - wget --quiet -O public/snapshots/sane-frontends-git$(date +%Y%m%d).tar.gz $URL/frontends/repository/master/archive.tar.gz
+  - wget --quiet -O backends.zip $URL/backends/-/jobs/artifacts/master/download?job=make-distcheck
+  - unzip -oqd public/snapshots backends.zip
+  - mv public/snapshots/doc/sanei-html public/sanei
+  - rmdir public/snapshots/doc
+  - mv public/snapshots/lists public/lists
+  - mv public/lists/sane-backends.html public/lists/sane-backends-cvs.html
+  - mv public/lists/sane-mfgs.html public/lists/sane-mfgs-cvs.html
+  - rm public/lists/sane-mfgs-external.html
+  - for f in public/lists/*.html; do sed -i 's|href="contrib|href="../contrib|g; s|href="unsupported|href="../unsupported|g; s|href="man/|href="../man/|g; s|href="imprint|href="../imprint|g; s|href="bugs|href="../bugs|g; s|href="\./|href="../|g; s|src="image|src="../image|g' $f; done
+  - wget --quiet -O frontends.zip $URL/frontends/-/jobs/artifacts/master/download?job=archive
+  - unzip -oqd public/snapshots frontends.zip
+  - ./public/snapshots/create-index.sh > public/snapshots/index.html
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+  - schedules
+

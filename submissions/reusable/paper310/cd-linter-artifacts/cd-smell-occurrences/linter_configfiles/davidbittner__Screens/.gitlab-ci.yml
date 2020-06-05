@@ -1,0 +1,21 @@
+image: base/archlinux
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+ 
+build:
+  stage: build
+  before_script: 
+    - yes | pacman -Syyu || true
+    - yes | pacman -S pkg-config make cmake clang gtk3 gtkmm3 libpng libx11 curl gstreamermm glibmm || true
+  script: 
+    - cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
+    - make
+  artifacts:
+    paths:
+      - screens*
+      - assets/screens.desktop
+  # Caching build files
+  cache:
+    paths:
+      - "src/*.o"
+

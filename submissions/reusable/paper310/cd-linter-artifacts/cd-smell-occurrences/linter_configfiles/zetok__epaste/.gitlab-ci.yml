@@ -1,0 +1,31 @@
+cache:
+  paths:
+    - cargo/
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
+
+stages:
+  - build
+
+before_script:
+  - apt-get update -yqq
+  - apt-get install -yqq --no-install-recommends  libsodium-dev
+
+rust_stable:
+  stage: build
+  image: rust:latest
+  script:
+    - rustc --version && cargo --version
+    - cargo build --verbose
+    - cargo test --verbose
+
+rust_nightly:
+  stage: build
+  image: rustlang/rust:nightly
+  script:
+    - rustc --version && cargo --version
+    - cargo build --verbose
+    - cargo test --verbose
+  allow_failure: true
+

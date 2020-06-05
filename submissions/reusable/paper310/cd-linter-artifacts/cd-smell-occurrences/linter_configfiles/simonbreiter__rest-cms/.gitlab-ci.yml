@@ -1,0 +1,37 @@
+include:
+  - template: Code-Quality.gitlab-ci.yml
+
+code_quality:
+  artifacts:
+    paths: [gl-code-quality-report.json]
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  image: node:9.9.0
+  artifacts:
+    paths:
+      - dist
+  script:
+    - npm install
+    - npm run build
+
+test:
+  stage: test
+  image: node:9.9.0
+  services:
+    - mongo:4.0
+  variables:
+    MONGO_INITDB_ROOT_USERNAME: myuser
+    MONGO_INITDB_ROOT_PASSWORD: example
+    ENV: dev
+    MONGODB_HOST: mongo
+    API_PORT: 3000
+    JWT_SECRET: secret
+  script:
+    - npm install
+    - npm run test
+
