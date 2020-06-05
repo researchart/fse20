@@ -15,28 +15,25 @@ The numbers reported in `Table 7` are sloccount's output `Total Physical Source 
 Graphene consist of two parts shim layer and glibc. 
 ```
 git clone https://github.com/kripa432/graphene.git
-git checkout 99dad080ef77c287e049107f63f14d9605ff7905
 cd graphene
+git checkout 99dad080ef77c287e049107f63f14d9605ff7905
 make
 ```
 Trusted Code
 ```
-sloccount LibOS/shim
+sloccount LibOS/shim/src LibOS/shim/include
 sloccount LibOS/glibc-2.27
 ```
 
 Untrusted Code
 ```
-sloccount Pal
+sloccount Pal/src  Pal/lib
 ```
 ## Source Lines of Code for Panoply
 
 ```
 git clone https://github.com/kripa432/Panoply.git panoply
-cd panoply
-cd case-studies/h2o/src
-source /opt/intel/sgxsdk/environment
-make
+cd panoply/case-studies/h2o/src
 ```
 
 Trusted Code
@@ -45,10 +42,10 @@ cd H2oEnclave
 sloccount EnclaveCommunication EnclaveUtil IO LocalAttestationCode Net SysEnvironment Thread TrustedLibrary include
 cd ..
 ```
+There are diferent copy of panoply at different locations `panoply/case-studies/openssl/src/`, `panoply/case-studies/freetds/src/` etc. We have reported for one of the copy as the order of amount of code is same.
 
 Untrusted Code
 ```
-make clean
 sloccount App
 ```
 
@@ -60,7 +57,7 @@ cd porpoise
 ```
 Trusted Code
 ```
-sloccount sloccount enclave/shim_layer/shim_layer.cpp enclave/shim_layer/syscall_wrap.cpp
+sloccount enclave/shim_layer/shim_layer.cpp enclave/shim_layer/syscall_wrap.cpp
 sloccount enclave/musl
 ```
 Untrusted Code
@@ -76,4 +73,4 @@ cd linux-sgx
 git checkout sgx_2.4
 sloccount sdk
 ```
-
+The amount of source code differs in different releases of SGX SDK. It varies in order of 10,000.

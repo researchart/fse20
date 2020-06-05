@@ -38,7 +38,7 @@ make
 ./memtier_benchmark --version
 ```
 
-The numbers reported in Table 9 of paper in memcached row papers are output of `memtier_benchmark` corresponding to `Latency` and `KB/sec`.
+The numbers reported in Table 9 of paper in memcached row are output of `memtier_benchmark` corresponding to `Latency` and `KB/sec`.
 
 ## Graphene-SGX
 
@@ -66,7 +66,7 @@ make SGX=1
 
 In another terminal window run the benchmark tool
 ```
-./memtier_benchmark -s localhost -p 11211 -P memcache_binary
+./memtier_benchmark/build/memtier_benchmark -s localhost -p 11211 -P memcache_binary
 ```
 Here `-s` is server address.
 
@@ -82,10 +82,10 @@ make SGX=1
 In another terminal, run the benchmark tool wrk2
 ```
 cd wrk2
-./wrk -t 2 -c 64 -d 30s -R 10000 http://localhost:8888/index.html
-./wrk -t 2 -c 64 -d 30s -R 20000 http://localhost:8888/index.html
-./wrk -t 2 -c 64 -d 30s -R 30000 http://localhost:8888/index.html
-./wrk -t 2 -c 64 -d 30s -R 40000 http://localhost:8888/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 10000 http://localhost:8888/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 20000 http://localhost:8888/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 30000 http://localhost:8888/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 40000 http://localhost:8888/index.html
 ```
 
 Here `-t` denotes number of threads and `-c` denotes number  of connections and `-R` denote rate of requests i.e. `Request/sec`.
@@ -120,10 +120,10 @@ make
 In other terminal run benchmark tool
 ```
 cd wrk2
-./wrk -t 2 -c 64 -d 30s -R 10000 http://localhost:8080/index.html
-./wrk -t 2 -c 64 -d 30s -R 20000 http://localhost:8080/index.html
-./wrk -t 2 -c 64 -d 30s -R 30000 http://localhost:8080/index.html
-./wrk -t 2 -c 64 -d 30s -R 40000 http://localhost:8080/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 10000 http://localhost:8080/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 20000 http://localhost:8080/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 30000 http://localhost:8080/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 40000 http://localhost:8080/index.html
 ```
 
 
@@ -146,7 +146,7 @@ make memcached
 
 In other terminal start benchmark tool
 ```
-./memtier_benchmark -s localhost -p 11211 -P memcache_binary
+./memtier_benchmark/build/memtier_benchmark -s localhost -p 11211 -P memcache_binary
 ```
 
 
@@ -161,10 +161,10 @@ make h2o
 In another terminal, run the benchmark tool wrk2
 ```
 cd wrk2
-./wrk -t 2 -c 64 -d 30s -R 10000 http://localhost:8888/index.html
-./wrk -t 2 -c 64 -d 30s -R 20000 http://localhost:8888/index.html
-./wrk -t 2 -c 64 -d 30s -R 30000 http://localhost:8888/index.html
-./wrk -t 2 -c 64 -d 30s -R 40000 http://localhost:8888/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 10000 http://localhost:8888/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 20000 http://localhost:8888/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 30000 http://localhost:8888/index.html
+./wrk2/wrk -t 2 -c 64 -d 30s -R 40000 http://localhost:8888/index.html
 ```
 ### Python
 

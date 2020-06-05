@@ -29,4 +29,4 @@ The following command show the modifcation done to partition python.
 git checkout python_split
 git diff efdbf8d 282d00a
 ```
-This shows the modification done to split Python at some predefined boundry.
+This shows the modification done to split Python at some predefined boundry. The number differs from papers due to different predefined boundry.
