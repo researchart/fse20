@@ -6,9 +6,16 @@ ACM Reusable
 
 ## Why
 
-We provide a full reproduction of industrial study on a public dataset. Because of NDA, we cannot disclose the exact dataset nor the model of our paper. However, the co-chair of the track confirmed that we can submit the reusable tool if we show that our main paper findings can be achieved on a proxy dataset. She referred to this section of the ACM review "To the extent possible, all components relevant to the paper in question are included. (Proprietary artifacts need not be included. If they are required to exercise the package then this should be documented, along with instructions on how to obtain them. Proxies for proprietary data should be included so as to demonstrate the analysis.)"
+We present CoEvA2, a multi-objective search technique to generate adversarial examples against real-world machine learning systems. It exploits domain-specific constraints and objectives to cause misclassifications that are feasible in reality. 
 
-Our artifact evaluates the full research question on the Lending Club dataset showing to some extent:
-* Random & Tree based attacks do not achieve sufficient performance on real-world systems
-* Multi-objective Genetic search can actual find real-system adversarial examples and the combination of the 3 objectives + constraints we propose yields the best results
-* We can use the previously generated examples to improve the robustness of the system.
+In our paper, we report experimental results on a real-world industrial credit scoring system (developed an used by our partner). However, this work is subjected to a strigent non-disclosure agreement which forbids us to disclose the dataset used in our experiments (although the implementation of CoEvA2 can be made public).
+
+In order for the research community to benefit from our tool and studies, we prepared scripts to execute CoEvA2 and reproduce our experiments on another (publicly available) dataset: the *Lending Club Loan data*. Even though this dataset is less challenging than our partner's case, it is sufficient to appreciate the benefits of CoEvA2 and confirm the conclusions of our study, mainly the following:
+
+- State-of-the-art (random & Papernot's) attacks fail to generate adversarial examples satisfying the domain constraints
+- Our multi-objective search method (CoEvA2) succeeds where the state of the art failed. Combining all four objectives yield the best results.
+- We can improve the robustness of the system by retraining the system using the generated adversarial examples.
+
+Furthermore, by providing this additional case study, we demonstrate that our tool can easily accomodate to other datasets and be reused by the community be with small effort. 
+
+We have announced this to the artifact chair before submitting. In spite of the NDA, they encouraged us to proceed with the submission. We hope that the reviewers will also appreciate our efforts to make our research results available to all.
