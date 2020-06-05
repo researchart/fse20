@@ -1,4 +1,3 @@
-![](https://valerio65.github.io/assets/img/gassert.png )
 <center>
 **ESEC/FSE 2020**   
 
