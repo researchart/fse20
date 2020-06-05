@@ -46,8 +46,8 @@ The initial data processing will take around 5-10 minutes. If you see the follow
 We demonstrate how to set up MTFuzz on your own tested programs with a xml parser expat.
 1. Unzip expat source code and move into expat root directory
 ```bash
-	tar -axvf expat-2.2.9.tar.bz2
-	cd expat-2.2.9
+    tar -axvf expat-2.2.9.tar.bz2
+    cd expat-2.2.9
 ```
 2.  Instrument expat with MTFuzz llvm pass.
 ```bash
@@ -56,17 +56,18 @@ We demonstrate how to set up MTFuzz on your own tested programs with a xml parse
 ```
 3. Collect init training dataset for MTFuzz. Run afl-fuzz with a single input file on xmlwf for about an hour. To save time, we provide a collected dataset in xmlwf_afl_1hr directory. Set up MTFuzz for xmlwf.
 ```bash
-	./setup_mtfuzz_xmlwf.sh
+    cd ..
+    ./setup_mtfuzz_xmlwf.sh
 ```
 4. Enter xmlwf directory and start nn module.
 ```bash
-	cd xmlwf
-	python ./nn.py ./xmlwf
+    cd xmlwf
+    python ./nn.py ./xmlwf
 ```
 5. Open another terminal and enter same directory and start fuzzing module
 ```bash
-	# -l, file len is obtained by maximum file lens in the mtfuzz_in ( ls -lS mtfuzz_in|head )
-	python ./mtfuzz_wrapper.py -i mtfuzz_in/ -o seeds/ -l 7961 ./xmlwf @@
+    # -l, file len is obtained by maximum file lens in the mtfuzz_in ( ls -lS mtfuzz_in|head )
+    python ./mtfuzz_wrapper.py -i mtfuzz_in/ -o seeds/ -l 7961 ./xmlwf @@
 ```
 You can find the following output log at the two terminals if MTFuzz runs correctly.
 ![image](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/xmlwf_nn.png?raw=true)
