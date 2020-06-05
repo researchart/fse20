@@ -10,3 +10,4 @@ Auburn University, Auburn, Alabama, United States
 
 # DOI
 
+The DOI of the artifact is: dx.doi.org/10.6084/m9.figshare.12433667
