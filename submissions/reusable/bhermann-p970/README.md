@@ -8,9 +8,11 @@ The artifact contains the material used in and produced during the study _Commun
 
 The artifact is available on Zenodo
 
-[![DOI](https://zenodo.org/badge/203532929.svg) URL: https://zenodo.org/badge/latestdoi/203532929](https://zenodo.org/badge/latestdoi/203532929)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3877886.svg) URL: https://doi.org/10.5281/zenodo.3877886](https://doi.org/10.5281/zenodo.3877886)
 
-Additionally, for review convenience we supply a Docker container containing our artifact with an installed R runtime that is able to execute our script if R cannot be installed on a reviewer's (or user's) machine. It is available here.
+Additionally, for review convenience we supply a Docker container containing our artifact with an installed R runtime that is able to execute our script if R cannot be installed on a reviewer's (or user's) machine. It is available on Dockerhub at [stwinter/artifact-survey:latest](https://hub.docker.com/layers/stwinter/artifact-survey/latest/images/sha256-e63cf7bcce8721c48b282fb9ba334d2fcdf34ebf896875f6214118be5296f157?context=explore)
+
+The original repository of the artifact is maintained on GitHub at [bhermann/artifact-survey](https://github.com/bhermann/artifact-survey). The releases are automatically uploaded to Zenodo. In the recent days, however, Zenodo seemed to have some trouble with GitHub event, so the version for this entry has been uploaded manually.    
 
 The artifact itself is organized as a web page. It contains data files in Excel or CSV format as well as several R scripts used for analyses. All documentation is provided in HTML format starting with the `index.html` file in the root directory of the artifact. From there each file is linked to and documented. The `index.html` file also contains a guide with sections of the paper relate to which artifact part (data and/or scripts). Furthermore, the methodology of the analysis steps is explained in more detail.
 
@@ -20,11 +22,12 @@ The artifact as well as this folder contain a pre-print version of the paper nam
 
 For the analysis of Calls for Artifacts open the file `analysis/calls/analysis.R` and run it completely with the working directory set to the folder of the script.
 This can either be achieved in RStudio or with the R REPL console using the `source("analysis.R")` command or on the command line of the operating system using `R < analysis.R --vanilla`.
-The different variables the script computes contain the information presented in the results section of Section 3. The variables are best viewed using RStudio, but can also be inspected using the R REPL console.
+The different values the script computes contain the information presented in the results section of Section 3.
+These values are written as CSV data files to the `analysis/calls/output` folder for the inspected dimensions and communities.
 
 For the analysis of the survey data open the file `analysis/survey/runall.R` and run it completely with the working directory set to the folder of the script. This can either be achieved in RStudio or with the R REPL console using the `source("runall.R")` command or on the command line of the operating system using `R < runall.R --vanilla`.
 
-This script executes four other scripts: `conferencespread.R`, which computes Figure 1 (and stored automatically in the `analysis/survey/output` folder as `conferencespread.pdf`) from the paper, `participant_stats.R`, which computes Figure 2 and stored automatically in the `analysis/survey/output` folder as `aec_histogram.pdf`), `numericdata.R`, which computes summaries of answers to question types giving numerical output (and stored automatically in the `analysis/survey/output` folder as `numericresults.txt`), and finally `taganalysis.R`, which computes summaries for the data produced by open card sorting (and stored automatically in the `analysis/survey/output` folder as `tagresults.txt`). 
+This script executes four other scripts: `conferencespread.R`, which computes Figure 1 (and stored automatically in the `analysis/survey/output` folder as `conferencespread.pdf`) from the paper, `participant_stats.R`, which computes Figure 2 and stored automatically in the `analysis/survey/output` folder as `aec_histogram.pdf`), `numericdata.R`, which computes summaries of answers to question types giving numerical output (and stored automatically in the `analysis/survey/output` folder as `numericresults.txt`), and finally `taganalysis.R`, which computes summaries for the data produced by open card sorting (and stored automatically in the `analysis/survey/output` folder as `tagresults.txt`).
 
 For a full documentation of the scripts and data files please see the documentation inside the artifact.
 

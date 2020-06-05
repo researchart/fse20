@@ -44,10 +44,11 @@ For MacOS or Windows, there is also a [Docker Desktop](https://www.docker.com/pr
 
 After you installed Docker, you can start our container by executing:
 ```
-docker run -ti ...
+docker run -ti stwinter/artifact-survey:latest
 ```
 
-Inside of the container is a copy of the artifact ready to be used. You can start the scripts by executing:
+Inside of the container is a copy of the artifact ready to be used. You can start the scripts by executing these two commands:
 ```
-R < runAll.R --vanilla
+cd artifact-survey/analysis/survey/
+R < runall.R --vanilla
 ```
