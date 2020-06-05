@@ -29,23 +29,48 @@
 6. After the instance starts running, right-click and select connect
 ![image](https://user-images.githubusercontent.com/1433964/83868259-94657a00-a6f8-11ea-9cb3-787a2d26876b.png)
 
+7. You'll see the panel below. At this point you must have access the `*.pem` file.
+![image](https://user-images.githubusercontent.com/1433964/83868387-c7a80900-a6f8-11ea-8b16-0b3e8df58116.png)
 
+8. `chmod` your pem file
+```bash
+chmod 400 fse_mtfuzz.pem
+```
+
+9. Open a terminal and ssh into the running container
+```
+$ ssh -i path/to/your/pemfile/fse_mtfuzz.pem ubuntu@ec2-18-...
+
+```
+
+10. Enter the `mtfuzz` directory
+```bash 
+$ cd mtfuzz
+```
+![Screenshot 2020-06-05 07 02 02](https://user-images.githubusercontent.com/1433964/83869371-7c8ef580-a6fa-11ea-83e4-e28795a38387.png)
+
+11. Activate the tensorflow virtual environment
+```bash
+$ source activate tensorflow_p36
+```
+
+12. You may now follow instructions from [§2.2]() to run MTFuzz.
 
 # 2. Run on a local Machine (_Recommeded to experimentation, this will take time_)
 
-### Install prerequisite
+## 2.1 Install prerequisite
 - Make sure your system has python 3.7
 - Install tensorflow-gpu 1.15. Note that you need to install proper CUDA, CuDNN before installing tensorflow-gpu.
 - Install Keras 2.24
 - Install LLVM 7.0.0
 
-### Build MTFuzz
+## 2.2 Build MTFuzz
 ```bash
     cd source
     ./build.sh  # build llvm coverage passes and CMP passes.
 ```
 
-### Run MTFuzz
+## 2.3 Run MTFuzz
 Run MTFuzz on 10 tested programs reported in our paper. We will use program size as an example.
 
 1. Enter size directory
@@ -77,7 +102,9 @@ The initial data processing will take around 5-10 minutes. If you see the follow
 
 ![image](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/nn_module.png?raw=true)
 ![image](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/fuzzing_module.png?raw=true)
-### Run MTFuzz on your own tested programs
+
+
+# 3. Run MTFuzz on your own tested programs
 We demonstrate how to set up MTFuzz on your own tested programs with a xml parser expat.
 1. Unzip expat source code and move into expat root directory
 ```bash
