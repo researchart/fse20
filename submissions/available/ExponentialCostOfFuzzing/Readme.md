@@ -1,7 +1,5 @@
-
+<a href="https://mboehme.github.io/paper/FSE20.EmpiricalLaw.pdf"><img src="EmpiricalLaw.png" align="right" width="300"></a>
 All our data, figures, and R scripts is publicly available at [Figshare](https://figshare.com/), DOI: [10.6084/m9.figshare.11911287](https://doi.org/10.6084/m9.figshare.11911287).
-
-A pre-print of the paper can be found at the authors' website: https://mboehme.github.io/paper/FSE20.EmpiricalLaw.pdf
 
 ## Status
 Our paper reports on an empirical investigation with some simulation results. We make all our data, figures, and R scripts publicly available. We therefore ask the artifact evaluation committee to kindly consider our artifact for the *available* badge.
