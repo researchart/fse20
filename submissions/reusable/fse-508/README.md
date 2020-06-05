@@ -8,8 +8,18 @@ The pdf of the paper is still under our industrial partner embargo until the con
 
 ---
 ## About
-We present CoEva2, a multi-objective search technique to generate adversarial attacks against real-life systems. It uses domain specific constraints and domain specific objectives to craft the attacks. The paper tackles an industrial system and dataset under NDA that we cannot disclose (related to overdraft and credit scoring). In accordance with the Artifact Chair, we are providing a replication study on a public dataset called *Lending Club Loan data*. It shows both how to implement our approach on available datasets and that our results are valid for other contexts. 
+We present CoEvA2, a multi-objective search technique to generate adversarial examples against real-world machine learning systems. It exploits domain-specific constraints and objectives to cause misclassifications that are feasible in reality. 
+
+In our paper, we report experimental results on a real-world industrial credit scoring system (developed an used by our partner). However, this work is subjected to a strigent non-disclosure agreement which forbids us to disclose the dataset used in our experiments (although the implementation of CoEvA2 can be made public).
+
+In order for the research community to benefit from our tool and studies, we prepared scripts to execute CoEvA2 and reproduce our experiments on another (publicly available) dataset: the *Lending Club Loan data*. Even though this dataset is less challenging than our partner's case, it is sufficient to appreciate the benefits of CoEvA2 and confirm the conclusions of our study.
+
+Furthermore, by providing this additional case study, we demonstrate that our tool can easily accomodate to other datasets and be used by the community be with small effort. 
+
+We have announced this to the artifact chair before submitting. In spite of the NDA, they encouraged us to proceed with the submission. We hope that the reviewers will also appreciate our efforts to make our research results available to all.
+
 See `INSTALL.md` for installation instructions.
+
 ## Folder structure:
 * ./data: where the study dataset is located.
 * ./out: where the experiments results are located, including the random forest model.
@@ -17,13 +27,21 @@ See `INSTALL.md` for installation instructions.
 * ./configurations: the configuration files (*json*) to customize the experiments without coding.
 * ./src/coeva2: the actual implementation of our approach.
 ## Setup the dataset
-Our experiments involve the Lending Club Loan Dataset. You can download the processed version [here](). You can have mon information on the dataset [here](https://www.kaggle.com/wendykan/lending-club-loan-data)
-For the FSE review, the dataset is already provided in the folder *./data*
+Our experiments involve the Lending Club Loan Dataset. 
+
+To facilitate the review of the artifact, the dataset is already provided in the folder *./data*
+
+You can download the processed version yourself [here](). You can have more information on the dataset [here](https://www.kaggle.com/wendykan/lending-club-loan-data)
+
+
 ## Setup the model
-For the FSE review, we provide a trained Random Forest model in the folder *./out/target_model* You can use the train python script to train your own model.
+We provide a trained Random Forest model in the folder *./out/target_model* 
+
+You can use the train.py python script to train your own model.
+
 ```shell
 python ./train.py
-```  
+```
 ## Experiments
 You can either run all the attack experiments or the analysis.
 The available experiments are:
@@ -32,6 +50,7 @@ The available experiments are:
 * f1f2f3f4: Run a multiobjective search with the 4 objectives f1, f2, f3, f4 (RQ2)
 * f1f2f4: Run a multiobjective search with the 3 objectives f1, f2, f4 (RQ2)
 * f1f3f4: Run a multiobjective search with the 3 objectives f1, f3, f4 (RQ2)
+* adversarial training (RQ3)
 
 ```shell
 # Running the analysis with pre-run experiments
@@ -45,7 +64,11 @@ python ./experiments.py [-x random|f1f2f3f4|f1f3f4|f1f2f4|papernot]
 
 # After running the experiments, you can see the results with
 python ./analysis.py
-```  
+
+
+# Re-train the model using the generated adversarial examples
+python ./retrain.py
+```
 
 ## Customization
 
@@ -58,7 +81,7 @@ You can extend or customize the search using the custom.py file
 # The output files will be located in a folder associaed with this ID. 
 # If not provided, the current timestamp will be used 
 python ./custom.py -c CONFIG_FILE [-i RUN_ID]
-``` 
+```
 
 Configuration files are located in the folder **./configurations**:
 
@@ -125,7 +148,7 @@ Configuration files are located in the folder **./configurations**:
     }
 
 }
-``` 
+```
 
 ### Custom constraints
 
@@ -133,7 +156,7 @@ In addition to search parameters, you can define your own domain specific constr
 
 ```shell
 python ./custom.py -c CONFIG_FILE [-i RUN_ID -n NB_CONSTRAINTS -p PATH_CONSTRAINTS_FILE]
-``` 
+```
 
 You need to provide a path to the constraint file (plain text) and the number of constraints of the problem.
 An example of custom constraint file is provided in *./data/custom_constraints.txt*. Your constraints script has access to the local property **x_ml** which is a numpy array of the current population (population size * state size  - nb features fed in the model). You constraint script should define a **constraint** variable, a list of all the constraints of your problem. You can use any method from the Numpy API within your constraint script. 
@@ -141,8 +164,9 @@ An example of custom constraint file is provided in *./data/custom_constraints.t
 
 ## Adversarial Training
 
-In research question 3, we suggest that adversarial training helps improve the robustness of the system against adversarial examples.
+In Research Question 3, we show that adversarial training helps improve the robustness of the system against adversarial examples.
 You can run the full experiment using 
+
 ```shell
-python ./train.py -c CONFIG_FILE [-n NB_CONSTRAINTS -i RUN_ID]
-``` 
+python ./retrain.py -c CONFIG_FILE [-n NB_CONSTRAINTS -i RUN_ID]
+```
