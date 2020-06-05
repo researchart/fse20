@@ -202,4 +202,4 @@ The warnings along with the feasible path is in confirm_result.json, the field "
 * The code should be compiled with the built LLVM
 * We use the github repo and the wrapper to compile the kernel code
 * Please follow the compilation instructions in https://github.com/YizhuoZhai/lll-414.git to get the bitcode files
-* After compilation, run the getbclist.py to get bitcode.list
+* After compilation, run the getbclist.py under lll-414/ to get bitcode.list
