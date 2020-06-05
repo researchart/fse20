@@ -1,0 +1,80 @@
+\documentclass[preview]{standalone}
+
+\usepackage{tikz,pgfplots}
+\usepackage{amsmath}
+\usepackage{setspace}
+\usepackage{caption}
+
+%%%%%% TIKZ STUFF %%%%%%
+\usetikzlibrary{arrows}
+\usepgfplotslibrary{groupplots}
+\usepgfplotslibrary{fillbetween}
+\usetikzlibrary{patterns}
+\usetikzlibrary{shapes}
+\usetikzlibrary{shapes.misc,backgrounds}
+\usetikzlibrary{fit}
+\pgfplotsset{compat=1.14}
+\pgfplotsset{grid style = {dashed, black!10}}
+\pgfplotsset{grid style = {dashed, black!20}}
+
+% to draw blocks in block diagrams
+\tikzstyle{block} = [draw, rectangle, 
+    minimum height=3.8em, minimum width=6em, style={align=center}]
+
+%% MAIN COLOUR FOR THE PAPER
+%\definecolor{awesome}{rgb}{0.84, 0.04, 0.33}
+\definecolor{awesome}{rgb}{1, 0, 0}
+
+\begin{document}
+
+%plot of TAS experiments with extended aggressive adaptation strategy 
+\begin{figure}
+\begin{tikzpicture}
+\pgfplotsset{scale only axis,grid}
+% plot of maxima growth
+\begin{axis}[clip mode=individual,
+  width=8cm,
+  height=2.5cm,
+  xlabel = {Test ($n$)},
+  axis y line*=left,
+  xmin = 0, xmax = 500,
+  ymin = -0.25, ymax = 3,
+  ylabel = {\tikz{\draw[ultra thick, awesome] (0,0) -- (0.1,0) node[at start, shape=circle, awesome, fill=awesome, minimum size=6pt, inner sep=0pt, xshift=0.45cm] {};} Worst Case},]
+    \addplot[ultra thick, awesome, jump mark left, mark=*, domain=0:500, y domain=-1:3.5] table [x index = {0}, y index = {1},col sep=comma] {maxima_growth_plot.csv};
+
+%\draw[black, fill=black!10] (axis cs: 300,4.105) rectangle +(200,2.57) node[midway,text width=3.03cm, align=center, yshift=-0.8mm] {\footnotesize \begin{spacing}{1.05} 
+\draw[black, fill=black!10] (axis cs: 370,3.33) rectangle +(175,2.57) node[midway,text width=3.03cm, align=center, yshift=-0.8mm] {\footnotesize \begin{spacing}{1.05}
+%\textbf{Confidence}: probability that the corresponding $\varepsilon$ is \emph{not} the \emph{true} value of the probability of not experiencing the worst case. 
+$\varepsilon$: probability of obtaining a worse result than the measured worst case
+
+$1-\beta$: probability of $\varepsilon$ being correct
+
+\end{spacing}};
+\end{axis}
+% plot of confidence increase
+\begin{axis}[
+  width=8cm,
+  height=2.5cm,
+  legend style={draw,at={(-0.03,1.1)},anchor=south west,align=left},
+  axis y line*=right,
+  scaled y ticks = false,
+  y tick label style={/pgf/number format/fixed},
+  axis x line=none,
+  grid=none,
+  xmin=1, xmax=500,
+  ymin=-0.0025, ymax=0.03,
+  ylabel = {\tikz{\draw[thick, red] (0,0) -- (0.1,0) node[at start, shape=circle, draw=none, minimum size=5pt, inner sep=0pt, xshift=0.45cm] {};} Confidence},]
+
+    \addplot[ultra thick, awesome, jump mark left, mark=*] {-1};
+    \addlegendentry{Measured worst case}
+    \addplot[thick,domain=2:500,y domain=0:0.03,samples=100]{(1-0.05)^(x)}; \addlegendentry{$\beta$: Confidence with $\varepsilon=0.05$}
+    \addplot[black!90,domain=2:500,samples=100,densely dashed]{(1-0.04)^(x)}; \addlegendentry{$\beta$: Confidence with $\varepsilon=0.04$}
+    \addplot[black!70,domain=2:500,y domain=0:0.03,samples=100,dashed]{(1-0.03)^(x)}; \addlegendentry{$\beta$: Confidence with $\varepsilon=0.03$}
+    \addplot[black!70,domain=2:500,y domain=0:0.03,samples=100,dashdotted]{(1-0.02)^(x)}; \addlegendentry{$\beta$: Confidence with $\varepsilon=0.02$}
+    \addplot[thick,black!60,domain=2:500,y domain=0:0.03,samples=100,dotted]{(1-0.01)^(x)}; \addlegendentry{$\beta$: Confidence with $\varepsilon=0.01$}
+\end{axis}
+\end{tikzpicture}
+\caption*{\textbf{Figure 3: Measured worst case and confidence level varying \\ the number of performed tests.}}
+\end{figure}
+
+\end{document}

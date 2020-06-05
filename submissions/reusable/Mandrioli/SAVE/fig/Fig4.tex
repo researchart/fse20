@@ -1,0 +1,171 @@
+\documentclass{standalone}
+
+\usepackage{tikz,pgfplots}
+
+%%%%%% TIKZ STUFF %%%%%%
+\usetikzlibrary{arrows}
+\usepgfplotslibrary{groupplots}
+\usepgfplotslibrary{fillbetween}
+\usetikzlibrary{patterns}
+\usetikzlibrary{shapes}
+\usetikzlibrary{shapes.misc,backgrounds}
+\usetikzlibrary{fit}
+\pgfplotsset{compat=1.14}
+\pgfplotsset{grid style = {dashed, black!10}}
+\pgfplotsset{grid style = {dashed, black!20}}
+
+
+%% MAIN COLOUR FOR THE PAPER
+\definecolor{awesome}{rgb}{1, 0, 0}
+
+\begin{document}
+
+\begin{tikzpicture}
+\begin{groupplot}[
+group style = {group size = 2 by 4, horizontal sep=1cm, vertical sep=0.5cm},
+height=4cm,
+width=15cm,
+grid=both,
+ymin=0,ymax=85,
+xmin=0,
+scaled y ticks = false,
+x tick label style={/pgf/number format/.cd,%
+          scaled x ticks = false,
+          set decimal separator={.},
+          set thousands separator={},
+          fixed}%
+]
+
+% RANDOM CONTROL ------------------------------------------------
+\nextgroupplot[ybar, align=center, ylabel= {\textbf{Random}\\\# of Tests}, xmax=0.5, xtick align = inside]
+
+\addplot +[ hist={bins=50}, black, fill=black!50]
+  table [y index=4, col sep=comma] {data/all_random.csv};
+%draw vertical bar gray
+\draw[gray, ultra thick, dashed]
+  (axis cs:0.0710250685,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:0.0710250685,\pgfkeysvalueof{/pgfplots/ymax});
+%draw vertical bar awesome
+\draw[awesome, ultra thick, densely dotted]
+  (axis cs:0.32513,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:0.32513,\pgfkeysvalueof{/pgfplots/ymax});
+% info box  
+\node[draw, fill=white] at (axis cs: 0.35,50) {Avg 0.0710, Max 0.3251};
+
+\nextgroupplot[ybar, xmax = 200100, xtick align = inside]
+
+\addplot +[ hist={bins=50}, black, fill=black!50]
+  table [y index=5, col sep=comma] {data/all_random.csv};
+%draw vertical bar gray
+\draw[gray, ultra thick, dashed]
+  (axis cs:8806.557429375,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:8806.557429375,\pgfkeysvalueof{/pgfplots/ymax});
+%draw vertical bar awesome
+\draw[awesome, ultra thick, densely dotted]
+  (axis cs:82488.928,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:82488.928,\pgfkeysvalueof{/pgfplots/ymax});
+%info box
+\node[draw, fill=white] at (axis cs: 150000,50) {Avg 8806, Max 82488};
+
+% MPC CONTROL ------------------------------------------------
+\nextgroupplot[ybar, align=center, ylabel= {\textbf{MPC}\\\# of Tests}, xmax=0.5, xtick align = inside]
+
+\addplot +[ hist={bins=50}, black, fill=black!50]
+  table [y index=4, col sep=comma] {data/all_mpc.csv};
+%draw vertical bar gray
+\draw[gray, ultra thick, dashed]
+  (axis cs:0.14452251,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:0.14452251,\pgfkeysvalueof{/pgfplots/ymax});
+%draw vertical bar awesome
+\draw[awesome, ultra thick, densely dotted]
+  (axis cs:0.45651,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:0.45651,\pgfkeysvalueof{/pgfplots/ymax});
+% info box
+\node[draw, fill=white] at (axis cs: 0.35,50) {Avg 0.1445, Max 0.4565};
+
+\nextgroupplot[ybar, xmax = 200100, xtick align = inside]
+
+\addplot +[ hist={bins=50}, black, fill=black!50]
+  table [y index=5, col sep=comma] {data/all_mpc.csv};
+%draw vertical bar gray
+\draw[gray, ultra thick, dashed]
+  (axis cs:492.165554375,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:492.165554375,\pgfkeysvalueof{/pgfplots/ymax});
+%draw vertical bar awesome
+\draw[awesome, ultra thick, densely dotted]
+  (axis cs:8718.046,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:8718.046,\pgfkeysvalueof{/pgfplots/ymax});
+  
+\node[draw, fill=white] at (axis cs: 150000,50) {Avg 492, Max 8718};
+
+% INTEGRAL CONTROL ------------------------------------------------
+\nextgroupplot[ybar, align=center, ylabel= {\textbf{Integral}\\\# of Tests}, xmax=0.5, xtick align = inside]
+
+%draw histogram
+\addplot +[ hist={bins=50}, black, fill=black!50]
+  table [y index=4, col sep=comma] {data/all_integral.csv};
+%draw vertical bar
+\draw[gray, ultra thick, dashed]
+  (axis cs:0.0314913219826875,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:0.0314913219826875,\pgfkeysvalueof{/pgfplots/ymax});
+%draw vertical bar awesome
+\draw[awesome, ultra thick, densely dotted]
+  (axis cs:0.16854,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:0.16854,\pgfkeysvalueof{/pgfplots/ymax});
+%info box
+\node[draw, fill=white] at (axis cs: 0.35,50) {Avg 0.0315, Max 0.1685};
+
+\nextgroupplot[ybar, xmax = 200100, xtick align = inside]
+
+%draw histogram
+\addplot +[ hist={bins=50}, black, fill=black!50]
+  table [y index=5, col sep=comma] {data/all_integral.csv};
+%draw vertical bar gray
+\draw[gray, ultra thick, dashed]
+  (axis cs:126373.531845,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:126373.531845,\pgfkeysvalueof{/pgfplots/ymax});
+%draw vertical bar awesome
+\draw[awesome, ultra thick, densely dotted]
+  (axis cs:992342.1536,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:992342.1536,\pgfkeysvalueof{/pgfplots/ymax});
+%info box
+\node[draw, fill=white] at (axis cs: 150000,50) {Avg 126373, Max 992342};
+
+% EPSILON GREEDY CONTROL ------------------------------------------------
+\nextgroupplot[ybar, align=center, ylabel= {\textbf{$\epsilon$-Greedy}\\\# of Tests}, xmax=0.5, xtick align = inside, xlabel= {Performance Metric: SSIM}]
+
+%draw histogram
+\addplot +[ hist={bins=50}, black, fill=black!50]
+  table [y index=4, col sep=comma] {data/all_greedy.csv};
+%draw vertical bar
+\draw[gray, ultra thick, dashed]
+  (axis cs:0.0135,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:0.0135,\pgfkeysvalueof{/pgfplots/ymax});
+%draw vertical bar awesome
+\draw[awesome, ultra thick, densely dotted]
+  (axis cs:0.1777,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:0.1777,\pgfkeysvalueof{/pgfplots/ymax});
+%info box
+\node[draw, fill=white] at (axis cs: 0.35,50) {Avg 0.0135, Max 0.1777};
+
+\nextgroupplot[ybar, xmax = 200100, xlabel= {Performance Metric: Frame Size [bytes]}, xtick align = inside]
+
+%draw histogram
+\addplot +[ hist={bins=50}, black, fill=black!50]
+  table [y index=5, col sep=comma] {data/all_greedy.csv};
+%draw vertical bar gray
+\draw[gray, ultra thick, dashed]
+  (axis cs:1885.2,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:1885.2,\pgfkeysvalueof{/pgfplots/ymax});
+%draw vertical bar awesome
+\draw[awesome, ultra thick, densely dotted]
+  (axis cs:35191,\pgfkeysvalueof{/pgfplots/ymin}) --
+  (axis cs:35191,\pgfkeysvalueof{/pgfplots/ymax});
+%info box
+\node[draw, fill=white] at (axis cs: 150000,50) {Avg 1885, Max 35191};
+\end{groupplot}
+\node at (14,-10) {SAVE adaptation over the Youtube dataset with different techniques: Random, MPC, Integral, and $\epsilon$-Greedy.};
+\end{tikzpicture}
+
+
+\end{document}
