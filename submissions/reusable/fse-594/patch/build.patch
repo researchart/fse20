@@ -1,0 +1,13 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index 148e913..0e4062a 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -42,7 +42,7 @@ declare_args() {
+   # warnings with known toolchains. Allow overriding this e.g. for Chromium
+   # builds on Linux that could use a different version of the compiler.
+   # With GCC, warnings in no-Chromium code are always not treated as errors.
+-  treat_warnings_as_errors = true
++  treat_warnings_as_errors = false
+ 
+   # Normally, Android builds are lightly optimized, even for debug builds, to
+   # keep binary size down. Setting this flag to true disables such optimization
