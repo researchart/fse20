@@ -95,7 +95,7 @@ The tool is available to download at: dx.doi.org/10.6084/m9.figshare.12433667
 
 ### Reproducing The Result Presented In The Paper
 
-To reproduce the result presented in the paper, we should run ExAssist on the exception bugs and fixes dataset that we also provided here. For each exception bug, we should rebuild the code scenario and invokes ExAssist to highlight exception-prone methods, recommend exceptio types, and recommend the repairing actions. 
+To reproduce the result presented in the paper, we should run ExAssist on the exception bugs and fixes dataset that we also provided here. For each exception bug, we should rebuild the code scenario and invoke ExAssist to highlight exception-prone methods, recommend exceptio types, and recommend the repairing actions. 
 
 ## The Dataset
 
