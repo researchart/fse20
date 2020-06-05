@@ -10,11 +10,11 @@ The pdf of the paper is still under our industrial partner embargo until the con
 ## About
 We present CoEvA2, a multi-objective search technique to generate adversarial examples against real-world machine learning systems. It exploits domain-specific constraints and objectives to cause misclassifications that are feasible in reality. 
 
-In our paper, we report experimental results on a real-world industrial credit scoring system (developed an used by our partner). However, this work is subjected to a strigent non-disclosure agreement which forbids us to disclose the dataset used in our experiments (although the implementation of CoEvA2 can be made public).
+In our paper, we report experimental results on a real-world industrial credit scoring system (developed and used by our partner). However, this work is subjected to a strigent non-disclosure agreement which forbids us to disclose the dataset used in our experiments (although the implementation of CoEvA2 can be made public).
 
 In order for the research community to benefit from our tool and studies, we prepared scripts to execute CoEvA2 and reproduce our experiments on another (publicly available) dataset: the *Lending Club Loan data*. Even though this dataset is less challenging than our partner's case, it is sufficient to appreciate the benefits of CoEvA2 and confirm the conclusions of our study.
 
-Furthermore, by providing this additional case study, we demonstrate that our tool can easily accomodate to other datasets and be used by the community be with small effort. 
+Furthermore, by providing this additional case study, we demonstrate that our tool can easily accomodate to other datasets and be used by the community with small effort. 
 
 We have announced this to the artifact chair before submitting. In spite of the NDA, they encouraged us to proceed with the submission. We hope that the reviewers will also appreciate our efforts to make our research results available to all.
 
@@ -31,7 +31,7 @@ Our experiments involve the Lending Club Loan Dataset.
 
 To facilitate the review of the artifact, the dataset is already provided in the folder *./data*
 
-You can download the processed version yourself [here](). You can have more information on the dataset [here](https://www.kaggle.com/wendykan/lending-club-loan-data)
+You can have more information on the dataset [here](https://www.kaggle.com/wendykan/lending-club-loan-data)
 
 
 ## Setup the model
@@ -69,6 +69,17 @@ python ./analysis.py
 # Re-train the model using the generated adversarial examples
 python ./retrain.py
 ```
+
+
+## Adversarial Training
+
+In Research Question 3, we show that adversarial training helps improve the robustness of the system against adversarial examples.
+You can run the full experiment using 
+
+```shell
+python ./retrain.py [-c CONFIG_FILE -n NB_RETRAINS -i RUN_ID]
+```
+
 
 ## Customization
 
@@ -161,12 +172,3 @@ python ./custom.py -c CONFIG_FILE [-i RUN_ID -n NB_CONSTRAINTS -p PATH_CONSTRAIN
 You need to provide a path to the constraint file (plain text) and the number of constraints of the problem.
 An example of custom constraint file is provided in *./data/custom_constraints.txt*. Your constraints script has access to the local property **x_ml** which is a numpy array of the current population (population size * state size  - nb features fed in the model). You constraint script should define a **constraint** variable, a list of all the constraints of your problem. You can use any method from the Numpy API within your constraint script. 
 
-
-## Adversarial Training
-
-In Research Question 3, we show that adversarial training helps improve the robustness of the system against adversarial examples.
-You can run the full experiment using 
-
-```shell
-python ./retrain.py -c CONFIG_FILE [-n NB_CONSTRAINTS -i RUN_ID]
-```
