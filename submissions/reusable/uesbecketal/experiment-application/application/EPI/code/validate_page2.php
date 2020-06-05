@@ -1,0 +1,64 @@
+<?php
+  session_start();
+  require_once('sql_functions.php');
+  if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $id = $_SESSION['id'];
+    $age = filter_var($_POST['age'] , FILTER_VALIDATE_INT);
+    $gender = filter_var($_POST['gender'] , FILTER_SANITIZE_STRING);
+    $internxp = filter_var($_POST['internxp'] , FILTER_VALIDATE_INT);
+    $lang1 = filter_var($_POST['lang1'] , FILTER_VALIDATE_INT);
+    $lang2 = filter_var($_POST['lang2'] , FILTER_VALIDATE_INT);
+    $lang3 = filter_var($_POST['lang3'] , FILTER_VALIDATE_INT);
+    $lang4 = filter_var($_POST['lang4'] , FILTER_VALIDATE_INT);
+    $lang5 = filter_var($_POST['lang5'] , FILTER_VALIDATE_INT);
+    $lang6 = filter_var($_POST['lang6'] , FILTER_VALIDATE_INT);
+    $lang7 = filter_var($_POST['lang7'] , FILTER_VALIDATE_INT);
+    $lang8 = filter_var($_POST['lang8'] , FILTER_VALIDATE_INT);
+    $lang9 = filter_var($_POST['lang9'] , FILTER_VALIDATE_INT);
+    $lang10 = filter_var($_POST['lang10'] , FILTER_VALIDATE_INT);
+    $lang11 = filter_var($_POST['lang11'] , FILTER_VALIDATE_INT);
+    $lang12 = filter_var($_POST['lang12'] , FILTER_VALIDATE_INT);
+    $lang13 = filter_var($_POST['lang13'] , FILTER_VALIDATE_INT);
+    $lang14 = filter_var($_POST['lang14'] , FILTER_VALIDATE_INT);
+    $lang15 = filter_var($_POST['lang15'] , FILTER_VALIDATE_INT);
+    $lang16 = filter_var($_POST['lang16'] , FILTER_VALIDATE_INT);
+    $lang17 = filter_var($_POST['lang17'] , FILTER_VALIDATE_INT);
+    $lang18 = filter_var($_POST['lang18'] , FILTER_VALIDATE_INT);
+    $lang19 = filter_var($_POST['lang19'] , FILTER_VALIDATE_INT);
+    $lang20 = filter_var($_POST['lang20'] , FILTER_VALIDATE_INT);
+    $lang21 = filter_var($_POST['lang21'] , FILTER_VALIDATE_INT);
+    $lang22 = filter_var($_POST['lang22'] , FILTER_VALIDATE_INT);
+    $lang23 = filter_var($_POST['lang23'] , FILTER_VALIDATE_INT);
+    $lang24 = filter_var($_POST['lang24'] , FILTER_VALIDATE_INT);
+    $course1 = isset($_POST['course1']) ? $_POST['course1'] : 0;
+    $course2 = isset($_POST['course2']) ? $_POST['course2'] : 0;
+    $course3 = isset($_POST['course3']) ? $_POST['course3'] : 0;
+    $course4 = isset($_POST['course4']) ? $_POST['course4'] : 0;
+    $course5 = isset($_POST['course5']) ? $_POST['course5'] : 0;
+    $course6 = isset($_POST['course6']) ? $_POST['course6'] : 0;
+    $course7 = isset($_POST['course7']) ? $_POST['course7'] : 0;
+    $course8 = isset($_POST['course8']) ? $_POST['course8'] : 0;
+    $course9 = isset($_POST['course9']) ? $_POST['course9'] : 0;
+    $course10 = isset($_POST['course10']) ? $_POST['course10'] : 0;
+    $course11 = isset($_POST['course11']) ? $_POST['course11'] : 0;
+    $course12 = isset($_POST['course12']) ? $_POST['course12'] : 0;
+    $course13 = isset($_POST['course13']) ? $_POST['course13'] : 0;
+    $course14 = isset($_POST['course14']) ? $_POST['course14'] : 0;
+    $course15 = isset($_POST['course15']) ? $_POST['course15'] : 0;
+    $course16 = isset($_POST['course16']) ? $_POST['course16'] : 0;
+    $course17 = isset($_POST['course17']) ? $_POST['course17'] : 0;
+    $course18 = isset($_POST['course18']) ? $_POST['course18'] : 0;
+    $course19 = isset($_POST['course19']) ? $_POST['course19'] : 0;
+    $course20 = isset($_POST['course20']) ? $_POST['course20'] : 0;
+    insertSurvey2($id, $age, $gender, $internxp, $lang1, $lang2, $lang3, $lang4, $lang5, $lang6, $lang7, $lang8, $lang9, $lang10, $lang11, $lang12, $lang13, $lang14, $lang15, $lang16, $lang17, $lang18, $lang19, $lang20, $lang21, $lang22, $lang23, $lang24, $course1, $course2, $course3, $course4, $course5, $course6, $course7, $course8, $course9, $course10, $course11, $course12, $course13, $course14, $course15, $course16, $course17, $course18, $course19, $course20);
+    $name = filter_var($_POST['name'] , FILTER_SANITIZE_STRING);
+    $courseNo = filter_var($_POST['courseNum'] , FILTER_SANITIZE_STRING);
+    $courseName = filter_var($_POST['courseName'] , FILTER_SANITIZE_STRING);
+    $instructor = filter_var($_POST['instructor'] , FILTER_SANITIZE_STRING);
+    insertCredit($id, $name, $courseNo, $courseName, $instructor); 
+    insertTimeEvent($_SESSION['id'], $_SESSION['uuid'], 10);
+    $_SESSION['page'] = "experiment_protocol.php";
+    header("Location: ../experiment_protocol.php");
+  }
+?>
+

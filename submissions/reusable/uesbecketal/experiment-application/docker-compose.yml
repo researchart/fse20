@@ -1,0 +1,51 @@
+version: '3.0'
+services:
+  database:
+    image: mysql:8.0
+    container_name: database
+    command: ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci','--default-authentication-plugin=mysql_native_password']
+    restart: always
+    environment:
+      # Note: Production environment should move environment variables
+      # and have proper passwords
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: experiment
+      MYSQL_USER: application
+      MYSQL_PASSWORD: test
+    volumes:
+      - ./mysqldata:/var/lib/mysql
+      - ./sqlinit:/docker-entrypoint-initdb.d
+    networks:
+      - experiment_ntwrk
+
+  phypmyadmin:
+    depends_on: 
+      - database
+    image: phpmyadmin/phpmyadmin:5.0
+    restart: always
+    container_name: phpmyadmin
+    environment:
+      PMA_HOST: database
+      MYSQL_ROOT_PASSWORD: example
+    ports:
+      - 8080:80
+    networks:
+      - experiment_ntwrk
+
+  apache2:
+    build:
+      ./application
+    volumes:
+      - ./application/EPI:/var/www/html
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - experiment_ntwrk
+    links:
+      - database
+
+networks:
+  experiment_ntwrk:
+    
+
