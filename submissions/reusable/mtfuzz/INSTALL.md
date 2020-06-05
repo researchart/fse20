@@ -104,7 +104,7 @@ The initial data processing will take around 5-10 minutes. If you see the follow
 ![image](https://github.com/Dongdongshe/fse20/blob/master/submissions/reusable/mtfuzz/fuzzing_module.png?raw=true)
 
 
-# 3. Run MTFuzz on your own tested programs
+# 3. Use MTFuzz on your own program (_Recommended for exending current method_)
 We demonstrate how to set up MTFuzz on your own tested programs with a xml parser expat.
 1. Unzip expat source code and move into expat root directory
 ```bash
