@@ -3,7 +3,7 @@ import json
 import os
 import numpy as np
 import csv
-from evaluation_BEAMNG.edit_distance_polyline import iterative_levenshtein
+from edit_distance_polyline import iterative_levenshtein
 
 
 def create_csv_results_file(file_name):
