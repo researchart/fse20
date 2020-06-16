@@ -41,7 +41,6 @@ Scripts:
 - ``qvtrace.py`` is a Python script that is used by EPIcuRus to run QVtrace if the usage of the model checking tool is enabled
 
 Folders
-- ``ExperimentalResults``: contains the results of the paper ``Mining Assumptions for Software Components using Machine Learning`` and the scripts to process them.
 - ``Tutorial``: contains a tutorial that shows how EPIcuRus works on a demo model
 - ``staliro``: contains the S-Taliro, the tool that is  used to automatically generate a test suite
 - ``utils``: contains side functions
@@ -55,7 +54,7 @@ Folders
 ## Installation instructions
 - open the folder ``Epicurus`` with Matlab
 - add the folder ``Epicurus`` and all of its subfolders on your classpath (right click on the folder > add to path > selected folder and subfolders)
-- set the folder ``staliro`` as the current folder.
+- set the folder ``staliro`` as the current folder. Double-click the folder to make it the current folder.
 - run the command ``setup_staliro``
 - Install the Signal Processing Toolbox  to add it "Home > Adds On > Signal Processing Toolbox"
 
@@ -79,7 +78,6 @@ In Step 4, EPIcuRus stops the iterations when the maximum number of iterations i
 - Step 5- The results of the experiments are saved under``Epicurus/result`` <br/>
 
 By running the these commands, EPIcuRus performs iterations where at each iteration, a test suite is generated and an assumption is learned using decision trees. If the model checking is enabled, this assumption is checked using QVtrace.
-
 
 
 ## Running EPIcuRus on a Simulink model
@@ -136,26 +134,4 @@ For more details on how to use QVtrace and on the QCT query language, please con
 % Runs EPIcuRus <br/>
 ```epicurus(model,property,init_cond, phi, preds, sim_time,input_names,categorical,input_range,epicurus_opt,scriptname,resultfilename,policyFolder)``` <br/>
 
-## Description of the Outputs of EPIcuRus
 
-The output of EPIcuRus is saved under the folder ``result``.  <br/>
-Each iteration of EPIcurus generates an assumption. The output of each iteration is saved under the run folder ``result/modelFolder/propertyFolder/policyFolder/RunIndex``. Under this folder:<br/>
-- The assumption written in qct is saved in a qct file (.i.e ``demoRIFBT_URiteration_1.qct``). <br/>
-- The time required to run the assumption is saved in a text file under the same folder (.i.e ``demoRIFBT_URiteration_1time.txt``). <br/>
-- If QVtrace is enabled, if the assumption is checked and QVtrace returns ``No violations exist`` as a response, the assumption is saved in a qct file named as ``validAssumption`` under the same folder.<br/>
-- Csv files contain the generated test suite.
-
-
-## Epicurus FSE Results
-
-The results of the paper ``Mining Assumptions for Software Components using Machine Learning`` are under the folder ``ReplicationResults``.<br/>
-
-To process the experimental results of the paper ``Mining Assumptions for Software Components using Machine Learning`` for RQ1, open Matlab and set the folder RQ1 as the currect forlder. Then, run the following scripts:<br/>
-
-- ``RQ1.m``: It computes the percentage of requirements in which IFBT-UR and UR identify a v-safe assumption. It also returns The time required to identify a v-safe assumption respectively for IFBT-UR and UR.<br/>
-
-- ``comparison_of_TCgen_policies.m``: It generates a plot for the comparison of the test generation strategies in terms of effectivemess and execution time . Please note that the information indexes are saved in the text files named by the policy name (UR.txt, ART.txt, IFBT_UR.txt, IFBT_ART.txt).<br/>
-
-To process the experimental results for RQ2, open Matlab and set the folder RQ2 as the currect forlder. Then, run the following scripts:<br/>
-
-- ``RQ2.m``: It computes the percentage of requirements in which IFBT-UR identifies a v-safe assumption. It also returns The time required for IFBT-UR to identify a v-safe assumption.<br/>
