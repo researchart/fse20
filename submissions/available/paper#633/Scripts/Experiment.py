@@ -151,22 +151,8 @@ class Experiment:
         if not self.experimentSetting.isShellKiller:
             print(command)
             process = subprocess.Popen(command,shell=True,stdout=subprocess.PIPE)
-            # startTime = time.time()
-            # while startTime + self.experimentSetting.limitedTime > time.time() and process.returncode == None:
-            #     time.sleep(self.experimentSetting.aliveCheckTime)
-            # print(x)
             try:
                 x = process.communicate(timeout=self.experimentSetting.limitedTime)
-                # process.wait(timeout=self.experimentSetting.limitedTime)
-            # except subprocess.CalledProcessError:
-            #     process.terminate()
-            #     self.log('RuntimeError in benchmark {0}'.format(benchmarkName))
-            #     # Ensure the subprocesses are all killed!
-            #     for proc in psutil.process_iter():
-            #         # check whether the process name matches
-            #         if proc.name() == "z3" or proc.name() == "boogie" or proc.name() == "z3.exe" or proc.name() == "boogie.exe":
-            #             proc.kill()
-            #     return None
             except subprocess.TimeoutExpired:
                 process.terminate()
                 self.log('Timeout >{0} second(s) or RuntimeError in benchmark {1}'.format(self.experimentSetting.limitedTime,benchmarkName))
@@ -178,13 +164,6 @@ class Experiment:
                 return None
             else:
                 return x
-                # return process.communicate()
-
-            # if process.poll() == None:
-            #     process.terminate()
-            #     self.log('Timeout >{0} second(s) in benchmark {1}'.format(self.experimentSetting.limitedTime,benchmarkName))
-            #     return None
-            # return process.communicate()
         else:
             raise NotImplementedError
         
@@ -288,7 +267,7 @@ class Experiment:
             'rounds'        :r'Number of Z3 Learner queries = (.*)' if self.__runMode is Experiment.RunMode.ICE else 
                             r'Number of C5 Learner queries = (.*)'
         }
-        #TODO: check rightness of reResult
+
         reResult = {key: None if re.search(value,content).group() is None else re.search(value,content).group(1) 
             for key,value in reExpressions.items()}
         funcNoneOtherwiseFunc = lambda x,func: None if x is None else func(x)
@@ -405,7 +384,7 @@ class Experiment:
             print(content)
             return
         elif self.__logMode is Experiment.LogMode.Socket:
-            # TODO: 
+
             raise NotImplementedError
         else:
             raise Exception('Unknown log mode')
