@@ -1,4 +1,3 @@
-
 [![DOI](https://zenodo.org/badge/266739012.svg)](https://zenodo.org/badge/latestdoi/266739012)
 
 # Artifact evaluation of 'An Evaluation of Methods to Port Legacy Code to SGX Enclaves'
@@ -7,7 +6,7 @@ This repository contains the supporting artifacts for the paper "**An Evaluation
 
 This work depends on three projects Graphene-SGX, Panoply and Porpoise. [Graphene-SGX](https://github.com/oscarlab/graphene) and [Panoply](https://github.com/shwetasshinde24/Panoply) is work of their respective authors.
 
-We have built Porpoise from scratch (since SCONE is not available publicly) and made the source code available at Public repository on Github [https://github.com/iisc-cssl/porpoise](https://github.com/iisc-cssl/porpoise). It is published under GNU General Public License, version 2.
+We have built Porpoise from scratch (since SCONE is not available publicly) and made the source code available at Public repository on Github [https://github.com/iisc-cssl/porpoise](https://github.com/iisc-cssl/porpoise). It is published under GNU General Public License, version 2. Porpoise is also archived at [https://doi.org/10.5281/zenodo.3895761](https://doi.org/10.5281/zenodo.3895761)
 
 Requirements:-
 
