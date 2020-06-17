@@ -20,8 +20,9 @@ Install pypotrace:
 ```
 $ git clone https://github.com/flupke/pypotrace.git
 $ cd pypotrace
-$ pip install numpy
-$ pip install .
+$ pip3 install numpy
+$ pip3 install .
+$ cd .. .
 ```
 
 ### Installing PyCairo and PyGObject ###
@@ -33,11 +34,11 @@ Open a terminal and execute
 
 Open a terminal, enter your virtual environment and execute:
 
-```sudo apt-get install libgirepository1.0-dev gcc libcairo2-dev pkg-config python3-dev gir1.2-gtk-3.0```
+```sudo apt-get install libgirepository1.0-dev gcc libcairo2-dev pkg-config python3-dev gir1.2-gtk-3.0 librsvg2-dev```
 
 To install Pycairo, execute:
 
-```pip3 install pycairo==1.18.0```
+```pip3 install pycairo==1.11.1```
 
 To install PyGObject, execute:
 
