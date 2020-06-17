@@ -1,8 +1,8 @@
 from Experiment import Experiment
 import os
 exper = Experiment(
-    '../Benchmark',
-    boogiePath='../Tools/ICE-DT(Baseline)/Boogie/Binaries/Boogie.exe',
+    '../Benchmarks',
+    boogiePath='../Tools/ICE-DT_Baseline/Boogie/Binaries/Boogie.exe',
     proverPath ='../Tools/z3.exe'
     )
 

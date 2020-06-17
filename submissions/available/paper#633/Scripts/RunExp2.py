@@ -1,7 +1,7 @@
 from Experiment import Experiment
 
 exper = Experiment(
-    '../Benchmark',
+    '../Benchmarks',
     boogiePath='../Tools/Ours/Exp2/Boogie/Binaries/Boogie.exe',
     proverPath ='../Tools/z3.exe'
     )

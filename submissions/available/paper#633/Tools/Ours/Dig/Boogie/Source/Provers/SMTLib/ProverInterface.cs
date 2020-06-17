@@ -79,7 +79,7 @@ namespace Microsoft.Boogie.SMTLib
           if (CommandLineOptions.Clo.ContractInfer)
           {
               SendThisVC("(set-option :produce-unsat-cores true)");
-              SendThisVC("(set-option :smt.core.minimize true)");
+              // SendThisVC("(set-option :smt.core.minimize true)");
               this.usingUnsatCore = true;
           }
           PrepareCommon();

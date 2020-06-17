@@ -30,7 +30,7 @@ into the Boogie\Binaries\ folder.
 
    After a successful compilation, copy the files c5.0.dt_penalty and c5.0.dt_entropy into the folder Boogie\Binaries\.
 
-3) Interval decision tree:
+3) Interval decision tree (IDT4Inv directory, also use MSYS shell):
 
     mkdir build;
     cd build;

@@ -65,6 +65,16 @@ class Experiment:
 
     def __init__(self,benchmarkDir,boogiePath = None,learnerPath = None,proverPath = None,experimentName = 'PInferLoopInv Experiment',skipBenchmark=[]):
         __experimentName = experimentName
+        self.IDTParser = None
+        self.__originalPath = os.getcwd()
+        if benchmarkDir != None:
+            benchmarkDir = os.path.join(self.__originalPath, benchmarkDir)
+        if boogiePath != None:
+            boogiePath = os.path.join(self.__originalPath, boogiePath)
+        if learnerPath != None:
+            learnerPath = os.path.join(self.__originalPath, learnerPath)
+        if proverPath != None:
+            proverPath = os.path.join(self.__originalPath, proverPath)
         if not boogiePath is None:
             self.boogieSetting(boogiePath)
         if not os.path.exists(benchmarkDir):
@@ -390,6 +400,9 @@ class Experiment:
             raise Exception('Unknown log mode')
 
     def GenXlsxFromDict(self,outputDir,result,fileNameExtra='',infoExtra='',titleAdd=''):
+        outputDir = os.path.join(self.__originalPath, outputDir)
+        if not os.path.exists(outputDir):
+            os.mkdir(outputDir)
         timeNow = time.localtime()
         fileName = os.path.join(outputDir,'Expr_{4}_{0}_{1}_{2}_{3}.xlsx'.format(fileNameExtra,time.strftime('%Y-%m-%d-%H-%M-%S',timeNow),self.__gitVersion,self.__runMode,titleAdd))
         workbook = xlsxwriter.Workbook(fileName)
