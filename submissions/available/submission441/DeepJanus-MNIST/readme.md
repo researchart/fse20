@@ -22,7 +22,7 @@ $ git clone https://github.com/flupke/pypotrace.git
 $ cd pypotrace
 $ pip3 install numpy
 $ pip3 install .
-$ cd .. .
+$ cd ..
 ```
 
 ### Installing PyCairo and PyGObject ###
