@@ -32,7 +32,7 @@ $ sudo apt update
 $ sudo apt install python3.6
 ```
 
-And check if it is correctly installed, by typing the following code:
+And check if it is correctly installed, by typing the following command:
 
 ``` 
 $ python3
@@ -45,6 +45,8 @@ Python 3.6.9 (default, Apr 18 2020, 01:56:04)
 [GCC 8.4.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 ```
+
+Exit from python.
 
 ### Installing pip ###
 Use the following commands to install pip and upgrade it to the latest version:
@@ -60,7 +62,7 @@ $ python3 -m pip --version
 ```
 
 ### Installing git ###
-Use the following commands to install git
+Use the following command to install git
 ``` 
 $ sudo apt install git
 ```
@@ -70,7 +72,7 @@ To check the correct installation of git, insert the command git in the terminal
 ### Installing Python Binding to the Potrace library ###
 Instructions provided by https://github.com/flupke/pypotrace.
 
-Install system dependencies:
+Install system dependencies in your environment:
 
 ``` 
 $ sudo apt-get install build-essential python-dev libagg-dev libpotrace-dev pkg-config 
@@ -105,14 +107,13 @@ And
 
 ```sudo apt-get install libgirepository1.0-dev gcc libcairo2-dev pkg-config python3-dev gir1.2-gtk-3.0 librsvg2-dev```
 
+To install Pycairo, execute:
+
+```pip3 install pycairo==1.11.1```
 
 To install PyGObject, execute:
 
 ```pip3 install PyGObject==3.30.4```
-
-To install Pycairo, execute:
-
-```pip3 install pycairo==1.11.1```
 
 Verify that cairo has been correctly installed:
 
@@ -126,7 +127,7 @@ $ python3
 
 This tool has other dependencies such as tensorflow and deap.
 
-To easily install the dependencies with pip, we suggest to run the command:
+To easily install the dependencies with pip, we suggest to go in the folder where you extracted DeepJanus-MNIST and run the command:
 
 ```pip3 install -r requirements.txt```
 
