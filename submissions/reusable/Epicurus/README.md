@@ -26,6 +26,10 @@ Developed by Claudio Menghi, claudio.menghi@uni.lu University of Luxembourg. <br
 Developed by Shiva Nejati, shiva.nejati@uni.lu University of Luxembourg. <br/>
 Developed by Lionel Briand,lionel.briand@uni.lu University of Luxembourg. <br/>
 
+## DOI
+
+[DOI](https://doi.org/10.5281/zenodo.3872902)
+
 # Publications
 - Mining Assumptions for Software Components using Machine Learning <br/>
 <i>Gaaloul Khouloud, Menghi Claudio, Nejati Shiva, Lionel Briand, David Wolfe<br/>
