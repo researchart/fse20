@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <StartArguments>/nologo /noinfer /contractInfer  /mlHoudini:dt_penalty /printAssignment /trace ..\Test\IceHoudini\paper\add.bpl</StartArguments>
+    <StartWorkingDirectory>C:\work\Strand\svn\Strand\Boogie\Binaries\</StartWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PublishUrlHistory>publish\</PublishUrlHistory>
+    <InstallUrlHistory />
+    <SupportUrlHistory />
+    <UpdateUrlHistory />
+    <BootstrapperUrlHistory />
+    <ErrorReportUrlHistory />
+    <FallbackCulture>en-US</FallbackCulture>
+    <VerifyUploadedFiles>false</VerifyUploadedFiles>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'x86|AnyCPU'">
+    <StartWorkingDirectory>C:\work\Strand\Boogie\boogie\Test\AbsHoudini</StartWorkingDirectory>
+    <StartArguments>/nologo /noinfer /contractInfer /printAssignment /abstractHoudini:Intervals interval6.bpl</StartArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'x86|x86'">
+    <StartArguments>Vcc3Prelude.bpl</StartArguments>
+    <StartWorkingDirectory>C:\work\Dryad\Learning\vcc2_3-src\vcc\Headers</StartWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <StartWorkingDirectory>C:\Users\pranav\Desktop\popl16ae\popl16ae\Boogie\Binaries\</StartWorkingDirectory>
+    <StartArguments>/nologo /noinfer /contractInfer /mlHoudiniSymb:dt_penalty /printAssignment /trace ..\..\benchmarks\dec2.bpl</StartArguments>
+  </PropertyGroup>
+</Project>

@@ -30,7 +30,7 @@ into the Boogie\Binaries\ folder.
 
    After a successful compilation, copy the files c5.0.dt_penalty and c5.0.dt_entropy into the folder Boogie\Binaries\.
 
-3) Interval decision tree:
+3) Interval decision tree (IDT4Inv directory, also use MSYS shell):
 
     mkdir build;
     cd build;
@@ -42,6 +42,17 @@ Run Experiment
 Please use the script:
 
 1. Check python3 environment with xlsxwriter, psutil modules
-2. Check the paths for Boogie, z3 and the decision tree in code
-3. Check the paths to benchmarks
+2. Check the paths for Boogie, z3 and the decision tree in python script
+3. Check the paths to benchmarks in python script
 4. python3 RunXXX.py
+
+Additionally, If you want to run a specified case, please go to Boogie binary folder `Boogie/Binaries`, and execute:
+
+```./boogie.exe /nologo /noinfer /contractInfer /mlHoudini:<arg1> /z3exe:<arg2> /mlHoudiniLearnerDir:<arg3> <Path-To-BPL-File>```
+
+In above command: 
+
+1. `<arg1>` includes 2 choose: `dt_penalty` which is the original decision tree learner by ICE-DT (POPL-16) and `IDT4Inv` which is our decision tree prototype to support interval examples.
+2. `<arg2>` provides the path of execution binary for z3. If not being provided, it will try to find one replacement in Boogie binary folder.
+3. `<arg3>` provides the path of execution binary for decision tree learner. If not being provided, it will try to find one replacement in Boogie binary folder. 
+4. `<Path-To-BPL-File>` provides the specified case path which you want to run. 
