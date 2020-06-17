@@ -7,6 +7,3 @@ Installation is simple as we only use Python. It requires Python 3.7, and other 
 # install Python dependencies
 pip install -r requirements.txt
 
-unzip Android_malware.rar
-unzip Binary.rar
-unzip Pdf_malware.rar

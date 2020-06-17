@@ -8,7 +8,6 @@ In our recent paper, we propose an input-independent deep learning interpretatio
 
 ![](https://github.com/DENAS-GLOBAL/DENAS/blob/master/Picture/Snipaste_2019-11-03_21-39-52.png)
 
-
 Based on this property, we transform the decision mechanism of the neural networks into a series of rule sets without a specific input.
 The produced rule set could explain the behavior of the target neural networks.
 
@@ -24,19 +23,26 @@ The produced rule set could explain the behavior of the target neural networks.
 ## To Run
 `source set.sh`
 * **Run Android malware dataset:** \
-`cd ./Android_malware/Scripts`\
+`cd ./Android_malware`\
+`unzip data.rar`\
+`unzip model.rar`\
+`cd ./Scripts`\
 `bash run.sh`
 * **Run Pdf malware dataset:** \
-`cd ./Pdf_malware/Scripts`\
+`cd ./Pdf_malware`\
+`unzip data.rar`\
+`cd ./Scripts`\
 `bash run.sh`
 * **Run ByteWeight dataset:** \
-`cd ./Binary/Scripts`\
+`cd ./Binary`\
+`unzip data.rar`\
+`cd ./Scripts`\
 `bash run.sh`
 
 
 
 ## Note
-The trained models are provided in each directory (if required). The model for Drebin dataset are not part of this repo as they are too large to be hosted on GitHub. Or you could train your model through `train_model.py` in each directory.
+The trained models are provided in each directory (if required). Or you could train your model through `train_model.py` in each directory.
 
 
 
