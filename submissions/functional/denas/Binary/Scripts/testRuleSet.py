@@ -18,8 +18,6 @@ class GlobalTest():
                     tmp[0, 80:121] = self.x[i][j-20:j+21]
                     self.pos_x.append(tmp)
         self.pos_x= np.concatenate(self.pos_x, axis=0)
-
-
         self.pos_x = x[np.where(self.pred_y == 1)[0]]
 
 
@@ -55,33 +53,32 @@ class GlobalTest():
 
     def CompareConsistIn(self):
         self.consist_in = np.zeros([5, 6])
-        for i in range(5):
-            maxlen  = i * 1 + 1
-            consistency_1 =  ConsistencyIn(self.x, self.DenasRule, self.pred_y, maxlength=maxlen)
-            self.consist_in[i, 0] = np.mean(consistency_1)
-            consistency_2 =  ConsistencyIn(self.x, self.TreeRule, self.pred_y, maxlength=maxlen)
-            self.consist_in[i, 1] = np.mean(consistency_2)
+        maxlen  = 5
+        consistency_1 =  ConsistencyIn(self.x, self.DenasRule, self.pred_y, maxlength=maxlen)
+        self.consist_in[4, 0] = np.mean(consistency_1)
+        consistency_2 =  ConsistencyIn(self.x, self.TreeRule, self.pred_y, maxlength=maxlen)
+        self.consist_in[4, 1] = np.mean(consistency_2)
 
-            consistency_3 =  ConsistencyIn(self.x, self.GradientRule, self.pred_y, maxlength=maxlen)
-            self.consist_in[i, 2] = np.mean(consistency_3)
-            consistency_4 =  ConsistencyIn(self.x, self.IGRule, self.pred_y, maxlength=maxlen)
-            self.consist_in[i, 3] = np.mean(consistency_4)
-            consistency_5 =  ConsistencyIn(self.x, self.DPDrule, self.pred_y, maxlength=maxlen)
-            self.consist_in[i, 4] = np.mean(consistency_5)
-            consistency_6 =  ConsistencyIn(self.x, self.LemnaRule, self.pred_y, maxlength=maxlen)
-            self.consist_in[i, 5] = np.mean(consistency_6)
+        consistency_3 =  ConsistencyIn(self.x, self.GradientRule, self.pred_y, maxlength=maxlen)
+        self.consist_in[4, 2] = np.mean(consistency_3)
+        consistency_4 =  ConsistencyIn(self.x, self.IGRule, self.pred_y, maxlength=maxlen)
+        self.consist_in[4, 3] = np.mean(consistency_4)
+        consistency_5 =  ConsistencyIn(self.x, self.DPDrule, self.pred_y, maxlength=maxlen)
+        self.consist_in[4, 4] = np.mean(consistency_5)
+        consistency_6 =  ConsistencyIn(self.x, self.LemnaRule, self.pred_y, maxlength=maxlen)
+        self.consist_in[4, 5] = np.mean(consistency_6)
 
-        self.DenasRule = [ self.DenasRule[i] for i in range(len(consistency_1)) if consistency_1[i] > 0.9][
+        self.DenasRule = [ self.DenasRule[i] for i in range(len(consistency_1)) if consistency_1[i] != 0][
                          0: self.testRuleNum]
         self.TreeRule =[ self.TreeRule[i] for i in range(len(consistency_2)) if consistency_2[i] != 0][
                        0 : self.testRuleNum]
-        self.GradientRule = [ self.GradientRule[i] for i in range(len(consistency_3)) if consistency_3[i] > 0.9][
+        self.GradientRule = [ self.GradientRule[i] for i in range(len(consistency_3)) if consistency_3[i] != 0][
                             0: self.testRuleNum]
-        self.IGRule = [self.IGRule[i] for i in range(len(consistency_4)) if consistency_4[i] > 0.9][
+        self.IGRule = [self.IGRule[i] for i in range(len(consistency_4)) if consistency_4[i] != 0][
                             0: self.testRuleNum]
-        self.DPDrule = [self.DPDrule[i] for i in range(len(consistency_5)) if consistency_5[i] > 0.9][
+        self.DPDrule = [self.DPDrule[i] for i in range(len(consistency_5)) if consistency_5[i] != 0][
                             0: self.testRuleNum]
-        self.LemnaRule = [self.LemnaRule[i] for i in range(len(consistency_6)) if consistency_6[i] > 0.9][
+        self.LemnaRule = [self.LemnaRule[i] for i in range(len(consistency_6)) if consistency_6[i] != 0][
                             0: self.testRuleNum]
 
         #np.savetxt('../Results/con_in.csv', self.consist_in, delimiter=',')
@@ -94,14 +91,13 @@ class GlobalTest():
         newx = (newx != 0)
         newy = (self.model.predict(newx, batch_size=200) > 0.5)
 
-        for i in range(5):
-            maxlen = i * 1 + 1
-            self.consist_out[i, 0] = np.mean(ConsistencyIn(newx, self.DenasRule, newy, maxlength=maxlen))
-            self.consist_out[i, 1] = np.mean(ConsistencyIn(newx, self.TreeRule, newy, maxlength=maxlen))
-            self.consist_out[i, 2] = np.mean(ConsistencyIn(newx, self.GradientRule, newy, maxlength=maxlen))
-            self.consist_out[i, 3] = np.mean(ConsistencyIn(newx, self.IGRule, newy, maxlength=maxlen))
-            self.consist_out[i, 4] = np.mean(ConsistencyIn(newx, self.DPDrule, newy, maxlength=maxlen))
-            self.consist_out[i, 5] = np.mean(ConsistencyIn(newx, self.LemnaRule, newy, maxlength=maxlen))
+        maxlen = 5
+        self.consist_out[4, 0] = np.mean(ConsistencyIn(newx, self.DenasRule, newy, maxlength=maxlen))
+        self.consist_out[4, 1] = np.mean(ConsistencyIn(newx, self.TreeRule, newy, maxlength=maxlen))
+        self.consist_out[4, 2] = np.mean(ConsistencyIn(newx, self.GradientRule, newy, maxlength=maxlen))
+        self.consist_out[4, 3] = np.mean(ConsistencyIn(newx, self.IGRule, newy, maxlength=maxlen))
+        self.consist_out[4, 4] = np.mean(ConsistencyIn(newx, self.DPDrule, newy, maxlength=maxlen))
+        self.consist_out[4, 5] = np.mean(ConsistencyIn(newx, self.LemnaRule, newy, maxlength=maxlen))
 
         #np.savetxt('../Results/con_out.csv', self.consist_out, delimiter=',')
         #print("get consistency result out of distribution")
