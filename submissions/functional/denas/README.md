@@ -1,5 +1,7 @@
 # DENAS: Automated Rule Generation by Knowledge Extraction from Neural Networks
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3898178.svg)](https://doi.org/10.5281/zenodo.3898178)
+
 ## Descriptions
 ![](https://github.com/DENAS-GLOBAL/DENAS/blob/master/Picture/explain.png)
 Above is an example of rule-based inference: we highlight the rule with yellow. Any input that satisfies the **rule condition** will be classified into a target category. Such **rules** could represent the behavior of the neural networks.  
@@ -16,9 +18,23 @@ The produced rule set could explain the behavior of the target neural networks.
 
 ## File Structure
 * **Android_malware** - Derbin Android malware dataset
+    * **data** -data for train and test the model
+    * **model** -pre-trained model
+    * **Scripts** -the python code to generate the rules
+    * **RuleSet** -the directory to  store the rule set
+    * **Results** -the directory to store the results
 * **Pdf_malware** - Benign/malicious PDFs captured from VirusTotal/Contagio/Google provided by Mimicus.
+    * **data** -data for train and test the model
+    * **model** -pre-trained model
+    * **Scripts** -the python code to generate the rules
+    * **RuleSet** -the directory to  store the rule set
+    * **Results** -the directory to store the results
 * **Binary** - *Function Entry* Identification for Binary Code provided by [ByteWeight ](http://security.ece.cmu.edu/byteweight/) 
-
+    * **data** -data for train and test the model
+    * **model** -pre-trained model
+    * **Scripts** -the python code to generate the rules
+    * **RuleSet** -the directory to  store the rule set
+    * **Results** -the directory to store the results
 
 ## To Run
 `source set.sh`
