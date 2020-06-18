@@ -72,7 +72,7 @@ To check the correct installation of git, insert the command git in the terminal
 ### Installing Python Binding to the Potrace library ###
 Instructions provided by https://github.com/flupke/pypotrace.
 
-Install system dependencies in your environment:
+Install system dependencies in your environment (it is not needed to install them in the DeepJanus-MNIST folder):
 
 ``` 
 $ sudo apt-get install build-essential python-dev libagg-dev libpotrace-dev pkg-config 
