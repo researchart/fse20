@@ -151,7 +151,7 @@ def main():
     x, y =  loaddata("../data/train_model_data.pkl")
     x = x + 1
     print("total data length is ", len(x), "total positive data is", np.sum(y))
-    RuleSet = generateDTreeRuleSet(x, 100000)
+    RuleSet = generateDTreeRuleSet(x, 10000)
 
     f = open("../RuleSet/"  + "tre.pkl", "wb")
     pickle.dump(RuleSet, f)
