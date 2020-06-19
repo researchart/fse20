@@ -113,7 +113,7 @@ The detailed descriptions about the dataset are given below.
 |                           | BetterAuction             | [0x215a427c5f35c375525ecafa37c05d4b3ec9b573]
 (https://etherscan.io/address/0x215a427c5f35c375525ecafa37c05d4b3ec9b573#code) |
 |                           | CryptoRomeAuction         | [0x760898e1e75dd7752db30bafa92d5f7d9e329a81](https://etherscan.io/address/0x760898e1e75dd7752db30bafa92d5f7d9e329a81#code) |
-|                           | Deed                      | [0xed139a28ec75a336bb1dcd6e3a0aba96c8217774](https://etherscan.io/address/0xed139a28ec75a336bb1dcd6e3a0aba96c8217774#code) |
+|                           | Deed                      | [0xed139a28ec75a336bb1dcd6e3a0aba96c8217774]|(https://etherscan.io/address/0xed139a28ec75a336bb1dcd6e3a0aba96c8217774#code) |
 |                           | EtherAuction              | [0x2e63cceffa42b095f0bd6d0fcadb521200b8fef5](https://etherscan.io/address/0x2e63cceffa42b095f0bd6d0fcadb521200b8fef5#code) |
 |                           | hotPotatoAuction          | [0x34eee0379a71e445b0dc52bda1d733c449ef1246](https://etherscan.io/address/0x34eee0379a71e445b0dc52bda1d733c449ef1246#code) |
 | Voting                    | HIDERA                    | [0x96906c50c41b3252279c3e2cddc4a59493aadace](https://etherscan.io/address/0x96906c50c41b3252279c3e2cddc4a59493aadace#code) |
