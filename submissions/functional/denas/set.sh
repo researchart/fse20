@@ -1,4 +1,4 @@
 #!/bin/bash
 path=`pwd`
-export PYTHONPATH=/home/malei/CM/DENAS/
+export PYTHONPATH=$path
 echo $PYTHONPATH
