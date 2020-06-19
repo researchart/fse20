@@ -7,7 +7,7 @@ The artifact consists of two main components:
 
 ## Video
 
-To help getting started with the artifact, we recorded a video to explain and demonstrate its main functionality. Please consider watching it (see video.mp4).
+To help getting started with the artifact, we recorded a video to explain and demonstrate its main functionality. Please consider watching it (see [video.mp4](video.mp4)).
 
 ## SQLancer
 

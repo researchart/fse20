@@ -9,7 +9,7 @@ Both components are expected to be usable with minimal effort.
 
 ## Video
 
-To help getting started with the artifact, we recorded a video to explain and demonstrate its main functionality. Please consider watching it (see video.mp4).
+To help getting started with the artifact, we recorded a video to explain and demonstrate its main functionality. Please consider watching it (see [video.mp4](video.mp4)).
 
 ## SQLancer
 
@@ -39,6 +39,10 @@ It is expected that progress information, similar to the following, is printed:
 [2020/06/03 22:23:11] Executed 519601 queries (40264 queries/s; 0.00/s dbs, successful statements: 82%). Threads shut down: 0.
 [2020/06/03 22:23:16] Executed 714814 queries (39050 queries/s; 0.00/s dbs, successful statements: 82%). Threads shut down: 0.
 ```
+
+Besides printing the number of queries and databases that are generated on average each second, SQLancer also prints the percentage of SQL statements that are executed successfully. While SQLancer generates syntactically correct statements and queries, not all of them can be successfully executed by the DBMS. For example, an `INSERT` statement can fail when a constraint on a table or column is violated. As another example, a query can fail when division-by-zero error occurs.
+
+The shortcut CTRL+C can be used to terminate SQLancer manually. If SQLancer does not find any bugs, it executes infinitely. The option `--num-tries` controls after how many bugs SQLancer terminates. Alternatively, the option `--timeout-seconds` can be used to specify the maximum duration that SQLancer is allowed to run.
 
 Using SQLite to evaluate the artifact is most convenient, since SQLite is an embedded DBMS, meaning that the DBMS is included directly within SQLancer using a [JDBC driver](https://docs.oracle.com/javase/tutorial/jdbc/basics/index.html). Note that the latest version of the [SQLite JDBC driver](https://bitbucket.org/xerial/sqlite-jdbc/downloads/) does not include the latest SQLite version, meaning that NoREC could find bugs that have already been fixed on the latest SQLite version.
 
