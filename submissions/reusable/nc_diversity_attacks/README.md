@@ -3,11 +3,7 @@
 ## About
 Corresponding code to the paper "Is Neuron Coverage a Meaningful Measure for Testing Deep Neural Networks" by Fabrice Harel-Canada *et al.*.
 
-There are two options for replication review:
-- Use the preconfigured Ubuntu VM 
-- Setup your own environment. 
-
-See `INSTALL.md` for further instructions.
+See `INSTALL.md` for further instructions on how to setup your environment for this repo.
 
 ## Data
 MNIST and CIFAR10 data are downloaded automatically when running an evaluation script. The Driving data comes from the Udacity [self-driving-car](https://github.com/udacity/self-driving-car) challenge and is included in the `data` folder. 
