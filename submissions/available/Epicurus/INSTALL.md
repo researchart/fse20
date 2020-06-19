@@ -8,7 +8,7 @@
 ## Installation instructions
 - open the folder ``Epicurus`` with Matlab
 - add the folder ``Epicurus`` and all of its subfolders on your classpath (right click on the folder > add to path > selected folder and subfolders)
-- set the folder ``staliro`` as the current folder.
+- set the folder ``staliro`` as the current folder. Double-click the folder to make it the current folder.
 - run the command ``setup_staliro``
 - Install the Signal Processing Toolbox  to add it "Home > Adds On > Signal Processing Toolbox"
 
@@ -33,7 +33,16 @@ In Step 4, EPIcuRus stops the iterations when the maximum number of iterations i
 
 By running the these commands, EPIcuRus performs iterations where at each iteration, a test suite is generated and an assumption is learned using decision trees. If the model checking is enabled, this assumption is checked using QVtrace.
 
+## Description of the Outputs of EPIcuRus
 
+After performing the steps in the Tutorial, a message will be shown in the Command Window in Matlab indicating that  EPIcuRus finishes running and results are saved under: result/demo/R/IFBT_UR. This folder contains the output of Epicurus.
+
+The output of EPIcuRus is saved under the folder ``result``.  <br/>
+Each iteration of EPIcurus generates an assumption. The output of each iteration is saved under the run folder ``result/modelFolder/propertyFolder/policyFolder/RunIndex``. Under this folder:<br/>
+- The assumption written in qct is saved in a qct file (.i.e ``demoRIFBT_URiteration_1.qct``). <br/>
+- The time required to run the assumption is saved in a text file under the same folder (.i.e ``demoRIFBT_URiteration_1time.txt``). <br/>
+- If QVtrace is enabled, if the assumption is checked and QVtrace returns ``No violations exist`` as a response, the assumption is saved in a qct file named as ``validAssumption`` under the same folder.<br/>
+- Csv files contain the generated test suite.
 
 ## Running EPIcuRus on a Simulink model
 
@@ -89,13 +98,6 @@ For more details on how to use QVtrace and on the QCT query language, please con
 % Runs EPIcuRus <br/>
 ```epicurus(model,property,init_cond, phi, preds, sim_time,input_names,categorical,input_range,epicurus_opt,scriptname,resultfilename,policyFolder)``` <br/>
 
-## Description of the Outputs of EPIcuRus
 
-The output of EPIcuRus is saved under the folder ``result``.  <br/>
-Each iteration of EPIcurus generates an assumption. The output of each iteration is saved under the run folder ``result/modelFolder/propertyFolder/policyFolder/RunIndex``. Under this folder:<br/>
-- The assumption written in qct is saved in a qct file (.i.e ``demoRIFBT_URiteration_1.qct``). <br/>
-- The time required to run the assumption is saved in a text file under the same folder (.i.e ``demoRIFBT_URiteration_1time.txt``). <br/>
-- If QVtrace is enabled, if the assumption is checked and QVtrace returns ``No violations exist`` as a response, the assumption is saved in a qct file named as ``validAssumption`` under the same folder.<br/>
-- Csv files contain the generated test suite.
 
 

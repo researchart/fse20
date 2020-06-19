@@ -26,6 +26,10 @@ Developed by Claudio Menghi, claudio.menghi@uni.lu University of Luxembourg. <br
 Developed by Shiva Nejati, shiva.nejati@uni.lu University of Luxembourg. <br/>
 Developed by Lionel Briand,lionel.briand@uni.lu University of Luxembourg. <br/>
 
+## DOI
+
+[DOI](https://doi.org/10.5281/zenodo.3872902)
+
 # Publications
 - Mining Assumptions for Software Components using Machine Learning <br/>
 <i>Gaaloul Khouloud, Menghi Claudio, Nejati Shiva, Lionel Briand, David Wolfe<br/>
@@ -41,7 +45,7 @@ Scripts:
 - ``qvtrace.py`` is a Python script that is used by EPIcuRus to run QVtrace if the usage of the model checking tool is enabled
 
 Folders
-- ``ExperimentalResults``: contains the results of the paper ``Mining Assumptions for Software Components using Machine Learning`` and the scripts to process them.
+- ``results``: contains the results of the paper ``Mining Assumptions for Software Components using Machine Learning`` and the scripts to process them.
 - ``Tutorial``: contains a tutorial that shows how EPIcuRus works on a demo model
 - ``staliro``: contains the S-Taliro, the tool that is  used to automatically generate a test suite
 - ``utils``: contains side functions
@@ -55,7 +59,7 @@ Folders
 ## Installation instructions
 - open the folder ``Epicurus`` with Matlab
 - add the folder ``Epicurus`` and all of its subfolders on your classpath (right click on the folder > add to path > selected folder and subfolders)
-- set the folder ``staliro`` as the current folder.
+- set the folder ``staliro`` as the current folder. Double-click the folder to make it the current folder.
 - run the command ``setup_staliro``
 - Install the Signal Processing Toolbox  to add it "Home > Adds On > Signal Processing Toolbox"
 
@@ -148,7 +152,7 @@ Each iteration of EPIcurus generates an assumption. The output of each iteration
 
 ## Epicurus FSE Results
 
-The results of the paper ``Mining Assumptions for Software Components using Machine Learning`` are under the folder ``ReplicationResults``.<br/>
+The results of the paper ``Mining Assumptions for Software Components using Machine Learning`` are under the folder ``results``.<br/>
 
 To process the experimental results of the paper ``Mining Assumptions for Software Components using Machine Learning`` for RQ1, open Matlab and set the folder RQ1 as the currect forlder. Then, run the following scripts:<br/>
 
