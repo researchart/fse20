@@ -110,10 +110,9 @@ The detailed descriptions about the dataset are given below.
 |                           | AuctionManager            | [0x37512eec5e3ee7843a1ab59ef99fb52589037774](https://etherscan.io/address/0x37512eec5e3ee7843a1ab59ef99fb52589037774#code) |
 |                           | AuctionMultipleGuaranteed | [0x6c1c2fd38fccc0b010f75b2ece535cf57543ddcd](https://etherscan.io/address/0x6c1c2fd38fccc0b010f75b2ece535cf57543ddcd#code) |
 |                           | AuctionPotato             | [0x433b189d5fbdfee89e3a9f4c6b9469495fcb00f1](https://etherscan.io/address/0x433b189d5fbdfee89e3a9f4c6b9469495fcb00f1#code) |
-|                           | BetterAuction             | [0x215a427c5f35c375525ecafa37c05d4b3ec9b573]
-(https://etherscan.io/address/0x215a427c5f35c375525ecafa37c05d4b3ec9b573#code) |
+|                           | BetterAuction             | [0x215a427c5f35c375525ecafa37c05d4b3ec9b573](https://etherscan.io/address/0x215a427c5f35c375525ecafa37c05d4b3ec9b573#code) |
 |                           | CryptoRomeAuction         | [0x760898e1e75dd7752db30bafa92d5f7d9e329a81](https://etherscan.io/address/0x760898e1e75dd7752db30bafa92d5f7d9e329a81#code) |
-|                           | Deed                      | [0xed139a28ec75a336bb1dcd6e3a0aba96c8217774]|(https://etherscan.io/address/0xed139a28ec75a336bb1dcd6e3a0aba96c8217774#code) |
+|                           | Deed                      | [0xed139a28ec75a336bb1dcd6e3a0aba96c8217774](https://etherscan.io/address/0xed139a28ec75a336bb1dcd6e3a0aba96c8217774#code) |
 |                           | EtherAuction              | [0x2e63cceffa42b095f0bd6d0fcadb521200b8fef5](https://etherscan.io/address/0x2e63cceffa42b095f0bd6d0fcadb521200b8fef5#code) |
 |                           | hotPotatoAuction          | [0x34eee0379a71e445b0dc52bda1d733c449ef1246](https://etherscan.io/address/0x34eee0379a71e445b0dc52bda1d733c449ef1246#code) |
 | Voting                    | HIDERA                    | [0x96906c50c41b3252279c3e2cddc4a59493aadace](https://etherscan.io/address/0x96906c50c41b3252279c3e2cddc4a59493aadace#code) |
