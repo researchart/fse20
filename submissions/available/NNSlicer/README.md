@@ -115,6 +115,9 @@ bash protection.sh
 - Xiangqun Chen (email: cherry@sei.pku.edu.cn)
 - Yunxin Liu (email: yunxin@microsoft.com)
 
+## DOI
+We put our code at https://zenodo.org/record/3901405#.Xuy8gp4zYUE with a public DOI: 10.5281/zenodo.3901405
+
 ## Acknowledgement
 We thank Yuxian Qiu for sharing the code of [Adversarial defense through network profiling based path extraction](http://openaccess.thecvf.com/content_CVPR_2019/papers/Qiu_Adversarial_Defense_Through_Network_Profiling_Based_Path_Extraction_CVPR_2019_paper.pdf).
 We also thank Tribhuvanesh Orekondy for sharing the code of [Knockoff Nets](https://github.com/tribhuvanesh/knockoffnets).
