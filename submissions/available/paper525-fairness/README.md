@@ -6,9 +6,8 @@ To reproduce the results, one can run FairCon on the dataset with the provided D
 
 ```bash
 docker pull liuyedocker/fse2020-faircon
-docker run --name faircon -it liuyedocker/fse2020-faircon bash scripts/run_experiment.sh
+docker run --name faircon -it liuyedocker/fse2020-faircon bash scripts/run_all_experiment.sh
 ```
-
 Instructions for running FairCon is also available at: <https://github.com/ntu-SRSLab/FairCon> 
 
 The detailed descriptions about the dataset are given below.
@@ -111,6 +110,7 @@ The detailed descriptions about the dataset are given below.
 |                           | AuctionManager            | [0x37512eec5e3ee7843a1ab59ef99fb52589037774](https://etherscan.io/address/0x37512eec5e3ee7843a1ab59ef99fb52589037774#code) |
 |                           | AuctionMultipleGuaranteed | [0x6c1c2fd38fccc0b010f75b2ece535cf57543ddcd](https://etherscan.io/address/0x6c1c2fd38fccc0b010f75b2ece535cf57543ddcd#code) |
 |                           | AuctionPotato             | [0x433b189d5fbdfee89e3a9f4c6b9469495fcb00f1](https://etherscan.io/address/0x433b189d5fbdfee89e3a9f4c6b9469495fcb00f1#code) |
+|                           | BetterAuction             | [0x215a427c5f35c375525ecafa37c05d4b3ec9b573](https://etherscan.io/address/0x215a427c5f35c375525ecafa37c05d4b3ec9b573#code) |
 |                           | CryptoRomeAuction         | [0x760898e1e75dd7752db30bafa92d5f7d9e329a81](https://etherscan.io/address/0x760898e1e75dd7752db30bafa92d5f7d9e329a81#code) |
 |                           | Deed                      | [0xed139a28ec75a336bb1dcd6e3a0aba96c8217774](https://etherscan.io/address/0xed139a28ec75a336bb1dcd6e3a0aba96c8217774#code) |
 |                           | EtherAuction              | [0x2e63cceffa42b095f0bd6d0fcadb521200b8fef5](https://etherscan.io/address/0x2e63cceffa42b095f0bd6d0fcadb521200b8fef5#code) |

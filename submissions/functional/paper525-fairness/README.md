@@ -19,19 +19,18 @@ docker run --name faircon_demo -it liuyedocker/fse2020-faircon
 ```
 
 #### 3. Run experiments for checking fairness properties on auction cases (usually less than 1 hour)
-
+(specs: Ubuntu 18.04.3 LTS desktop equipped with Intel Corei7 16-core and 32GB memory.)
 ```bash
-docker run --name faircon_all -it liuyedocker/fse2020-faircon bash scripts/run_experiment.sh
+docker run --name faircon_auction_check  -it liuyedocker/fse2020-faircon bash scripts/run_auction_check_experiment.sh
 ```
 
 #### 4. Reproduce experiment results for all cases presented in the paper (about 3 days)
-
+(specs: Ubuntu 18.04.3 LTS desktop equipped with Intel Corei7 16-core and 32GB memory.)
 ```bash
 docker run --name faircon_all  -it liuyedocker/fse2020-faircon bash scripts/run_all_experiment.sh
 ```
 
 #### 5. Bash into the Docker container
-
 ```bash
 docker run -it  liuyedocker/fse2020-faircon bash
 ```
@@ -41,7 +40,28 @@ You will see:
 /home/fairness> ls
 scripts   contracts
 ```
-The dataset is in `contracts` and you can customize the scripts in `scripts` to perform the experiments.
+The dataset is in `contracts` and you can customize the scripts to perform the experiments.
+<!-- 
+###  Customization
+
+#### 1. Build Docker image
+
+in the same directory, execute the following command.
+```
+    docker build  . -t  fse2020-faircon 
+```
+
+#### 2. Run the demo case
+
+```bash
+docker run --name faircon -it fse2020-faircon
+```
+
+#### 3. Run experiments for all cases
+
+```bash
+docker run --name faircon -it fse2020-faircon bash scripts/run_experiment.sh
+``` -->
 
 ###  Verification and Validation Process
 
