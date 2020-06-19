@@ -1,0 +1,41 @@
+// Boogie program verifier version 2.2.30705.1126, Copyright (c) 2003-2013, Microsoft.
+// Command Line Options: /traceverify /nologo /noinfer /trace /contractInfer /printAssignment /printModel:4 /printInstrumented /printModelToFile:..\Test\Out\model.txt /mlHoudiniSymb:dt_penalty /printCFG:..\Test\Out\cfgp /proverLog:..\Test\Out\testlog.txt /print:..\Test\Out\parsed.txt ..\Test\In\countud.bpl
+
+function {:existential true} b0(x: int, y: int, n: int, sum: int) : bool;
+
+procedure main();
+
+
+
+implementation main()
+{
+  var n: int;
+  var x: int;
+  var y: int;
+
+  anon0:
+    assume n >= 0;
+    x := n;
+    y := 0;
+    goto anon3_LoopHead;
+
+  anon3_LoopHead:
+    assert b0(x, y, n, x + y);
+    goto anon3_LoopDone, anon3_LoopBody;
+
+  anon3_LoopBody:
+    assume {:partition} x > 0;
+    x := x - 1;
+    y := y + 1;
+    goto anon3_LoopHead;
+
+  anon3_LoopDone:
+    assume {:partition} 0 >= x;
+    goto anon2;
+
+  anon2:
+    assert y == n;
+    return;
+}
+
+

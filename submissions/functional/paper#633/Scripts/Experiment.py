@@ -65,6 +65,16 @@ class Experiment:
 
     def __init__(self,benchmarkDir,boogiePath = None,learnerPath = None,proverPath = None,experimentName = 'PInferLoopInv Experiment',skipBenchmark=[]):
         __experimentName = experimentName
+        self.IDTParser = None
+        self.__originalPath = os.getcwd()
+        if benchmarkDir != None:
+            benchmarkDir = os.path.join(self.__originalPath, benchmarkDir)
+        if boogiePath != None:
+            boogiePath = os.path.join(self.__originalPath, boogiePath)
+        if learnerPath != None:
+            learnerPath = os.path.join(self.__originalPath, learnerPath)
+        if proverPath != None:
+            proverPath = os.path.join(self.__originalPath, proverPath)
         if not boogiePath is None:
             self.boogieSetting(boogiePath)
         if not os.path.exists(benchmarkDir):
@@ -151,22 +161,8 @@ class Experiment:
         if not self.experimentSetting.isShellKiller:
             print(command)
             process = subprocess.Popen(command,shell=True,stdout=subprocess.PIPE)
-            # startTime = time.time()
-            # while startTime + self.experimentSetting.limitedTime > time.time() and process.returncode == None:
-            #     time.sleep(self.experimentSetting.aliveCheckTime)
-            # print(x)
             try:
                 x = process.communicate(timeout=self.experimentSetting.limitedTime)
-                # process.wait(timeout=self.experimentSetting.limitedTime)
-            # except subprocess.CalledProcessError:
-            #     process.terminate()
-            #     self.log('RuntimeError in benchmark {0}'.format(benchmarkName))
-            #     # Ensure the subprocesses are all killed!
-            #     for proc in psutil.process_iter():
-            #         # check whether the process name matches
-            #         if proc.name() == "z3" or proc.name() == "boogie" or proc.name() == "z3.exe" or proc.name() == "boogie.exe":
-            #             proc.kill()
-            #     return None
             except subprocess.TimeoutExpired:
                 process.terminate()
                 self.log('Timeout >{0} second(s) or RuntimeError in benchmark {1}'.format(self.experimentSetting.limitedTime,benchmarkName))
@@ -178,13 +174,6 @@ class Experiment:
                 return None
             else:
                 return x
-                # return process.communicate()
-
-            # if process.poll() == None:
-            #     process.terminate()
-            #     self.log('Timeout >{0} second(s) in benchmark {1}'.format(self.experimentSetting.limitedTime,benchmarkName))
-            #     return None
-            # return process.communicate()
         else:
             raise NotImplementedError
         
@@ -288,7 +277,7 @@ class Experiment:
             'rounds'        :r'Number of Z3 Learner queries = (.*)' if self.__runMode is Experiment.RunMode.ICE else 
                             r'Number of C5 Learner queries = (.*)'
         }
-        #TODO: check rightness of reResult
+
         reResult = {key: None if re.search(value,content).group() is None else re.search(value,content).group(1) 
             for key,value in reExpressions.items()}
         funcNoneOtherwiseFunc = lambda x,func: None if x is None else func(x)
@@ -405,12 +394,15 @@ class Experiment:
             print(content)
             return
         elif self.__logMode is Experiment.LogMode.Socket:
-            # TODO: 
+
             raise NotImplementedError
         else:
             raise Exception('Unknown log mode')
 
     def GenXlsxFromDict(self,outputDir,result,fileNameExtra='',infoExtra='',titleAdd=''):
+        outputDir = os.path.join(self.__originalPath, outputDir)
+        if not os.path.exists(outputDir):
+            os.mkdir(outputDir)
         timeNow = time.localtime()
         fileName = os.path.join(outputDir,'Expr_{4}_{0}_{1}_{2}_{3}.xlsx'.format(fileNameExtra,time.strftime('%Y-%m-%d-%H-%M-%S',timeNow),self.__gitVersion,self.__runMode,titleAdd))
         workbook = xlsxwriter.Workbook(fileName)
