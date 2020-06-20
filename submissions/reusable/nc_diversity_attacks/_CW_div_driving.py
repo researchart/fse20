@@ -45,7 +45,7 @@ torch.manual_seed(random_seed)
 
 date = datetime.date.today()
 
-data_dir = r'data\udacity_self_driving_car'
+data_dir = 'data/udacity_self_driving_car'
 targets_file = 'targets.csv'
 batch_size = 32
 
