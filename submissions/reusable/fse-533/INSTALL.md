@@ -38,13 +38,28 @@ If you have it already installed but the command is not working, then make sure 
 
 ### Install R dependencies
 
-Once R is installed, start it using the command line `R` or `R.exe`, or using your preferred method. Then run the following R command to install the needed R packages:
+If you are using Linux, chances are that the installation of some of the R packages may fail if you don't have a few required external dependencies installed. In order to avoid the failure and properly install the packages, you must first install the following library programs (tested on Ubuntu) before installing dependencies using R: `libudunits2-0`, `libudunits2-dev`, `libproj-dev`, and `libgdal-dev`. If you are using Ubuntu, use the following command:
+
+```bash
+sudo apt-get install -y libudunits2-0 libudunits2-dev libproj-dev libgdal-dev
+```
+
+Once R and the external dependencies (Linux) are installed, start it using the command line `R` or `R.exe`, or using your preferred method. Then run the following R command to install the needed R packages:
 
 ```R
 install.packages(c("tidyverse","GGally","MLmetrics","data.table","effsize","pgirmess","hms","lubridate","ggrepel"))
 ```
 
 Follow the installation instructions. Once the installation is done, close the R session using `q()` and then you are ready to use the R scripts provided in this package.
+
+---
+
+## bash
+
+The bash scripts contained in the package use the command `declare -A` (upper case `A`).
+This command is only available on `bash v4.x` or newer.
+If you use `macOS`, you bash version is probably outdated.
+Please, update your bash terminal and make sure the command `declare -A` works in your environment.
 
 ---
 
@@ -66,7 +81,7 @@ First of all, the mutation testing experiments we performed are computationally 
 
 If you don't want to run the experiments again, we have provided the results of our own experiment in the directory `./experiments`. You can jump to the next section in order to learn how to evaluate the results directly.
 
-To simplify the examples, we will present them in the form of Linux commands (e.g., using `R /path/to/script.sh` instead of `R.exe C:\path\to\script.cmd`).
+To simplify the examples, we will present them in the form of Linux commands (e.g., using `R /path/to/script.sh` instead of `R.exe C:\path\to\script.cmd`). As mentioned earlier, the bash version should be not older than `v4.x`, otherwise some of the commands might not work. Moreover, if you are using Windows, then the classpath's item delimiter changes from `:` to `;`.
 
 To run the experiments, the first step is to go to the unpacked package directory.
 
@@ -74,18 +89,18 @@ To run the experiments, the first step is to go to the unpacked package director
 cd Replication-Package
 ```
 
-We provide two experiment scripts: `./scripts/experiments.sh` and `./scripts/experiments-large.sh`. Both scripts create a file named `commandqueue.txt` containing a list of commands that must be executed in order to reproduce the experiments. The first script generates commands using the toy programs provided in `./originalprograms`, whereas the second script generates commands using the larger Java programs provided in `./largerprograms`. The commands in the command list can be run in parallel from the package's root dir.
+We provide two experiment scripts: `./scripts/experiments-original.sh` and `./scripts/experiments-large.sh`. Both scripts create a file named `commandqueue.txt` containing a list of commands that must be executed in order to reproduce the experiments. The first script generates commands using the toy programs provided in `./originalprograms`, whereas the second script generates commands using the larger Java programs provided in `./largerprograms`. The commands in the command list can be run in parallel from the package's root dir.
 
 Let's try to run experiments with the toy programs. Run the following command:
 
 ```bash
-./scripts/experiments.sh
+./scripts/experiments-original.sh
 ```
 
 The content of `commandqueue.txt` should contain lines that look like the very first command line:
 
 ```bash
-cd "originalprograms/banker"; java -cp "../../pitest/pitest-command-line/target/pitest-command-line-1.4.12-SNAPSHOT.jar;../../pitest/pitest/target/pitest-1.4.12-SNAPSHOT.jar;../../pitest/pitest-entry/target/pitest-entry-1.4.12-SNAPSHOT.jar;../../junit/junit-4.12.jar;../../junit/hamcrest-core-1.3.jar;" org.pitest.mutationtest.commandline.MutationCoverageReport --reportDir "../../experiments/banker/rs/run-1" --targetClasses "banker.*" --sourceDirs "./src/main/java" --classPath "./target/classes,./target/test-classes" --timestampedReports "false" --outputFormats "CSV,CSVTimings" --exportLineCoverage "false" --fullMutationMatrix "false" --mutators "RS_SELECTIVE"
+cd "originalprograms/banker"; java -cp "../../pitest/pitest-command-line/target/pitest-command-line-1.4.12-SNAPSHOT.jar:../../pitest/pitest/target/pitest-1.4.12-SNAPSHOT.jar:../../pitest/pitest-entry/target/pitest-entry-1.4.12-SNAPSHOT.jar:../../junit/junit-4.12.jar:../../junit/hamcrest-core-1.3.jar" org.pitest.mutationtest.commandline.MutationCoverageReport --reportDir "../../experiments/banker/rs/run-1" --targetClasses "banker.*" --sourceDirs "./src/main/java" --classPath "./target/classes,./target/test-classes" --timestampedReports "false" --outputFormats "CSV,CSVTimings" --exportLineCoverage "false" --fullMutationMatrix "false" --mutators "RS_SELECTIVE"
 ```
 
 Each of these command lines contains two commands: a `cd` to the program subject directory (banker in the example), and the actual `java` command to execute the experiment.
@@ -95,7 +110,7 @@ Since we performed **30 independent runs** for each configuration, the command q
 Let's run the very first command from the command queue. The command should be run from the package's root directory:
 
 ```bash
-cd "originalprograms/banker"; java -cp "../../pitest/pitest-command-line/target/pitest-command-line-1.4.12-SNAPSHOT.jar;../../pitest/pitest/target/pitest-1.4.12-SNAPSHOT.jar;../../pitest/pitest-entry/target/pitest-entry-1.4.12-SNAPSHOT.jar;../../junit/junit-4.12.jar;../../junit/hamcrest-core-1.3.jar;" org.pitest.mutationtest.commandline.MutationCoverageReport --reportDir "../../experiments/banker/rs/run-1" --targetClasses "banker.*" --sourceDirs "./src/main/java" --classPath "./target/classes,./target/test-classes" --timestampedReports "false" --outputFormats "CSV,CSVTimings" --exportLineCoverage "false" --fullMutationMatrix "false" --mutators "RS_SELECTIVE"
+cd "originalprograms/banker"; java -cp "../../pitest/pitest-command-line/target/pitest-command-line-1.4.12-SNAPSHOT.jar:../../pitest/pitest/target/pitest-1.4.12-SNAPSHOT.jar:../../pitest/pitest-entry/target/pitest-entry-1.4.12-SNAPSHOT.jar:../../junit/junit-4.12.jar:../../junit/hamcrest-core-1.3.jar" org.pitest.mutationtest.commandline.MutationCoverageReport --reportDir "../../experiments/banker/rs/run-1" --targetClasses "banker.*" --sourceDirs "./src/main/java" --classPath "./target/classes,./target/test-classes" --timestampedReports "false" --outputFormats "CSV,CSVTimings" --exportLineCoverage "false" --fullMutationMatrix "false" --mutators "RS_SELECTIVE"
 ```
 
 This command will first move the working directory to `./originalprograms/banker`, and then perform the mutation testing in the first independent run using the RS Selective strategy. The output is redirected to `../../experiments/banker/rs/run-1`, which is `./experiments/banker/rs/run-1` relative to the package's root dir. The full results of our experiments can be found in the `./experiments` directory. 
@@ -119,6 +134,14 @@ The output of such command should be the logging of PIT, showing information abo
 ```
 
 If the logs show `Found  0 tests` or `0 tests received`, then there is something wrong. Probably it is caused by a wrong classpath. It should not happen, but if it does, [contact me](g.guizzo@ucl.ac.uk) and I can help you debug it.
+
+There is a special log generated by PIT that, although looks like an error, it is just an indication that the mutant has died due to timeout:
+
+```log
+18:14:02 PM PIT >> WARNING : Minion exited abnormally due to TIMED_OUT
+```
+
+If you see this warning, it means that PIT is working as intended by not allowing mutants to run forever. Another similar log will warn about a mutant spawning multiple threads. Again, this warning is normal for test cases or mutants that use multi-threading.
 
 Since mutation testing is expensive, this might take a few minutes (5-10 minutes). Once it is finished, run the following command to go to the results directory:
 
@@ -150,6 +173,64 @@ coverageanddependencyanalysis,704
 More information on how to interpret these results can be found in the `README.md` file.
 
 That is all. If you would like to replicate the results of our experiments exactly as we executed them, run the commands generated by `./scripts/experiments-large.sh`.
+
+### Including new Programs
+
+In order to run the experiments using your own program, you need to follow the steps described in this section.
+
+Firstly, copy the project's directory to the `largerprograms` directory.
+
+Secondly, append the following command line to the end of `experiments-large.sh`:
+
+```bash
+for j in "${!strategies[@]}"; do
+    for k in $runs; do 
+        echo 'cd "largerprograms/<program>"; java -cp "../../pitest/pitest-command-line/target/pitest-command-line-1.4.12-SNAPSHOT.jar:../../pitest/pitest/target/pitest-1.4.12-SNAPSHOT.jar:../../pitest/pitest-entry/target/pitest-entry-1.4.12-SNAPSHOT.jar:../../junit/junit-4.12.jar:../../junit/hamcrest-core-1.3.jar" org.pitest.mutationtest.commandline.MutationCoverageReport --reportDir "../../experiments/<program>/'$j'/run-'$k'" --sourceDirs "<srcDir>" --classPath "<cpItems>" --timestampedReports "false" --outputFormats "CSV,CSVTimings" --exportLineCoverage "false" --targetClasses "<targetClasses>" --targetTests "<targetTests>" --excludedClasses "<excludedClasses>" --excludedTestClasses "<excludedTests>" --mutators "'${strategies[$j]}'"' >> commandqueue.txt
+    done
+done
+```
+
+The command above will make `experiments-large.sh` to append the commands needed to run the experiments to `commandqueue.txt`, which in turn can be used to run the experiments as presented in the previous section. The command above has a few placeholders that must be replaced by the relevant information about the program. Namely:
+
+1. `<program>` - The directory of the program relative to the `largerprograms` directory. For example: `jgrapht-1.3.1` instead of `largerprograms/jgrapht-1.3.1`.
+2. `<srcDir>` - The directory with the program's source code relative to `<program>`. For example: `./src/main/java` instead of `largerprograms/jgrapht-1.3.1/src/main/java`.
+3. `<cpItems>` - The comma separated list of classpath items needed to run the program. Paths should be relative to `<program>`. For example: `./target/classes,./target/test-classes,./target/lib/commons-io-2.4.jar` instead of `largerprograms/jgrapht-1.3.1/<item>`.
+4. `<targetClasses>` - A glob with the classes to be mutated. For example: `org.jgrapht.*` will match all classes in the `org.jgrapht` package and its sub-packages.
+5. `<targetTests>` - A glob with the test classes to test the mutants. For example: `org.jgrapht.*Test` will match all classes ending with `Test` in the `org.jgrapht` package and its sub-packages.
+6. `<excludedClasses>` - A glob with the classes to exclude from mutation. For example: `*NamedGraphGenerator*` will match all classes with `NamedGraphGenerator` in its fully qualified name (`package.of.my.Class`).
+7. `<excludedTests>` - A glob with the test classes to exclude from mutation. For example: `*perf*,*BrownBacktrackColoringTest,*Benchmark*,*Performance*` will match all test classes with `perf`, `Benchmark`, or `Performance` anywhere in its fully qualified name, or ending with `BrownBacktrackColoringTest`.
+
+If any of these do not apply to your program, you can remove the respective argument too. For example, if your program does not have any test exclusion, then you can remove the argument `--excludedTestClasses` and its respective value from the command line.
+
+In fact, these are all arguments used by [PIT](http://pitest.org/) during mutation. If you want to know more about the available arguments in PIT, you can follow [this link](http://pitest.org/quickstart/commandline/). The only arguments that change from the default implementation of PIT are `--outputFormats` and `--mutators`. The former contains `CSVTimings` which outputs running time, and the latter was modified to accept the strategies in the format of mutation operators combinations.
+
+Your bash command should look something similar to this (example for `jgrapht-1.3.1`):
+
+```bash
+for j in "${!strategies[@]}"; do
+    for k in $runs; do 
+        echo 'cd "largerprograms/jgrapht-1.3.1"; java -cp "../../pitest/pitest-command-line/target/pitest-command-line-1.4.12-SNAPSHOT.jar:../../pitest/pitest/target/pitest-1.4.12-SNAPSHOT.jar:../../pitest/pitest-entry/target/pitest-entry-1.4.12-SNAPSHOT.jar:../../junit/junit-4.12.jar:../../junit/hamcrest-core-1.3.jar" org.pitest.mutationtest.commandline.MutationCoverageReport --reportDir "../../experiments/jgrapht-1.3.1/'$j'/run-'$k'" --timestampedReports "false" --outputFormats "CSV,CSVTimings" --exportLineCoverage "false" --sourceDirs "./src/main/java" --classPath "./target/classes,./target/test-classes,./target/lib/commons-io-2.4.jar,./target/lib/commons-math3-3.2.jar,./target/lib/hamcrest-core-1.3.jar,./target/lib/hamcrest-library-1.3.jar,./target/lib/jheaps-0.10.jar,./target/lib/jmh-core-1.21.jar,./target/lib/jmh-generator-annprocess-1.21.jar,./target/lib/jopt-simple-4.6.jar,./target/lib/junit-4.12.jar,./target/lib/junit-toolbox-2.4.jar,./target/lib/mockito-core-1.9.5.jar,./target/lib/objenesis-1.0.jar" --targetClasses "org.jgrapht.*" --targetTests "org.jgrapht.*Test" --excludedClasses "*NamedGraphGenerator*" --excludedTestClasses "*perf*,*BrownBacktrackColoringTest,*Benchmark*,*Performance*" --mutators "'${strategies[$j]}'"' >> commandqueue.txt
+    done
+done
+```
+
+If you wish to change the number of runs or the set of strategies, you can also change the beginning of `experiments-large.sh`:
+
+```bash
+declare -A strategies
+strategies=(["all"]="ES_SELECTIVE,RS_SELECTIVE,RE_SELECTIVE" ["es"]="ES_SELECTIVE" ["rs"]="RS_SELECTIVE" ["re"]="RE_SELECTIVE" ["e"]="E_SELECTIVE")
+runs=$(seq 1 10)
+```
+
+Where `strategies` is the set of strategies used in the experiments, and `runs` is a vector of independent run numbers to run. Let us say you want to run only the ES strategy for 40 independent runs, then the beginning of `experiments-large.sh` should look something like this:
+
+```bash
+declare -A strategies
+strategies=(["es"]="ES_SELECTIVE")
+runs=$(seq 1 40)
+```
+
+That is all. After running `experiments-large.sh`, the commands to run your experiments should be at the bottom of `commandqueue.txt`.
 
 ### Analysing the Results
 
@@ -185,7 +266,7 @@ We can also compute the mutation score of each strategy in each run. To do that,
 R -f ./scripts/mutationscore.R
 ```
 
-This script will iterate over all mutants in all runs to identify the ones that died and the ones that didn't. Then it will compute the ratio between the number of dead mutants to the total number of mutants for that program. This is the expected output:
+This script will iterate over all mutants in all runs to identify the ones that died and the ones that didn't. This script will compute the ratio between the number of dead mutants to the total number of mutants for that program. This is the expected output:
 
 ```R
 # A tibble: 20 x 2
@@ -213,7 +294,7 @@ This script will iterate over all mutants in all runs to identify the ones that 
 20 wire-2.3.0              88%
 ```
 
-This information is presented in our Experimental Subject table in the paper.
+It shall also take a while to execute and might end up using a lot of memory to do this (~4GB). If you don't want to wait or do not have the memory for it, I advise skipping this script, since it is only used to compute the original mutation scores presented in our Experimental Subject table in the paper.
 
 Now that we have treated the data, we can generate the slopegraph presented in the paper. To do that, run the following command:
 
@@ -222,5 +303,55 @@ R -f ./scripts/graph.R
 ```
 
 The graph will be outputted to `./experiments/slopegraph.png`. We have already included the slopegraph we used in our paper. The only difference between the provided graph and the one generated by this script are the red rectangles that we added manually to the figure.
+
+### Analysing Results of new Programs
+
+If you have followed the instructions of the `Including new Programs` section and executed experiments with your own programs, there is a few steps you must take to include them in the result analysis scripts.
+
+The first step is to update the treatment script `treatment.R` at `line 76`. You have to include your program's directory in the list of programs. For example, if you ran experiments using `google-guava-29.0`, then your array of programs should look like this:
+
+```R
+programs <- c("commons-beanutils-1.9.4",
+              "commons-codec-1.14",
+              "commons-collections-4.4",
+              "commons-lang-3.8.1",
+              "commons-validator-1.6",
+              "jfreechart-1.5.0",
+              "jgrapht-1.3.1",
+              "joda-time-2.10.5",
+              "ognl-3.2.13",
+              "wire-2.3.0",
+              "google-guava-29.0")
+```
+
+The same should be done at `line 56` of `mutationscore.R`, and `line 28` in `graph.R`.
+
+In `graph.R`, the program directory must be included without the versioning, such as `google-guava`. This was done for better displaying the programs in the graph. 
+
+If you must generate graphs with versions, comment `lines 39, 40, 42` and put the versions in the list of programs at `line 28`. The script should look like this:
+
+```R
+programs <- c("commons-beanutils-1.9.4",
+              "commons-codec-1.14",
+              "commons-collections-4.4",
+              "commons-lang-3.8.1",
+              "commons-validator-1.6",
+              "jfreechart-1.5.0",
+              "jgrapht-1.3.1",
+              "joda-time-2.10.5",
+              "ognl-3.2.13",
+              "wire-2.3.0",
+              "google-guava-29.0")
+
+# metrics <- metrics %>%
+#   mutate(program = str_replace_all(metrics$program, "commons-", ""))
+ metrics <- metrics %>%
+#   mutate(program = str_replace_all(metrics$program, "-[\\d\\.]+", "")) %>%
+  filter(program %in% programs)
+```
+
+Feel free to remove from the list of programs any unwanted program in the graph.
+
+Finally, if you ran your experiments with a different set of strategies, you have to update the lists of strategies at `line 7` of `treatment.R`, `line 7` of `mutationscore.R`, and `line 26` of `graph.R`.
 
 That is all, folks.

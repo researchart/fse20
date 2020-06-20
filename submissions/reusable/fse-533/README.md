@@ -4,9 +4,17 @@ This is a replication package for the experiments reported in the paper. The ful
 
 This `README` file explains the structure of the package and gives basic guidelines on how to re-execute the experiments. For more detailed instructions on how to install and execute the scripts, please, refer to `INSTALL.md`.
 
+For more information, contact the first author by e-mail: Dr. Giovani Guizzo \<g.guizzo@ucl.ac.uk\>
+
+---
+
+## Experimental Configuration
+
 All experiments were executed using `Java v1.8.0_231`, `PIT v1.4.12`, and `R v3.5.1` (data analysis).
 
-For more information, contact the first author by e-mail: Dr. Giovani Guizzo \<g.guizzo@ucl.ac.uk\>
+The machine used in our study uses `Windows 10 v1903`, and is equipped with an `AMD Threadripper 2950X, 16/32 cores, 3.5GHz` CPU and with 32GB of `3200MHz` RAM.
+
+However, we are aware that Windows is not the most used OS among researchers. In order to make this replication package more accessible to most of the readers, all experimental scripts are in the format of `bash v4`.
 
 ---
 
@@ -42,11 +50,11 @@ A few source files were modified to allow the storage of execution times in `csv
 
 This directory contains all the scripts used to run the experiments, treat the resulting data, and then generate the graph shown in the paper.
 
-All scripts must be executed from the parent directory, e.g., `./scripts/experiments.sh`.
+All scripts must be executed from the parent directory, e.g., `./scripts/experiments-original.sh`.
 
 The files of this directory are:
 
-1. `experiments.sh` - Generates a command queue and outputs the experiment commands to a new file `commandqueue.txt`. This set of commands use Java versions of the original programs used by [Offutt et al. (1996)][1]. Each command represents one independent run;
+1. `experiments-original.sh` - Generates a command queue and outputs the experiment commands to a new file `commandqueue.txt`. This set of commands use Java versions of the original programs used by [Offutt et al. (1996)][1]. Each command represents one independent run;
 2. `experiments-large.sh` - Generates a command queue and outputs the experiment commands to a new file `commandqueue.txt`. This set of commands use the 10 large Java programs reported in the paper. A few test cases and/or tested classes were excluded from the mutation analysis according to their respective project's `pom.xml` exclusion criteria, or to avoid incompatibilities with [PIT][3]. Each command represents one independent run;
 3. `treatment.R` - R script that collects and treats the experimental data contained in the "experiments" directory;
 4. `mutationscore.R` - Computes the mutation score of each program using all mutants using the experimental data contained in the "experiments" directory;
@@ -76,6 +84,8 @@ Each subdirectory has two files:
 2. `mutation-timings.csv` - The execution timings for the strategy. The columns of this file are:
     1. `stage` - Stage of the Mutation;
     2. `timing` - Stage's Execution Time in milliseconds;
+
+`mutations.csv` does not have an embedded heading, whereas `mutation-timings` has. This should not be a problem, since our scripts already cater for the lack of headings in the former file.
 
 Additionally, this directory contains two other files:
 
