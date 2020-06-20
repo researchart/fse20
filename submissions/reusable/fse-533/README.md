@@ -85,7 +85,7 @@ Each subdirectory has two files:
     1. `stage` - Stage of the Mutation;
     2. `timing` - Stage's Execution Time in milliseconds;
 
-`mutations.csv` does not have an embedded heading, whereas `mutation-timings` has. This should not be a problem, since our scripts already cater for the lack of headings in the former file.
+`mutations.csv` does not have an embedded heading, whereas `mutation-timings.csv` has. This should not be a problem, since our scripts already cater for the lack of headings in the former file.
 
 Additionally, this directory contains two other files:
 
