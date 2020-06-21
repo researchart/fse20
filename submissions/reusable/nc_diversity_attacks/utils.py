@@ -435,7 +435,7 @@ class car_loader(Dataset):
         self.discretize_classes = discretize_classes
         self.discrete_targets = self.targets.clone()
         self.root_dir = img_dir
-        self.img_paths = glob.glob(os.path.join(img_dir) + '\\*.png')
+        self.img_paths = glob.glob(os.path.join(img_dir) + '/*.png')
         self.transform = transform
         self.num_classes = num_classes
         
