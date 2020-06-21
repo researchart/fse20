@@ -14,7 +14,7 @@ All experiments were executed using `Java v1.8.0_231`, `PIT v1.4.12`, and `R v3.
 
 The machine used in our study uses `Windows 10 v1903`, and is equipped with an `AMD Threadripper 2950X, 16/32 cores, 3.5GHz` CPU and with 32GB of `3200MHz` RAM.
 
-However, we are aware that Windows is not the most used OS among researchers. In order to make this replication package more accessible to most of the readers, all experimental scripts are in the format of `bash v4`.
+However, we are aware that Windows is not the most used OS among researchers. In order to make this replication package more accessible to most of the readers, all experimental scripts are in the format of `bash v4`. Therefore, the instructions provided in this replication package (including other files and scripts) will work for UNIX-style systems and have been tested on Ubuntu v20. For Windows users, minor changes must be made, e.g, changing the java classpath delimiters from `:` to `;` in the scripts and running the scripts on Linux Bash Shell for Windows rather than CMD or PowerShell.
 
 ---
 
