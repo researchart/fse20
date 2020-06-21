@@ -69,7 +69,7 @@ Please, update your bash terminal and make sure the command `declare -A` works i
 
 The full compressed package can be found and downloaded [here](https://doi.org/10.5522/04/11927208). When the download is complete, unpack it to a directory of your liking.
 
-As mentioned in the `README.md` file, the machine used in our experiments is an `AMD Threadripper 2950X, 16/32 cores, 3.5GHz` CPU and with 32GB of `3200MHz` RAM. The expected execution times given in this document are based on that specific machine configuration. Moreover, we recommend at least 4GB of free memory to perform the whole data analysis, at least 1GB of RAM to run each experimental job using the toy programs, an at least 4GB of RAM for each experimental job using the larger programs.
+As mentioned in the `README.md` file, the machine used in our experiments has an `AMD Threadripper 2950X, 16/32 cores, 3.5GHz` CPU and 32GB of `3200MHz` RAM. The expected execution times given in this document are based on that specific machine configuration. Moreover, we recommend at least 4GB of free memory to perform the whole data analysis, at least 1GB of RAM to run each experimental job using the toy programs, an at least 4GB of RAM for each experimental job using the larger programs.
 
 If Java and R are installed as previously instructed, then you are ready to use the package. There is no additional installation.
 
