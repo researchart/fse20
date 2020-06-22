@@ -1,3 +1,14 @@
+# Document Overview
+The goal of this README.md is to provide detailed information
+on AMS for purposes of FSE 2020 Artifact Evaluation. In particular,
+we: provide instructions to rebuild AMS or alternatively use a pre-packaged
+VM, detail the relation of different source files/outputs to the paper,
+provide instructions on reproducing these results.
+
+Users who are interested in using/installing AMS (but not interested
+in details relating to artifact evaluation) can instead focus on
+the INSTALL.md file.
+
 # AMS
 AMS is a tool to automatically generate AutoML search spaces from
 users' weak specifications. A weak specification is defined a set
@@ -36,6 +47,44 @@ reiterates reproduction steps), please clone as below
 ```bash
 $ git clone git@github.com:josepablocam/ams.git
 ```
+
+# Resizing the Virtual Machine Disk
+Based on artifact reviewer feedback, we provide instructions on resizing
+the VM disk for easier usage (in particular, this may help if you hit
+the space limit when downloading datasets). We *did not* upload a resized
+VM as this would require generating a new DOI (since DOIs are unique)
+and could potentially be more confusing downstream.
+
+We tested our resize instructions using Virtualbox 6.0.
+
+In Virtualbox:
+* navigate to `File/Virtual Media Manager` (Ctrl+D is a possible shortcut)
+* Pick `Hard disks`
+* Choose `ams-disk002.vdi`
+* Using the slide increase the size to the desired size (e.g. 50GB).
+* Click `Apply`
+
+We now need to increase the root partition size.
+You will want to download the `gparted` utility (https://gparted.org/download.php).
+In Virtualbox, you will now want to
+
+* Navigate to the AMS VM (make sure it is off)
+* Click `Settings`
+* Select `Storage`, and in the menus pick `Controller: IDE` and click on `Empty`. You will now see a CD logo on the right hand side, click on that and point it to the `.iso` file downloaded for `gparted`.
+* Now, you can relaunch the VM.
+* This will take you (after a few menu options regarding language) to the `gparted` utility.
+* In the `gparted` utility, you can delete the current swap space, and then extent the current partition to fill in the new allocated disk space (leaving some amount for swap at the end).
+
+You can now startup the VM. Launch terminal, and confirm that the disk size has been increased:
+
+```bash
+$ df -h
+```
+
+should show the new size (e.g. 50GB - swap space).
+
+Different websites provide tutorials, so we also recommend looking at those if you are working with a different VM manager or run into any issues.
+
 
 # Reproducing FSE evaluation
 You can reproduce FSE experiments and figures by using scripts in

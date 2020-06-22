@@ -1,4 +1,24 @@
-# Installing
+# Document Overview
+The goal of this INSTALL.md is to provide steps for downloading a prepackaged
+VM with AMS, or alternatively building AMS from source.
+
+Users who are interested in additional
+details relevant for artifact evaluation should
+also read the README.md.
+
+# Installing AMS
+We currently provide two ways to try out AMS. You can
+choose to use our pre-built (and DOI indexed) VM. We recommend this
+if you would like to get a quick glimpse of AMS or if you would like
+to reproduce the results in our FSE 2020 paper. Please see
+[AMS in a Downloadable Virtual Machine](#ams-in-a-downloadable-virtual-machine).
+
+If you would like to use AMS in your own projects, and prefer not to rely
+on the VM, you can follow the instructions for building AMS from "source".
+Please see [AMS from Source](#ams-from-source).
+
+
+# AMS in a Downloadable Virtual Machine
 We recommend using the pre-packaged VM, available at
 
 ```bash
@@ -8,14 +28,70 @@ $ wget https://ams-fse.s3.us-east-2.amazonaws.com/ams.ova
 which can be loaded into your preferred platform (we tested using
   VirtualBox 6.0).
 
-However, these instructions are included for completeness if you would
-like to 1) re-install `ams`, or 2) rebuild `ams` (i.e. train
-it on the code corpus).
+The VM comes with all necessary source files, a pre-built AMS, and outputs
+from our FSE 2020 paper.
 
-AMS *should* run without issues on Ubuntu and Mac OSX (tested on 10.11.6).
-If you have issues running, we suggest using the pre-packaged VM.
+## Resizing the Virtual Machine Disk
+Based on artifact reviewer feedback, we provide instructions on resizing
+the VM disk for easier usage (in particular, this may help if you hit
+the space limit when downloading datasets). We *did not* upload a resized
+VM as this would require generating a new DOI (since DOIs are unique)
+and could potentially be more confusing downstream.
 
-### Installation
+We tested our resize instructions using Virtualbox 6.0.
+
+In Virtualbox:
+* navigate to `File/Virtual Media Manager` (Ctrl+D is a possible shortcut)
+* Pick `Hard disks`
+* Choose `ams-disk002.vdi`
+* Using the slide increase the size to the desired size (e.g. 50GB).
+* Click `Apply`
+
+We now need to increase the root partition size.
+You will want to download the `gparted` utility (https://gparted.org/download.php).
+In Virtualbox, you will now want to
+
+* Navigate to the AMS VM (make sure it is off)
+* Click `Settings`
+* Select `Storage`, and in the menus pick `Controller: IDE` and click on `Empty`. You will now see a CD logo on the right hand side, click on that and point it to the `.iso` file downloaded for `gparted`.
+* Now, you can relaunch the VM.
+* This will take you (after a few menu options regarding language) to the `gparted` utility.
+* In the `gparted` utility, you can delete the current swap space, and then extent the current partition to fill in the new allocated disk space (leaving some amount for swap at the end).
+
+You can now startup the VM. Launch terminal, and confirm that the disk size has been increased:
+
+```bash
+$ df -h
+```
+
+should show the new size (e.g. 50GB - swap space).
+
+Different websites provide tutorials, so we also recommend looking at those if you are working with a different VM manager or run into any issues.
+
+
+# AMS from Source
+## System Requirements and Notes
+AMS *should* run without issues on Ubuntu 18.04 and Mac OSX (tested on 10.11.6).
+If you have issues running, we suggest using the pre-packaged VM (or feel
+free to contribute back fixes that allow AMS to build on your platform).
+
+If you want to install from source, you will need the following basic utilities
+(installable using `apt-get/brew`):
+* `wget` (e.g. `apt-get install wget`)
+* `zip` (e.g. `apt-get install zip`)
+
+If you are not using Ubuntu or Mac OSX, you should also manually install
+`task-spooler` (https://vicerveza.homeunix.net/~viric/soft/ts/) and make sure
+we can call it using `tsp` (or set a corresponding alias). You will then want to remove the `task-spooler` install in `scripts/setup.sh`.
+
+All other software packages needed are either 1) installed by our scripts
+automatically (which should work without issues for Ubuntu and Mac OSX)
+or 2) provide a prompt for you to manually install (as in the
+case of `conda`). Indeed, the [pre-packaged VM for AMS](#ams-in-a-downloadable-virtual-machine) was configured using a clean Ubuntu image and running
+the instructions for installing from source.
+
+
+## Steps
 First, clone the `ams` repository.
 
 ```bash
@@ -26,6 +102,9 @@ $ cd ams/
 If you don't have `conda` already, please install from
 
 https://docs.conda.io/en/latest/miniconda.html
+
+(If you don't manually install, the `scripts/setup.sh` script will
+error out with a corresponding message to install `conda`.)
 
 Once you have done so, you can build the conda environment
 
@@ -62,7 +141,7 @@ $ python -m core.generate_search_space --help
 You should see a help message printed to the console.
 
 
-### Building AMS
+## Building ("Training") AMS
 To use AMS, AMS first extracts rules for complementary components,
 indexes the API documents, and extracts hyperparameter/value frequency
 distributions from the code corpus. To build this, just execute
@@ -79,7 +158,7 @@ Once you are done with this, you are ready to use AMS and shouldn't need
 to tweak anything else.
 
 
-# Known Latency Issue
+## Known Latency Issue
 Loading the SciSpacy language model takes approximately 30 seconds.
 
 ```python
