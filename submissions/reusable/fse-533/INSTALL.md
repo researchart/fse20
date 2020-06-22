@@ -8,7 +8,7 @@ This document contains information on how to install the dependencies and how to
 
 ### Docker Image Setup
 
-If you wish to skip the dependency installation, we highly recommend you to use the Docker image we provide. This image is already configured with all dependencies and is ready-to-use for this package. The Docker image is hosted at [Docker Hub](https://hub.docker.com/repository/docker/giovaniguizzo/fse20-p533-mutants). If you prefer to use this package outside a container, then you can skip this subsection and start directly from "Java".
+If you wish to skip the dependency installation, we highly recommend you to use the Docker image with Ubuntu 20 we provide. This image is already configured with all dependencies and is ready-to-use for this package. The Docker image is hosted at [Docker Hub](https://hub.docker.com/repository/docker/giovaniguizzo/fse20-p533-mutants). If you prefer to use this package outside a container, then you can skip this subsection and start directly from "Java".
 
 In order to use the provided Docker image, first [install Docker](https://www.docker.com/get-started) on your machine. The run the following command to download the image locally:
 

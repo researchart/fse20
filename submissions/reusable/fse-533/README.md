@@ -4,7 +4,7 @@ This is a replication package for the experiments reported in the paper. The ful
 
 This `README` file describes the structure of the package and gives basic information on the content of this package.
 
-We also provide a Docker image already configured with all dependencies and which is ready-to-use for this package. The Docker image is hosted at [Docker Hub](https://hub.docker.com/repository/docker/giovaniguizzo/fse20-p533-mutants). For more detailed instructions on how to install and execute the scripts, please, refer to `INSTALL.md`.
+We also provide a Docker image with Ubuntu 20, already configured with all dependencies and which is ready-to-use for this package. The Docker image is hosted at [Docker Hub](https://hub.docker.com/repository/docker/giovaniguizzo/fse20-p533-mutants). For more detailed instructions on how to install and execute the scripts, please, refer to `INSTALL.md`.
 
 For any additional information, contact the first author by e-mail: Dr. Giovani Guizzo \<g.guizzo@ucl.ac.uk\>
 
