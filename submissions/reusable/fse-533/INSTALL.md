@@ -19,7 +19,7 @@ docker pull giovaniguizzo/fse20-p533-mutants:latest
 After the download is done, you can then create a container with the downloaded image with the following command:
 
 ```bash
-docker create --name MyContainerName -it giovaniguizzo/fse20-p533-mutants:latest bash
+docker create --name MyContainerName -it giovaniguizzo/fse20-p533-mutants:latest
 ```
 
 Once created, you can start the container with:
