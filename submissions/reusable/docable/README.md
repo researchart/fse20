@@ -4,7 +4,7 @@
 
 Our artifacts include a copy of our [sample of tutorials in HTML format](https://github.com/docable/docable/tree/master/tutorials) (collection process explained in **section 2.2**), the [execution harness](https://github.com/docable/docable/tree/master/harness) that we developed to automatically create computing environment (virtual machines) needed for executing tutorials (explained in **section 2.3**), scripts used to run ["naive" approach](https://github.com/docable/docable/tree/master/harness/naive) (explained in **secrion 2.4**), as well as ["Docable" implementation](https://github.com/docable/docable/tree/master/docable) which contains implementation of automated annotations that was discussed in our [paper](./docable_FSE_20.pdf) (explained in **section 2.5**).
 
-Artifacts mentioned above can be obtained in [docable/docable](https://github.com/docable/docable) repository.
+Artifacts mentioned above can be obtained in [docable/docable](https://github.com/docable/docable) repository. DOI: [![DOI](https://zenodo.org/badge/245012918.svg)](https://zenodo.org/badge/latestdoi/245012918)
 
 ## Directories
 
