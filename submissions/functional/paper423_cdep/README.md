@@ -275,7 +275,7 @@ $ mvn compile
 ```
 Second, run cDep
 ```
-$ mvn exec:java -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -Dexec.mainClass="cdep.cDep" -Dexec.args="-o tmp.txt -x ./config_files -a hdfs -demo"
+$ mvn exec:java -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -Dexec.mainClass="cdep.cDep" -Dexec.args="-o tmp.txt -x ./config_files -a yarn -demo"
 ```
 The result contains the case from 5.4.
 
