@@ -5,7 +5,7 @@ cDep is a tool for discovering configuration dependencies both within and across
 cDep currently supports:
  
 <div align="left">
-  <img src="https://github.com/xlab-uiuc/cdep/blob/master/figure/sw_supported.png" width="750">
+  <img src="https://github.com/xlab-uiuc/cdep-fse/blob/master/figure/sw_supported.png" width="750">
 </div>
 
 <br>
@@ -23,7 +23,7 @@ In Proceedings of the ACM Joint European Software Engineering Conference and Sym
 ## 1. Building and Running cDep
 
 <div align="left">
-  <img src="https://github.com/xlab-uiuc/cdep/blob/master/figure/build.png" width="250">
+  <img src="https://github.com/xlab-uiuc/cdep-fse/blob/master/figure/build.png" width="250">
 </div>
 
 ### 1.1 Docker Container Image
@@ -89,7 +89,7 @@ $ ./run.sh -a hdfs,mapreduce
 
 ## 2. Reproducibility
 <div align="left">
-  <img src="https://github.com/xlab-uiuc/cdep/blob/master/figure/repro.png" width="150">
+  <img src="https://github.com/xlab-uiuc/cdep-fse/blob/master/figure/repro.png" width="150">
 </div>
 
 <br>
@@ -125,7 +125,7 @@ The two parameters, `mapreduce.output.fileoutputformat.compress` and `mapreduce.
 
 ## 3. Datasets
 <div align="left">
-  <img src="https://github.com/xlab-uiuc/cdep/blob/master/figure/dataset.png" width="120">
+  <img src="https://github.com/xlab-uiuc/cdep-fse/blob/master/figure/dataset.png" width="120">
 </div
  
 <br>
@@ -161,7 +161,7 @@ All the data sheets are in the format of CSV, with the first row describing the 
 The following graph shows the end-to-end workflow of cDep:
 
 <div align="left">
-  <img src="https://github.com/xlab-uiuc/cdep/blob/master/figure/cdep_overview.png" width="750">
+  <img src="https://github.com/xlab-uiuc/cdep-fse/blob/master/figure/cdep_overview.png" width="750">
 </div>
 
 <br>
@@ -266,3 +266,8 @@ private FTPClient connect() throws IOException {
     client.connect(host, port);
 }
 ```
+### 6. Reusability
+1. First, cDep could be well adapted for more applications and no more dependencies are needed for that. 
+We implement one [configuration interface](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/configinterface/ConfigInterface.java). The main reason is because different projects have different configuration interfaces to get configuration values. So, users just need to implement the interface for their own project such as an exmaple for [Hadoop](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/configinterface/HadoopInterface.java). Another thing they need to do is to download their own project source codes and put it under the [app directory](https://github.com/xlab-uiuc/cdep-fse/tree/master/app). The last thing they need to do is to add their application to the current [command line interface](https://github.com/xlab-uiuc/cdep-fse/blob/62568ad2f2cb488b96a8243dbc77e4a4e17ef96a/src/main/java/cdep/cDep.java#L31).
+
+2. Second, although not all projects need to do configuration dependency analysis, we believe the taint tracking of configuration parameters will benefit a lot of configuration related projects. The [file](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/dataflow/DataTransform.java) and [file](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/dataflow/IntraProcedureAnalysis.java) implement all the logic for doing inter/intra data/control flow analysis for configuration parameters. The results of the taint tacking are stored in the [object](https://github.com/xlab-uiuc/cdep-fse/blob/62568ad2f2cb488b96a8243dbc77e4a4e17ef96a/src/main/java/dataflow/DataTransform.java#L132). So, if other projects want to analyze the results, they could just run the analysis, get the object and do the analysis they want. We use this object to do dependency analysis while it could be used for other analysis for sure.
