@@ -277,6 +277,7 @@ Second, run cDep
 ```
 $ mvn exec:java -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -Dexec.mainClass="cdep.cDep" -Dexec.args="-o tmp.txt -x ./config_files -a hdfs -demo"
 ```
+The result contains the case from 5.4.
 
 ### 6. Reusability
 1. First, cDep could be well adapted for more applications and no more dependencies are needed for that. 
