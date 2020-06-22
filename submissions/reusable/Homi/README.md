@@ -14,7 +14,7 @@ HOMI is a tool that performs symbolic execution while maintaining only a small n
 ## Installation
 
 We provide a simple way to install HOMI:
-* A VirtualBox image containing all resources to reproduce the main experimental results in our paper: [FSE20_HOMI_artifacts.tar.gz](https://drive.google.com/file/d/1xD31tZk9bitZSkkbvB3wbgw2nsBMprGd/view?usp=sharing)
+* A VirtualBox image containing all resources to reproduce the main experimental results in our paper: [FSE20_HOMI_artifacts.tar.gz](https://drive.google.com/file/d/1ukvyUtVLJ0ie9knvsJKTe0Ww4K6U92H_/view?usp=sharing)
    * Ubuntu ID/PW: homi/homi
 
 Please see [INSTALL.md](./INSTALL.md) for full installation instructions.
