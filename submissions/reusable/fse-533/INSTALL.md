@@ -1,8 +1,46 @@
 # Installation and Usage Instructions
 
-## Java
+This document contains information on how to install the dependencies and how to use the scripts contained in the replication package.
 
-### Download and Install Java
+---
+
+## Installation
+
+### Docker Image Setup
+
+If you wish to skip the dependency installation, we highly recommend you to use the Docker image we provide. This image is already configured with all dependencies and is ready-to-use for this package. The Docker image is hosted at [Docker Hub](https://hub.docker.com/repository/docker/giovaniguizzo/fse20-p533-mutants). If you prefer to use this package outside a container, then you can skip this subsection and start directly from "Java".
+
+In order to use the provided Docker image, first [install Docker](https://www.docker.com/get-started) on your machine. The run the following command to download the image locally:
+
+```bash
+docker pull giovaniguizzo/fse20-p533-mutants:latest
+```
+
+After the download is done, you can then create a container with the downloaded image with the following command:
+
+```bash
+docker create --name MyContainerName -it giovaniguizzo/fse20-p533-mutants:latest bash
+```
+
+Once created, you can start the container with:
+
+```bash
+docker start MyContainerName
+```
+
+If you use the `-ai` argument for the command above, your system's input and output will be attached automatically to the container. If you don't, then you have to do it manually with the following command:
+
+```bash
+docker attach MyContainerName
+```
+
+Once your I/O is attached, you will see the Linux bash terminal for your container. You can check the java and R installations (`java -version` and `R --version`) just to be sure.
+
+If you successfully configured the Docker image, then you neither have to install/update Java or R, nor any of their dependencies. Therefore, you can skip the next subsections and go directly to "Preparing the Replication Package".
+
+### Java
+
+#### Download and Install Java
 
 The experiments in this work were executed using `Java JDK v1.8.0_231`. To check your Java version, run the following command:
 
@@ -14,11 +52,9 @@ If you do not have `Java JDK v1.8.0_231` or a newer version installed, please do
 
 If you have it already installed but the command is not working, then make sure the java executable directory is available in your `PATH` environment variable.
 
----
+### R
 
-## R
-
-### Download and Install R
+#### Download and Install R
 
 The data analysis done in this work was performed using `R v3.5.1`. To check your R version, run the following command:
 
@@ -36,7 +72,7 @@ If you do not have `R v3.5.1` or a newer version installed, please download the 
 
 If you have it already installed but the command is not working, then make sure the R executable directory is available in your `PATH` environment variable.
 
-### Install R dependencies
+#### Install R dependencies
 
 The installation of R packages may fail if you don't have a few required external dependencies installed in your Linux system. In order to avoid the failure and properly install the packages, you must first install the following library programs before installing dependencies using R: `libudunits2-0`, `libudunits2-dev`, `libproj-dev`, and `libgdal-dev`. If you are using Ubuntu, use the following command:
 
@@ -54,9 +90,7 @@ install.packages(c("tidyverse","GGally","MLmetrics","data.table","effsize","pgir
 
 Follow the installation instructions. Once the installation is done, close the R session using `q()` and then you are ready to use the R scripts provided in this package.
 
----
-
-## bash
+### bash
 
 The bash scripts contained in the package use the command `declare -A` (upper case `A`).
 This command is only available on `bash v4.x` or newer.
@@ -75,11 +109,9 @@ If Java and R are installed as previously instructed, then you are ready to use 
 
 ---
 
-## Using the Replication Package
+## Running the Experiments
 
 For a full detailed description of each directory included in the package, please refer to `README.md`.
-
-### Running the Experiments
 
 First of all, the mutation testing experiments we performed are computationally expensive. For the 3000 command lines that we executed, it took from 3 to 4 weeks of nonstop execution using 15 cores. Therefore, before proceeding, bear in mind that it will take a lot of computational resources to rerun everything as we did. For this reason, we will provide guidelines on how to run everything, but we will focus on one command at a time.
 
@@ -236,7 +268,9 @@ runs=$(seq 1 40)
 
 That is all. After running `experiments-large.sh`, the commands to run your experiments should be at the bottom of `commandqueue.txt`.
 
-### Analysing the Results
+---
+
+## Analysing the Results
 
 After running the experiments, you can find the results in the `./experiments` directory. If you haven't run the experiments, don't worry, we have provided the full results of our own experiments (as reported in the paper) in this directory. Each subdirectory has the following pattern: `./experiments/<program>/<strategy>/<run>`. Let's analyse some results and generate the slopegraph of our paper.
 

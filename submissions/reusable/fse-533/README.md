@@ -2,9 +2,11 @@
 
 This is a replication package for the experiments reported in the paper. The full compressed package can be found and downloaded [here](https://doi.org/10.5522/04/11927208) (DOI: 10.5522/04/11927208).
 
-This `README` file explains the structure of the package and gives basic guidelines on how to re-execute the experiments. For more detailed instructions on how to install and execute the scripts, please, refer to `INSTALL.md`.
+This `README` file describes the structure of the package and gives basic information on the content of this package.
 
-For more information, contact the first author by e-mail: Dr. Giovani Guizzo \<g.guizzo@ucl.ac.uk\>
+We also provide a Docker image already configured with all dependencies and which is ready-to-use for this package. The Docker image is hosted at [Docker Hub](https://hub.docker.com/repository/docker/giovaniguizzo/fse20-p533-mutants). For more detailed instructions on how to install and execute the scripts, please, refer to `INSTALL.md`.
+
+For any additional information, contact the first author by e-mail: Dr. Giovani Guizzo \<g.guizzo@ucl.ac.uk\>
 
 ---
 
@@ -18,35 +20,29 @@ However, we are aware that Windows is not the most used OS among researchers. In
 
 ---
 
-## "originalprograms" directory
+## Package Content
+
+### "originalprograms" directory
 
 The original programs used in the work of [Offutt et al. (1996)][1].
 
 Those are Java implementations of the same programs, gathered from multiple sources.
 
----
-
-## "largerprograms" directory
+### "largerprograms" directory
 
 The programs used in the experiments and reported in the paper.
 
----
-
-## "junit" directory
+### "junit" directory
 
 The [JUnit][2] dependencies used by [PIT][3] to perform the mutation analysis.
 
----
+### "pitest" directory
 
-## "pitest" directory
-
-The whole [PIT][3] repository.
+The whole [PIT][3] repository. This is a custom PIT implementation.
 
 A few source files were modified to allow the storage of execution times in `csv` files using the "CSVTimings" output strategy.
 
----
-
-## "scripts" directory
+### "scripts" directory
 
 This directory contains all the scripts used to run the experiments, treat the resulting data, and then generate the graph shown in the paper.
 
@@ -60,9 +56,7 @@ The files of this directory are:
 4. `mutationscore.R` - Computes the mutation score of each program using all mutants using the experimental data contained in the "experiments" directory;
 5. `graph.R` - Generates the slopegraph reported in the paper using the experimental data contained in the "experiments" directory.
 
----
-
-## "experiments" directory
+### "experiments" directory
 
 This directory contains all the results obtained during the reproduction of the work of [Offutt et al. (1996)][1] to answer RQ4. The directory is structured as follows:
 
