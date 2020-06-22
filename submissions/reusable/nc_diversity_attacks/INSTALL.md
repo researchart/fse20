@@ -3,7 +3,7 @@
 The following steps should be sufficient to get these attacks up and running on most systems running Python 3.7.3+.
 
 1. Download a suitable version of [PyTorch](https://pytorch.org/get-started/locally/) for your environment. 
-	- This project originally ran with `torch==1.5.0` and `torchvision==0.6.0`, but earlier or later versions are likely to work as well.
+	- This project originally ran with `torch==1.5.0` and `torchvision==0.6.0`, but other versions are likely to work as well.
 	- It is also *highly* recommended that you use GPUs to execute the evaluation scripts.
 
 2. Run the `requirements.txt` file:
@@ -22,6 +22,7 @@ pip install -r requirements.txt
 ```
 
 3. Viewing results in Jupyter Notebooks
+
 The results are aggregated and visualized in a `jupyter notebook`, which can be viewed directly in GitHub or perused locally:
 ```
 # install

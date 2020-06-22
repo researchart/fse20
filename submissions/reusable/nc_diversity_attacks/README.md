@@ -68,4 +68,4 @@ More specifically, each output file in the `assets` folder is a list of dictiona
 
 NOTE: the `all_metadata_2020.03.04` in `assets` aggregates the outputs for each script and strips out the larger components of the dictionaries, like the adversaries, to allow the results to be loaded in memory for the correlation analysis and plotting. 
 
-Lastly, the correlations were extracted into Google Sheets (`pearson_vs_spearman_correlations.pdf`) for formatting purposes and the visuals are available in the `imgs` directory or in the `CW + PGD results.ipynb` notebook. 
+Lastly, the code in this repository is primarily related to the correlation evaluation conducted in the paper and does not include the code / notebooks used to generate ancillary tables and figures: Table 7 (Sec 4.3.3); Figure 2 (Sec 3.4); Figures 5 and 6 (Sec 4.2.2); and the DeepXplore comparisons (Sec 5.1). All other tables and figures can be generated using this repository. Also, the correlations themselves were extracted into Google Sheets (`pearson_vs_spearman_correlations.pdf`) for formatting purposes and the visuals are available in the `imgs` directory or in the `CW + PGD results.ipynb` notebook. 
