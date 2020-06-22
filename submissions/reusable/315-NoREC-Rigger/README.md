@@ -65,7 +65,7 @@ SELECT STATUS, SUM(count) FROM DBMS_BUGS_STATUS GROUP BY STATUS;
 Determine the total number of bug reports assigned to each bug report status, broken down by the DBMS (see Table 2): 
 
 ```sql
-SELECT DATABASE, STATUS, count FROM DBMS_BUGS_STATUS UNION SELECT DATABASE, 'fixedInDocsOrCode' as STATUS, SUM(count) FROM DBMS_BUGS_STATUS WHERE STATUS IN ('fixed', 'fixed (in documentation)') GROUP BY database;
+SELECT DATABASE, STATUS, count FROM DBMS_BUGS_STATUS WHERE count != 0;
 ```
 
 Determine the test oracles and how many bugs they found (see Table 3):
