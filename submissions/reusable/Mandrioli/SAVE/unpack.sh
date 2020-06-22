@@ -21,6 +21,7 @@ for dirname in `ls ${DIR_VIDEOS}`; do #iterate over 360P, 480P, 720P, 1080P, 216
 	cd ${DIR_VIDEOS}/$dirname
 	for filename in *.mp4; do
 		base=${filename%.mp4}
+		echo "I am unpacking the $base video"
 		mkdir ../../${DIR_FRAMES}/${TARGETDIR}/${base}
         mkdir ../../${DIR_FRAMES}/${TARGETDIR}/${base}/${DIR_FRAMES_ORIG}
 		mplayer -vo \
