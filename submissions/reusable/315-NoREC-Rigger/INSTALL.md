@@ -44,6 +44,8 @@ Besides printing the number of queries and databases that are generated on avera
 
 The shortcut CTRL+C can be used to terminate SQLancer manually. If SQLancer does not find any bugs, it executes infinitely. The option `--num-tries` controls after how many bugs SQLancer terminates. Alternatively, the option `--timeout-seconds` can be used to specify the maximum duration that SQLancer is allowed to run.
 
+Note that general options that are supported by all DBMS-testing implementations (e.g., `--num-threads`) need to precede the name of DBMS to be tested (e.g., `sqlite3`). Options that are supported only for specific DBMS (e.g., `--test-rtree` for SQLite3), or options for which each testing implementation provides different values (e.g. `--oracle NoREC`) need to go after the DBMS name.
+
 Using SQLite to evaluate the artifact is most convenient, since SQLite is an embedded DBMS, meaning that the DBMS is included directly within SQLancer using a [JDBC driver](https://docs.oracle.com/javase/tutorial/jdbc/basics/index.html). Note that the latest version of the [SQLite JDBC driver](https://bitbucket.org/xerial/sqlite-jdbc/downloads/) does not include the latest SQLite version, meaning that NoREC could find bugs that have already been fixed on the latest SQLite version.
 
 Besides for SQLite, NoREC is supported also for the following DBMS:
