@@ -266,6 +266,19 @@ private FTPClient connect() throws IOException {
     client.connect(host, port);
 }
 ```
+
+### 5.6 Demo Case
+We provide one running case which could finish in one minute to further validate our tools. To run the demo case,
+First, build cDep (we use Maven as the build tool for cDep)
+```
+$ mvn compile
+```
+Second, run cDep
+```
+$ mvn exec:java -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn -Dexec.mainClass="cdep.cDep" -Dexec.args="-o tmp.txt -x ./config_files -a hdfs -demo"
+```
+The result contains the case from 5.4.
+
 ### 6. Reusability
 1. First, cDep could be well adapted for more applications and no more dependencies are needed for that. 
 We implement one [configuration interface](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/configinterface/ConfigInterface.java). The main reason is because different projects have different configuration interfaces to get configuration values. So, users just need to implement the interface for their own project such as an exmaple for [Hadoop](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/configinterface/HadoopInterface.java). Another thing they need to do is to download their own project source codes and put it under the [app directory](https://github.com/xlab-uiuc/cdep-fse/tree/master/app). The last thing they need to do is to add their application to the current [command line interface](https://github.com/xlab-uiuc/cdep-fse/blob/62568ad2f2cb488b96a8243dbc77e4a4e17ef96a/src/main/java/cdep/cDep.java#L31).
