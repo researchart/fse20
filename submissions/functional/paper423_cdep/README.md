@@ -134,7 +134,7 @@ We also release all the dataset included in the paper under the `dataset` direct
 
 ### 3.1 Configuration Dependency Dataset
 
-It contains the following four files:
+It contains the following five files:
 * `hadoop_intra.csv` : Intra-component dependencies in each individual component of the Hadoop-based stack;
 * `hadoop_inter.csv` : Inter-component dependencies across components of the Hadoop-based stack;
 * `openstack_intra.csv` : Intra-component dependencies in each individual component of OpenStack;
