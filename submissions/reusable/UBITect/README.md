@@ -31,7 +31,7 @@ This section shows the essential steps to apply UBITect to the target code, we w
 * Compile the target code with options: -O0, -g, -fno-short-wchar
 * Rename the basic block and generate bitcode.list by the wrapper getbclist.py
 ```sh
-    $python getbclist.py abs/dir/to/llvm
+    $ python getbclist.py abs/dir/to/llvm
 ```
 Use path/to/UBITect/build/ubitect to generate the potential warnings:
 ```sh
@@ -188,7 +188,7 @@ The warnings along with the feasible path is in confirm_result.json, the field "
 - path: feasible path found by klee: in the first branch, the path goes to the false branch
 - input_0: when input is 0 (#x0000000000000000), this path is feasible
 ```
-## Prepare LLVM bitcode files of OS kernels
+## Apply UBITect to OS kernels
 This section shows how to reproduce the result in our paper.
 
 ### Step 1: Prepare LLVM bitcode files of OS kernels
