@@ -18,9 +18,11 @@ yzhai003 at ucr dot edu
 |-Makefile: Used to compile qualifier inference code in src/  \
 |-path_verify.py: Wrapper to run KLEE \
 |-getbclist.py: A wrapper to rename the basic block and collect the LLVM bitcode files for OS kernels \
+|-Dockerfile: The Dockerfile to install the tool with Docker 
 \* The rename pass is a llvm pass which gives every basic block in the folder an identifier. By default, llvm names the basic block as 1%, 2%, etc, which is hard for human to track.  This pass rename the basic blocks with bitcode name, function name and basic block number for human understandability, the loadable library is called ```bbTaglib.so```, we already use wrappers to integrate the rename process, the users do not need to care about it now.
 
-## Installation Instructions:
+## Installation:
+### Installation with cmake
 ```sh
     #change to the code folder
     $cd UBITect
@@ -31,12 +33,21 @@ yzhai003 at ucr dot edu
     $cd ..
     $make
     #install the dependencies used by KLEE and z3
-    $sudo apt-get install build-essential curl libcap-dev git cmake libncurses5-dev python-minimal python-pip unzip libtcmalloc-minimal4 libgoogle-perftools-devz lib1g-dev
+    $sudo apt-get install build-essential curl libcap-dev git cmake libncurses5-dev python-minimal python-pip unzip libtcmalloc-minimal4 libgoogle-perftools-dev zlib1g-dev
     #build the KLEE
     $cd KLEE
     $./build-klee.sh
+    #install python putils
+    $pip install psutil
 ```
 Now the ready to use binaries are path/to/UBITect/build/bin/ubitect and path/to/UBITect/KLEE/klee/build/bin/klee
+### Installation with Docker
+```sh
+    #build with Dockerfile
+    $docker build --tag ubitect:1.0 .
+    #run docker image
+    $docker run -it ubitect:1.0 /bin/bash
+``` 
 
 ## How to use UBITect
 This section shows the essential steps to apply UBITect to the target code, we will have a detailed step by step tutorial with a concrete example in the next section.
@@ -105,6 +116,7 @@ int test(int a){
 ```sh
 $cd example/
 $../llvm/build/bin/clang -emit-llvm -O0 -g -fno-short-wchar -c backlog.c -o backlog.llbc
+#If you are running in the Docker, then the abs/dir/to/UBITect/llvm is /home/UBITect/llvm
 $python ../getbclist.py abs/dir/to/UBITect/llvm
 $../build/ubitect -ubi-analysis @bitcode.list
 ```
@@ -177,7 +189,7 @@ For easy reference, we put the LLVM control flow graph here:
 
 ```
 ### Step 3: Use klee to find the feasible path
-change the home_path inside ../path_verify.py to path/to/UBITect and then
+change the home_path inside ../path_verify.py to path/to/UBITect (If you are running in the Docker, then home_path = "/home/UBITect") and then
 ```sh
 $python ../path_verify.py warnings.json
 ```
