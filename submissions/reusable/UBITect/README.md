@@ -1,5 +1,7 @@
 # UBITect: A Precise and Scalable Method to Detect Use-Before-Initialization Bugs in Linux Kernel
 
+[![DOI](https://zenodo.org/badge/269297665.svg)](https://zenodo.org/badge/latestdoi/269297665)
+
 Authors: Yizhuo Zhai, Yu Hao, Hang Zhang, Daimeng Wang, Chengyu Song, Zhiyun Qian, Mohsen Lesani, Srikanth V. Krishnamurthy, Paul Yu
 
 UBITect is a UBI bug finding tool which combines flow-sensitive type qualifier analysis and symbolic execution to perform precise and scalable UBI bug detection. For more details, please refer to our paper. This repo is our implementation, we conducted our experiment on machines with Intel(R) Xeon(R) E5-2695v4 processors and 256GB RAM. The operating system is the 64 bit Ubuntu 16.04 LTS. Please contact the following author for any questions:
@@ -22,32 +24,7 @@ yzhai003 at ucr dot edu
 \* The rename pass is a llvm pass which gives every basic block in the folder an identifier. By default, llvm names the basic block as 1%, 2%, etc, which is hard for human to track.  This pass rename the basic blocks with bitcode name, function name and basic block number for human understandability, the loadable library is called ```bbTaglib.so```, we already use wrappers to integrate the rename process, the users do not need to care about it now.
 
 ## Installation:
-### Installation with cmake
-```sh
-    #change to the code folder
-    $cd UBITect
-    #build LLVM
-    $cd llvm
-    $./build-llvm.sh
-    #build the qualifer inference
-    $cd ..
-    $make
-    #install the dependencies used by KLEE and z3
-    $sudo apt-get install build-essential curl libcap-dev git cmake libncurses5-dev python-minimal python-pip unzip libtcmalloc-minimal4 libgoogle-perftools-dev zlib1g-dev
-    #build the KLEE
-    $cd KLEE
-    $./build-klee.sh
-    #install python putils
-    $pip install psutil
-```
-Now the ready to use binaries are path/to/UBITect/build/bin/ubitect and path/to/UBITect/KLEE/klee/build/bin/klee
-### Installation with Docker
-```sh
-    #build with Dockerfile
-    $docker build --tag ubitect:1.0 .
-    #run docker image
-    $docker run -it ubitect:1.0 /bin/bash
-``` 
+Please refer to INSTALL.md to install UBITect.
 
 ## How to use UBITect
 This section shows the essential steps to apply UBITect to the target code, we will have a detailed step by step tutorial with a concrete example in the next section.
@@ -212,7 +189,34 @@ The warnings along with the feasible path is in confirm_result.json, the field "
 - input_0: when input is 0 (#x0000000000000000), this path is feasible
 ```
 ## Prepare LLVM bitcode files of OS kernels
-* The code should be compiled with the built LLVM
-* We use the github repo and the wrapper to compile the kernel code
-* Please follow the compilation instructions in https://github.com/YizhuoZhai/lll-414.git
-* After compilation,run the getbclist.py under lll-414/ to get bitcode.list and conduct the experiment for Linux v4.14
+This section shows how to reproduce the result in our paper.
+
+### Step 1: Prepare LLVM bitcode files of OS kernels
+```sh
+$ git clone https://github.com/YizhuoZhai/lll-414.git
+$ cd lll-414/
+$ make ARCH=x86_64 CC=clang allyesconfig
+```
+Please diable the KSAN, KCOV and MODVERSIONS by editing .config, comment the following lines:
+```
+#CONFIG_HAVE_ARCH_KASAN=y
+#CONFIG_ARCH_HAS_KCOV=y
+#CONFIG_MODVERSIONS=y
+```
+Then 
+```sh
+$ make ARCH=x86_64 CC=/dir/to/clang-emit-bc.sh
+```
+### Step2: Run qualifier analysis
+After compilation,run the getbclist.py under lll-414/ to get bitcode.list and conduct the experiment for Linux v4.14
+```sh
+$python ../getbclist.py abs/dir/to/UBITect/llvm
+$../build/ubitect -ubi-analysis @bitcode.list
+```
+When the experiment is done, there will be an warnings.json under the current directory.
+### Step3: Run klee 
+Change the home_path inside ../path_verify.py to path/to/UBITect (If you are running in the Docker, then home_path = "/home/UBITect") and then
+```sh
+$python ../path_verify.py warnings.json
+```
+Then the bugs are located in confirm_result.json for manual inspection.
