@@ -4,9 +4,9 @@ Each directory of artifacts repository contains a `README.md` with detailed inst
 
 ## Prerequisite
 
-- Our testing harness is written using [Node.js](https://nodejs.org/en/). Please refer to Node.js [official installation instructions for your operating system](https://nodejs.org/en/download/package-manager/).
+- Our testing harness is written using [Node.js](https://nodejs.org/en/). Please refer to Node.js [official installation instructions for your operating system](https://nodejs.org/en/download/package-manager/). Requires Node version > `10.x.x`.
 
-- Our testing harness uses [VirtualBox](https://www.virtualbox.org/) for creation of computing environments (virtual machines). Simply download the correct executable installer for your operating system [on this page](https://www.virtualbox.org/wiki/Downloads), and run it to install VirtualBox.
+- Our testing harness uses [VirtualBox](https://www.virtualbox.org/) for creation of computing environments (virtual machines). Simply download the correct executable installer for your operating system [on this page](https://www.virtualbox.org/wiki/Downloads), and run it to install VirtualBox. Tested with VirtualBox version `6.1.8`.
 
     > _Note: you need to make sure hardware virtualization (Intel VT-x or AMD SVM) support is enabled on your system before using virtualbox._
 
