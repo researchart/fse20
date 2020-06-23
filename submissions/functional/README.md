@@ -7,7 +7,7 @@ This opens a shell into the docker image with all the sources and benchmarks use
 Folders of interest:
 
 * `/klee-dsa-benchmarks` - Contains the benchmarks used in the evaluation 
-* `/src/SVF-dynamic` - Source code for PSPA analysis
+* `/data/dependencies/SVF-dynamic` - Source code for PSPA analysis
 * `/src/client-choper` - Source code for Chopper on top of PSPA
 * `/src/client-resolution` - Source code for KLEE with PSPA based object resolution
 * `/src/client-wit` - Source code for KLEE performing WIT with PSPA
@@ -21,14 +21,15 @@ We provide a script for each of the experiments in our evaluation.
 The results of the experiment are written to the `/output` directory.
 
 Note: The results in most of the experiments might be affected by the performace of the underlying host machine,
-so some deviations are expected.
+so some deviations are expected. We ran the experiments on an Intel i7-6700 machine with 32GB RAM (Ubuntu 16.04).
 
 ## Statistics
-To run the experiments for table 1:
+To run the experiments for table 1 (estimated running time: 10 minutes):
 ```
 cd /klee-dsa-benchmarks
 ./run_statistics_experiment.sh
 ```
+
 To parse the results:
 ```
 python3.5 parse_statistics.py /output/statistics/
@@ -52,11 +53,12 @@ The expected output:
 ## Application: Chopped Symbolic Execution
 
 ### Recoveries
-To run the experiments for figure 4:
+To run the experiments for figure 4 (estimated running time: 10 hours):
 ```
 cd /klee-dsa-benchmarks
 ./run_modref_experiment.sh
 ```
+
 To parse the results:
 ```
 python3.5 parse_recoveries.py /output/cse/recoveries/ /out.csv
@@ -127,7 +129,7 @@ libtiff,skip_6,symbolic,130397,10,2245,2245,0.91
 ```
 
 ### Coverage
-To run the experiments for tables 2 and 3:
+To run the experiments for tables 2 and 3 (estimated running time: 18 hours):
 ```
 cd /klee-dsa-benchmarks
 ./run_coverage.sh
@@ -170,7 +172,7 @@ The expected output:
 ```
 
 ### CVE Reproduction
-To run the experiments for table 4:
+To run the experiments for table 4 (estimated running time: 16 hours):
 ```
 cd /klee-dsa-benchmarks/cve/libtasn1/
 ./run_cve_experiments.sh
@@ -197,7 +199,7 @@ python3.5 parse_cve.py /output/cse/cve/pspa/
 ```
 
 ### Termination
-To run the experiments for table 5:
+To run the experiments for table 5 (estimated running time: 9 hours):
 ```
 cd /klee-dsa-benchmarks
 ./run_all_path.sh
@@ -220,7 +222,7 @@ libtiff/pspa: 00:10:02
 ```
 
 ## Application: WIT
-To run the experiments for table 6:
+To run the experiments for table 6 (estimated running time: 6 hours):
 ```
 cd /klee-dsa-benchmarks
 ./run_wit.sh
@@ -240,7 +242,7 @@ libtiff/pspa: Colours: 1101, Transitions: 1938
 ```
 
 ## Application: Symbolic Pointers Resolution
-To run the experiments for table 7:
+To run the experiments for table 7 (estimated running time: 9 hours):
 ```
 cd /klee-dsa-benchmarks
 ./run_resolution_experiment.sh
@@ -261,3 +263,65 @@ sqlite/vanilla: Q: 7726, RT: 28%, ET: 00:43:19, SA: 0.0%
 sqlite/static: Q: 7726, RT: 23%, ET: 00:50:47, SA: 14.23%
 sqlite/pspa: Q: 1166, RT: 5%, ET: 00:33:23, SA: 0.51%
 ```
+
+# Timeout Settings
+
+Most of the experiments have a long running time.
+The running time can be reduced, but take into account that the results will change accordingly.
+
+__Figure 4__
+
+Update the value of MAX_TIME in `/klee-dsa-benchmarks/run_modref_experiment.sh`:
+```
+MAX_TIME=60
+```
+__Tables 2 and 3__
+
+Update the value of MAX_TIME to:
+```
+MAX_TIME=120
+```
+in the following files:
+- `/klee-dsa-benchmarks/libosip/run_coverage.sh`
+- `/klee-dsa-benchmarks/libtasn1/run_coverage.sh`
+- `/klee-dsa-benchmarks/libtiff/run_coverage.sh`
+
+__Table 4__
+
+Update the following line in `/klee-dsa-benchmarks/cve/libtasn1/run_cve_experiments.sh`:
+```
+FLAGS="-max-memory=8000 -max-time=120 -use-forked-solver=0 -use-recovery-cache=1"
+```
+__Table 5__
+
+Update the value of MAX_TIME to:
+```
+MAX_TIME=120
+```
+in the following files:
+- `/klee-dsa-benchmarks/libosip/run_term.sh`
+- `/klee-dsa-benchmarks/libtasn1/run_term.sh`
+- `/klee-dsa-benchmarks/libtiff/run_term.sh`
+
+__Table 6__
+
+Update the following line in `/klee-dsa-benchmarks/libosip/run_wit.sh`:
+```
+-max-instructions=105348978
+```
+Update the following line in `/klee-dsa-benchmarks/libtasn1/run_wit.sh`:
+```
+-max-instructions=8318716
+```
+Update the following line in `/klee-dsa-benchmarks/libtiff/run_wit.sh`:
+```
+-max-instructions=2235833
+```
+__Table 7__
+
+Add the following line at the end of the file `/klee-dsa-benchmarks/resolution/flags.sh`:
+```
+FLAGS+="-max-time=60 "
+```
+__Note:__
+Before re-running the experiments, you should remove the generated `klee-*` directories in the `/output` directory. The most easy way to do that is loading the original image.
