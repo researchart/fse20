@@ -1,6 +1,15 @@
 # Dependencies
 
-Ensure you have [Node.js](https://nodejs.org/en/download/) installed in your machine v12.4.0 or later.
+For running the code in the different subdirectories:
+
+* [Node.js](https://nodejs.org/en/download/), `v12.4.0` or higher
+* [npm](https://www.npmjs.com/get-npm) (bundled with Node.js), `v6.10.2` or higher
+
+For plotting the data in `measured-complexity/`:
+
+* [Python](https://www.python.org/downloads/), `v3.7.7` or higher
+
+Additional Node.js and Python dependencies are defined in `package.json` and `requirement.txt` files in the different subdirectories. Please read the `README.md` in the subdirectories for additional installation and usage instructions. 
 
 # How to use the artifact
 
@@ -10,7 +19,7 @@ The sub-directory `verification/` contains a script that will recreate the open-
 
 ## Reproducing the paper results
 
-The sub-directory `measured-complexity/` contains all the data (complexity measures for the opensource libraries and our own solution), and a tool to regenerate the plots.
+The sub-directory `measured-complexity/` contains all the data (complexity measures for the open-source libraries and our own solution), and a script to regenerate the plots.
 
 The sub-directory `query-response/` contains an anonymized version of the corpus used for these experiments.
 
