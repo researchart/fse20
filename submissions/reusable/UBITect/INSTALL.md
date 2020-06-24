@@ -20,6 +20,7 @@
 ```
 Now the ready to use binaries are path/to/UBITect/build/bin/ubitect and path/to/UBITect/KLEE/klee/build/bin/klee
 ### Installation with Docker
+There're some **make -j4** command in the Dockerfile, if there's less than 4 CPU cores avaiable, please change it to **make**
 ```sh
     #build with Dockerfile
     $docker build --tag ubitect:1.0 .
