@@ -85,6 +85,12 @@ Third, use the script `run.sh`. One example running command is as follows:
 $ ./run.sh -a hdfs,mapreduce
 ```
 
+### 1.4 Machine Specifications
+
+To run cDep with Maven, we recommend you have at least 8GB memory since all the jars which will be analyzed takes 1.4 GB already. 
+
+Our evaluation result is done on the server with with CentOS 7.8.2003, 62GB memory and 40 Intel(R) Xeon(R) CPU E5-2660 v3 @ 2.60GHz. 
+
 ----
 
 ## 2. Reproducibility
@@ -266,8 +272,14 @@ private FTPClient connect() throws IOException {
     client.connect(host, port);
 }
 ```
+### 5.6 Sanity Check
+The fastest job cDep could finish is over the application `hdfs`. The command is as follows,
+```
+$ ./run.sh -a hdfs
+```
+It takes around 15 minutes to finish this job over a Macbook Pro with 16GB memory and 2.6 GHz 6-Core Intel Core i7.
 
-### 5.6 Demo Case
+### 5.7 Demo Case
 We provide one running case which could finish in one minute to further validate our tools. To run the demo case,
 First, build cDep (we use Maven as the build tool for cDep)
 ```
@@ -275,12 +287,13 @@ $ mvn compile
 ```
 Second, run cDep
 ```
-$ ./demo.sh"
+$ ./demo.sh
 ```
 The result contains the case from 5.4.
 
 ### 6. Reusability
 1. First, cDep could be well adapted for more applications and no more dependencies are needed for that. 
-We implement one [configuration interface](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/configinterface/ConfigInterface.java). The main reason is because different projects have different configuration interfaces to get configuration values. So, users just need to implement the interface for their own project such as an exmaple for [Hadoop](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/configinterface/HadoopInterface.java). Another thing they need to do is to download their own project source codes and put it under the [app directory](https://github.com/xlab-uiuc/cdep-fse/tree/master/app). The last thing they need to do is to add their application to the current [command line interface](https://github.com/xlab-uiuc/cdep-fse/blob/62568ad2f2cb488b96a8243dbc77e4a4e17ef96a/src/main/java/cdep/cDep.java#L31).
+We implement one [configuration interface](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/configinterface/ConfigInterface.java). The main reason is because different projects have different configuration interfaces to get configuration values. So, users just need to implement the interface for their own project such as an exmaple for [Hadoop](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/configinterface/HadoopInterface.java). Another thing they need to do is to download their own project source codes and put it under the [app directory](https://github.com/xlab-uiuc/cdep-fse/tree/master/app). The last thing they need to do is to add their application to the current [command line interface](https://github.com/xlab-uiuc/cdep-fse/blob/62568ad2f2cb488b96a8243dbc77e4a4e17ef96a/src/main/java/cdep/cDep.java#L31). 
+The interface will be passed into dataflow and control flow analysis as in the [code](https://github.com/xlab-uiuc/cdep-fse/blob/042c8f109229c188e3aaa453b95eaced3030bc96/src/main/java/dataflow/DataTransform.java#L31). Later, this interface will be used to recognize getter and setter functions (i.e. starting points for confiugration analysis) in the speciifc project such as the [code](https://github.com/xlab-uiuc/cdep-fse/blob/042c8f109229c188e3aaa453b95eaced3030bc96/src/main/java/dataflow/DataTransform.java#L163).
 
 2. Second, although not all projects need to do configuration dependency analysis, we believe the taint tracking of configuration parameters will benefit a lot of configuration related projects. The [file](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/dataflow/DataTransform.java) and [file](https://github.com/xlab-uiuc/cdep-fse/blob/master/src/main/java/dataflow/IntraProcedureAnalysis.java) implement all the logic for doing inter/intra data/control flow analysis for configuration parameters. The results of the taint tacking are stored in the [object](https://github.com/xlab-uiuc/cdep-fse/blob/62568ad2f2cb488b96a8243dbc77e4a4e17ef96a/src/main/java/dataflow/DataTransform.java#L132). So, if other projects want to analyze the results, they could just run the analysis, get the object and do the analysis they want. We use this object to do dependency analysis while it could be used for other analysis for sure.
