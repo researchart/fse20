@@ -7,6 +7,9 @@ Documentation for Java Ranger as well as high-level overview for it can be found
 # Compute Time estimate
 This artifact reproduces results shown in Tables 2 and 4 in our FSE 2020 submission. The reproduction of our results involves running 16 different scripts. Running these scripts serially takes us a total compute time of about 54 hours on a machine running Ubuntu 16.04 with a Intel(R) Xeon(R) CPU E5-2623 v3 @ 3.00GHz processor and 192 GB of memory. This compute time estimate does not take into account the reproduction of the results from the Java track of SV-COMP 2020 which is presented in Table 5 of the submission. Since this is a long-running artifact, we urge the artifact reviewers to allow about 54 hours of compute time before they collect results to review the artifact. However, we provide a script that allows any-time collections of the current set of generated results.
 
+## Checking that everything is working
+Among all the benchmarks that can be run from instructions below, the ones for the Schedule benchmark will finish the soonest. If you'd like to make sure everything is set up correctly, we recommend first running the Schedule benchmark's instructions and checking results from its run with Java Ranger.
+
 # Reproducing data for Tables 2 and 4
 
 ## Run individual benchmarks
@@ -22,13 +25,18 @@ Next, we run Java Ranger on a benchmark in five different modes.
 - Mode 5 corresponds to the addition of early-returns summarization to Mode 4. Results of running Java Ranger in this mode are shown in the "+early return summ." column in Tables 4a and 4b.
  
 All steps below can be run in parallel to save compute time. The runs of Java Ranger (not SPF) for the WBS, TCAS benchmarks should finish within five minutes at most. Also, the runs of the Schedule benchmark for both SPF and Java Ranger should finish within a minute. All the runs for SPF will take much longer than Java Ranger to complete. Each command below will generate a log file in the fse20/submissions/reusable/java-ranger/logs directory. A run is complete when Java Ranger has completed writing to the log file. 
- 
+
+None of the commands will print anything to stdout/stderr while the command is running. To ensure that each command is doing something productive, run `cd <directory-containing-this-README>/logs; tail -f <LOG FILE NAME>` to check the contents of the log file of each process as they are being updated. We mention the "LOG FILE NAME" for each benchmark below. Please note that many of the below command will produce multiple log files. 
+
 1. cd src/examples/veritesting/wbs/ && ./runWBS-SPF.sh && cd ../../../..
-  - runs Java Ranger in mode 1 (same as running SPF) on the WBS benchmark with the step function run for five steps with each step taking 3 new symbolic inputs. 
+  - runs Java Ranger in mode 1 (same as running SPF) on the WBS benchmark with the step function run for five steps with each step taking 3 new symbolic inputs.
+  - LOG FILE NAME = wbs.10step.mode2.log, wbs.10step.mode3.log, wbs.10step.mode4.log, wbs.10step.mode5.log, wbs.5step.mode1.log
 2. cd src/examples/veritesting/wbs/ && ./runWBS-JR.sh && cd ../../../..
   - runs Java Ranger on the WBS benchmark for 10 steps under modes 2, 3, 4, 5. This run should finish within a couple of minutes.
+  - LOG FILE NAME = tcas.10step.mode2.log, tcas.10step.mode3.log, tcas.10step.mode4.log, tcas.10step.mode5.log
 3. cd src/examples/veritesting/tcas/ && ./runTCAS-SPF.sh && cd ../../../..
- - runs Java Ranger in mode 1 on the TCAS benchmark with the step function run for two steps with each step taking 12 new symbolic inputs.
+  - runs Java Ranger in mode 1 on the TCAS benchmark with the step function run for two steps with each step taking 12 new symbolic inputs.
+  - LOG FILE NAME = tcas.2step.mode1.log
 4. cd src/examples/veritesting/tcas/ && ./runTCAS-JR.sh && cd ../../../..
  - runs Java Ranger in modes 2, 3, 4, 5 on the TCAS benchmark for 10 steps. This run should finish within a couple of minutes.
 5. cd src/examples/veritesting/replace/ && ./runReplace.sh && cd ../../../..
