@@ -1,5 +1,5 @@
 # Overview
-This artifact accompanies the submission to FSE 2020 titled "". This artifact presents steps to reproduce the results in the FSE 2020 submission. The tool named XYZ is de-anonymized in this submission to a tool named "Java Ranger". 
+This artifact accompanies the submission to FSE 2020 titled "XYZ: Statically Summarizing Regions For Efficient Symbolic Execution Of Java". This artifact presents steps to reproduce the results in the FSE 2020 submission. The tool named XYZ is de-anonymized in this submission to a tool named "Java Ranger". 
 
 # Java Ranger Landing Page
 We've created a website for Java Ranger [here](https://vaibhavbsharma.github.io/java-ranger). This is a one-stop shop for all documentation and questions regarding Java Ranger. 
