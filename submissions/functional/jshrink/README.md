@@ -35,53 +35,17 @@ replicate the JShrink experiments. Please consult
 `experiment_resourcse/README.txt` for information on how to correctly run
 this script.
 
-### Running JShrink
+### Compiling JShrink
 
-#### Prerequisites
+Details on compiling JShrink can be found in the `jshrink/README.md` file.
 
-JShrink requires the following dependencies to be installed:
-
-* OpenJDK-8
-* The Maven build tool
-* GCC
-* Make
-
-For operating systems utilizing the APT build system:
-
-```
-sudo apt install openjdk-8-jdk maven gcc make
-```
-
-#### Compiling JShrink
-
-Details on compiling JShrink can be found in the `jshrink/README.txt` file.
-For most cases the following steps will be sufficient:
-
-1. Navigate to the `jshrink` directory: `cd jshrink`.
-2. Compile jshrink using mvn: `mvn compile -pl jshrink-app -am`
-
-The resulting jar can be found in
-`jshrink-app/target/jshrink-app-1.0-SHAPSHOT-jar-with-dependencies.jar`.
-
-##### Problems compiling
+#### Problems compiling
 
 **Exception in thread "main" java.lang.RuntimeException: Error: cannot find
 rt.jar.**: This error typically occurs if you ware not using OpenJDK Java-8.
 Please ensure the version of Java being used to run JShrink is correct.
 
-
-If other problems are encountered when compiling JShrink, we
-advise utilizing our Vagrant VM which will provide a stable, proven,
-environment for execution:
-
-1. Copy the `experiment_resources/Vagrantfile_local` file to
-`jshrink/Vagrantfile`
-2. Execute `vagrant up`.
-3. SSH into the VM: `vagrant ssh`.
-4. Move to the `/vagrant` directory: `/vagrant`.
-5. Compile JShrink using `mvn compile -pl jshrink-app  -am`.
-
-#### Executing JShrink
+### Executing JShrink
 
 Executing:
 

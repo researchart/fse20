@@ -1,14 +1,36 @@
 The JShrink artifact can be obtained [here](
 https://doi.org/10.6084/m9.figshare.12435542).
 
-## Prerequisites
+# Compiling JShrink
+
+For most cases, the following steps will be sufficient. We utilize Vagrant
+as it produces a stable environment for installation.
+
+1. Move to the `jshrink` directory: `cd jshrink`.
+2. Please ensure you have valgrind installed on your system. With APT : `sudo
+apt install vagrant`.
+3. Copy the `../experiment_resources/Vagrantfile_local` file to
+`Vagrantfile` (in the pwd):
+`cp ../experiment_resources/Vagrantfile_local Vagrantfile`.
+4. Execute `vagrant up`.
+5. SSH into the VM: `vagrant ssh`.
+6. Move to the `/vagrant` directory: `cd /vagrant`.
+7. Compile JShrink using `mvn compile -pl jshrink-app  -am`.
+
+The resulting jar can be found in
+`jshrink-app/target/jshrink-app-1.0-SHAPSHOT-jar-with-dependencies.jar`.
+
+## Installing without Valgrind
+
+**WARNING: We strongly recommend compiling within Vagrant. Vagrant produces a
+stable environment proven to compile JShrink successfully.**
 
 JShrink requires the following dependencies to be installed:
 
 * OpenJDK-8
 * The Maven build tool
-* Make
 * GCC
+* Make
 
 For operating systems utilizing the APT build system:
 
@@ -16,13 +38,8 @@ For operating systems utilizing the APT build system:
 sudo apt install openjdk-8-jdk maven gcc make
 ```
 
-## Compiling JShrink
-
-Details on compiling JShrink can be found in the `jshrink/README.txt` file.
-For most cases the following steps will be sufficient:
-
-1. Navigate to the `jshrink` directory: `cd jshrink`.
-2. Compile jshrink using mvn: `mvn compile -pl jshrink-app -am`
+To then compile jshrink (in the `jshrink` directory):
+`mvn compile -pl jshrink-app  -am`.
 
 The resulting jar can be found in
 `jshrink-app/target/jshrink-app-1.0-SHAPSHOT-jar-with-dependencies.jar`.
@@ -116,16 +133,3 @@ on the specified entry points, and the projects JUnit test suite.
 **Exception in thread "main" java.lang.RuntimeException: Error: cannot find
 rt.jar.**: This error typically occurs if you ware not using OpenJDK Java-8.
 Please ensure the version of Java being used to run JShrink is correct.
-
-### When in doubt, use Vagrant
-
-If problems are encountered when compiling JShrink, we advise utilizing our
-Vagrant VM which will provide a stable, proven, environment for execution:
-
-1. Install Vagrant (via APT: `apt install vagrant virtualbox`).
-2. Copy the `experiment_resources/Vagrantfile_local` file to
-`jshrink/Vagrantfile`
-3. Execute `vagrant up`.
-4. SSH into the VM: `vagrant ssh`.
-5. Move to the `/vagrant` directory: `/vagrant`.
-6. Compile JShrink using `mvn compile -pl jshrink-app  -am`.
