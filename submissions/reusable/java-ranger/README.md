@@ -1,11 +1,14 @@
 # Overview
-This artifact accompanies the submission to FSE 2020 titled "". This artifact presents steps to reproduce the results in the FSE 2020 submission. The tool named XYZ is de-anonymized in this submission to a tool named "Java Ranger". 
+This artifact accompanies the submission to FSE 2020 titled "XYZ: Statically Summarizing Regions For Efficient Symbolic Execution Of Java". This artifact presents steps to reproduce the results in the FSE 2020 submission. The tool named XYZ is de-anonymized in this submission to a tool named "Java Ranger". 
 
-# Documentation
-Documentation for Java Ranger as well as high-level overview for it can be found [here](https://vaibhavbsharma.github.io/java-ranger). 
+# Java Ranger Landing Page
+We've created a website for Java Ranger [here](https://vaibhavbsharma.github.io/java-ranger). This is a one-stop shop for all documentation and questions regarding Java Ranger. 
 
 # Compute Time estimate
 This artifact reproduces results shown in Tables 2 and 4 in our FSE 2020 submission. The reproduction of our results involves running 16 different scripts. Running these scripts serially takes us a total compute time of about 54 hours on a machine running Ubuntu 16.04 with a Intel(R) Xeon(R) CPU E5-2623 v3 @ 3.00GHz processor and 192 GB of memory. This compute time estimate does not take into account the reproduction of the results from the Java track of SV-COMP 2020 which is presented in Table 5 of the submission. Since this is a long-running artifact, we urge the artifact reviewers to allow about 54 hours of compute time before they collect results to review the artifact. However, we provide a script that allows any-time collections of the current set of generated results.
+
+## Checking that everything is working
+Among all the benchmarks that can be run from instructions below, the ones for the Schedule benchmark will finish the soonest. If you'd like to make sure everything is set up correctly, we recommend first running the Schedule benchmark's instructions and checking results from its run with Java Ranger.
 
 # Reproducing data for Tables 2 and 4
 
@@ -22,39 +25,57 @@ Next, we run Java Ranger on a benchmark in five different modes.
 - Mode 5 corresponds to the addition of early-returns summarization to Mode 4. Results of running Java Ranger in this mode are shown in the "+early return summ." column in Tables 4a and 4b.
  
 All steps below can be run in parallel to save compute time. The runs of Java Ranger (not SPF) for the WBS, TCAS benchmarks should finish within five minutes at most. Also, the runs of the Schedule benchmark for both SPF and Java Ranger should finish within a minute. All the runs for SPF will take much longer than Java Ranger to complete. Each command below will generate a log file in the fse20/submissions/reusable/java-ranger/logs directory. A run is complete when Java Ranger has completed writing to the log file. 
- 
+
+None of the commands will print anything to stdout/stderr while the command is running. To ensure that each command is doing something productive, run `cd <directory-containing-this-README>/logs; tail -f <LOG FILE NAME>` to check the contents of the log file of each process as they are being updated. We mention the `LOG FILE NAME` for each benchmark below. Please note that many of the below command will produce multiple log files in which case we've provided a comma-separated list of expected log file names. For some of the runs with SPF, you may see a warning of the kind `* Warning: either invalid or no veritestingMode specified.` or `* Warning: set veritestingMode to ....` or `* Warning: resetting veritestingMode to 0 (aka use vanilla SPF)`. These warnings can be safely ignored since they're warning the user that Java Ranger's capabilities are being turned off because the `veritestingMode` was not setup to use Java Ranger. 
+
 1. cd src/examples/veritesting/wbs/ && ./runWBS-SPF.sh && cd ../../../..
-  - runs Java Ranger in mode 1 (same as running SPF) on the WBS benchmark with the step function run for five steps with each step taking 3 new symbolic inputs. 
+  - runs Java Ranger in mode 1 (same as running SPF) on the WBS benchmark with the step function run for five steps with each step taking 3 new symbolic inputs.
+  - LOG FILE NAME = wbs.5step.mode1.log
 2. cd src/examples/veritesting/wbs/ && ./runWBS-JR.sh && cd ../../../..
   - runs Java Ranger on the WBS benchmark for 10 steps under modes 2, 3, 4, 5. This run should finish within a couple of minutes.
+  - LOG FILE NAME = wbs.10step.mode2.log, wbs.10step.mode3.log, wbs.10step.mode4.log, wbs.10step.mode5.log, 
 3. cd src/examples/veritesting/tcas/ && ./runTCAS-SPF.sh && cd ../../../..
- - runs Java Ranger in mode 1 on the TCAS benchmark with the step function run for two steps with each step taking 12 new symbolic inputs.
+  - runs Java Ranger in mode 1 on the TCAS benchmark with the step function run for two steps with each step taking 12 new symbolic inputs.
+  - LOG FILE NAME = tcas.2step.mode1.log
 4. cd src/examples/veritesting/tcas/ && ./runTCAS-JR.sh && cd ../../../..
- - runs Java Ranger in modes 2, 3, 4, 5 on the TCAS benchmark for 10 steps. This run should finish within a couple of minutes.
+ - runs Java Ranger in modes 2, 3, 4, 5 on the TCAS benchmark for 10 steps. This run should finish within a couple of minutes for modes 5, 4, and 3. However, the run for mode 2 is expected to timeout and is provided for the sake of completion.
+ - LOG FILE NAME = tcas.10step.mode2.log, tcas.10step.mode3.log, tcas.10step.mode4.log, tcas.10step.mode5.log
 5. cd src/examples/veritesting/replace/ && ./runReplace.sh && cd ../../../..
  - runs Java Ranger in modes 1, 2, 3, 4, 5 on the replace benchmark. 
+ - LOG FILE NAME = replace.mode1.log, replace.mode2.log, replace.mode3.log, replace.mode4.log, replace.mode5.log, replace11.mode1.log, replace11.mode2.log, replace11.mode3.log, replace11.mode4.log, replace11.mode5.log
 6. cd src/examples/veritesting/nanoxml/ && ./runNanoXML-SPF.sh && cd ../../../..
  - runs Java Ranger in mode 1 on the NanoXML benchmark
+ - LOG FILE NAME = DumpXML.7sym.mode1.log
 7. cd src/examples/veritesting/nanoxml/ && ./runNanoXML-JR.sh && cd ../../../..
  - runs Java Ranger in modes 2, 3, 4, 5 on the NanoXML benchmark
+  - LOG FILE NAME = DumpXML.7sym.mode2.log, DumpXML.7sym.mode3.log, DumpXML.7sym.mode4.log, DumpXML.7sym.mode5.log
 8. cd src/examples/veritesting/siena/ && ./runSiena-SPF.sh && cd ../../../..
  - runs Java Ranger in mode 1 on the Siena benchmark 
+  - LOG FILE NAME = siena.6.mode1.log
 9. cd src/examples/veritesting/siena/ && ./runSiena-JR.sh && cd ../../../..
  - runs Java Ranger in modes 2, 3, 4, 5 on the Siena benchmark 
+ - LOG FILE NAME = siena.6.mode5.log
 10. cd src/examples/veritesting/schedule2_3/ && ./runSchedule.sh && cd ../../../..
  - runs Java Ranger in modes 1, 2, 3, 4, 5 on the Schedule benchmark 
+ - LOG FILE NAME = schedule.mode1.log, schedule.mode2.log, schedule.mode3.log, schedule.mode4.log, schedule.mode5.log
 11. cd src/examples/veritesting/printtokens2_3/ && ./runPrintTokens-SPF.sh && cd ../../../..
  - runs Java Ranger in mode 1 on the PrintTokens2 benchmark 
+ - LOG FILE NAME = printtokens.5sym.mode1.log
 12. cd src/examples/veritesting/printtokens2_3/ && ./runPrintTokens-JR.sh && cd ../../../..
  - runs Java Ranger in modes 2, 3, 4, 5 on the PrintTokens2 benchmark 
+  - LOG FILE NAME = printtokens.5sym.mode2.log, printtokens.5sym.mode3.log, printtokens.5sym.mode4.log, printtokens.5sym.mode5.log
 13. cd src/examples/veritesting/apachecli/ && ./runApacheCLI-SPF.sh && cd ../../../..
  - runs Java Ranger in mode 1 on the ApacheCLI benchmark. This run consumes "5+1" symbolic inputs. This number of symbolic inputs can be found in the "#sym input" column of Table 2. This run makes the first 5 and last input of ApacheCLI to be symbolic.
+ - LOG FILE NAME = ApacheCLI.5_1sym.mode1.log
  14. cd src/examples/veritesting/apachecli/ && ./runApacheCLI-JR_1.sh && cd ../../../..
   - runs Java Ranger in mode 2, 3, 4, 5, on the ApacheCLI benchmark with the same number of symbolic inputs as mode 1.
+  - LOG FILE NAME = ApacheCLI.5_1sym.mode2.log, ApacheCLI.5_1sym.mode3.log, ApacheCLI.5_1sym.mode4.log, ApacheCLI.5_1sym.mode5.log
 15. cd src/MerArbiter-v2/ && ./runMerarbiter-SPF.sh && cd ../../../..
   - runs Java Ranger in mode 1 on the MerArbiter benchmark.
+  - LOG FILE NAME = merarbiter.6step.mode1.log
 16. cd src/MerArbiter-v2/ && ./runMerarbiter-JR.sh && cd ../../../..
   - runs Java Ranger in modes 2, 3, 4, 5 on the MerArbiter benchmark.
+  - LOG FILE NAME = merarbiter.6step.mode2.log, merarbiter.6step.mode3.log, merarbiter.6step.mode4.log, merarbiter.6step.mode5.log
 
 ## Collect results
 We urge the artifact reviewers to allocate 54 hours of compute time to reproduce results from Tables 2, 4. The below script can be used to collect the current set of results into a CSV format.
