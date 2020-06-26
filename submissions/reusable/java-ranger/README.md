@@ -38,7 +38,7 @@ None of the commands will print anything to stdout/stderr while the command is r
   - runs Java Ranger in mode 1 on the TCAS benchmark with the step function run for two steps with each step taking 12 new symbolic inputs.
   - LOG FILE NAME = tcas.2step.mode1.log
 4. cd src/examples/veritesting/tcas/ && ./runTCAS-JR.sh && cd ../../../..
- - runs Java Ranger in modes 2, 3, 4, 5 on the TCAS benchmark for 10 steps. This run should finish within a couple of minutes.
+ - runs Java Ranger in modes 2, 3, 4, 5 on the TCAS benchmark for 10 steps. This run should finish within a couple of minutes for modes 5, 4, and 3. However, the run for mode 2 is expected to timeout and is provided for the sake of completion.
  - LOG FILE NAME = tcas.10step.mode2.log, tcas.10step.mode3.log, tcas.10step.mode4.log, tcas.10step.mode5.log
 5. cd src/examples/veritesting/replace/ && ./runReplace.sh && cd ../../../..
  - runs Java Ranger in modes 1, 2, 3, 4, 5 on the replace benchmark. 
