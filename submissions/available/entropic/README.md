@@ -1,10 +1,6 @@
 # Entropic
 <a href="https://mboehme.github.io/paper/FSE20.Entropy.pdf"><img src="Entropic.png" align="right" width="300"></a>
 
-@TODO:
-- copy this folder into the others
-
-
 Entropic is an information-theoretic power schedule implemented into
 LibFuzzer. It boosts performance by changing how weights are assigned to the
 seeds in the corpus. Seeds revealing more ‘‘information’’ about globally rare
