@@ -2,9 +2,7 @@
 
 This README file describes how to obtain Alhazen. 
 
-You can download the archive with our results at https://storage.cloud.google.com/fse2020-alhazen/replication
-
-You can download the archive with our code at https://storage.googleapis.com/fse2020-alhazen/artifacts.tar.gz.
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3902142.svg)](https://doi.org/10.5281/zenodo.3902142)
 
 ## Reproducing results
 

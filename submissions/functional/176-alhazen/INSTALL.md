@@ -2,7 +2,7 @@
 
 ## Alhazen Requirements
 
-We are using the follwoing dependencies:
+We are using the following dependencies:
 
 For the kotlin parts:
 
