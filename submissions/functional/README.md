@@ -328,39 +328,43 @@ Before re-running the experiments, you should remove the generated `klee-*` dire
 
 # Reusablity
 
-## Running a different benchmark
+## Compiling a new benchmark
 
-Compile the benchmark to LLVM 3.8 bitcode. The `$(BC_TARGET)` target in our benchmark Makefiles (for example in `/klee-dsa-benchmarks/libtiff/Makefile`) show how we peromed this step for our benchmarks.
+Compile the benchmark to LLVM 3.8 bitcode.
+To see how we performed this step for our benchmarks,
+you can look for example in the `$(BC_TARGET)` target in the following file:
+- `/klee-dsa-benchmarks/libosip/Makefile`
 
-### Running chopper
+### Chopped Symbolic Execution
 
-The `klee` executable with Chopper as PSPA client analysis is located at `/src/client-chopper-build/bin/klee`. The minimal command to run chopper is 
-
+The `klee` executable with Chopper as PSPA client analysis is located at `/src/client-chopper-build/bin/klee`.
+The basic command is:
 ```
-/src/client-chopper-build/bin/klee --use-modular-pta -use-pta-mode=${mode} -skip-functions=${skip_functions} -pta-entry-point=${entry} new_benchmark.bc
+/src/client-chopper-build/bin/klee --use-modular-pta -use-pta-mode=${mode} -skip-functions=${skip_functions} <bitcode_file>
 ```
+where `$mode` is either `static` (static pointer analysis) or `symbolic` (past-sensitive pointer analysis),
+and `$skip_functions` are the functions you want to skip.
+For more details, see for example `/klee-dsa-benchmarks/libosip/run_coverage.sh` (which is used for the coverage experiments).
 
-Where `$mode` is either `static` (baseline chopper) or `symbolic` (pspa chopper). `$skip_functions` are the functions you want to skip and `$entry` is the entry point for the analysis. See `/klee-dsa-benchmarks/run_modref_experiment.sh` for details on how we ran chopper.
+### WIT
 
-### Running WIT
-
-The `klee` executable for WIT client analysis is located at `/src/client-wit-build/bin/klee`. The minimal command to run WIT is 
-
+The `klee` executable for WIT client analysis is located at `/src/client-wit-build/bin/klee`.
+The basic command is:
 ```
-/src/client-wit-build/bin/klee  -use-pta-mode=${mode} --create-unique-as=1 -use-strong-updates=0 -pta-target=$run new_benchmark.bc
+/src/client-wit-build/bin/klee  -use-pta-mode=${mode} --create-unique-as=1 -use-strong-updates=0 -pta-target=${target} <bitcode_file>
 ```
+where `$mode` is the pointer analysis mode (as before),
+and `${target}` denotes the function from which you want to start the analysis.
+For more details, see for example `/klee-dsa-benchmarks/libosip/run_wit.sh`.
 
-Where `$mode` has the same meaning as before and `$run` denotes the function from which you want to start the analysis. See the `run_wit.sh`(ie.  n `/klee-dsa-benchmarks/libtiff/run_wit.sh`) scripts for further details.
+### Symbolic Pointer Resolution
 
-### Running Resolution
-
-The `klee` executable for resolution client analysis is located at `/src/client-resolution-build/bin/klee`. The minimal command to run resolution is 
-
+The `klee` executable for resolution client analysis is located at `/src/client-resolution-build/bin/klee`.
+The basic command is:
 ```
-/src/client-resolution-build/bin/klee  -use-pta-mode=${mode} --use-sa-resolve=1 new_benchmark.bc
+/src/client-resolution-build/bin/klee  -use-pta-mode=${mode} --use-sa-resolve=1 <bitcode_file>
 ```
-
-See `/klee-dsa-benchmarks/resolution/m4/run.sh` for further details.
+For more details, see for example `/klee-dsa-benchmarks/resolution/m4/run.sh`.
 
 ## Short guide to changes in KLEE
 
