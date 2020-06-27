@@ -376,12 +376,23 @@ The interesting class to look at is `AndersenDynamic`:
 - `/data/dependencies/SVF-dynamic/lib/WPA/AndersenDynamic.cpp`
 - `/data/dependencies/SVF-dynamic/include/WPA/AndersenDynamic.h`
 
+This class enables running the pointer analysis algorithm locally on a given function from an arbitrary initial abstract state,
+as opposed to whole program analysis.
+
 ### KLEE
 The base implementation of PSPA is located in `/src/pspa-master`
 
-The interesting files to look at are
+The interesting files to look at:
+### lib/Core/AbstractMO.cpp
+Implements the abstraction function for a singla symbolic memory location.
+In the context of static analysis, this function is called the _embedding_ function.
 
-* `lib/Analysis/SymbolicPTA.cpp` where a large part of the abstraction function is implemented.
-* `lib/Analysis/Executor.cpp` with `Executor::updatePointsToOnCall`, `Executor::analyzeTargetFunction`, `Executor::updatePointsToOnCallSymbolic`, which is the entry point for the abstraction function.
+### lib/Analysis/SymbolicPTA.cpp
+Implements the abstraction of a symbolic state, that is, builds the abstract points-to graph.
 
-The client analyses are in `/src/client-{chopper,resolution,wit}`, which is just `/src/pspa-master` with respective client built on top. If you make any changes to, running `make` in the corresponding ´-build´ (`/src/client-{chopper,resolution,wit}-build`) directory will enable you to rerun our experiments.
+### lib/Analysis/Executor.cpp
+The `Executor::updatePointsToOnCallSymbolic` function computes the abstraction of the current symbolic state (located at the entry of some function).
+The `Executor::analyzeTargetFunction` function computes the abstraction, runs the pointer analysis, and then inspects the results.
+
+The client analyses are in `/src/client-{chopper,resolution,wit}`, which are just `/src/pspa-master` with respective client built on top.
+If you make any changes, running `make` in the corresponding ´-build´ directory (`/src/client-{chopper,resolution,wit}-build`) will enable you to re-run our experiments.
