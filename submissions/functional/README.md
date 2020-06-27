@@ -332,8 +332,10 @@ Before re-running the experiments, you should remove the generated `klee-*` dire
 
 Compile the benchmark to LLVM 3.8 bitcode.
 To see how we performed this step for our benchmarks,
-you can look for example in the `$(BC_TARGET)` target in the following file:
+you can look for example at the `$(BC_TARGET)` target in the following file:
 - `/klee-dsa-benchmarks/libosip/Makefile`
+
+## Client Applications
 
 ### Chopped Symbolic Execution
 
