@@ -350,7 +350,7 @@ For more details, see for example `/klee-dsa-benchmarks/libosip/run_coverage.sh`
 
 ### WIT
 
-The `klee` executable for WIT client analysis is located at `/src/client-wit-build/bin/klee`.
+The `klee` executable for the WIT client analysis is located at `/src/client-wit-build/bin/klee`.
 The basic command is:
 ```
 /src/client-wit-build/bin/klee  -use-pta-mode=${mode} --create-unique-as=1 -use-strong-updates=0 -pta-target=${target} <bitcode_file>
@@ -361,7 +361,7 @@ For more details, see for example `/klee-dsa-benchmarks/libosip/run_wit.sh`.
 
 ### Symbolic Pointer Resolution
 
-The `klee` executable for resolution client analysis is located at `/src/client-resolution-build/bin/klee`.
+The `klee` executable for the symbolic pointer resolution client analysis is located at `/src/client-resolution-build/bin/klee`.
 The basic command is:
 ```
 /src/client-resolution-build/bin/klee  -use-pta-mode=${mode} --use-sa-resolve=1 <bitcode_file>
