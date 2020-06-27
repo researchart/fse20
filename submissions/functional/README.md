@@ -339,7 +339,7 @@ you can look for example at the `$(BC_TARGET)` target in the following file:
 
 ### Chopped Symbolic Execution
 
-The `klee` executable with Chopper as PSPA client analysis is located at `/src/client-chopper-build/bin/klee`.
+The `klee` executable for Chopper (with support for past-sensitive pointer analysis) is located at `/src/client-chopper-build/bin/klee`.
 The basic command is:
 ```
 /src/client-chopper-build/bin/klee --use-modular-pta -use-pta-mode=${mode} -skip-functions=${skip_functions} <bitcode_file>
@@ -368,8 +368,15 @@ The basic command is:
 ```
 For more details, see for example `/klee-dsa-benchmarks/resolution/m4/run.sh`.
 
-## Short guide to changes in KLEE
+## Short guide to changes in SVF and KLEE
 
+### SVF
+Our extension of SVF is located at `/data/dependencies/SVF-dynamic`.
+The interesting class to look at is `AndersenDynamic`:
+- `/data/dependencies/SVF-dynamic/lib/WPA/AndersenDynamic.cpp`
+- `/data/dependencies/SVF-dynamic/include/WPA/AndersenDynamic.h`
+
+### KLEE
 The base implementation of PSPA is located in `/src/pspa-master`
 
 The interesting files to look at are
