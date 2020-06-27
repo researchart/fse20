@@ -390,8 +390,12 @@ In the context of static analysis, this function is often called the _embedding_
 Implements the abstraction of a symbolic state, that is, builds the abstract points-to graph.
 
 ### lib/Analysis/Executor.cpp
-The `Executor::updatePointsToOnCallSymbolic` function computes the abstraction of the current symbolic state (located at the entry of some function).
-The `Executor::analyzeTargetFunction` function computes the abstraction of the current symbolic state, runs the pointer analysis on the target function, and then inspects the results.
+`Executor::updatePointsToOnCallSymbolic`:
+- computes the abstraction of the current symbolic state (located at the entry of some function)
+`Executor::analyzeTargetFunction`:
+- computes the abstraction of the current symbolic state
+- runs the pointer analysis on the target function
+- inspects the results
 
 The client analyses are in `/src/client-{chopper,resolution,wit}`, which are derived from `/src/pspa-master` with the respective client built on top.
 If you make any changes, running `make` in the corresponding ´-build´ directory (`/src/client-{chopper,resolution,wit}-build`) will enable you to re-run our experiments.
