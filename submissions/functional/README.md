@@ -325,3 +325,50 @@ FLAGS+="-max-time=60 "
 ```
 __Note:__
 Before re-running the experiments, you should remove the generated `klee-*` directories in the `/output` directory. The most easy way to do that is loading the original image.
+
+# Reusablity
+
+## Running a different benchmark
+
+Compile the benchmark to LLVM 3.8 bitcode. The `$(BC_TARGET)` target in our benchmark Makefiles (for example in `/klee-dsa-benchmarks/libtiff/Makefile`) show how we peromed this step for our benchmarks.
+
+### Running chopper
+
+The `klee` executable with Chopper as PSPA client analysis is located at `/src/client-chopper-build/bin/klee`. The minimal command to run chopper is 
+
+```
+/src/client-chopper-build/bin/klee --use-modular-pta -use-pta-mode=${mode} -skip-functions=${skip_functions} -pta-entry-point=${entry} new_benchmark.bc
+```
+
+Where `$mode` is either `static` (baseline chopper) or `symbolic` (pspa chopper). `$skip_functions` are the functions you want to skip and `$entry` is the entry point for the analysis. See `/klee-dsa-benchmarks/run_modref_experiment.sh` for details on how we ran chopper.
+
+### Running WIT
+
+The `klee` executable for WIT client analysis is located at `/src/client-wit-build/bin/klee`. The minimal command to run WIT is 
+
+```
+/src/client-wit-build/bin/klee  -use-pta-mode=${mode} --create-unique-as=1 -use-strong-updates=0 -pta-target=$run new_benchmark.bc
+```
+
+Where `$mode` has the same meaning as before and `$run` denotes the function from which you want to start the analysis. See the `run_wit.sh`(ie.  n `/klee-dsa-benchmarks/libtiff/run_wit.sh`) scripts for further details.
+
+### Running Resolution
+
+The `klee` executable for resolution client analysis is located at `/src/client-resolution-build/bin/klee`. The minimal command to run resolution is 
+
+```
+/src/client-resolution-build/bin/klee  -use-pta-mode=${mode} --use-sa-resolve=1 new_benchmark.bc
+```
+
+See `/klee-dsa-benchmarks/resolution/m4/run.sh` for further details.
+
+## Short guide to changes in KLEE
+
+The base implementation of PSPA is located in `/src/pspa-master`
+
+The interesting files to look at are
+
+* `lib/Analysis/SymbolicPTA.cpp` where a large part of the abstraction function is implemented.
+* `lib/Analysis/Executor.cpp` with `Executor::updatePointsToOnCall`, `Executor::analyzeTargetFunction`, `Executor::updatePointsToOnCallSymbolic`, which is the entry point for the abstraction function.
+
+The client analyses are in `/src/client-{chopper,resolution,wit}`, which is just `/src/pspa-master` with respective client built on top. If you make any changes to, running `make` in the corresponding ´-build´ (`/src/client-{chopper,resolution,wit}-build`) directory will enable you to rerun our experiments.
