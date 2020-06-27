@@ -373,8 +373,8 @@ For more details, see for example `/klee-dsa-benchmarks/resolution/m4/run.sh`.
 ### SVF
 Our extension of SVF is located at `/data/dependencies/SVF-dynamic`.
 The interesting class to look at is `AndersenDynamic` which is implemented in these files:
-- `/data/dependencies/SVF-dynamic/lib/WPA/AndersenDynamic.cpp`
-- `/data/dependencies/SVF-dynamic/include/WPA/AndersenDynamic.h`
+- `lib/WPA/AndersenDynamic.cpp`
+- `include/WPA/AndersenDynamic.h`
 
 This class enables running the pointer analysis algorithm locally on a given function from an arbitrary initial abstract state,
 as opposed to whole program analysis.
