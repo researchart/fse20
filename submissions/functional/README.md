@@ -372,7 +372,7 @@ For more details, see for example `/klee-dsa-benchmarks/resolution/m4/run.sh`.
 
 ### SVF
 Our extension of SVF is located at `/data/dependencies/SVF-dynamic`.
-The interesting class to look at is `AndersenDynamic`:
+The interesting class to look at is `AndersenDynamic` which is implemented in these files:
 - `/data/dependencies/SVF-dynamic/lib/WPA/AndersenDynamic.cpp`
 - `/data/dependencies/SVF-dynamic/include/WPA/AndersenDynamic.h`
 
@@ -380,12 +380,11 @@ This class enables running the pointer analysis algorithm locally on a given fun
 as opposed to whole program analysis.
 
 ### KLEE
-The base implementation of PSPA is located in `/src/pspa-master`
-
+The base implementation of PSPA is located in `/src/pspa-master`.
 The interesting files to look at:
 ### lib/Core/AbstractMO.cpp
-Implements the abstraction function for a singla symbolic memory location.
-In the context of static analysis, this function is called the _embedding_ function.
+Implements the abstraction function for a single symbolic memory location.
+In the context of static analysis, this function is often called the _embedding_ function.
 
 ### lib/Analysis/SymbolicPTA.cpp
 Implements the abstraction of a symbolic state, that is, builds the abstract points-to graph.
