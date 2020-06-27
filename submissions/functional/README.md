@@ -392,6 +392,7 @@ Implements the abstraction of a symbolic state, that is, builds the abstract poi
 ### lib/Analysis/Executor.cpp
 `Executor::updatePointsToOnCallSymbolic`:
 - computes the abstraction of the current symbolic state (located at the entry of some function)
+
 `Executor::analyzeTargetFunction`:
 - computes the abstraction of the current symbolic state
 - runs the pointer analysis on the target function
