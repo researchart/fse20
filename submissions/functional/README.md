@@ -381,7 +381,7 @@ as opposed to whole program analysis.
 
 ### KLEE
 The base implementation of PSPA is located in `/src/pspa-master`.
-The interesting files to look at:
+Some interesting files to look at:
 ### lib/Core/AbstractMO.cpp
 Implements the abstraction function for a single symbolic memory location.
 In the context of static analysis, this function is often called the _embedding_ function.
