@@ -325,3 +325,78 @@ FLAGS+="-max-time=60 "
 ```
 __Note:__
 Before re-running the experiments, you should remove the generated `klee-*` directories in the `/output` directory. The most easy way to do that is loading the original image.
+
+# Reusablity
+
+## Compiling a new benchmark
+
+Compile the benchmark to LLVM 3.8 bitcode.
+To see how we performed this step for our benchmarks,
+you can look for example at the `$(BC_TARGET)` target in the following file:
+- `/klee-dsa-benchmarks/libosip/Makefile`
+
+## Client Applications
+
+### Chopped Symbolic Execution
+
+The `klee` executable for Chopper (with support for past-sensitive pointer analysis) is located at `/src/client-chopper-build/bin/klee`.
+The basic command is:
+```
+/src/client-chopper-build/bin/klee --use-modular-pta -use-pta-mode=${mode} -skip-functions=${skip_functions} <bitcode_file>
+```
+where `$mode` is either `static` (static pointer analysis) or `symbolic` (past-sensitive pointer analysis),
+and `$skip_functions` are the functions you want to skip.
+For more details, see for example `/klee-dsa-benchmarks/libosip/run_coverage.sh` (which is used for the coverage experiments).
+
+### WIT
+
+The `klee` executable for the WIT client analysis is located at `/src/client-wit-build/bin/klee`.
+The basic command is:
+```
+/src/client-wit-build/bin/klee  -use-pta-mode=${mode} --create-unique-as=1 -use-strong-updates=0 -pta-target=${target} <bitcode_file>
+```
+where `$mode` is the pointer analysis mode (as before),
+and `${target}` denotes the function from which you want to start the analysis.
+For more details, see for example `/klee-dsa-benchmarks/libosip/run_wit.sh`.
+
+### Symbolic Pointer Resolution
+
+The `klee` executable for the symbolic pointer resolution client analysis is located at `/src/client-resolution-build/bin/klee`.
+The basic command is:
+```
+/src/client-resolution-build/bin/klee  -use-pta-mode=${mode} --use-sa-resolve=1 <bitcode_file>
+```
+For more details, see for example `/klee-dsa-benchmarks/resolution/m4/run.sh`.
+
+## Short guide to changes in SVF and KLEE
+
+### SVF
+Our extension of SVF is located at `/data/dependencies/SVF-dynamic`.
+The interesting class to look at is `AndersenDynamic` which is implemented in these files:
+- `lib/WPA/AndersenDynamic.cpp`
+- `include/WPA/AndersenDynamic.h`
+
+This class enables running the pointer analysis algorithm locally on a given function from an arbitrary initial abstract state,
+as opposed to whole program analysis.
+
+### KLEE
+The base implementation of PSPA is located in `/src/pspa-master`.
+Some interesting files to look at:
+### lib/Core/AbstractMO.cpp
+Implements the abstraction function for a single symbolic memory location.
+In the context of static analysis, this function is often called the _embedding_ function.
+
+### lib/Analysis/SymbolicPTA.cpp
+Implements the abstraction of a symbolic state, that is, builds the abstract points-to graph.
+
+### lib/Analysis/Executor.cpp
+`Executor::updatePointsToOnCallSymbolic`:
+- computes the abstraction of the current symbolic state (located at the entry of some function)
+
+`Executor::analyzeTargetFunction`:
+- computes the abstraction of the current symbolic state
+- runs the pointer analysis on the target function
+- inspects the results
+
+The client analyses are in `/src/client-{chopper,resolution,wit}`, which are derived from `/src/pspa-master` with the respective client built on top.
+If you make any changes, running `make` in the corresponding ´-build´ directory (`/src/client-{chopper,resolution,wit}-build`) will enable you to re-run our experiments.
