@@ -6,30 +6,23 @@ This tool is developed in Python on top of the DEAP evolutionary computation fra
 
 ## Dependencies ##
 
-### Check Ubuntu Version ###
-Typing in the terminal:
+### Configure Ubuntu ###
+Pull an Ubuntu Docker image, run and configure it by typing in the terminal:
 
 ``` 
-$ lsb_release -a 
+docker pull ubuntu:bionic
+docker run -it --rm ubuntu:bionic
+apt update && apt-get update
+apt-get install -y software-properties-common
 ```
 
-You should have a message similar to the following:
-
-``` 
-Distributor ID: Ubuntu
-Description:    Ubuntu 18.04.4 LTS
-Release:        18.04
-Codename:       bionic
-```
-
-Otherwise check that the correct Ubuntu version is installed (18.04).
 
 ### Installing Python 3.6 ###
 Install Python 3.6
 ``` 
-$ sudo add-apt-repository ppa:deadsnakes/ppa
-$ sudo apt update
-$ sudo apt install python3.6
+add-apt-repository ppa:deadsnakes/ppa
+apt update
+apt install -y python3.6
 ```
 
 And check if it is correctly installed, by typing the following command:
@@ -51,20 +44,20 @@ Exit from python.
 ### Installing pip ###
 Use the following commands to install pip and upgrade it to the latest version:
 ``` 
-$ sudo apt install python3-pip
-$ sudo -H pip3 install --upgrade pip
+apt install -y python3-pip
+python3 -m pip install --upgrade pip
 ```
 
 Once the installation is complete, verify the installation by checking the pip version:
 
 ``` 
-$ python3 -m pip --version
+python3 -m pip --version
 ```
 
 ### Installing git ###
 Use the following command to install git
 ``` 
-$ sudo apt install git
+apt install -y git
 ```
 
 To check the correct installation of git, insert the command git in the terminal. If git is correctly installed, the usage information will be shown.
@@ -75,23 +68,23 @@ Instructions provided by https://github.com/flupke/pypotrace.
 Install system dependencies in your environment (it is not needed to install them in the DeepJanus-MNIST folder):
 
 ``` 
-$ sudo apt-get install build-essential python-dev libagg-dev libpotrace-dev pkg-config 
+apt-get install build-essential python-dev libagg-dev libpotrace-dev pkg-config 
 ```
 
 Install pypotrace:
 
 ```
-$ git clone https://github.com/flupke/pypotrace.git
-$ cd pypotrace
-$ pip3 install numpy
-$ pip3 install .
-$ cd ..
+git clone https://github.com/flupke/pypotrace.git
+cd pypotrace
+pip3 install numpy
+pip3 install .
+cd ..
 ```
 
 If the following does not crash, pypotrace is correctly installed:
 
 ``` 
-$ python3
+python3
 >>> import potrace
 >>>
 ```
@@ -101,19 +94,12 @@ Instructions provided by https://pygobject.readthedocs.io/en/latest/getting_star
 
 Open a terminal and execute 
 
-```sudo apt-get install python3-gi python3-gi-cairo gir1.2-gtk-3.0```
+```apt-get install python3-gi python3-gi-cairo gir1.2-gtk-3.0```
 
 And
 
-```sudo apt-get install libgirepository1.0-dev gcc libcairo2-dev pkg-config python3-dev gir1.2-gtk-3.0 librsvg2-dev```
+```apt-get install libgirepository1.0-dev gcc libcairo2-dev pkg-config python3-dev gir1.2-gtk-3.0 librsvg2-dev```
 
-To install Pycairo, execute:
-
-```pip3 install pycairo==1.11.1```
-
-To install PyGObject, execute:
-
-```pip3 install PyGObject==3.30.4```
 
 Verify that cairo has been correctly installed:
 
