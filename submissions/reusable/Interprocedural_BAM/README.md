@@ -9,7 +9,7 @@ This replication package provides the necessary data and tools to evaluate our a
 Interprocedural BAM to analyze recursive procedures that is described in the article
 "Domain-Independent Interprocedural Program Analysis using Block-Abstraction Memoization",
 In Proc. ESEC/FSE 2020, to appear.
-The replication package can be downloaded from Zenodo: https://doi.org/10.5281/zenodo.3878426
+The replication package can be downloaded from Zenodo: https://doi.org/10.5281/zenodo.3921790
 It contains a detailed description how to proceed with the replication,
 including the benchmarking process and steps to reproduce the tables in the paper.
 
@@ -35,5 +35,3 @@ The interprocedural BAM-based analysis is implemented in the open-source
 verification framework CPAchecker. The evaluation shows that the overhead for
 modularity and domainindependence is not prohibitively large and the analysis
 is still competitive with other state-of-the-art software verification tools.
-
-

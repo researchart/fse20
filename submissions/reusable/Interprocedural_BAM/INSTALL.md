@@ -12,7 +12,7 @@ We recommend the following system:
 
 # Artifact Installation
 
-Download the replication package from Zenodo: https://doi.org/10.5281/zenodo.3878426
+Download the replication package from Zenodo: https://doi.org/10.5281/zenodo.3921790
 Unzip the archive and change the working directory to the unzipped directory.
 
 Please take a look at the README.md in the archive for replicating the experiment and reproducing the results.
