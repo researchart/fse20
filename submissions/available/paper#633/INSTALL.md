@@ -8,7 +8,17 @@ The sources have the following dependencies:
    Please follow the instructions on the MinGW  website to install and setup both tools. Once setup properly, you should be able to run
    the GNU build tool chain from the MSYS shell.
 
-3. CMake
+   You should use MinGW Installation Manager and
+   the compilation needs several basic packages (The brackets contain a version number that the actual experimental environment can run):
+
+*  mingw-developer-toolkitbin (2013072300)
+*  mingw32-base-bin (2013072300)
+*  mingw32-gcc-g++-bin (8.2.0-5)
+*  msys-base-bin (2013072300)
+
+   Note: For different Windows operating system versions, some linking problems may occur during the compilation process. In this case, you need to use MinGW Installation Manager to supplement the required MinGW package environment based on the actual error message.
+
+3. CMake (the actual experimental environment uses version 3.16.2)
 
 4. Python 3.7 (If use the experiment script).
     Also, modules xlsxwriter, psutil are needed.
@@ -25,18 +35,19 @@ use same compiler (MinGW).
 into the Boogie\Binaries\ folder.
 
 2) Decision tree in ICE-DT: Go to the C50 directory and build the sources from MSYS shell using the commands
-
-   make clean; make all
-
+```
+   make clean; 
+   make all;
+```
    After a successful compilation, copy the files c5.0.dt_penalty and c5.0.dt_entropy into the folder Boogie\Binaries\.
 
 3) Interval decision tree (IDT4Inv directory, also use MSYS shell):
-
+```
     mkdir build;
     cd build;
     cmake -G "Unix Makefiles" ../;
     make;
-
+```
 Run Experiment
 ---
 Please use the script:
