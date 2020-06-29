@@ -1,10 +1,28 @@
 # Installation
 
-The artifact has two different executable parts. 1) the data analysis code and 2) the experiment application used to collect the data.
+The artifact has two different executable parts. 1) the data analysis code and 2) the experiment application used to collect the data. The data analysis code can be used to analyze the accompanying data and review the data analysis procedure, while the experiment application can enable anyone who is willing to use our software to run the same or a similar experiment for replication.
 
 ## Data Analysis
 
-Go to folder `data` and find the `analysis.R` file. Open the file in RStudio, adjust the working directory path, and execute it. It will produce all the results used in the paper but for the ones excluded from the de-indentified data for ethical reasons.
+Go to folder `data` and find the `analysis.R` file. Open the file in RStudio, adjust the working directory path, and execute it. It will produce all the results used in the paper but for the ones excluded from the de-indentified data for ethical reasons. The output of all the different statistics will be produced by running the script step by step. 
+
+Alternatively, you can use `R -f analysis.R` (provided you have R installed) to run the file from the command
+line, or you can use the docker version in `data/docker-version`. There, just
+execute the build file by using `./build.sh` in the folder (make sure docker is installed and
+running). This can take a while as it installs (~10-15 minutes) and compiles a number of
+libraries. You can then use `./run.sh` to run the docker container, which will
+output the results on standard output. Graphs that are generated while it is
+running will be saved to the same folder. You can delete those by running
+`./cleanup.sh`.
+
+*The Docker version was built to specifically load the library versions that
+were used for analysis and should be the most 'future proof' variant*
+
+The initial analysis was last run with R version 3.6.3 and Rstudio 1.2.5033.
+
+If nothing else works, there is a ready-made `output.txt` file, which includes
+all the outputs from the R script running, as well as the graphs in the
+`data/graphs` folder.
 
 ## Application
 

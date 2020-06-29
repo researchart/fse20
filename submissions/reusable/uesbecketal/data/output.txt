@@ -1,0 +1,2756 @@
+> install.packages("devtools", repos='http://cran.us.r-project.org')
+> 
+> library(devtools)
+> 
+> # Specific versions of packages for compatability, please primarily rely on standard install, but use if run fails
+> #install_version("tidyverse", version = "1.3.0", repos = "http://cran.us.r-project.org", upgrade = TRUE)
+> #install_version("car", version = "3.0-8", repos = "http://cran.us.r-project.org", upgrade = TRUE)
+> #install_version("compute.es", version = "0.2-5", repos = "http://cran.us.r-project.org", upgrade = TRUE)
+> #install_version("multcomp", version = "1.4-13", repos = "http://cran.us.r-project.org", upgrade = TRUE)
+> #install_version("pastecs", version = "1.3.21", repos = "http://cran.us.r-project.org", upgrade = TRUE)
+> #install_version("WRS2", version = "1.0-0", repos = "http://cran.us.r-project.org", upgrade = TRUE)
+> #install_version("psych", version = "1.9.12.31", repos = "http://cran.us.r-project.org", upgrade = TRUE)
+> #install_version("gmodels", version = "2.18.1", repos = "http://cran.us.r-project.org", upgrade = TRUE)
+> 
+> install.packages(c("tidyverse", "car", "compute.es", "multcomp", "pastecs", "WRS2", "psych", "gmodels"), repos='http://cran.us.r-project.org')
+
+Die heruntergeladenen Binärpakete sind in 
+	/var/folders/0y/dvl5vbps1tgdpp82bz6httrh3sqfcq/T//RtmpQmnGFE/downloaded_packages
+> 
+> library(car)
+> library(compute.es)
+> library(multcomp)
+> library(pastecs)
+> library(WRS2)
+> library(tidyverse)
+> library(ez)
+> library(psych)
+> library(gmodels)
+> 
+> #Set this to the appropriate path to read the csv file
+> setwd("~/Repositories/fse20/submissions/reusable/uesbecketal/data/")
+> d <- read.csv("summary_deindentified.csv")
+> 
+> # Number of entries
+> nrow(d)
+[1] 779
+> 
+> # Count of unique participants
+> d %>% summarize(count=n_distinct(id))
+  count
+1   149
+> 
+> str(d)
+'data.frame':	779 obs. of  11 variables:
+ $ id         : Factor w/ 149 levels "5c75b3df83786",..: 1 1 1 1 1 1 2 2 2 2 ...
+ $ year       : Factor w/ 7 levels "Freshman","Graduate",..: 4 4 4 4 4 4 5 5 5 5 ...
+ $ lang       : int  1 1 1 1 1 1 1 1 1 1 ...
+ $ task       : int  0 1 2 3 4 5 0 1 2 3 ...
+ $ Time       : int  708 1007 1110 276 225 260 236 701 186 205 ...
+ $ totalxp    : int  4 4 4 4 4 4 9 9 9 9 ...
+ $ jobxp      : int  0 0 0 0 0 0 8 8 8 8 ...
+ $ dbclass    : Factor w/ 3 levels "0","Complete",..: 2 2 2 2 2 2 3 3 3 3 ...
+ $ sqlxp      : int  1 1 1 1 1 1 6 6 6 6 ...
+ $ englishmain: int  1 1 1 1 1 1 1 1 1 1 ...
+ $ fluency    : int  -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 ...
+> 
+> names(d) <- tolower(names(d))
+> 
+> 
+> d <- d %>% replace_na(list(year = "Professional"))
+> d$year <- factor(d$year, levels=c("Freshman", "Sophomore", "Junior", "Senior", "Graduate", "Not Applicable", "Professional"), 
++                  labels=c("Freshman", "Sophomore", "Junior", "Senior", "Graduate", "Not Applicable", "Professional"))
+> 
+> # 2 graduates in this experiment,
+> # they didn't really try (confirmed by manual review)
+> d <- d %>% filter(year != "Graduate")
+> 
+> # # # # # # # # # # # # # # # # # # # #
+> # Replacing non-americans that selected 
+> # Not Applicable with professional (didn't recruit non-american students)
+> d <- d %>% mutate(year = replace(year, year == "Not Applicable", "Professional"))
+> 
+> d %>% group_by(year) %>%
++   summarize(count=n_distinct(id))
+# A tibble: 5 x 2
+  year         count
+  <fct>        <int>
+1 Freshman        15
+2 Sophomore       35
+3 Junior          49
+4 Senior          39
+5 Professional     9
+> 
+> d$lang <- factor(d$lang, levels=c("1", "2", "3"),
++                  labels=c("hybrid", "string-based", "object"))
+> 
+> # new features
+> d$notenglish <- as.numeric(!d$englishmain)
+> d$maxtime <- as.numeric(d$time >= 2700)
+> d$notmaxtime <- as.numeric(!d$maxtime)
+> d$dbexp <- as.numeric(d$dbclass == "Complete" | d$sqlxp > 0)
+> 
+> d %>% group_by(lang) %>%
++   summarize(count = n_distinct(id))
+# A tibble: 3 x 2
+  lang         count
+  <fct>        <int>
+1 hybrid          52
+2 string-based    46
+3 object          49
+> 
+> # Inspect id + task combinations
+> ezDesign(d, x=id, y=task)
+> 
+> # Get list of participants missing tasks
+> incomplete.ids <- d %>% group_by(id) %>% 
++   summarize(sumtasknum = sum(task)) %>%
++   filter(sumtasknum < 15) %>% 
++   select(id) %>%
++   pull(id)
+> 
+> # Id's not having completed all tasks
+> incomplete.ids
+ [1] 5c76e66818d7e 5c7adedc43403 5c7ed6c28c85c 5c816968e4a8d 5c8d78ff3963d
+ [6] 5c91b74420925 5c92e3712bc24 5c9bf66bda683 5c9e574b8c1a4 5ca18ea680a85
+[11] 5cb0fbe06e01f 5cb4e505db347 5cb939606490d 5cba22694faa4 5cba2d2fe8f20
+[16] 5cc08de0863d2 5cc12e138769d 5cc22b92c2b0a 5cc4ef0e37563 5cc50101647e7
+[21] 5cc6222c4aaf7 5cc9f9cac71c9 5cca0109ec3fa 5cca65be15788 5cca870b1536e
+[26] 5ccb6bb403832 5ccc94581847e 5cce50a9122ff 5cce613ee6183 5cce651623503
+[31] 5cd34b418d088 5cdc6ffa48976 5cdcbed4b80e5
+149 Levels: 5c75b3df83786 5c767c7678499 5c76e66818d7e ... 5cdcbed4b80e5
+> 
+> # Number of id's to remove
+> length(incomplete.ids)
+[1] 33
+> 
+> d <- d %>%
++   filter (!(id %in% incomplete.ids))
+> 
+> # Number of entries
+> nrow(d)
+[1] 684
+> 
+> # Recheck count of unique participants
+> d %>% summarize(count=n_distinct(id))
+  count
+1   114
+> 
+> ezDesign(d, id, task)
+> 
+> 
+> 
+> # # # # # # # # # # # # # # # # # # # # # 
+> # Check for extremely long times that only
+> # occure when someone isn't moving on
+> toolongids.ids <- d %>% 
++   filter(time > 3000) %>% 
++   select(id) %>%
++   pull(id)
+> 
+> d.toolong <- d %>% filter(id %in% toolongids.ids)
+> > toolongids.ids
+[1] 5c9ad1f80293a 5cafb079ce414 5cafb079ce414 5cb7ccd84898c 5cbcb5b7450c9
+[6] 5cd8bee9dbb27
+149 Levels: 5c75b3df83786 5c767c7678499 5c76e66818d7e ... 5cdcbed4b80e5
+> 
+> # filter these ID's out. After review by hand
+> # they weren't even trying
+> d <- d %>%
++   filter (!(id %in% toolongids.ids))
+> 
+> nrow(d)
+[1] 654
+> 
+> # Recheck count of unique participants
+> d %>% summarize(count=n_distinct(id))
+  count
+1   109
+> 
+> 
+> 
+> # # # # # # # # # # # # # # # # # # # #
+> # Check out ids with ceiling times to 
+> # see if they tried.
+> long.ids <- d %>% 
++   filter(time > 2699) %>% 
++   select(id) %>%
++   pull(id)
+> 
+> d.long <- d %>% filter(id %in% long.ids)
+> 
+> ggplot(d.long, aes(x=time)) + geom_histogram()
+> 
+> # replace slight differences with max time
+> d <- d %>% mutate(time = replace(time, time > 2700, 2700))
+> 
+> 
+> d <- d %>% mutate(fluency = replace(fluency, fluency == -1, 10))
+> 
+> 
+> d$task <- factor(d$task, levels=c("0","1","2","3","4","5"), 
++                  labels=c("1","2","3","4","5","6"))
+> d %>% group_by(year) %>% summarize(n=sum(as.numeric(notenglish)/6))
+# A tibble: 5 x 2
+  year             n
+  <fct>        <dbl>
+1 Freshman         4
+2 Sophomore        7
+3 Junior           7
+4 Senior           6
+5 Professional     3
+> 
+> 
+> ###########################################################################################################################################
+> # All kinds of descriptive statistics
+> ###########################################################################################################################################
+> # ##################################################
+> # Participants not having finished each task completely
+> d %>% 
++   filter (time > 2699) %>%
++   group_by(lang) %>%
++   summarize(count=n_distinct(id))
+# A tibble: 3 x 2
+  lang         count
+  <fct>        <int>
+1 hybrid          23
+2 string-based    18
+3 object          25
+> 
+> # hybrid : 23
+> # polyglot: 18
+> # object: 25
+> 
+> d %>% 
++   filter (time > 2699) %>%
++   summarize(count=n_distinct(id))
+  count
+1    66
+> # count 66
+> 
+> d %>% 
++   summarize(count=n_distinct(id))
+  count
+1   109
+> # 109
+> 66/109
+[1] 0.6055046
+> # 0.6055
+> 
+> d %>% 
++   filter (time > 2699) %>%
++   summarize(count=n_distinct(id, task))
+  count
+1   233
+> # count 233
+> d %>% 
++   summarize(count=n_distinct(id, task))
+  count
+1   654
+> # 654
+> 233/654
+[1] 0.3562691
+> # 0.3562
+> 
+> # Mean and SD for missed tasks per participant
+> d %>%
++   group_by(id) %>%
++   summarize(count=sum(maxtime)) %>%
++   summarize(mean=mean(count), sd=sd(count))
+# A tibble: 1 x 2
+   mean    sd
+  <dbl> <dbl>
+1  2.14  2.44
+>  
+> 
+> d %>% group_by(lang) %>%
++   summarize(count=n_distinct(id))
+# A tibble: 3 x 2
+  lang         count
+  <fct>        <int>
+1 hybrid          38
+2 string-based    35
+3 object          36
+> 
+> # hybrid : 38
+> # polyglot: 35
+> # object: 36
+> 
+> # percentages
+> hybrid.max <- 23/38
+> polyglot.max <- 18/35
+> object.max <- 25/36
+> 
+> hybrid.max   #60.53%  
+[1] 0.6052632
+> polyglot.max #51.43%
+[1] 0.5142857
+> object.max   #70.27%
+[1] 0.6944444
+> 
+> d %>% group_by(id)  %>% summarize(notenglish=max(notenglish)) %>% group_by(notenglish) %>% summarize(count = n_distinct(id), percent = count/(82+27))
+# A tibble: 2 x 3
+  notenglish count percent
+       <dbl> <int>   <dbl>
+1          0    82   0.752
+2          1    27   0.248
+> 
+> 
+> ## ####
+> # Breakdown by task instance (id,task) key
+> d %>% 
++   filter (time > 2699) %>%
++   group_by(lang) %>%
++   summarize(count=n_distinct(id, task))
+# A tibble: 3 x 2
+  lang         count
+  <fct>        <int>
+1 hybrid          66
+2 string-based    70
+3 object          97
+> 
+> # hybrid      66
+> # polyglot    70
+> # object      97
+> 
+> d %>% group_by(lang) %>%
++   summarize(count=n_distinct(id,task))
+# A tibble: 3 x 2
+  lang         count
+  <fct>        <int>
+1 hybrid         228
+2 string-based   210
+3 object         216
+> 
+> # hybrid     228
+> # polyglot   210
+> # object     216
+> 
+> hybrid.task.max <- 66/228
+> polyglot.task.max <- 70/210
+> object.task.max <- 97/216
+> 
+> hybrid.task.max   #28.95%
+[1] 0.2894737
+> polyglot.task.max #33.33%
+[1] 0.3333333
+> object.task.max   #44.91%
+[1] 0.4490741
+> 
+> # Numbers in years
+> d %>% group_by(year) %>%
++   summarize(count=n_distinct(id))
+# A tibble: 5 x 2
+  year         count
+  <fct>        <int>
+1 Freshman        12
+2 Sophomore       23
+3 Junior          36
+4 Senior          29
+5 Professional     9
+> 
+> # Numbers by programming experience
+> d %>% group_by(totalxp) %>%
++   summarize(count=n_distinct(id))
+# A tibble: 16 x 2
+   totalxp count
+     <int> <int>
+ 1       0    18
+ 2       1    18
+ 3       2    25
+ 4       3    16
+ 5       4    12
+ 6       5     1
+ 7       6     6
+ 8       7     1
+ 9       8     3
+10       9     1
+11      10     1
+12      11     2
+13      13     1
+14      15     1
+15      24     2
+16      25     1
+> 
+> # Numbers by job experience
+> d %>% group_by(jobxp) %>%
++   summarize(count=n_distinct(id))
+# A tibble: 9 x 2
+  jobxp count
+  <int> <int>
+1     0    93
+2     1     8
+3     2     2
+4     4     1
+5     8     1
+6    10     1
+7    11     1
+8    15     1
+9    20     1
+> 
+> # Numbers in groups
+> d %>% group_by(lang) %>%
++   summarize(count=n_distinct(id))
+# A tibble: 3 x 2
+  lang         count
+  <fct>        <int>
+1 hybrid          38
+2 string-based    35
+3 object          36
+> 
+> # Numbers in genders (gender removed from de-identified data)
+> #d %>% group_by(gender) %>% 
+> #  summarize(count=n_distinct(id))
+> 
+> # Average age (age removed from de-identified data)
+> #d %>% summarize(avgage=mean(age), sd = sd(age))
+> 
+> d %>% group_by(lang) %>% 
++   summarize(n=n_distinct(id), mean=mean(time), sd=sd(time)) %>% mutate_if(is.numeric, format, 1)
+# A tibble: 3 x 4
+  lang         n     mean     sd      
+  <fct>        <chr> <chr>    <chr>   
+1 hybrid       38    1269.737 1043.198
+2 string-based 35    1357.543 1057.532
+3 object       36    1656.833 1064.672
+> 
+> d %>% group_by(task, lang) %>% 
++   summarize(n=n_distinct(id), mean=mean(time), sd=sd(time)) %>% mutate_if(is.numeric, format, 1)
+# A tibble: 18 x 5
+# Groups:   task [6]
+   task  lang         n     mean      sd       
+   <fct> <fct>        <chr> <chr>     <chr>    
+ 1 1     hybrid       38    1661.053  982.9353 
+ 2 1     string-based 35    1633.600  898.9728 
+ 3 1     object       36    2016.111  881.6004 
+ 4 2     hybrid       38    1651.868  955.4238 
+ 5 2     string-based 35    1286.114  1040.2912
+ 6 2     object       36    1763.222  988.2352 
+ 7 3     hybrid       38    1881.105  980.1861 
+ 8 3     string-based 35    1718.714  965.5087 
+ 9 3     object       36    2080.778  833.9672 
+10 4     hybrid       38    911.3684  938.1289 
+11 4     string-based 35    1073.0571 1146.4721
+12 4     object       36    1394.5833 1134.8225
+13 5     hybrid       38    577.0526  785.8788 
+14 5     string-based 35    1073.6000 1135.5148
+15 5     object       36    1228.8611 1203.0479
+16 6     hybrid       38    935.9737  953.407  
+17 6     string-based 35    1360.1714 1031.530 
+18 6     object       36    1457.4444 1072.060 
+> 
+> d %>% group_by(task) %>% 
++   summarize(n=n_distinct(id), mean=mean(time), sd=sd(time)) %>% mutate_if(is.numeric, format, 1)
+# A tibble: 6 x 4
+  task  n     mean      sd       
+  <fct> <chr> <chr>     <chr>    
+1 1     109   1769.5046 931.4990 
+2 2     109   1571.2018 1005.4042
+3 3     109   1894.9083 932.5562 
+4 4     109   1122.8807 1083.4231
+5 5     109   951.7706  1079.9794
+6 6     109   1244.4128 1035.2763
+> 
+> d %>% group_by(notenglish) %>% summarize(n=n_distinct(id))
+# A tibble: 2 x 2
+  notenglish     n
+       <dbl> <int>
+1          0    82
+2          1    27
+> 
+> d %>% group_by(fluency) %>% summarize(n=n_distinct(id))
+# A tibble: 7 x 2
+  fluency     n
+    <dbl> <int>
+1       2     2
+2       5     2
+3       6     1
+4       7     2
+5       8     4
+6       9     4
+7      10    94
+> 
+> describe(d)
+            vars   n    mean      sd median trimmed     mad min  max range
+id*            1 654   72.15   42.41   71.0   71.70   54.86   1  147   146
+year*          2 654    3.17    1.49    3.0    3.02    1.48   1    7     6
+lang*          3 654    1.98    0.82    2.0    1.98    1.48   1    3     2
+task*          4 654    3.50    1.71    3.5    3.50    2.22   1    6     5
+time           5 654 1425.78 1066.36 1081.5 1425.06 1292.09  80 2700  2620
+totalxp        6 654    3.47    4.52    2.0    2.53    1.48   0   25    25
+jobxp          7 654    0.73    2.85    0.0    0.06    0.00   0   20    20
+dbclass*       8 654    2.47    0.83    3.0    2.58    0.00   1    3     2
+sqlxp          9 654    0.76    2.98    0.0    0.08    0.00   0   20    20
+englishmain   10 654    0.75    0.43    1.0    0.81    0.00   0    1     1
+fluency       11 654    9.56    1.39   10.0    9.95    0.00   2   10     8
+notenglish    12 654    0.25    0.43    0.0    0.19    0.00   0    1     1
+maxtime       13 654    0.36    0.48    0.0    0.32    0.00   0    1     1
+notmaxtime    14 654    0.64    0.48    1.0    0.68    0.00   0    1     1
+dbexp         15 654    0.18    0.39    0.0    0.10    0.00   0    1     1
+             skew kurtosis    se
+id*          0.07    -1.18  1.66
+year*        1.02     1.24  0.06
+lang*        0.03    -1.53  0.03
+task*        0.00    -1.27  0.07
+time         0.16    -1.75 41.70
+totalxp      3.02    10.47  0.18
+jobxp        4.89    24.94  0.11
+dbclass*    -1.05    -0.73  0.03
+sqlxp        4.87    23.80  0.12
+englishmain -1.17    -0.64  0.02
+fluency     -3.88    15.75  0.05
+notenglish   1.17    -0.64  0.02
+maxtime      0.60    -1.64  0.02
+notmaxtime  -0.60    -1.64  0.02
+dbexp        1.63     0.66  0.02
+> 
+> summary(d)
+             id                  year               lang     task   
+ 5c75b3df83786:  6   Freshman      : 72   hybrid      :228   1:109  
+ 5c767c7678499:  6   Sophomore     :138   string-based:210   2:109  
+ 5c77544a3ff11:  6   Junior        :216   object      :216   3:109  
+ 5c783bc1d5b9c:  6   Senior        :174                      4:109  
+ 5c797b0b9835a:  6   Graduate      :  0                      5:109  
+ 5c79adf5a4ad1:  6   Not Applicable:  0                      6:109  
+ (Other)      :618   Professional  : 54                             
+      time           totalxp           jobxp             dbclass   
+ Min.   :  80.0   Min.   : 0.000   Min.   : 0.0000   0       :144  
+ 1st Qu.: 361.2   1st Qu.: 1.000   1st Qu.: 0.0000   Complete: 60  
+ Median :1081.5   Median : 2.000   Median : 0.0000   N/A     :450  
+ Mean   :1425.8   Mean   : 3.468   Mean   : 0.7339                 
+ 3rd Qu.:2700.0   3rd Qu.: 4.000   3rd Qu.: 0.0000                 
+ Max.   :2700.0   Max.   :25.000   Max.   :20.0000                 
+                                                                   
+     sqlxp          englishmain        fluency        notenglish    
+ Min.   : 0.0000   Min.   :0.0000   Min.   : 2.00   Min.   :0.0000  
+ 1st Qu.: 0.0000   1st Qu.:1.0000   1st Qu.:10.00   1st Qu.:0.0000  
+ Median : 0.0000   Median :1.0000   Median :10.00   Median :0.0000  
+ Mean   : 0.7615   Mean   :0.7523   Mean   : 9.56   Mean   :0.2477  
+ 3rd Qu.: 0.0000   3rd Qu.:1.0000   3rd Qu.:10.00   3rd Qu.:0.0000  
+ Max.   :20.0000   Max.   :1.0000   Max.   :10.00   Max.   :1.0000  
+                                                                    
+    maxtime         notmaxtime         dbexp       
+ Min.   :0.0000   Min.   :0.0000   Min.   :0.0000  
+ 1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000  
+ Median :0.0000   Median :1.0000   Median :0.0000  
+ Mean   :0.3563   Mean   :0.6437   Mean   :0.1835  
+ 3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:0.0000  
+ Max.   :1.0000   Max.   :1.0000   Max.   :1.0000  
+                                                   
+> 
+> 
+> d$totalxp <- as.numeric(d$totalxp)
+> d$id <- factor(d$id)
+> 
+> ###########################################################################################################################################
+> # ANOVAs and T-tests
+> ###########################################################################################################################################
+> 
+> model <- ezANOVA(data=d, dv= .(time), wid= .(id), between=.(lang, year), within = .(task), observed = .(year), detailed=TRUE, type=3)
+> model
+$ANOVA
+          Effect DFn DFd       SSn       SSd          F            p p<.05
+1    (Intercept)   1  94 889881649 325449713 257.025500 1.219986e-28     *
+2           lang   2  94  25530267 325449713   3.686968 2.873907e-02     *
+3           year   4  94 111438349 325449713   8.046715 1.267364e-05     *
+5           task   5 470  43860954 143018468  28.827953 1.589882e-25     *
+4      lang:year   8  94  35763461 325449713   1.291200 2.575379e-01      
+6      lang:task  10 470   8111379 143018468   2.665633 3.547403e-03     *
+7      year:task  20 470   7907659 143018468   1.299343 1.734001e-01      
+8 lang:year:task  40 470  13705249 143018468   1.125985 2.801113e-01      
+         ges
+1 0.58270188
+2 0.03851804
+3 0.17486480
+5 0.06439309
+4 0.05611866
+6 0.01256810
+7 0.01240840
+8 0.02150575
+
+$`Mauchly's Test for Sphericity`
+          Effect         W            p p<.05
+5           task 0.4636484 1.405829e-09     *
+6      lang:task 0.4636484 1.405829e-09     *
+7      year:task 0.4636484 1.405829e-09     *
+8 lang:year:task 0.4636484 1.405829e-09     *
+
+$`Sphericity Corrections`
+          Effect       GGe        p[GG] p[GG]<.05      HFe        p[HF]
+5           task 0.7634942 4.545969e-20         * 0.799844 6.579148e-21
+6      lang:task 0.7634942 8.474448e-03         * 0.799844 7.403886e-03
+7      year:task 0.7634942 1.981649e-01           0.799844 1.940664e-01
+8 lang:year:task 0.7634942 2.992775e-01           0.799844 2.961780e-01
+  p[HF]<.05
+5         *
+6         *
+7          
+8          
+
+> 
+> model <- ezANOVA(data=d, dv= .(time), wid= .(id), between=.(fluency), observed = .(fluency), detailed=TRUE, type=3)
+> model
+$ANOVA
+       Effect DFn DFd       SSn      SSd          F           p p<.05
+1 (Intercept)   1 107 8875592.5 80812077 11.7518129 0.000863926     *
+2     fluency   1 107  713684.2 80812077  0.9449604 0.333197818      
+          ges
+1 0.098179864
+2 0.008754094
+
+> 
+> pairwise.t.test(d$time, d$task, paired = TRUE, p.adjust.method= "bonferroni")
+
+	Pairwise comparisons using paired t tests 
+
+data:  d$time and d$task 
+
+  1       2       3       4      5      
+2 0.0121  -       -       -      -      
+3 1.0000  0.0028  -       -      -      
+4 9.9e-12 2.4e-07 3.6e-14 -      -      
+5 3.0e-14 1.4e-09 4.7e-16 0.0190 -      
+6 3.9e-08 0.0012  4.8e-10 0.5431 1.8e-05
+
+P value adjustment method: bonferroni 
+> 
+> pairwise.t.test(d$time, d$lang, paired = FALSE, p.adjust.method= "bonferroni")
+
+	Pairwise comparisons using t tests with pooled SD 
+
+data:  d$time and d$lang 
+
+             hybrid  string-based
+string-based 1.00000 -           
+object       0.00037 0.01061     
+
+P value adjustment method: bonferroni 
+> 
+> d %>% group_by(notenglish) %>% summarize(m = mean(time), sd = sd(time))  %>% mutate_if(is.numeric, format, 1)
+# A tibble: 2 x 3
+  notenglish m        sd      
+  <chr>      <chr>    <chr>   
+1 0          1331.620 1054.305
+2 1          1711.747 1054.887
+> 
+> test <- t.test(time ~ notenglish, data = d, paired = FALSE)
+> test
+
+	Welch Two Sample t-test
+
+data:  time by notenglish
+t = -3.9786, df = 274.58, p-value = 8.875e-05
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -568.2153 -192.0387
+sample estimates:
+mean in group 0 mean in group 1 
+       1331.620        1711.747 
+
+> 
+> t.23 <- test$statistic[[1]]
+> df.23 <- test$parameter[[1]]
+> t.23
+[1] -3.978629
+> df.23
+[1] 274.5843
+> r <- sqrt(t.23^2/(t.23^2+df.23))
+> # r of t-test
+> round(r, 3)
+[1] 0.233
+> # r^2 of t-test
+> round(r*r, 4)
+[1] 0.0545
+> 
+> d$dbexp <- factor(d$dbexp, levels = c(1, 0), labels=c("Yes","No"))
+> d$notenglish <- factor(d$notenglish, levels = c(1, 0), labels=c("No","Yes"))
+> 
+> d$fluency <- factor(d$fluency)
+> 
+> df.lang <- d %>% filter(year == "Professional")
+> 
+> #natural lang was taken out of deidentified data set
+> #df.lang %>% group_by(naturallanguage) %>% summarize(n = n_distinct(id))
+> 
+> test <- t.test(time ~ notenglish, data = df.lang, paired = FALSE)
+> test
+
+	Welch Two Sample t-test
+
+data:  time by notenglish
+t = 1.6966, df = 21.827, p-value = 0.104
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -80.24044 800.12933
+sample estimates:
+ mean in group No mean in group Yes 
+         764.8333          404.8889 
+
+> 
+> t.23 <- test$statistic[[1]]
+> df.23 <- test$parameter[[1]]
+> t.23
+[1] 1.696609
+> df.23
+[1] 21.82724
+> r <- sqrt(t.23^2/(t.23^2+df.23))
+> # r of t-test
+> round(r, 3)
+[1] 0.341
+> # r^2 of t-test
+> round(r*r, 4)
+[1] 0.1165
+> 
+> 
+> ###########################################################################################################################################
+> # All the Chi Square calculations
+> ###########################################################################################################################################
+> g <- d %>% group_by (lang) %>% summarize(maxtime = sum(maxtime), count=n_distinct(id,task), no = count-maxtime)
+> g
+# A tibble: 3 x 4
+  lang         maxtime count    no
+  <fct>          <dbl> <int> <dbl>
+1 hybrid            66   228   162
+2 string-based      70   210   140
+3 object            97   216   119
+> 
+> hybrid <- c(162, 66)
+> polyglot <- c(140, 70)
+> object <- c(119, 97)
+> 
+> chitable <- cbind(hybrid,polyglot,object)
+> CrossTable(chitable, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  654 
+
+             |  
+             |   hybrid  | polyglot  |   object  | Row Total | 
+-------------|-----------|-----------|-----------|-----------|
+        [1,] |      162  |      140  |      119  |      421  | 
+             |  146.771  |  135.183  |  139.046  |           | 
+             |    1.580  |    0.172  |    2.890  |           | 
+             |   38.480% |   33.254% |   28.266% |   64.373% | 
+             |   71.053% |   66.667% |   55.093% |           | 
+             |   24.771% |   21.407% |   18.196% |           | 
+             |    1.257  |    0.414  |   -1.700  |           | 
+-------------|-----------|-----------|-----------|-----------|
+        [2,] |       66  |       70  |       97  |      233  | 
+             |   81.229  |   74.817  |   76.954  |           | 
+             |    2.855  |    0.310  |    5.222  |           | 
+             |   28.326% |   30.043% |   41.631% |   35.627% | 
+             |   28.947% |   33.333% |   44.907% |           | 
+             |   10.092% |   10.703% |   14.832% |           | 
+             |   -1.690  |   -0.557  |    2.285  |           | 
+-------------|-----------|-----------|-----------|-----------|
+Column Total |      228  |      210  |      216  |      654  | 
+             |   34.862% |   32.110% |   33.028% |           | 
+-------------|-----------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  13.02895     d.f. =  2     p =  0.001481833 
+
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Alternative hypothesis: two.sided
+p =  0.001562107 
+
+ 
+       Minimum expected frequency: 74.81651 
+
+> 
+> 
+> chitable <- cbind(hybrid,polyglot)
+> CrossTable(chitable, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  438 
+
+             |  
+             |   hybrid  | polyglot  | Row Total | 
+-------------|-----------|-----------|-----------|
+        [1,] |      162  |      140  |      302  | 
+             |  157.205  |  144.795  |           | 
+             |    0.146  |    0.159  |           | 
+             |   53.642% |   46.358% |   68.950% | 
+             |   71.053% |   66.667% |           | 
+             |   36.986% |   31.963% |           | 
+             |    0.382  |   -0.398  |           | 
+-------------|-----------|-----------|-----------|
+        [2,] |       66  |       70  |      136  | 
+             |   70.795  |   65.205  |           | 
+             |    0.325  |    0.353  |           | 
+             |   48.529% |   51.471% |   31.050% | 
+             |   28.947% |   33.333% |           | 
+             |   15.068% |   15.982% |           | 
+             |   -0.570  |    0.594  |           | 
+-------------|-----------|-----------|-----------|
+Column Total |      228  |      210  |      438  | 
+             |   52.055% |   47.945% |           | 
+-------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  0.9822289     d.f. =  1     p =  0.3216491 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  0.7880463     d.f. =  1     p =  0.3746916 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  1.22669 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.3527041 
+95% confidence interval:  0.8017084 1.878961 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.8631077 
+95% confidence interval:  0 1.760099 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.187332 
+95% confidence interval:  0.8555322 Inf 
+
+
+ 
+       Minimum expected frequency: 65.20548 
+
+> 
+> chitable <- cbind(hybrid,object)
+> CrossTable(chitable, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  444 
+
+             |  
+             |   hybrid  |   object  | Row Total | 
+-------------|-----------|-----------|-----------|
+        [1,] |      162  |      119  |      281  | 
+             |  144.297  |  136.703  |           | 
+             |    2.172  |    2.292  |           | 
+             |   57.651% |   42.349% |   63.288% | 
+             |   71.053% |   55.093% |           | 
+             |   36.486% |   26.802% |           | 
+             |    1.474  |   -1.514  |           | 
+-------------|-----------|-----------|-----------|
+        [2,] |       66  |       97  |      163  | 
+             |   83.703  |   79.297  |           | 
+             |    3.744  |    3.952  |           | 
+             |   40.491% |   59.509% |   36.712% | 
+             |   28.947% |   44.907% |           | 
+             |   14.865% |   21.847% |           | 
+             |   -1.935  |    1.988  |           | 
+-------------|-----------|-----------|-----------|
+Column Total |      228  |      216  |      444  | 
+             |   51.351% |   48.649% |           | 
+-------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  12.16034     d.f. =  1     p =  0.0004881661 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  11.48312     d.f. =  1     p =  0.0007023128 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  1.997602 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.0005602605 
+95% confidence interval:  1.326808 3.02097 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.9998368 
+95% confidence interval:  0 2.834207 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.0003431992 
+95% confidence interval:  1.412031 Inf 
+
+
+ 
+       Minimum expected frequency: 79.2973 
+
+> 
+> chitable <- cbind(polyglot, object)
+> CrossTable(chitable, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  426 
+
+             |  
+             | polyglot  |   object  | Row Total | 
+-------------|-----------|-----------|-----------|
+        [1,] |      140  |      119  |      259  | 
+             |  127.676  |  131.324  |           | 
+             |    1.190  |    1.157  |           | 
+             |   54.054% |   45.946% |   60.798% | 
+             |   66.667% |   55.093% |           | 
+             |   32.864% |   27.934% |           | 
+             |    1.091  |   -1.075  |           | 
+-------------|-----------|-----------|-----------|
+        [2,] |       70  |       97  |      167  | 
+             |   82.324  |   84.676  |           | 
+             |    1.845  |    1.794  |           | 
+             |   41.916% |   58.084% |   39.202% | 
+             |   33.333% |   44.907% |           | 
+             |   16.432% |   22.770% |           | 
+             |   -1.358  |    1.339  |           | 
+-------------|-----------|-----------|-----------|
+Column Total |      210  |      216  |      426  | 
+             |   49.296% |   50.704% |           | 
+-------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  5.984652     d.f. =  1     p =  0.01443089 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  5.508892     d.f. =  1     p =  0.01892003 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  1.628327 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.01716171 
+95% confidence interval:  1.080398 2.462546 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.9946053 
+95% confidence interval:  0 2.3104 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.009385489 
+95% confidence interval:  1.150103 Inf 
+
+
+ 
+       Minimum expected frequency: 82.32394 
+
+> 
+> loglintable.3 <- xtabs(~lang + year + maxtime, data = d)
+> loglintable.3
+, , maxtime = 0
+
+              year
+lang           Freshman Sophomore Junior Senior Graduate Not Applicable
+  hybrid             22        29     47     46        0              0
+  string-based       10        11     56     51        0              0
+  object              0        21     31     45        0              0
+              year
+lang           Professional
+  hybrid                 18
+  string-based           12
+  object                 22
+
+, , maxtime = 1
+
+              year
+lang           Freshman Sophomore Junior Senior Graduate Not Applicable
+  hybrid              8        13     31     14        0              0
+  string-based       20        31     16      3        0              0
+  object             12        33     35     15        0              0
+              year
+lang           Professional
+  hybrid                  0
+  string-based            0
+  object                  2
+
+> 
+> saturated.3.way <- loglm(~lang*year*maxtime, data = loglintable.3, fit = TRUE)
+> summary(saturated.3.way)
+Formula:
+~lang * year * maxtime
+attr(,"variables")
+list(lang, year, maxtime)
+attr(,"factors")
+        lang year maxtime lang:year lang:maxtime year:maxtime lang:year:maxtime
+lang       1    0       0         1            1            0                 1
+year       0    1       0         1            0            1                 1
+maxtime    0    0       1         0            1            1                 1
+attr(,"term.labels")
+[1] "lang"              "year"              "maxtime"          
+[4] "lang:year"         "lang:maxtime"      "year:maxtime"     
+[7] "lang:year:maxtime"
+attr(,"order")
+[1] 1 1 1 2 2 2 3
+attr(,"intercept")
+[1] 1
+attr(,"response")
+[1] 0
+attr(,".Environment")
+<environment: R_GlobalEnv>
+
+Statistics:
+                 X^2 df P(> X^2)
+Likelihood Ratio   0  0        1
+Pearson          NaN  0        1
+> # this is the model
+> 
+> #updated, removing three way interaction
+> twowayinteractions.3.way <- update(saturated.3.way, .~. - lang:year:maxtime)
+> summary(twowayinteractions.3.way)
+Formula:
+. ~ lang + year + maxtime + lang:year + lang:maxtime + year:maxtime
+attr(,"variables")
+list(., lang, year, maxtime)
+attr(,"factors")
+        lang year maxtime lang:year lang:maxtime year:maxtime
+.          0    0       0         0            0            0
+lang       1    0       0         1            1            0
+year       0    1       0         1            0            1
+maxtime    0    0       1         0            1            1
+attr(,"term.labels")
+[1] "lang"         "year"         "maxtime"      "lang:year"    "lang:maxtime"
+[6] "year:maxtime"
+attr(,"order")
+[1] 1 1 1 2 2 2
+attr(,"intercept")
+[1] 1
+attr(,"response")
+[1] 1
+attr(,".Environment")
+<environment: R_GlobalEnv>
+
+Statistics:
+                      X^2 df     P(> X^2)
+Likelihood Ratio 51.08133 12 9.012159e-07
+Pearson               NaN 12          NaN
+> 
+> anova(saturated.3.way, twowayinteractions.3.way)
+LR tests for hierarchical log-linear models
+
+Model 1:
+ . ~ lang + year + maxtime + lang:year + lang:maxtime + year:maxtime 
+Model 2:
+ ~lang * year * maxtime 
+
+          Deviance df Delta(Dev) Delta(df) P(> Delta(Dev)
+Model 1   51.08133 12                                    
+Model 2    0.00000  0   51.08133        12              0
+Saturated  0.00000  0    0.00000         0              1
+> # yeah so that's highly significant and therefore a lot worse
+> 
+> 
+> loglintable.year <- xtabs(~year + maxtime, data= d)
+> maxtimesaturated.year <- loglm(~year + maxtime + year:maxtime, data = loglintable.year, fit = TRUE)
+> maxtimeNoInteraction.year <- loglm(~year + maxtime, data = loglintable.year, fit = TRUE)
+> 
+> maxtimesaturated.year
+Call:
+loglm(formula = ~year + maxtime + year:maxtime, data = loglintable.year, 
+    fit = TRUE)
+
+Statistics:
+                 X^2 df P(> X^2)
+Likelihood Ratio   0  0        1
+Pearson          NaN  0        1
+> maxtimeNoInteraction.year
+Call:
+loglm(formula = ~year + maxtime, data = loglintable.year, fit = TRUE)
+
+Statistics:
+                      X^2 df P(> X^2)
+Likelihood Ratio 93.45696  6        0
+Pearson               NaN  6      NaN
+> 
+> #CrossTable(d$year, d$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+> 
+> #### DBEXP
+> CrossTable(d$dbexp, d$notmaxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  654 
+
+             | d$notmaxtime 
+     d$dbexp |        0  |        1  | Row Total | 
+-------------|-----------|-----------|-----------|
+         Yes |       11  |      109  |      120  | 
+             |   42.752  |   77.248  |           | 
+             |   23.583  |   13.052  |           | 
+             |    9.167% |   90.833% |   18.349% | 
+             |    4.721% |   25.891% |           | 
+             |    1.682% |   16.667% |           | 
+             |   -4.856  |    3.613  |           | 
+-------------|-----------|-----------|-----------|
+          No |      222  |      312  |      534  | 
+             |  190.248  |  343.752  |           | 
+             |    5.299  |    2.933  |           | 
+             |   41.573% |   58.427% |   81.651% | 
+             |   95.279% |   74.109% |           | 
+             |   33.945% |   47.706% |           | 
+             |    2.302  |   -1.713  |           | 
+-------------|-----------|-----------|-----------|
+Column Total |      233  |      421  |      654  | 
+             |   35.627% |   64.373% |           | 
+-------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  44.86658     d.f. =  1     p =  2.109277e-11 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  43.46468     d.f. =  1     p =  4.316804e-11 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  0.142163 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  7.620307e-13 
+95% confidence interval:  0.06733292 0.2726167 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  4.263903e-13 
+95% confidence interval:  0 0.2493096 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  1 
+95% confidence interval:  0.0760509 Inf 
+
+
+ 
+       Minimum expected frequency: 42.75229 
+
+> 
+> dbexptable <- xtabs(~dbexp + lang + maxtime, data = d)
+> maxtimesaturated.dbexp <- loglm(~dbexp*lang*maxtime, data = dbexptable, fit = TRUE)
+> maxtimeNoInteraction.dbexp <- update(maxtimesaturated.dbexp, .~. - dbexp:lang:maxtime)
+> 
+> maxtimesaturated.dbexp
+Call:
+loglm(formula = ~dbexp * lang * maxtime, data = dbexptable, fit = TRUE)
+
+Statistics:
+                 X^2 df P(> X^2)
+Likelihood Ratio   0  0        1
+Pearson            0  0        1
+> maxtimeNoInteraction.dbexp
+Call:
+loglm(formula = . ~ dbexp + lang + maxtime + dbexp:lang + dbexp:maxtime + 
+    lang:maxtime, data = dbexptable, fit = TRUE)
+
+Statistics:
+                      X^2 df   P(> X^2)
+Likelihood Ratio 5.384243  2 0.06773710
+Pearson          6.143760  2 0.04633397
+> 
+> anova(maxtimesaturated.dbexp, maxtimeNoInteraction.dbexp)
+LR tests for hierarchical log-linear models
+
+Model 1:
+ . ~ dbexp + lang + maxtime + dbexp:lang + dbexp:maxtime + lang:maxtime 
+Model 2:
+ ~dbexp * lang * maxtime 
+
+          Deviance df Delta(Dev) Delta(df) P(> Delta(Dev)
+Model 1   5.384243  2                                    
+Model 2   0.000000  0   5.384243         2        0.06774
+Saturated 0.000000  0   0.000000         0        1.00000
+> 
+> maxtimeNoInteraction.dbexp.2 <- update(maxtimeNoInteraction.dbexp, .~. - dbexp:maxtime)
+> maxtimeNoInteraction.dbexp.3 <- update(maxtimeNoInteraction.dbexp, .~. - lang:maxtime)
+> maxtimeNoInteraction.dbexp.4 <- update(maxtimeNoInteraction.dbexp, .~. - dbexp:lang)
+> 
+> anova(maxtimeNoInteraction.dbexp, maxtimeNoInteraction.dbexp.2)
+LR tests for hierarchical log-linear models
+
+Model 1:
+ . ~ dbexp + lang + maxtime + dbexp:lang + lang:maxtime 
+Model 2:
+ . ~ dbexp + lang + maxtime + dbexp:lang + dbexp:maxtime + lang:maxtime 
+
+           Deviance df Delta(Dev) Delta(df) P(> Delta(Dev)
+Model 1   60.534028  3                                    
+Model 2    5.384243  2  55.149785         1        0.00000
+Saturated  0.000000  0   5.384243         2        0.06774
+> anova(maxtimeNoInteraction.dbexp, maxtimeNoInteraction.dbexp.3)
+LR tests for hierarchical log-linear models
+
+Model 1:
+ . ~ dbexp + lang + maxtime + dbexp:lang + dbexp:maxtime 
+Model 2:
+ . ~ dbexp + lang + maxtime + dbexp:lang + dbexp:maxtime + lang:maxtime 
+
+           Deviance df Delta(Dev) Delta(df) P(> Delta(Dev)
+Model 1   20.207651  4                                    
+Model 2    5.384243  2  14.823409         2        0.00060
+Saturated  0.000000  0   5.384243         2        0.06774
+> anova(maxtimeNoInteraction.dbexp, maxtimeNoInteraction.dbexp.4) # not significant
+LR tests for hierarchical log-linear models
+
+Model 1:
+ . ~ dbexp + lang + maxtime + dbexp:maxtime + lang:maxtime 
+Model 2:
+ . ~ dbexp + lang + maxtime + dbexp:lang + dbexp:maxtime + lang:maxtime 
+
+          Deviance df Delta(Dev) Delta(df) P(> Delta(Dev)
+Model 1   7.659580  4                                    
+Model 2   5.384243  2   2.275338         2        0.32057
+Saturated 0.000000  0   5.384243         2        0.06774
+> maxtimeNoInteraction.dbexp.2
+Call:
+loglm(formula = . ~ dbexp + lang + maxtime + dbexp:lang + lang:maxtime, 
+    data = dbexptable, fit = TRUE)
+
+Statistics:
+                      X^2 df     P(> X^2)
+Likelihood Ratio 60.53403  3 4.519718e-13
+Pearson          50.52164  3 6.185841e-11
+> maxtimeNoInteraction.dbexp.3
+Call:
+loglm(formula = . ~ dbexp + lang + maxtime + dbexp:lang + dbexp:maxtime, 
+    data = dbexptable, fit = TRUE)
+
+Statistics:
+                      X^2 df     P(> X^2)
+Likelihood Ratio 20.20765  4 0.0004543986
+Pearson          20.28510  4 0.0004386630
+> maxtimeNoInteraction.dbexp.4
+Call:
+loglm(formula = . ~ dbexp + lang + maxtime + dbexp:maxtime + 
+    lang:maxtime, data = dbexptable, fit = TRUE)
+
+Statistics:
+                      X^2 df   P(> X^2)
+Likelihood Ratio 7.659580  4 0.10487489
+Pearson          8.176142  4 0.08533485
+> 
+> #mosaicplot(maxtimeNoInteraction.dbexp.4, shade= TRUE, main = "DBexp without dbexp:lang ")
+> 
+> langchart <- subset(d, lang == 'object')
+> CrossTable(langchart$dbexp, langchart$notmaxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  216 
+
+                | langchart$notmaxtime 
+langchart$dbexp |        0  |        1  | Row Total | 
+----------------|-----------|-----------|-----------|
+            Yes |        3  |       39  |       42  | 
+                |   18.861  |   23.139  |           | 
+                |   13.338  |   10.872  |           | 
+                |    7.143% |   92.857% |   19.444% | 
+                |    3.093% |   32.773% |           | 
+                |    1.389% |   18.056% |           | 
+                |   -3.652  |    3.297  |           | 
+----------------|-----------|-----------|-----------|
+             No |       94  |       80  |      174  | 
+                |   78.139  |   95.861  |           | 
+                |    3.220  |    2.624  |           | 
+                |   54.023% |   45.977% |   80.556% | 
+                |   96.907% |   67.227% |           | 
+                |   43.519% |   37.037% |           | 
+                |    1.794  |   -1.620  |           | 
+----------------|-----------|-----------|-----------|
+   Column Total |       97  |      119  |      216  | 
+                |   44.907% |   55.093% |           | 
+----------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  30.05462     d.f. =  1     p =  4.200467e-08 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  28.18962     d.f. =  1     p =  1.099927e-07 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  0.06613221 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  7.146731e-09 
+95% confidence interval:  0.01260571 0.2202015 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  5.405809e-09 
+95% confidence interval:  0 0.1905003 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  1 
+95% confidence interval:  0.01675596 Inf 
+
+
+ 
+       Minimum expected frequency: 18.86111 
+
+> 
+> langchart <- subset(d, lang == 'string-based')
+> CrossTable(langchart$dbexp, langchart$notmaxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  210 
+
+                | langchart$notmaxtime 
+langchart$dbexp |        0  |        1  | Row Total | 
+----------------|-----------|-----------|-----------|
+            Yes |        2  |       34  |       36  | 
+                |   12.000  |   24.000  |           | 
+                |    8.333  |    4.167  |           | 
+                |    5.556% |   94.444% |   17.143% | 
+                |    2.857% |   24.286% |           | 
+                |    0.952% |   16.190% |           | 
+                |   -2.887  |    2.041  |           | 
+----------------|-----------|-----------|-----------|
+             No |       68  |      106  |      174  | 
+                |   58.000  |  116.000  |           | 
+                |    1.724  |    0.862  |           | 
+                |   39.080% |   60.920% |   82.857% | 
+                |   97.143% |   75.714% |           | 
+                |   32.381% |   50.476% |           | 
+                |    1.313  |   -0.928  |           | 
+----------------|-----------|-----------|-----------|
+   Column Total |       70  |      140  |      210  | 
+                |   33.333% |   66.667% |           | 
+----------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  15.08621     d.f. =  1     p =  0.000102711 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  13.6153     d.f. =  1     p =  0.0002243494 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  0.09243313 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  3.061148e-05 
+95% confidence interval:  0.01042049 0.3807108 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  2.368246e-05 
+95% confidence interval:  0 0.3243086 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.999998 
+95% confidence interval:  0.01532949 Inf 
+
+
+ 
+       Minimum expected frequency: 12 
+
+> 
+> langchart <- subset(d, lang == 'hybrid')
+> CrossTable(langchart$dbexp, langchart$notmaxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  228 
+
+                | langchart$notmaxtime 
+langchart$dbexp |        0  |        1  | Row Total | 
+----------------|-----------|-----------|-----------|
+            Yes |        6  |       36  |       42  | 
+                |   12.158  |   29.842  |           | 
+                |    3.119  |    1.271  |           | 
+                |   14.286% |   85.714% |   18.421% | 
+                |    9.091% |   22.222% |           | 
+                |    2.632% |   15.789% |           | 
+                |   -1.766  |    1.127  |           | 
+----------------|-----------|-----------|-----------|
+             No |       60  |      126  |      186  | 
+                |   53.842  |  132.158  |           | 
+                |    0.704  |    0.287  |           | 
+                |   32.258% |   67.742% |   81.579% | 
+                |   90.909% |   77.778% |           | 
+                |   26.316% |   55.263% |           | 
+                |    0.839  |   -0.536  |           | 
+----------------|-----------|-----------|-----------|
+   Column Total |       66  |      162  |      228  | 
+                |   28.947% |   71.053% |           | 
+----------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  5.380813     d.f. =  1     p =  0.02035939 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  4.542481     d.f. =  1     p =  0.03306364 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  0.3513852 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.02321621 
+95% confidence interval:  0.114701 0.9045067 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.01337703 
+95% confidence interval:  0 0.7976756 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.9958831 
+95% confidence interval:  0.137496 Inf 
+
+
+ 
+       Minimum expected frequency: 12.15789 
+
+> 
+> only.poly.hybrid <- subset(d, lang != "object")
+> 
+> only.temp <- subset(only.poly.hybrid, year == "Freshman")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  60 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+        hybrid |       22  |        8  |       30  | 
+               |   16.000  |   14.000  |           | 
+               |    2.250  |    2.571  |           | 
+               |   73.333% |   26.667% |   50.000% | 
+               |   68.750% |   28.571% |           | 
+               |   36.667% |   13.333% |           | 
+               |    1.500  |   -1.604  |           | 
+---------------|-----------|-----------|-----------|
+  string-based |       10  |       20  |       30  | 
+               |   16.000  |   14.000  |           | 
+               |    2.250  |    2.571  |           | 
+               |   33.333% |   66.667% |   50.000% | 
+               |   31.250% |   71.429% |           | 
+               |   16.667% |   33.333% |           | 
+               |   -1.500  |    1.604  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       32  |       28  |       60  | 
+               |   53.333% |   46.667% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  9.642857     d.f. =  1     p =  0.001900893 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  8.102679     d.f. =  1     p =  0.004419989 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  5.327244 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.004025456 
+95% confidence interval:  1.603346 19.44574 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.9996827 
+95% confidence interval:  0 16.04602 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.002012728 
+95% confidence interval:  1.888541 Inf 
+
+
+ 
+       Minimum expected frequency: 14 
+
+> 
+> only.temp <- subset(only.poly.hybrid, year == "Sophomore")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  84 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+        hybrid |       29  |       13  |       42  | 
+               |   20.000  |   22.000  |           | 
+               |    4.050  |    3.682  |           | 
+               |   69.048% |   30.952% |   50.000% | 
+               |   72.500% |   29.545% |           | 
+               |   34.524% |   15.476% |           | 
+               |    2.012  |   -1.919  |           | 
+---------------|-----------|-----------|-----------|
+  string-based |       11  |       31  |       42  | 
+               |   20.000  |   22.000  |           | 
+               |    4.050  |    3.682  |           | 
+               |   26.190% |   73.810% |   50.000% | 
+               |   27.500% |   70.455% |           | 
+               |   13.095% |   36.905% |           | 
+               |   -2.012  |    1.919  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       40  |       44  |       84  | 
+               |   47.619% |   52.381% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  15.46364     d.f. =  1     p =  8.410791e-05 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  13.79318     d.f. =  1     p =  0.0002040755 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  6.131075 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.0001670107 
+95% confidence interval:  2.21641 18.18493 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.999988 
+95% confidence interval:  0 15.45324 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  8.350533e-05 
+95% confidence interval:  2.552735 Inf 
+
+
+ 
+       Minimum expected frequency: 20 
+
+> 
+> only.temp <- subset(only.poly.hybrid, year == "Junior")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  150 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+        hybrid |       47  |       31  |       78  | 
+               |   53.560  |   24.440  |           | 
+               |    0.803  |    1.761  |           | 
+               |   60.256% |   39.744% |   52.000% | 
+               |   45.631% |   65.957% |           | 
+               |   31.333% |   20.667% |           | 
+               |   -0.896  |    1.327  |           | 
+---------------|-----------|-----------|-----------|
+  string-based |       56  |       16  |       72  | 
+               |   49.440  |   22.560  |           | 
+               |    0.870  |    1.908  |           | 
+               |   77.778% |   22.222% |   48.000% | 
+               |   54.369% |   34.043% |           | 
+               |   37.333% |   10.667% |           | 
+               |    0.933  |   -1.381  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |      103  |       47  |      150  | 
+               |   68.667% |   31.333% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  5.342189     d.f. =  1     p =  0.02081532 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  4.558866     d.f. =  1     p =  0.03274875 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  0.4356228 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.02305973 
+95% confidence interval:  0.1966569 0.9368963 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.0159571 
+95% confidence interval:  0 0.8385333 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.9938686 
+95% confidence interval:  0.2219185 Inf 
+
+
+ 
+       Minimum expected frequency: 22.56 
+
+> 
+> only.temp <- subset(only.poly.hybrid, year == "Senior")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  114 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+        hybrid |       46  |       14  |       60  | 
+               |   51.053  |    8.947  |           | 
+               |    0.500  |    2.853  |           | 
+               |   76.667% |   23.333% |   52.632% | 
+               |   47.423% |   82.353% |           | 
+               |   40.351% |   12.281% |           | 
+               |   -0.707  |    1.689  |           | 
+---------------|-----------|-----------|-----------|
+  string-based |       51  |        3  |       54  | 
+               |   45.947  |    8.053  |           | 
+               |    0.556  |    3.170  |           | 
+               |   94.444% |    5.556% |   47.368% | 
+               |   52.577% |   17.647% |           | 
+               |   44.737% |    2.632% |           | 
+               |    0.745  |   -1.781  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       97  |       17  |      114  | 
+               |   85.088% |   14.912% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  7.0792     d.f. =  1     p =  0.007798384 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  5.747433     d.f. =  1     p =  0.01651277 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  0.1958187 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.008642852 
+95% confidence interval:  0.03392612 0.7642629 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.006925268 
+95% confidence interval:  0 0.6437715 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.9988622 
+95% confidence interval:  0.04530786 Inf 
+
+
+ 
+       Minimum expected frequency: 8.052632 
+
+> 
+> only.temp <- subset(only.poly.hybrid, year == "Professional")
+> only.temp %>% group_by(maxtime) %>% tally()
+# A tibble: 1 x 2
+  maxtime     n
+    <dbl> <int>
+1       0    30
+> # No max time for professionals, CrossTable would cause error
+> #CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+> 
+> only.hybrid.object <- subset(d, lang != "string-based")
+> 
+> only.temp <- subset(only.hybrid.object, year == "Freshman")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  42 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+        hybrid |       22  |        8  |       30  | 
+               |   15.714  |   14.286  |           | 
+               |    2.514  |    2.766  |           | 
+               |   73.333% |   26.667% |   71.429% | 
+               |  100.000% |   40.000% |           | 
+               |   52.381% |   19.048% |           | 
+               |    1.586  |   -1.663  |           | 
+---------------|-----------|-----------|-----------|
+        object |        0  |       12  |       12  | 
+               |    6.286  |    5.714  |           | 
+               |    6.286  |    6.914  |           | 
+               |    0.000% |  100.000% |   28.571% | 
+               |    0.000% |   60.000% |           | 
+               |    0.000% |   28.571% |           | 
+               |   -2.507  |    2.630  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       22  |       20  |       42  | 
+               |   52.381% |   47.619% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  18.48     d.f. =  1     p =  1.716966e-05 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  15.65693     d.f. =  1     p =  7.593375e-05 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  Inf 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  1.139163e-05 
+95% confidence interval:  5.599758 Inf 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  1 
+95% confidence interval:  0 Inf 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  1.139163e-05 
+95% confidence interval:  7.328011 Inf 
+
+
+ 
+       Minimum expected frequency: 5.714286 
+
+> 
+> only.temp <- subset(only.hybrid.object, year == "Sophomore")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  96 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+        hybrid |       29  |       13  |       42  | 
+               |   21.875  |   20.125  |           | 
+               |    2.321  |    2.523  |           | 
+               |   69.048% |   30.952% |   43.750% | 
+               |   58.000% |   28.261% |           | 
+               |   30.208% |   13.542% |           | 
+               |    1.523  |   -1.588  |           | 
+---------------|-----------|-----------|-----------|
+        object |       21  |       33  |       54  | 
+               |   28.125  |   25.875  |           | 
+               |    1.805  |    1.962  |           | 
+               |   38.889% |   61.111% |   56.250% | 
+               |   42.000% |   71.739% |           | 
+               |   21.875% |   34.375% |           | 
+               |   -1.344  |    1.401  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       50  |       46  |       96  | 
+               |   52.083% |   47.917% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  8.610186     d.f. =  1     p =  0.003342881 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  7.444141     d.f. =  1     p =  0.006364329 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  3.45733 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.004115655 
+95% confidence interval:  1.382194 9.030904 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.9992395 
+95% confidence interval:  0 7.821113 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.003001411 
+95% confidence interval:  1.57421 Inf 
+
+
+ 
+       Minimum expected frequency: 20.125 
+
+> 
+> only.temp <- subset(only.hybrid.object, year == "Junior")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  144 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+        hybrid |       47  |       31  |       78  | 
+               |   42.250  |   35.750  |           | 
+               |    0.534  |    0.631  |           | 
+               |   60.256% |   39.744% |   54.167% | 
+               |   60.256% |   46.970% |           | 
+               |   32.639% |   21.528% |           | 
+               |    0.731  |   -0.794  |           | 
+---------------|-----------|-----------|-----------|
+        object |       31  |       35  |       66  | 
+               |   35.750  |   30.250  |           | 
+               |    0.631  |    0.746  |           | 
+               |   46.970% |   53.030% |   45.833% | 
+               |   39.744% |   53.030% |           | 
+               |   21.528% |   24.306% |           | 
+               |   -0.794  |    0.864  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       78  |       66  |      144  | 
+               |   54.167% |   45.833% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  2.542129     d.f. =  1     p =  0.1108452 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  2.035112     d.f. =  1     p =  0.1537029 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  1.705325 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.1319761 
+95% confidence interval:  0.8374318 3.503333 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.9611035 
+95% confidence interval:  0 3.145275 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.07678524 
+95% confidence interval:  0.9300414 Inf 
+
+
+ 
+       Minimum expected frequency: 30.25 
+
+> 
+> only.temp <- subset(only.hybrid.object, year == "Senior")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  120 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+        hybrid |       46  |       14  |       60  | 
+               |   45.500  |   14.500  |           | 
+               |    0.005  |    0.017  |           | 
+               |   76.667% |   23.333% |   50.000% | 
+               |   50.549% |   48.276% |           | 
+               |   38.333% |   11.667% |           | 
+               |    0.074  |   -0.131  |           | 
+---------------|-----------|-----------|-----------|
+        object |       45  |       15  |       60  | 
+               |   45.500  |   14.500  |           | 
+               |    0.005  |    0.017  |           | 
+               |   75.000% |   25.000% |   50.000% | 
+               |   49.451% |   51.724% |           | 
+               |   37.500% |   12.500% |           | 
+               |   -0.074  |    0.131  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       91  |       29  |      120  | 
+               |   75.833% |   24.167% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  0.04547177     d.f. =  1     p =  0.8311389 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  0     d.f. =  1     p =  1 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  1.094407 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  1 
+95% confidence interval:  0.4360227 2.761018 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.6648855 
+95% confidence interval:  0 2.408958 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.5 
+95% confidence interval:  0.4989143 Inf 
+
+
+ 
+       Minimum expected frequency: 14.5 
+
+> 
+> only.temp <- subset(only.hybrid.object, year == "Professional")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  42 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+        hybrid |       18  |        0  |       18  | 
+               |   17.143  |    0.857  |           | 
+               |    0.043  |    0.857  |           | 
+               |  100.000% |    0.000% |   42.857% | 
+               |   45.000% |    0.000% |           | 
+               |   42.857% |    0.000% |           | 
+               |    0.207  |   -0.926  |           | 
+---------------|-----------|-----------|-----------|
+        object |       22  |        2  |       24  | 
+               |   22.857  |    1.143  |           | 
+               |    0.032  |    0.643  |           | 
+               |   91.667% |    8.333% |   57.143% | 
+               |   55.000% |  100.000% |           | 
+               |   52.381% |    4.762% |           | 
+               |   -0.179  |    0.802  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       40  |        2  |       42  | 
+               |   95.238% |    4.762% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  1.575     d.f. =  1     p =  0.2094824 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  0.2734375     d.f. =  1     p =  0.6010351 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  Inf 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.4982578 
+95% confidence interval:  0.1409662 Inf 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  1 
+95% confidence interval:  0 Inf 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.3205575 
+95% confidence interval:  0.2168954 Inf 
+
+
+ 
+       Minimum expected frequency: 0.8571429 
+Cells with Expected Frequency < 5: 2 of 4 (50%)
+
+> 
+> only.object.polyglot <- subset(d, lang != "hybrid")
+> 
+> only.temp <- subset(only.object.polyglot, year == "Freshman")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  42 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+  string-based |       10  |       20  |       30  | 
+               |    7.143  |   22.857  |           | 
+               |    1.143  |    0.357  |           | 
+               |   33.333% |   66.667% |   71.429% | 
+               |  100.000% |   62.500% |           | 
+               |   23.810% |   47.619% |           | 
+               |    1.069  |   -0.598  |           | 
+---------------|-----------|-----------|-----------|
+        object |        0  |       12  |       12  | 
+               |    2.857  |    9.143  |           | 
+               |    2.857  |    0.893  |           | 
+               |    0.000% |  100.000% |   28.571% | 
+               |    0.000% |   37.500% |           | 
+               |    0.000% |   28.571% |           | 
+               |   -1.690  |    0.945  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       10  |       32  |       42  | 
+               |   23.810% |   76.190% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  5.25     d.f. =  1     p =  0.02194677 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  3.573281     d.f. =  1     p =  0.05871618 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  Inf 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.039964 
+95% confidence interval:  1.074966 Inf 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  1 
+95% confidence interval:  0 Inf 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.02041874 
+95% confidence interval:  1.413145 Inf 
+
+
+ 
+       Minimum expected frequency: 2.857143 
+Cells with Expected Frequency < 5: 1 of 4 (25%)
+
+> 
+> only.temp <- subset(only.object.polyglot, year == "Sophomore")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  96 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+  string-based |       11  |       31  |       42  | 
+               |   14.000  |   28.000  |           | 
+               |    0.643  |    0.321  |           | 
+               |   26.190% |   73.810% |   43.750% | 
+               |   34.375% |   48.438% |           | 
+               |   11.458% |   32.292% |           | 
+               |   -0.802  |    0.567  |           | 
+---------------|-----------|-----------|-----------|
+        object |       21  |       33  |       54  | 
+               |   18.000  |   36.000  |           | 
+               |    0.500  |    0.250  |           | 
+               |   38.889% |   61.111% |   56.250% | 
+               |   65.625% |   51.562% |           | 
+               |   21.875% |   34.375% |           | 
+               |    0.707  |   -0.500  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       32  |       64  |       96  | 
+               |   33.333% |   66.667% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  1.714286     d.f. =  1     p =  0.1904303 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  1.190476     d.f. =  1     p =  0.2752335 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  0.5610023 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.2751522 
+95% confidence interval:  0.2077797 1.453834 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.1374579 
+95% confidence interval:  0 1.269425 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.9375327 
+95% confidence interval:  0.2410846 Inf 
+
+
+ 
+       Minimum expected frequency: 14 
+
+> 
+> only.temp <- subset(only.object.polyglot, year == "Junior")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  138 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+  string-based |       56  |       16  |       72  | 
+               |   45.391  |   26.609  |           | 
+               |    2.479  |    4.230  |           | 
+               |   77.778% |   22.222% |   52.174% | 
+               |   64.368% |   31.373% |           | 
+               |   40.580% |   11.594% |           | 
+               |    1.575  |   -2.057  |           | 
+---------------|-----------|-----------|-----------|
+        object |       31  |       35  |       66  | 
+               |   41.609  |   24.391  |           | 
+               |    2.705  |    4.614  |           | 
+               |   46.970% |   53.030% |   47.826% | 
+               |   35.632% |   68.627% |           | 
+               |   22.464% |   25.362% |           | 
+               |   -1.645  |    2.148  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       87  |       51  |      138  | 
+               |   63.043% |   36.957% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  14.02799     d.f. =  1     p =  0.0001801098 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  12.73684     d.f. =  1     p =  0.0003585232 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  3.90959 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.0002104917 
+95% confidence interval:  1.784675 8.872705 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.9999622 
+95% confidence interval:  0 7.834493 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.0001624216 
+95% confidence interval:  1.997643 Inf 
+
+
+ 
+       Minimum expected frequency: 24.3913 
+
+> 
+> only.temp <- subset(only.object.polyglot, year == "Senior")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  114 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+  string-based |       51  |        3  |       54  | 
+               |   45.474  |    8.526  |           | 
+               |    0.672  |    3.582  |           | 
+               |   94.444% |    5.556% |   47.368% | 
+               |   53.125% |   16.667% |           | 
+               |   44.737% |    2.632% |           | 
+               |    0.820  |   -1.893  |           | 
+---------------|-----------|-----------|-----------|
+        object |       45  |       15  |       60  | 
+               |   50.526  |    9.474  |           | 
+               |    0.604  |    3.224  |           | 
+               |   75.000% |   25.000% |   52.632% | 
+               |   46.875% |   83.333% |           | 
+               |   39.474% |   13.158% |           | 
+               |   -0.777  |    1.795  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       96  |       18  |      114  | 
+               |   84.211% |   15.789% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  8.081597     d.f. =  1     p =  0.004471702 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  6.685368     d.f. =  1     p =  0.009720743 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  5.589224 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.004722121 
+95% confidence interval:  1.448352 32.05287 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  0.9994111 
+95% confidence interval:  0 23.99516 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.00388238 
+95% confidence interval:  1.715919 Inf 
+
+
+ 
+       Minimum expected frequency: 8.526316 
+
+> 
+> only.temp <- subset(only.object.polyglot, year == "Professional")
+> CrossTable(only.temp$lang, only.temp$maxtime, fisher = TRUE, chisq = TRUE, expected = TRUE, sresid = TRUE, format = "SPSS")
+
+   Cell Contents
+|-------------------------|
+|                   Count |
+|         Expected Values |
+| Chi-square contribution |
+|             Row Percent |
+|          Column Percent |
+|           Total Percent |
+|            Std Residual |
+|-------------------------|
+
+Total Observations in Table:  36 
+
+               | only.temp$maxtime 
+only.temp$lang |        0  |        1  | Row Total | 
+---------------|-----------|-----------|-----------|
+  string-based |       12  |        0  |       12  | 
+               |   11.333  |    0.667  |           | 
+               |    0.039  |    0.667  |           | 
+               |  100.000% |    0.000% |   33.333% | 
+               |   35.294% |    0.000% |           | 
+               |   33.333% |    0.000% |           | 
+               |    0.198  |   -0.816  |           | 
+---------------|-----------|-----------|-----------|
+        object |       22  |        2  |       24  | 
+               |   22.667  |    1.333  |           | 
+               |    0.020  |    0.333  |           | 
+               |   91.667% |    8.333% |   66.667% | 
+               |   64.706% |  100.000% |           | 
+               |   61.111% |    5.556% |           | 
+               |   -0.140  |    0.577  |           | 
+---------------|-----------|-----------|-----------|
+  Column Total |       34  |        2  |       36  | 
+               |   94.444% |    5.556% |           | 
+---------------|-----------|-----------|-----------|
+
+ 
+Statistics for All Table Factors
+
+
+Pearson's Chi-squared test 
+------------------------------------------------------------
+Chi^2 =  1.058824     d.f. =  1     p =  0.3034837 
+
+Pearson's Chi-squared test with Yates' continuity correction 
+------------------------------------------------------------
+Chi^2 =  0.06617647     d.f. =  1     p =  0.7969874 
+
+ 
+Fisher's Exact Test for Count Data
+------------------------------------------------------------
+Sample estimate odds ratio:  Inf 
+
+Alternative hypothesis: true odds ratio is not equal to 1
+p =  0.5428571 
+95% confidence interval:  0.09278826 Inf 
+
+Alternative hypothesis: true odds ratio is less than 1
+p =  1 
+95% confidence interval:  0 Inf 
+
+Alternative hypothesis: true odds ratio is greater than 1
+p =  0.4380952 
+95% confidence interval:  0.1429479 Inf 
+
+
+ 
+       Minimum expected frequency: 0.6666667 
+Cells with Expected Frequency < 5: 2 of 4 (50%)
+
+> 
+> 
+> 
+> ###########################################################################################################################################
+> # Graphs
+> ###########################################################################################################################################
+> 
+> graph2 <- ggplot(d, aes(x=lang , y=time, fill=year)) +
++   geom_boxplot() +
++   labs (x="Task", y="Time [s]", group="Group", linetype="Group", fill="Group" ) + 
++   theme(legend.position = "bottom", panel.grid.major = element_blank(),
++         panel.grid.minor = element_blank(), panel.background = element_blank(),
++         text = element_text(size=12.5),
++         axis.line = element_line(colour = "black")) +
++   scale_fill_grey(start = 1.0, end = 0.75) +
++ # ylim(0, 2700) +
++   scale_y_continuous(breaks=c(0,1000, 2000, 2700),limits = c(0, 2700))
+> graph2
+> 
+> ggsave("timebyyear.png", height = 4, width = 9)
+> ggsave("timebyyear.eps")
+> 
+> 
+> graph.dbexp <- ggplot(d, aes(x=lang , y=time, fill=dbexp)) + 
++   geom_boxplot() + 
++   labs (x="Task", y="Time [s]", group="Database Experience", linetype="Database Experience", fill="Database Experience") + 
++   theme(legend.position = "bottom", panel.grid.major = element_blank(), 
++         panel.grid.minor = element_blank(), panel.background = element_blank(), 
++         text = element_text(size=20),
++         axis.line = element_line(colour = "black")) + 
++   scale_fill_grey(start = 1.0, end = 0.75) +
++   scale_y_continuous(breaks=c(0,1000, 2000, 2700),limits = c(0, 2700))
+> graph.dbexp
+> 
+> ggsave("timebyexp.eps")
+> #ggsave("timebyexp.png")
+> 
+> graph.notenglish <- ggplot(d, aes(x=notenglish , y=time)) + 
++   geom_boxplot() + 
++   labs (x="English as Primary Language", y="Time [s]", group="Database Experience", 
++         linetype="Database Experience", fill="Database Experience" ) + 
++   theme(legend.position = "bottom", panel.grid.major = element_blank(), 
++         panel.grid.minor = element_blank(), panel.background = element_blank(), 
++         text = element_text(size=20),
++         axis.line = element_line(colour = "black")) + 
++   scale_fill_grey(start = 1.0, end = 0.75) +
++   scale_y_continuous(breaks=c(0,1000, 2000, 2700),limits = c(0, 2700))
+> graph.notenglish
+> 
+> ggsave("notenglish.png", height = 4, width = 9)
+> ggsave("notenglish.eps")
+> 
+> 
+> ggplot (df.lang, aes(x=as.factor(notenglish), y=time)) +
++   geom_boxplot() +
++   labs (x="English as Primary Language", y="Time [s]", group="Group", linetype="Group", fill="Group") + 
++   theme(legend.position = "bottom", panel.grid.major = element_blank(),
++         panel.grid.minor = element_blank(), panel.background = element_blank(),
++         text = element_text(size=20),
++         axis.line = element_line(colour = "black")) +
++   scale_fill_grey(start = 1.0, end = 0.75) +
++   # ylim(0, 2700) +
++   scale_y_continuous(breaks=c(0,1000, 2000, 2700),limits = c(0, 2700))
+> 
+> ggsave("lang_professional.png")
+> 
+> graph1 <- ggplot(d, aes(x=task , y=time, fill=lang)) + 
++   geom_boxplot() + 
++   labs (x="Task", y="Time [s]", group="Group", linetype="Group", fill="Group" ) + 
++   theme(legend.position = "bottom", panel.grid.major = element_blank(),
++         panel.grid.minor = element_blank(), panel.background = element_blank(),
++         text = element_text(size=20),
++         axis.line = element_line(colour = "black")) + 
++   scale_fill_grey(start = 1.0, end = 0.75) +
++   scale_y_continuous(breaks=c(0,1000, 2000, 2700),limits = c(0, 2700))
+> graph1
+> 
+> ggsave("timebytaskgroup.eps")
+> 
+> graph3 <- ggplot(d, aes(x=lang , y=time)) +
++   geom_boxplot() + labs (x="Task", y="Time [s]", group="Group", linetype="Group", fill="Group" ) +
++   theme(legend.position = "bottom", panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
++         text = element_text(size=20),
++         panel.background = element_blank(), axis.line = element_line(colour = "black")) + 
++   scale_fill_grey(start = 1.0, end = 0.75) +
++   scale_y_continuous(breaks=c(0,1000, 2000, 2700),limits = c(0, 2700))
+> graph3
+> 
+> ggsave("overallbygroup.png")
+> ggsave("overallbygroup.eps")
+> 
+> f <- d %>% group_by (lang, year) %>% 
++   summarize(maxtime = sum(maxtime), count=n_distinct(id,task), percent = (maxtime/count)*100, completed = 100-percent)
+> f
+# A tibble: 15 x 6
+# Groups:   lang [3]
+   lang         year         maxtime count percent completed
+   <fct>        <fct>          <dbl> <int>   <dbl>     <dbl>
+ 1 hybrid       Freshman           8    30   26.7       73.3
+ 2 hybrid       Sophomore         13    42   31.0       69.0
+ 3 hybrid       Junior            31    78   39.7       60.3
+ 4 hybrid       Senior            14    60   23.3       76.7
+ 5 hybrid       Professional       0    18    0        100  
+ 6 string-based Freshman          20    30   66.7       33.3
+ 7 string-based Sophomore         31    42   73.8       26.2
+ 8 string-based Junior            16    72   22.2       77.8
+ 9 string-based Senior             3    54    5.56      94.4
+10 string-based Professional       0    12    0        100  
+11 object       Freshman          12    12  100          0  
+12 object       Sophomore         33    54   61.1       38.9
+13 object       Junior            35    66   53.0       47.0
+14 object       Senior            15    60   25         75  
+15 object       Professional       2    24    8.33      91.7
+> 
+> graph4 <- ggplot(f, aes(x=lang , y=percent, fill=year)) + 
++   geom_bar(width = 0.75, stat="identity", position=position_dodge(), colour="black") + 
++   scale_fill_grey(start=0.6, end=0.9) +
++   theme(legend.position = "bottom", panel.grid.major = element_blank(),
++         text = element_text(size=20),
++         panel.grid.minor = element_blank(), panel.background = element_blank(),
++         axis.line = element_line(colour = "black")) +
++   labs(x="Group", y = "Percentage failed", fill="Year") +
++   ylim(0, 100)
+> graph4
+> 
+> ggsave("maxtime.png", height = 4, width = 9)
+> ggsave("maxtime.eps")
+> 
+> #d.freshman <- d %>% filter(year=="Freshman")
+> 
+> ggplot(d, aes(x=time) ) + geom_histogram()
+> 
+> ggsave("histogram.png")
+> 
+> ###########################################################################################################################################
+> #CI graphs (those overwrite tidyverse libraries, use with caution)
+> ###########################################################################################################################################
+> summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
++                       conf.interval=.95, .drop=TRUE) {
++   library(plyr)
++   
++   # New version of length which can handle NA's: if na.rm==T, don't count them
++   length2 <- function (x, na.rm=FALSE) {
++     if (na.rm) sum(!is.na(x))
++     else       length(x)
++   }
++   
++   # This does the summary. For each group's data frame, return a vector with
++   # N, mean, and sd
++   datac <- ddply(data, groupvars, .drop=.drop,
++                  .fun = function(xx, col) {
++                    c(N    = length2(xx[[col]], na.rm=na.rm),
++                      mean = mean   (xx[[col]], na.rm=na.rm),
++                      sd   = sd     (xx[[col]], na.rm=na.rm)
++                    )
++                  },
++                  measurevar
++   )
++   
++   # Rename the "mean" column    
++   datac <- rename(datac, c("mean" = measurevar))
++   
++   datac$se <- datac$sd / sqrt(datac$N)  # Calculate standard error of the mean
++   
++   # Confidence interval multiplier for standard error
++   # Calculate t-statistic for confidence interval: 
++   # e.g., if conf.interval is .95, use .975 (above/below), and use df=N-1
++   ciMult <- qt(conf.interval/2 + .5, datac$N-1)
++   datac$ci <- datac$se * ciMult
++   
++   return(datac)
++ }
+> 
+> pd <- position_dodge(0.3)
+> p <- summarySE (d, measurevar = "time", groupvars = c("notenglish"), na.rm=FALSE, conf.interval = .95)
+> p
+  notenglish   N     time       sd       se        ci
+1         No 162 1711.747 1054.887 82.87971 163.67153
+2        Yes 492 1331.620 1054.305 47.53176  93.39074
+> ggplot(p, aes(x=notenglish, y=time)) + 
++   labs (x="English as Primary Language", y="Time [s]", group="Group", linetype="Group", fill="Group" ) + 
++   geom_errorbar(aes(ymin=time-ci, ymax=time+ci), colour="black", width=.1, position=pd) +
++   geom_line(position=pd) +
++   geom_point(position=pd, size=3) +
++   theme(legend.position = "bottom", panel.grid.major = element_blank(), 
++         panel.grid.minor = element_blank(), panel.background = element_blank(), 
++         text = element_text(size=20),
++         axis.line = element_line(colour = "black")) + 
++   scale_fill_grey(start = 1.0, end = 0.75) +
++   scale_y_continuous(breaks=c(0,1000, 2000, 3000, 3600),limits = c(0, 3600))
+> 
+> ggsave("fs-ci.png")
+> 
+> 

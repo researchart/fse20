@@ -1,23 +1,3 @@
-#install.packages("devtools", repos='http://cran.us.r-project.org')
-
-#library(devtools)
-
-# Specific versions of packages for compatability, please primarily rely on standard install, but use if run fails
-# This might require installing fortran binaries to compile the libraries
-#install_version("tidyverse", version = "1.3.0", repos = "http://cran.us.r-project.org", upgrade = TRUE)
-#install_version("car", version = "3.0-8", repos = "http://cran.us.r-project.org", upgrade = TRUE)
-#install_version("compute.es", version = "0.2-5", repos = "http://cran.us.r-project.org", upgrade = TRUE)
-#install_version("multcomp", version = "1.4-13", repos = "http://cran.us.r-project.org", upgrade = TRUE)
-#install_version("pastecs", version = "1.3.21", repos = "http://cran.us.r-project.org", upgrade = TRUE)
-#install_version("WRS2", version = "1.0-0", repos = "http://cran.us.r-project.org", upgrade = TRUE)
-#install_version("psych", version = "1.9.12.31", repos = "http://cran.us.r-project.org", upgrade = TRUE)
-#install_version("gmodels", version = "2.18.1", repos = "http://cran.us.r-project.org", upgrade = TRUE)
-#install_version("ez", version = "4.4-0", repos = "http://cran.us.r-project.org", upgrade = TRUE)
-
-# This is set to the US repo to be instantly runnable. In case you live in the rest of the world and/or have a different preferred repo,
-# please change the repo location by replacing the value in the repo argument or by deleting it entirely and using the normal chooser
-#install.packages(c("tidyverse", "car", "compute.es", "multcomp", "pastecs", "WRS2", "psych", "gmodels", "ez"), repos='http://cran.us.r-project.org')
-
 library(car)
 library(compute.es)
 library(multcomp)
@@ -29,7 +9,7 @@ library(psych)
 library(gmodels)
 
 #Set this to the appropriate path to read the csv file
-setwd("~/Repositories/fse20/submissions/reusable/uesbecketal/data/")
+setwd("/usr/local/src/myscripts")
 d <- read.csv("summary_deindentified.csv")
 
 # Number of entries
