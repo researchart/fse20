@@ -11,9 +11,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException, ElementNotVisibleException, WebDriverException, NoSuchWindowException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
-import BeautifulSoup
-from BeautifulSoup import BeautifulSoup as BS
-from BeautifulSoup import Tag
 from urlparse import urlparse
 import recipe
 from pympler import asizeof

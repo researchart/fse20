@@ -7,7 +7,6 @@
 
 import random, time, os, shutil, re, codecs, sys, commands, json, traceback, getopt, httplib, subprocess
 import signal, psutil
-import numpy as np
 from multiprocessing import Process as Task, Queue, Lock
 import multiprocessing as mp
 from subprocess import call, PIPE, STDOUT
@@ -23,9 +22,8 @@ up = r'../'
 
 ROOT = os.path.dirname(os.path.realpath(__file__))
 PROFILE_TEMPLATE_DIR = os.path.join(ROOT, 'profile-template')
-CHROME = os.path.join(ROOT, '../chromium/src/out/Release/chrome')
+CHROME = os.path.join(ROOT, '../chromium/src/out/Release/chrome') # modify this to the local path of the binary file
 print(CHROME)
-# ext_path = '../image-tools/screenshot/'
 ext_path = "../v8"
 ext_path = os.path.join(ROOT, ext_path)
 
@@ -796,7 +794,7 @@ def main(argv):
                     if len(dead_ratio_list) >= 5:
                         dead_ratio_list.pop(0)
                     dead_ratio_list.append(dead_ratio)
-                    avg_dead_ratio = np.mean(dead_ratio_list)
+                    avg_dead_ratio = sum(dead_ratio_list) / float(len(dead_ratio_list))
                     if avg_dead_ratio >= 0.1:
                         status = "Too many tasks are dead! Average dead ratio is %.2f!" % (avg_dead_ratio)
                         string = '%s\t%s\n' % (current_time, status)

@@ -27,6 +27,8 @@ For more information about the options, use:
 When building on macOS, you might need to install an older version of MacOS SDK included by Xcode, e.g., MacOS SDK10.14 included by Xcode 10.0.
 The SDKs are available [here](https://github.com/phracker/MacOSX-SDKs).
 
+The pre-built version of JSObserver is available [here](http://doi.org/10.5281/zenodo.3923232), with a DOI of __10.5281/zenodo.3923232__.
+
 ## Run on Linux
 
 ```shell
@@ -55,6 +57,7 @@ The dataset collected by JSObserver is available [here](https://zenodo.org/recor
 ## Data Collection
 
 We provide our data collection script in the *js* folder.
+You will need to update line 25 in collect_logs.py to the local path of chromium binary file.
 
 ```shell
 cd js
@@ -117,7 +120,8 @@ We saved the source code of scripts in _[rank].[main/sub].[frame\_cnt].[script\_
 ## Data Analysis
 
 We provide the data analysis scripts in folder *js*.
-To fully automate the analysis, you may change *LOG_DIR* in *analysis.sh* to your local folder where you want to save the log files.
+The dependencies are specified in *js/requirements.txt*. Please install them before running the scripts.
+To fully automate the analysis, you may change *LOG_DIR* in *analysis.sh* to your local folder where you want to save the log files, and *SCRIPT_DIR* to the local path of the *js* folder.
 You can further configure *START*, *END*, *NUM\_PROCESSE*S and *NUM\_INSTANCES* in *analysis.sh*. Then use:
 
 ```shell
@@ -150,6 +154,8 @@ python [script_name] --help
 # Example
 python parse_logs_using_ids.py --help
 ```
+
+The analysis scripst are also released [here](http://doi.org/10.5281/zenodo.3923232).
 
 ## Contact ##
 
