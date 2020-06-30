@@ -6,9 +6,6 @@ from subprocess import call, PIPE, STDOUT
 import multiprocessing as mp
 import random, calendar, shutil, sys, commands, hmac
 from termcolor import colored
-import BeautifulSoup
-from BeautifulSoup import BeautifulSoup as BS
-from BeautifulSoup import Tag
 from urlparse import urlparse
 import recipe
 from pympler import asizeof
